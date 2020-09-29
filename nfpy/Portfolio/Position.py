@@ -1,0 +1,40 @@
+#
+# Auxiliary portfolio classes
+# Base class for a portfolio
+#
+
+import pandas as pd
+
+from nfpy.Assets.Asset import Asset
+from nfpy.Tools.Utilities import AttributizedDict
+
+
+class Position(AttributizedDict):
+    """ Position class, contains the information on a single portfolio position. """
+
+    def __init__(self, pos_uid: str, date: pd.Timestamp, atype: str, currency: str,
+                 alp: float, quantity: float, obj: Asset):
+        super().__init__(self)
+        self.uid = pos_uid
+        self.date = date
+        self.currency = currency  # portfolio currency!
+        self.alp = alp
+        # self.alp_ccy = alp_ccy
+        self.quantity = quantity
+        self.type = atype  # type of asset
+        self.obj = obj
+
+
+class Trade(AttributizedDict):
+
+    def __init__(self):
+        super().__init__(self)
+        self.ptf_uid = ''
+        self.date = pd.Timestamp()
+        self.pos_uid = ''
+        self.buy_sell = -1
+        self.currency = ''
+        self.quantity = .0
+        self.price = .0
+        self.costs = .0
+        self.market = ''
