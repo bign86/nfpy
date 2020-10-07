@@ -97,7 +97,7 @@ class ReportingEngine(metaclass=Singleton):
         q = self._qb.insert(self._TABLE, cols)
         self._db.execute(q, p, commit=True)
 
-    def remove(self, uid: Iterable[str] = (), model: Iterable[str] = ()):
+    def remove(self, uid: str = None, model: str = None):
         """ Remove an item in the reporting table. """
         q = self._qb.delete(self._TABLE, ('uid', 'model'))
         self._db.executemany(q, (uid, model), commit=True)
@@ -111,12 +111,12 @@ class ReportingEngine(metaclass=Singleton):
             k = ['uid', 'model']
             p = [self._p[l] for l in k]
             if not self._p['override_auto']:
-                k.append('auto')
+                k.append('active')
                 p.append(True)
         q = self._qb.select(self._TABLE, keys=k)
         return self._db.execute(q, p).fetchall()
 
-    def set_reports(self, uid: Iterable = (), model: Iterable = (),
+    def set_reports(self, uid: str = None, model: str = None,
                     override_auto: bool = False):
         """ Set the parameters to filter reports.
 

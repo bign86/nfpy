@@ -83,12 +83,12 @@ class DividendFactory(object):
 
     def _initialize(self, c: float):
         """ Initialize the factory. """
-        eq = self._eq.dividends
-        ts, dt = dropna(eq.values, eq.index.values)
-        ts, dt = trim_ts(ts, dt, self._start, self._t0)
+        div = self._eq.dividends
+        ts, dt = trim_ts(div.values, div.index.values, self._start, self._t0)
+        ts, mask = dropna(ts)
         self._num = ts.shape[0]
         self._div = ts
-        self._dt = dt
+        self._dt = dt[mask]
 
         u, d = 1 + c, 1 - c
         self._flim = [int(365 * d), int(365 * u), int(180 * d),
@@ -103,7 +103,7 @@ class DividendFactory(object):
             Output:
                 yield [float]: dividend yield
         """
-        return ts_yield(self._div, self._dt, self._eq.prices, date)
+        return ts_yield(self._dt, self._div, self._eq.prices, date)
 
     def _calc_freq(self):
         """ Determine the frequency of dividends. The frequency is determined if

@@ -2,7 +2,6 @@
 # Handler of currency changes
 #
 
-# import warnings
 import pandas as pd
 
 from nfpy.DB.DB import get_db_glob
@@ -93,16 +92,6 @@ class CurrencyFactory(metaclass=Singleton):
         base_ccy = get_conf_glob().base_ccy
         self._base_ccy = self._validate_ccy(base_ccy)
 
-    # @property
-    # def base_fx(self) -> str:
-    #     warnings.warn("Deprecated use base_ccy", DeprecationWarning)
-    #     return self.base_ccy
-    #
-    # @base_fx.setter
-    # def base_fx(self, v: str):
-    #     warnings.warn("Deprecated use base_ccy", DeprecationWarning)
-    #     self.base_ccy = v
-
     @property
     def base_ccy(self) -> str:
         return self._base_ccy
@@ -157,7 +146,6 @@ class CurrencyFactory(metaclass=Singleton):
         """ Fetch the exchange object for the given currencies. """
         q = self._qb.select(self._TABLE, fields=['uid'], keys=['base_fx', 'tgt_fx'])
 
-        # TODO: you can also do fetchone() and skip the check on len() > 1
         # Search for the currency direct
         invert = False
         res = self._db.execute(q, (src_ccy, tgt_ccy)).fetchall()

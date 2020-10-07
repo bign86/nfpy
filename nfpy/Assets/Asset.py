@@ -54,16 +54,11 @@ class Asset(FinancialItem):
 
     @property
     def prices(self) -> pd.Series:
-        """ Loads the price series for the asset. It also transparently
-            converts to the base currency if in a foreign denomination.
-        """
+        """ Loads the price series for the asset. """
         try:
             res = self._df["price"]
         except KeyError:
             self.load_dtype("price")
-            # obj_fx = self._fx.get(self.currency)
-            # _r = self._df["price"] * obj_fx.prices
-            # self._df["price"] = _r
             res = self._df["price"]
         return res
 
@@ -154,11 +149,11 @@ class Asset(FinancialItem):
         self._df.sort_index(inplace=True)
 
     def calc_returns(self) -> pd.Series:
-        """ Calculates returns from prices. Returns the series of the returns. """
+        """ Calculates the returns from the series of the prices. """
         return ret(self.prices)
 
     def calc_log_returns(self) -> pd.Series:
-        """ Calculates is_log returns from simple returns. Returns the series of the returns. """
+        """ Calculates the log returns from the series of the prices. """
         return logret(self.prices)
 
     def write_dtype(self, dt: str):

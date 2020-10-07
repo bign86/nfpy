@@ -18,17 +18,7 @@ class QueryBuilder(metaclass=Singleton):
 
     def __init__(self):
         self._db = get_db_glob()
-        # self._db_version = self._get_db_version()
         self._tables = {}
-
-    # @property
-    # def version(self):
-    #     return self._db_version
-    #
-    # def _get_db_version(self) -> float:
-    #     q = "select value from SystemInfo where field = 'DBVersion'"
-    #     _r = self._db.execute(q).fetchone()
-    #     return _r[0]
 
     # http://sebastianraschka.com/Articles/2014_sqlite_in_python_tutorial.html
     def _fetch_table_info(self, table: str) -> Table:

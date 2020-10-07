@@ -46,6 +46,8 @@ class AssetFactory(metaclass=Singleton):
 
     def get(self, uid: str) -> FinancialItem:
         """ Return the correct asset object given the uid. """
+        if not uid:
+            raise ValueError('Specify a uid')
         try:
             asset = self._known_assets[uid]
         except KeyError:

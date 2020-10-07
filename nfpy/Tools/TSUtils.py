@@ -15,6 +15,7 @@ def skewness(ts: np.array) -> float:
 
 
 def kurtosis(ts: np.array) -> float:
+    """ Calculates the fourth standard moment. """
     ts_zm = ts - ts.nanmean()
     return np.power(ts_zm, 4) / (ts.nanstd() ** 4)
 
@@ -45,14 +46,24 @@ def series_momenta(ts: np.array) -> tuple:
     return mu, var, skew, kurt
 
 
-def rolling_window(v: np.ndarray, w):
+def rolling_window(v: np.ndarray, w: int):
+    """ Generate strides that simulate the rolling() function from pandas. """
     shape = v.shape[:-1] + (v.shape[-1] - w + 1, w)
     strides = v.strides + (v.strides[-1],)
     return np.lib.stride_tricks.as_strided(v, shape=shape, strides=strides)
 
 
 def rolling_sum(v: np.ndarray, w):
-    ret = np.cumsum(v, axis=0, dtype=float)
+    """ Compute the rolling sum of the input array.
+
+        Input:
+            v [np.ndarray]: input array
+            w [int]: size of the rolling window
+
+        Output:
+            ret [np.ndarray]: rolling sum output array
+    """
+    ret = np.nancumsum(v, axis=0, dtype=float)
     # ret[:, n:] = ret[:, n:] - ret[:, :-n]
     # return ret[:, n - 1:]
     ret[w:] = ret[w:] - ret[:-w]
@@ -60,9 +71,15 @@ def rolling_sum(v: np.ndarray, w):
 
 
 def rolling_mean(v: np.array, w: int):
-    # ret = np.cumsum(v, dtype=float)
-    # ret[w:] = ret[w:] - ret[:-w]
-    # return ret[w - 1:] / w
+    """ Compute the rolling mean of the input array.
+
+        Input:
+            v [np.ndarray]: input array
+            w [int]: size of the rolling window
+
+        Output:
+            ret [np.ndarray]: rolling mean output array
+    """
     return rolling_sum(v, w) / w
 
 
@@ -71,6 +88,18 @@ def trim_ts(v: np.array, dt: np.array,
             end: Union[np.datetime64, pd.Timestamp] = None) -> tuple:
     """ Replicates the use of Pandas .loc[] to slice a time series on a given
         pair of dates. Returns the sliced values array and dates array.
+
+        Input:
+            v [np.array]: value series to trim
+            dt [np.array]: dates series to trim
+            start [Union[np.datetime64, pd.Timestamp]]:
+                trimming start date (Default None)
+            end [Union[np.datetime64, pd.Timestamp]]:
+                trimming end date (Default None)
+
+        Output:
+            v [np.array]: value series trimmed
+            dt [np.array]: dates series trimmed
     """
     if start is None and end is None:
         return v, dt
@@ -95,7 +124,7 @@ def trim_ts(v: np.array, dt: np.array,
 
 
 def last_valid_index(v: np.array) -> int:
-    """ Find the index of the last non-nan value. Equal to the Pandas method
+    """ Find the index of the last non-nan value. Similar to the Pandas method
         last_valid_index().
     """
     i = -1
@@ -106,61 +135,50 @@ def last_valid_index(v: np.array) -> int:
     return len(v) + i
 
 
-def dropna(v: np.array, dt: np.array = None) -> tuple:
+def dropna(v: np.array, axis: int = 0) -> tuple:
     """ Drop NA from input array. A second array can be supplied that will be
         kept aligned with the principal one.
     """
-    idx = np.argwhere(np.isnan(v))
-    _v = np.delete(v, idx)
-    _dt = np.delete(dt, idx) if dt is not None else None
-    return _v, _dt
+    if len(v.shape) == 1:
+        mask = ~np.isnan(v)
+        _v = v[mask]
+    else:
+        mask = ~np.any(np.isnan(v), axis=axis)
+        if axis == 0:
+            _v = v[:, mask]
+        else:
+            _v = v[mask, :]
+    return _v, mask
 
 
-def ts_yield(ts: np.array, dt: np.array, base: pd.Series, dt_base: np.array,
+def fillna(v: np.array, n: float) -> np.array:
+    """ Fill nan in the input array with the supplied value. """
+    mask = np.where(np.isnan(v))
+    v[mask] = n
+    return v
+
+
+def ts_yield(dt: np.array, ts: np.array, base: np.array,
              date: pd.Timestamp = None) -> float:
     """ Compute the yield of a time series with respect to a base series at a
         given date.
 
         Inputs:
-            ts [np.array]: signal array at numerator
             dt [np.array]: signal dates
+            ts [np.array]: signal array at numerator
             base [np.array]: base series at denominator
-            dt_base [np.array]: base dates
             date [pd.Timestamp]: compute date (default None)
 
         Output:
             yield [float]: dividend yield
     """
     date = np.datetime64(date)
-    ts, dt = trim_ts(ts, dt, end=date)
-    base, dt_base = trim_ts(base, dt_base, end=date)
+    ts, _ = trim_ts(ts, dt, end=date)
+    base, _ = trim_ts(base, dt, end=date)
 
     idx_ts = last_valid_index(ts)
     idx_base = last_valid_index(base)
     return ts[idx_ts] / base[idx_base]
-
-
-# def ts_yield_pd(ts,base: pd.Series,
-#              date: pd.Timestamp = None) -> float:
-#     """ Compute the yield of a time series with respect to a base series at a
-#         given date.
-#
-#         Inputs:
-#             ts [np.array]: signal array at numerator
-#             dt [np.array]: signal dates
-#             base [np.array]: base series at denominator
-#             dt_base [np.array]: base dates
-#             date [pd.Timestamp]: compute date (default None)
-#
-#         Output:
-#             yield [float]: dividend yield
-#     """
-#     ts = trim_ts(ts, end=date)
-#     base = trim_ts(base, end=date)
-#
-#     idx_div = ts.last_valid_index()
-#     idx_p = base.last_valid_index()
-#     return ts.at[idx_div] / base.at[idx_p]
 
 
 def smooth(ts: pd.Series, w: int = 15) -> pd.Series:
@@ -222,7 +240,7 @@ def find_maxima(ts: pd.Series, idx_list: Iterable = None) -> pd.Series:
 
         Input:
             ts [pd.Series]: Input series
-            idx_list [Iterable]: list of locations to verify (default None)
+            idx_list [Iterable]: list of locations to verify (Default None)
 
         Output:
             _r [pd.Series]: output series of maxima
@@ -235,7 +253,8 @@ def find_maxima(ts: pd.Series, idx_list: Iterable = None) -> pd.Series:
         for idx in idx_list:
             loc = ts.index.get_loc(idx)
             try:
-                if (ts.iat[loc] > ts.iat[loc - 1]) & (ts.iat[loc] > ts.iat[loc + 1]):
+                if (ts.iat[loc] > ts.iat[loc - 1]) & \
+                        (ts.iat[loc] > ts.iat[loc + 1]):
                     ts_diff.append(idx)
             except IndexError:
                 pass

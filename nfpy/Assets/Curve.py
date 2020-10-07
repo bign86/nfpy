@@ -1,6 +1,6 @@
 #
-# Equity class
-# Base class for simple equity stock
+# Curve class
+# Aggregation of single rates of different tenors
 #
 
 from operator import itemgetter
@@ -52,8 +52,6 @@ class Curve(AggregationMixin, Asset):
     # TODO: check if it works with a series of dates instead of a single one
     def term_struct(self, date: pd.Timestamp) -> pd.DataFrame:
         """ Gives the cross section of the curve at a given date. """
-        # if not self._cnsts_loaded:
-        #     self.load()
         return self._cnsts_df.loc[date]
 
     def bucket_ts(self, uid: str) -> pd.Series:

@@ -57,8 +57,6 @@ def dcf(cf: np.ndarray, r: Union[float, np.ndarray], t: np.ndarray = None,
         # FIXME: a ndarray is returned, we need only rates not tenors
         r = rate_interpolate(r, t, cf[:, 0])
 
-    # cf.loc[:, 'dcf'] = cf['value'] / (1. + r) ** cf['periods']
-    # _dcf = cf[:, 1] / (1. + r/n) ** cf[:, 0]
     comp = compound(r, cf[:, 0], n) + 1.
     return cf[:, 1] / comp
 

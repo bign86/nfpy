@@ -12,20 +12,19 @@ import matplotlib.pyplot as plt
 
 from nfpy.Portfolio.Optimizer.BaseOptimizer import OptimizerResult
 
-# plt.ioff()
-
 
 class Plotting(metaclass=ABCMeta):
     """ Creates a defined environment. """
 
-    def __init__(self, xl: str = '', yl: str = '', zero: float = None):
+    def __init__(self, xl: str = '', yl: str = '', zero: float = .0,
+                 use_zero: bool = False):
         # Inputs variables
         self._xlim = [inf, -inf]
         self._ylim = [inf, -inf]
         self._xl = xl
         self._yl = yl
         self._zero = zero
-        self._use_zero = False
+        self._use_zero = use_zero
 
         # Working variables
         self._plots = []
@@ -68,7 +67,8 @@ class Plotting(metaclass=ABCMeta):
 class PlotVarRet(Plotting):
     """ Creates a variance/return plot. """
 
-    def add(self, x: Union[float, Sized], y: Union[float, Sized], label: str = None, **kwargs):
+    def add(self, x: Union[float, Sized], y: Union[float, Sized],
+            label: str = None, **kwargs):
         """ Add more plots to be plotted. """
         pl = (x, y, label, kwargs)
         self._plots.append(pl)
@@ -79,7 +79,8 @@ class PlotVarRet(Plotting):
         for x, y, l, kw in self._plots:
             if isinstance(x, Sized):
                 if len(x) != len(y):
-                    raise RuntimeError('Size of x and y mismatch in {}'.format(self.__name__))
+                    raise RuntimeError('Size of x and y mismatch in {}'
+                                       .format(self.__name__))
 
                 ax.scatter(x, y, **kw)
                 if l:
@@ -89,7 +90,8 @@ class PlotVarRet(Plotting):
                 if l:
                     ax.text(x, y, s=l, fontsize=6, fontvariant='small-caps', **kw)
             else:
-                raise TypeError('Data type not recognized in {} class'.format(self.__name__))
+                raise TypeError('Data type not recognized in {} class'
+                                .format(self.__name__))
 
         if self._use_zero:
             plt.axvline(c='k', linewidth=.5)
@@ -154,7 +156,8 @@ class PlotTS(Plotting):
 class PlotBeta(Plotting):
     """ Creates a beta plot. """
 
-    _COLORS = (('cornflowerblue', 'blue'), ('salmon', 'red'), ('lime', 'green'), ('silver', 'grey'))
+    _COLORS = (('cornflowerblue', 'blue'), ('salmon', 'red'),
+               ('lime', 'green'), ('silver', 'grey'))
 
     def add(self, index: pd.Series, instrument: pd.Series, params: tuple, **kwargs):
         """ Add more plots to be plotted. """

@@ -156,10 +156,12 @@ class Calendar(metaclass=Singleton):
         """ Get a DateOffset object dependent on the frequency """
         return self._FREQ_LABELS[freq][1]
 
-    def shift(self, end: pd.Timestamp, n: int, fwd: bool = True) -> pd.DatetimeIndex:
+    def shift(self, end: pd.Timestamp, n: int, freq: str = None,
+              fwd: bool = True) -> pd.DatetimeIndex:
         """ Shift the <end> date by <n> periods forward (fwd=True) or backwards (fwd=False). """
+        freq = self.frequency if freq is None else freq
         periods = int(n) if fwd else -int(n)
-        offset = self._FREQ_LABELS[self.frequency][1]
+        offset = self._FREQ_LABELS[freq][1]
         return end + offset(periods)
 
     def is_in_calendar(self, dt: Union[str, pd.Timestamp]) -> bool:

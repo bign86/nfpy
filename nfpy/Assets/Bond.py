@@ -114,11 +114,6 @@ class Bond(Asset):
         """ Auxilliary function to prepare the date, p0 and cash flow for the
             calculation of duration and convexity.
         """
-        # Make sure that instrument is fully loaded. If p0 is given, prices are
-        # not needed and load() may never be called.
-        # if not self._is_loaded:
-        #     self.load()
-
         # No date given, we use the calendar t0
         if not date:
             date = get_calendar_glob().t0
