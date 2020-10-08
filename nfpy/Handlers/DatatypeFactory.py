@@ -14,14 +14,13 @@ class DatatypeFactory(metaclass=Singleton):
     """ Factory to deal with datatypes. """
 
     _DT_TABLE = 'DecDatatype'
-    # _DT_MAP_TABLE = 'MapDatatype'
 
     def __init__(self):
         self._db = get_db_glob()
         self._qb = get_qb_glob()
         self._dec_datatypes = {}
         self._mapping = {}
-        self._codes_used = []
+        self._codes_in_use = []
         self._initializations()
 
     def _initializations(self):
@@ -29,7 +28,7 @@ class DatatypeFactory(metaclass=Singleton):
         q = "select * from " + self._DT_TABLE
         res = self._db.execute(q).fetchall()
         self._dec_datatypes = dict(r for r in res)
-        self._codes_used = [v for v in self._dec_datatypes.values()]
+        self._codes_in_use = [v for v in self._dec_datatypes.values()]
         self._mapping = {v: k for k, v in self._dec_datatypes.items()}
 
     def __contains__(self, dtype: str) -> bool:
@@ -42,7 +41,7 @@ class DatatypeFactory(metaclass=Singleton):
 
     def is_code_available(self, code: int) -> bool:
         """ Check if a code is un-used in the database. """
-        return code not in self._codes_used
+        return code not in self._codes_in_use
 
     def remove(self, dtype: str):
         """ Remove a datatype from the table. """
@@ -52,7 +51,7 @@ class DatatypeFactory(metaclass=Singleton):
             code = self._mapping[dtype]
             del self._dec_datatypes[dtype]
             del self._mapping[code]
-            self._codes_used = [v for v in self._dec_datatypes.values()]
+            self._codes_in_use = [v for v in self._dec_datatypes.values()]
         else:
             raise RuntimeWarning("Datatype {} not found".format(dtype))
 
@@ -85,28 +84,6 @@ class DatatypeFactory(metaclass=Singleton):
         except KeyError:
             raise KeyError("Encoded datatype {} not known!".format(code))
         return dt
-
-    # def set(self, dtype: str, code: int = None):
-    #     """ Set a new or modify an existing datatype in the table. """
-    #     if code and not self.is_code_available(code):
-    #         raise ValueError("The code {} is already in use.".format(code))
-    #     elif code is None:
-    #         code = max(self._codes_used) + 1
-    #
-    #     if dtype in self._dec_datatypes:
-    #         q_del = self._qb.delete(self._DT_TABLE, ['datatype'])
-    #         self._db.execute(q_del, (dtype,), commit=False)
-    #
-    #     q_ins = self._qb.insert(self._DT_TABLE)
-    #     self._db.execute(q_ins, (dtype, code), commit=False)
-    #     self._db.commit()
-    #
-    #     self._dec_datatypes[dtype] = code
-    #     self._codes_used = [v for v in self._dec_datatypes.values()]
-
-    # def map(self, dtype: str) -> int:
-    #    """ Map a long datatype definition to the numerical code of the datatype. """
-    #    return self.get(self._mapping[dtype])
 
 
 def get_dt_glob() -> DatatypeFactory:
