@@ -1,76 +1,191 @@
 #
-# CAPM class
-# Solves the CAPM model and calculates the Beta
+# Tools
 #
 
-from typing import Union, Iterable
+from typing import Union
+import numpy as np
+import pandas as pd
+from scipy import stats
 
-from nfpy.Assets.Asset import Asset
-from nfpy.Assets.Portfolio import Portfolio
-from nfpy.Tools.Utilities import AttributizedDict
-
-
-class CAPMResult(AttributizedDict):
-
-    def __init__(self):
-        super().__init__()
-        self.labels = []
-        self.beta = []
-        self.var = []
-        self.corr = []
-        self.mkt = ''
-        self.mkt_var = .0
+from nfpy.Financial.DiscountFactor import dcf
+from nfpy.Tools.TSUtils import trim_ts, rolling_sum, dropna, rolling_window, fillna
 
 
-class CAPM(object):
-    """ Applies the CAPM model to a portfolio of equities (no bonds supported).
-        The beta of each equity vs a market proxy is returned.
+def adj_factors(ts: np.array, div: np.array) -> np.array:
+    """ Calculate the adjustment factors given a dividend series.
+
+        Input:
+            ts [np.array]: price series to calculate the yield
+            div [np.array]: dividend series
+
+        Output:
+            adjfc [np.array]: series of adjustment factors
     """
+    assert len(ts) == len(div)
 
-    def __init__(self, mkt: Asset, ptf: Union[Portfolio, Iterable]):
-        if not isinstance(mkt, Asset):
-            raise TypeError('Market proxy (type: {}) is not a valid asset'.format(type(mkt)))
-        self._mkt = mkt
+    # Calculate conversion factors
+    fc = 1. - (div / ts)
+    cp = np.cumprod(fillna(fc, 1.))
+    adjfc = fc / cp * cp[-1]
 
-        if isinstance(ptf, Portfolio):
-            self.ptf = [a for a in ptf.constituents.values() if a.type == 'Equity']
-        elif isinstance(ptf, Iterable):
-            self.ptf = [a for a in ptf if a.type == 'Equity']
-        else:
-            raise TypeError('Portfolio type (type: {}) is not a valid'.format(type(ptf)))
-
-        self._resobj = None
-
-    def result(self) -> CAPMResult:
-        if not self._resobj:
-            self._calculate()
-        return self._resobj
-
-    def _calculate(self):
-        mr = self._mkt.returns
-        mkt_var = mr.var()
-
-        labels = []
-        beta = []
-        var = []
-        corr = []
-        for v in self.ptf:
-            labels.append(v.uid)
-            _var = v.returns.var()
-            _corr = v.returns.corr(mr)
-            var.append(_var)
-            corr.append(_corr)
-            beta.append(_var * _corr / mkt_var)
-
-        res = CAPMResult()
-        res.labels = labels
-        res.beta = beta
-        res.var = var
-        res.corr = corr
-        res.mkt = self._mkt.uid
-        res.mkt_var = mkt_var
-        self._resobj = res
+    return adjfc
 
 
-def CAPModel(mkt: Asset, ptf: Union[Portfolio, Iterable]) -> CAPMResult:
-    return CAPM(mkt, ptf).result()
+def fv(cf: np.ndarray, r: Union[float, np.ndarray],
+       t: np.ndarray = None, accrued: float = .0) -> float:
+    """ Fair value from discounted cash flow that are calculated if not present.
+
+        Input:
+            cf [np.ndarray]: data (periods, value) of cash flows
+            r [Union[float, np.ndarray]]: if float is the rate corresponding to the
+                    yield to maturity. If ndarray calculate from the term structure
+            t [np.ndarray]: array of tenors
+            accrued [float]: accrued interest to subtract from dirty price
+
+        Output:
+            _r [float]: fair value
+    """
+    _dcf = dcf(cf, r, t)
+    return float(_dcf.sum()) - accrued
+
+
+def beta(dt: np.ndarray, ts: np.ndarray, proxy: np.ndarray,
+         start: pd.Timestamp = None, end: pd.Timestamp = None,
+         w: int = None) -> tuple:
+    """ Gives the beta of a series with respect to another (an index).
+
+        Input:
+            dt [np.ndarray]: dates time series
+            ts [np.ndarray]: equity or other series under analysis
+            proxy [np.ndarray]: reference proxy time series
+            start [pd.Timestamp]: start date of the series (default: None)
+            end [pd.Timestamp]: end date of the series excluded (default: None)
+            w [int]: window size if rolling (default: None)
+
+        Output:
+            dt [Union[np.ndarray, None]]: date (only if rolling else None)
+            slope [Union[np.ndarray, float]]: the beta
+            intercept [Union[np.ndarray, float]]: intercept of the regression
+            std_err [Union[np.ndarray, float]]: regression error
+    """
+    # That end > start is NOT checked at this level
+    tsa, dts = trim_ts(ts, dt, start=start, end=end)
+    prx, _ = trim_ts(proxy, dt, start=start, end=end)
+
+    v, mask = dropna(np.vstack((tsa, prx)))
+
+    if not w:
+        slope, intercept, _, _, std_err = stats.linregress(v[1, :], v[0, :])
+        dts = None
+
+    else:
+        sumx = rolling_sum(v[1, :], w)
+        sumy = rolling_sum(v[0, :], w)
+        sumxy = rolling_sum(v[1, :] * v[0, :], w)
+        sumxx = rolling_sum(v[1, :] * v[1, :], w)
+
+        slope = (w * sumxy - sumx * sumy) / (w * sumxx - sumx * sumx)
+        intercept = (sumy - slope * sumx) / w
+
+        slope, _ = dropna(slope)
+        intercept, _ = dropna(intercept)
+        dts = dts[mask][w - 1:]
+
+    return dts, slope, intercept
+
+
+def capm(dt: np.ndarray, ts: np.ndarray, idx: np.ndarray, start: pd.Timestamp = None,
+         end: pd.Timestamp = None, w: int = None) -> tuple:
+    """ Gives the beta of a series with respect to another (an index).
+
+        Input:
+            dt [np.ndarray]: dates series under analysis
+            ts [np.ndarray]: return series under analysis
+            idx [np.ndarray]: market proxy return time series
+            start [pd.Timestamp]: start date of the series (default: None)
+            end [pd.Timestamp]: end date of the series excluded (default: None)
+            w [int]: window size if rolling (default: None)
+
+        Output:
+            beta [float]: the beta
+    """
+    # That end > start is NOT checked at this level
+    tsa, _ = trim_ts(ts, dt, start=start, end=end)
+    prx, _ = trim_ts(idx, dt, start=start, end=end)
+
+    v, _ = dropna(np.vstack((tsa, prx)))
+
+    prx_var = np.var(prx)
+    covar = np.cov(v[0, :], v[1, :], bias=True)
+
+    return covar[0, 1] / prx_var
+
+
+def sharpe(dt: np.ndarray, xc: np.ndarray, br: np.ndarray = None,
+           start: pd.Timestamp = None, end: pd.Timestamp = None,
+           w: int = None) -> tuple:
+    """ Calculates the Sharpe ratio for the given return series.
+
+        Input:
+            xc [np.ndarray]: series of excess returns wrt a base return series
+            br [np.ndarray]: base rate series. Subtracted to xc to obtain excess
+                             returns (default: None)
+            start [pd.Timestamp]: start date of the series (default: None)
+            end [pd.Timestamp]: end date of the series excluded (default: None)
+            w [int]: rolling window size (default: None)
+
+        Output:
+            sharpe [pd.Series]: Sharpe ratio series
+    """
+    xc, dts = trim_ts(xc, dt, start=start, end=end)
+
+    # If a base rate is provided we obtain excess returns
+    if br:
+        br, _ = trim_ts(br, dt, start=start, end=end)
+        xc = xc - br
+
+    xc, mask = dropna(xc)
+
+    if not w:
+        exp_ret = np.mean(xc)
+        exp_std = np.std(xc)
+        dts = None
+    else:
+        exp_ret = np.mean(rolling_window(xc, w), axis=1)
+        exp_std = np.std(rolling_window(xc, w), axis=1)
+        dts = dts[mask][w - 1:]
+
+    return dts, exp_ret / exp_std
+
+
+def tev(dt: np.ndarray, r: np.ndarray, bkr: np.ndarray,
+        start: pd.Timestamp = None, end: pd.Timestamp = None,
+        w: int = None) -> tuple:
+    """ Calculates the Tracking Error Volatility (TEV) between a series of
+        returns and a benchmark one.
+
+        Input:
+            dt [np.ndarray]: dates series
+            r [np.ndarray]: returns series
+            bkr [np.ndarray]: benchmark return series
+            start [pd.Timestamp]: start date of the series (default: None)
+            end [pd.Timestamp]: end date of the series excluded (default: None)
+            w [int]: rolling window size (default: None)
+
+        Output:
+            dt [np.ndarray]: TEV dates series
+            tev [np.ndarray]: series of TEV
+    """
+    r, dts = trim_ts(r, dt, start=start, end=end)
+    bkr, _ = trim_ts(bkr, dt, start=start, end=end)
+
+    v, mask = dropna(np.vstack(r, bkr))
+
+    if not w:
+        res = np.std(r - bkr)
+        dts = None
+    else:
+        res = np.std(rolling_window((r - bkr), w), axis=1)
+        dts = dts[mask][w - 1:]
+
+    return dts, res

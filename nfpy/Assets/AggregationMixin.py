@@ -1,7 +1,6 @@
 #
 # Mixin aggregation class
-# Mixin class for aggregations, adds the support for
-# constituents to a base class
+# Mixin class for aggregations, adds the support for constituents to a base class
 #
 
 import pandas as pd
@@ -33,8 +32,6 @@ class AggregationMixin(object):
     @property
     def constituents(self) -> dict:
         """ Return the dictionary of constituents. """
-        # if not self._cnsts_loaded:
-        #     self.load()
         return self._dict_cnsts
 
     @constituents.setter
@@ -81,13 +78,9 @@ class AggregationMixin(object):
         super().load()
         if not self._cnsts_loaded:
             self._load_cnsts()
-            # Set in the _load_cnsts function
-            # self._cnsts_loaded = True
 
     def write_cnsts(self):
         """ Save to the database the constituents of the aggregation. """
-        # if not self._cnsts_loaded:
-        #     self._load_cnsts()
         self._write_cnsts()
 
     # FIXME: better to pass?

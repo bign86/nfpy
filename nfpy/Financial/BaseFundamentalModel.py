@@ -74,16 +74,9 @@ class BaseFundamentalModel(metaclass=ABCMeta):
         price = self._eq.prices
         ts, dt = price.values, price.index.values
         ts, dt = trim_ts(ts, dt, self._start, self._t0)
-        # price_ts = pd.Series(ts, index=dt)
-        # idx = price_ts.last_valid_index()
         idx = last_valid_index(ts)
         cv_obj = self._fx.get(self._eq.currency, self._cmp.currency)
-        # self._last_price = price_ts.at[idx] * cv_obj.get(idx)
         self._last_price = ts[idx] * cv_obj.get(dt[idx])
-
-    # def _trim_ts(self, ts: pd.Series) -> pd.Series:
-    #     """ Trim a time series to have a length consistent with dates. """
-    #     return ts.loc[ts.index <= self._t0].loc[self._start:]
 
     def _res_update(self, **kwargs):
         self._dt.update(kwargs)

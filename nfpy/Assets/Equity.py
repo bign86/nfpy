@@ -6,7 +6,7 @@
 import pandas as pd
 
 from nfpy.Assets.Asset import Asset
-from nfpy.Financial.TSMath import adj_factors, beta
+from nfpy.Financial.EquityMath import adj_factors, beta
 from nfpy.Handlers.AssetFactory import get_af_glob
 
 
@@ -19,6 +19,7 @@ class Equity(Asset):
     _TS_ROLL_KEY_LIST = ['date']
 
     @property
+    # TODO: dividends are not adjusted for splits in the current implementation
     def dividends(self) -> pd.Series:
         """ Loads the dividends series for the equity. The dividends are first 
             converted in the base currency.
@@ -53,12 +54,12 @@ class Equity(Asset):
         return adj_fct
 
     @property
+    # TODO: splits are not considered in the current implementation
     def prices(self) -> pd.Series:
-        """ Returns the series of prices adjusted for splits and dividends. """
+        """ Returns the series of prices adjusted for dividends. """
         try:
             prices = self._df['adj_price']
         except KeyError:
-            # FIXME: splits are not present since Yahoo does the adjustment for splits
             adj_fct = adj_factors(self.raw_prices.values, self.dividends.values)
             prices = adj_fct * self.raw_prices
             self._df['adj_price'] = prices

@@ -13,7 +13,7 @@ import pandas as pd
 from nfpy.Assets.Curve import Curve
 from nfpy.Assets.Asset import Asset
 from nfpy.Financial.BondMath import ytm, duration, convexity
-from nfpy.Financial.TSMath import fv
+from nfpy.Financial.EquityMath import fv
 from nfpy.Handlers.Calendar import get_calendar_glob, date_str_2_dt
 from nfpy.Tools.Constants import DAY_COUNT
 from nfpy.Tools.Exceptions import MissingData, UnsupportedWarning, \

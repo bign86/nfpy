@@ -1,5 +1,5 @@
 #
-# Dtatyoe factory class
+# Datatype factory class
 # Base class to handle datatypes
 #
 
@@ -48,10 +48,10 @@ class DatatypeFactory(metaclass=Singleton):
         if dtype in self._dec_datatypes:
             q_del = self._qb.delete(self._DT_TABLE, ['datatype'])
             self._db.execute(q_del, (dtype,), commit=True)
-            code = self._mapping[dtype]
+            code = self._dec_datatypes[dtype]
             del self._dec_datatypes[dtype]
             del self._mapping[code]
-            self._codes_in_use = [v for v in self._dec_datatypes.values()]
+            del self._codes_in_use[code]
         else:
             raise RuntimeWarning("Datatype {} not found".format(dtype))
 

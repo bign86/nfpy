@@ -7,7 +7,6 @@ import json
 import os
 from collections import OrderedDict
 from os.path import join
-from typing import Iterable
 from jinja2 import FileSystemLoader, Environment
 
 from nfpy import NFPY_ROOT_DIR
@@ -15,8 +14,8 @@ from nfpy.DB.DB import get_db_glob
 from nfpy.Handlers.AssetFactory import get_af_glob
 from nfpy.Handlers.Calendar import get_calendar_glob
 from nfpy.Handlers.Configuration import get_conf_glob
-from nfpy.Handlers.Inputs import InputHandler
 from nfpy.Handlers.QueryBuilder import get_qb_glob
+from nfpy.Reporting.BaseReport import BaseReport
 from nfpy.Reporting.ReportDCF import ReportDCF
 from nfpy.Reporting.ReportDDM import ReportDDM
 from nfpy.Tools.Exceptions import MissingData
@@ -31,7 +30,7 @@ class ReportingEngine(metaclass=Singleton):
     _IMG_DIR = 'img'
     _REPORTS = {'DDM': ReportDDM, 'DCF': ReportDCF}
     _TMPL_PATH = join(NFPY_ROOT_DIR, 'Reporting/Templates')
-    _MAIN_REP = 'main.html'
+    _REP_EXT = '.html'
     _MODEL_ORDER = ['DDM', 'DCF']
 
     def __init__(self):
@@ -59,35 +58,13 @@ class ReportingEngine(metaclass=Singleton):
         self._curr_report_dir = join(rep_path, new_folder)
         self._curr_img_dir = join(rep_path, new_folder, self._IMG_DIR)
 
+    def get_report_obj(self, r: str) -> BaseReport:
+        """ Return the report object given the report name. """
+        return self._REPORTS[r]
+
     @property
     def results(self) -> dict:
         return self._res
-
-    def new(self):
-        """ Create a new item in the reporting table interactively. """
-        inh = InputHandler()
-
-        # Create model object from input
-        uid = inh.input("Insert UID: ")
-        m = inh.input("Insert model: ")
-        try:
-            m_obj = self._REPORTS[m]
-        except KeyError:
-            raise KeyError('Model {} not recognized'.format(m))
-
-        # Ask user for parameters
-        params = {}
-        for p, q, kw in m_obj.INPUT_QUESTIONS:
-            v = inh.input(q, **kw)
-            if v:
-                params[p] = v
-
-        # Put in auto?
-        active = inh.input("Set 'active' flag? (default False): ",
-                           idesc='bool', default=False)
-
-        # Add to table
-        self.add(uid, m, params, active)
 
     def add(self, uid: str, model: str, params: dict, active: bool = False):
         """ Add an item in the reporting table. """
@@ -192,17 +169,17 @@ class ReportingEngine(metaclass=Singleton):
         self._res = ordered_res
         self._assets = asset_dict
 
-    def _generate(self):
+    def _generate(self, name: str):
         """ Generates the actual report. """
         title = "Report - {}".format(self._cal.t0.strftime('%Y-%m-%d'))
+        report = '' .join([name, self._REP_EXT])
 
         j_loader = FileSystemLoader(self._TMPL_PATH)
         j_env = Environment(loader=j_loader)
-        main = j_env.get_template(self._MAIN_REP)
-        out = main.render(title=title,  # m_order=self._MODEL_ORDER,
-                          all_res=self._res, assets=self._assets)
+        main = j_env.get_template(report)
+        out = main.render(title=title, all_res=self._res, assets=self._assets)
 
-        out_file = os.path.join(self._curr_report_dir, self._MAIN_REP)
+        out_file = os.path.join(self._curr_report_dir, report)
         outf = open(out_file, 'w')
         outf.write(out)
         outf.close()
@@ -222,7 +199,11 @@ class ReportingEngine(metaclass=Singleton):
         self._calculate(tbg)
 
         # Generate reports
-        self._generate()
+        if not self._p:
+            name = 'main'
+        else:
+            name = '_'.join([self._p['uid'], self._p['model']])
+        self._generate(name)
 
 
 def get_re_glob() -> ReportingEngine:

@@ -6,7 +6,7 @@
 import numpy as np
 from scipy.optimize import newton
 from nfpy.Financial.DiscountFactor import dcf
-from nfpy.Financial.TSMath import fv
+from nfpy.Financial.EquityMath import fv
 
 
 def ytm(cf: np.ndarray, p0: float, accrued: float = .0) -> float:

@@ -23,7 +23,6 @@ class Column(AttributizedDict):
 class Table(object):
     """ Class to store table information (doesn't contain data). """
 
-    # _STRUCT_F = ['field', 'ordinal', 'type', 'is_primary', 'notnull', 'is_rolling']
     _STRUCT_F = ['field', 'ordinal', 'type', 'is_primary', 'notnull']
 
     def __init__(self, name: str):
@@ -80,32 +79,9 @@ class Table(object):
             if v.is_primary:
                 yield k
 
-    """
-    def get_rolling(self) -> Generator[str, None, None]:
-        " Return the generator of rolling keys in the table. "
-        for k, v in self._fields.items():
-            if v.is_rolling:
-                yield k
-    """
-
     def get_num_cols(self) -> int:
         """ Return the length of the columns dictionary """
         return len(self._fields)
-
-    """
-    def set_is_rolling(self, fields, flag: bool = True):
-        ''' Set the listed fields as rolling or not based on the flag. All
-            listed fields are set to the same truth value.
-        '''
-        if isinstance(fields, str):
-            fields = list(fields)
-        for f in fields:
-            self._fields[f].is_rolling = flag
-
-    def is_rolling(self, field: str) -> bool:
-        " Check whether the given field is a rolling key. "
-        return self._fields[field].is_rolling
-    """
 
     def is_primary(self, field: str) -> bool:
         """ Check whether the given field is a primary key. """

@@ -4,6 +4,7 @@
 #
 
 import warnings
+from itertools import groupby
 
 from nfpy.Assets.Rate import Rate
 from nfpy.DB.DB import get_db_glob
@@ -30,30 +31,39 @@ on r.uid = cc.bucket join Curve as c on c.uid = cc.uid where r.is_rf = True;"""
         
         self._initialize()
     
-    def _initialize():
+    def _initialize(self):
         res = self._db.execute(self._Q_GET_RF).fetchall()
         if not res:
             raise MissingData('No risk free found in the database')
-        self._rf = {(t[0], t[1]) for t in res}
+
+        # Consistency check to ensure a single rf for currency is defined
+        res = sorted(res, key=lambda f: f[0])
+        for k, g in groupby(res, key=lambda f: f[0]):
+            n = len(list(g))
+            if n > 1:
+                raise ValueError('{} risk free defined for {}'.format(n, k))
+
+        self._rf = {t[0]: t[1] for t in res}
 
     def get_rf(self, ccy: str) -> Rate:
         try:
             uid = self._rf[ccy]
         except KeyError:
-            raise DataMissing('No risk free set for currency {}'.format(ccy))
+            raise MissingData('No risk free set for currency {}'.format(ccy))
         return self._af.get(uid)
 
     def set_rf(self, ccy: str, rate: str):
         """ Set a risk free rate. """
         res = self._db.execute(self._Q_GET_RF, (ccy,)).fetchall()
 
-        if len(res) > 0:
-            old_rate = res[0][0]
+        data = [(True, rate)]
+        if ccy in self._rf:
+            old_rate = self._rf[ccy]
             warnings.warn('The rate {} is set as current risk free and will be overridden'
                           .format(old_rate))
-            self._db.execute(self._Q_SET_RF, (False, old_rate), commit=True)
-        else:
-            self._db.execute(self._Q_SET_RF, (True, rate), commit=True)
+            data.append((False, old_rate))
+
+        self._db.executemany(self._Q_SET_RF, data, commit=True)
 
 
 def get_rf_glob() -> RateFactory:

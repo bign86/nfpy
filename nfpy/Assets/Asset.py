@@ -23,13 +23,11 @@ class Asset(FinancialItem):
 
     def __init__(self, uid: str):
         super().__init__(uid)
-        # self._fx = get_fx_glob()
         self._currency = None
         self.dtype = -1
 
         # takes the current calendar. It must have been initialized before!
         c = get_calendar_glob()
-        # if c.is_initialized:
         if c:
             self._df = pd.DataFrame(index=c.calendar)
         else:
@@ -95,9 +93,6 @@ class Asset(FinancialItem):
         """ Returns the last valid price at date. """
         if not dt:
             dt = self._cal.t0
-        # p = self.prices.loc[:dt]
-        # idx = p.last_valid_index()
-        # return p.at[idx]
 
         p = self.prices
         ts, date = p.values, p.index.values
@@ -171,13 +166,13 @@ class Asset(FinancialItem):
         self._db.execute(q_del, (self.uid, self.dtype))
 
         # iterate over the index and extracting the dtype value
-        def iterdf__():
+        def iter_df__():
             for t in self._df.itertuples(index=True):
                 val = getattr(t, dt)
                 yield (self.uid, self.dtype, t.date, val)
 
         q_ins = self._qb.insert(self.ts_table)
-        self._db.executemany(q_ins, iterdf__)
+        self._db.executemany(q_ins, iter_df__)
         del self.dtype
 
     def expct_return(self, start: pd.Timestamp = None, end: pd.Timestamp = None,

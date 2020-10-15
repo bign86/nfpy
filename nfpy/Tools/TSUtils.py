@@ -10,14 +10,14 @@ import pandas as pd
 
 def skewness(ts: np.array) -> float:
     """ Calculates the third standard moment. """
-    ts_zm = ts - ts.nanmean()
-    return np.power(ts_zm, 3) / (ts.nanstd() ** 3)
+    ts_zm = ts - np.nanmean(ts)
+    return np.power(ts_zm, 3) / (np.nanstd(ts) ** 3)
 
 
 def kurtosis(ts: np.array) -> float:
     """ Calculates the fourth standard moment. """
-    ts_zm = ts - ts.nanmean()
-    return np.power(ts_zm, 4) / (ts.nanstd() ** 4)
+    ts_zm = ts - np.nanmean(ts)
+    return np.power(ts_zm, 4) / (np.nanstd(ts) ** 4)
 
 
 def series_momenta(ts: np.array) -> tuple:
@@ -29,19 +29,19 @@ def series_momenta(ts: np.array) -> tuple:
             skewness [float]: skewness (third momentum)
             kurtosis [float]: kurtosis (fourth momentum)
     """
-    mu = ts.nanmean()
+    mu = np.nanmean(ts)
 
-    std = ts.nanstd()
+    std = np.nanstd(ts)
     var = std * std
-    ts_zm = ts - ts.nanmean()
+    ts_zm = ts - np.nanmean(ts)
 
     ts_exp = np.power(ts_zm, 3)
     std_exp = var * std
-    skew = ts_exp.nanmean() / std_exp
+    skew = np.nanmean(ts_exp) / std_exp
 
     ts_exp = ts_exp * ts_zm
     std_exp = std_exp * std
-    kurt = ts_exp.nanmean() / std_exp
+    kurt = np.nanmean(ts_exp) / std_exp
 
     return mu, var, skew, kurt
 

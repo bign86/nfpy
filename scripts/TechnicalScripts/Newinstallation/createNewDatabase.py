@@ -144,7 +144,8 @@ TABLES_TO_CREATE = [
     (
         'Portfolio',
         """create table Portfolio (uid TEXT, name TEXT, description TEXT,
-            currency TEXT NOT NULL, primary key (uid)) without rowid;"""
+            currency TEXT NOT NULL, inception_date DATETIME NOT NULL,
+            benchmark TEXT, primary key (uid)) without rowid;"""
     ),
     (
         'PortfolioPositions',

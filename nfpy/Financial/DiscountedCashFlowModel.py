@@ -257,10 +257,6 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
         fair_value = float(np.sum(dcf(cf, mean_wacc))) / shares
 
         # Accumulate
-        # self._dt = dict((k, pd.Series(array[i, :], name=k, index=index))
-        #                 for i, k in enumerate(self._COLS))
-        # self._dt.update({'fair_value': fair_value, 'shares': shares,
-        #                  'mean_wacc': mean_wacc, 'mean_beta': mean_beta})
         self._res_update(df=pd.DataFrame(array.T, columns=self._COLS,
                          index=index), fair_value=fair_value, shares=shares,
                          mean_wacc=mean_wacc, mean_beta=mean_beta,
