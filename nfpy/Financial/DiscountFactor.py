@@ -26,7 +26,7 @@ def cdf(r: float, t: float, n: int = 1) -> float:
         in years over n periods per years
             D = \frac{1}{(1 + \frac{r}{n})^{n t}}
     """
-    return 1./compound(r, t, n)
+    return 1./(1. + compound(r, t, n))
 
 
 def ccdf(r: float, t: float, *args) -> float:
@@ -34,7 +34,7 @@ def ccdf(r: float, t: float, *args) -> float:
         time t in years
             D = \exp{-r t}
     """
-    return np.exp(-r * t)
+    return np.exp(-(1. + r) * t)
 
 
 def dcf(cf: np.ndarray, r: Union[float, np.ndarray], t: np.ndarray = None,
@@ -55,10 +55,10 @@ def dcf(cf: np.ndarray, r: Union[float, np.ndarray], t: np.ndarray = None,
     #        as an 2D-array as for cf and avoid the use of 't'
     if isinstance(r, np.ndarray):
         # FIXME: a ndarray is returned, we need only rates not tenors
-        r = rate_interpolate(r, t, cf[:, 0])
+        r = rate_interpolate(r, t, cf[0, :])
 
-    comp = compound(r, cf[:, 0], n) + 1.
-    return cf[:, 1] / comp
+    comp = compound(r, cf[0, :], n) + 1.
+    return cf[1, :] / comp
 
 
 # TODO: move into the Rate Factory or in another more appropriate place
