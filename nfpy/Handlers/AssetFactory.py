@@ -3,7 +3,6 @@
 # Base class for a single asset
 #
 
-from nfpy.Assets.FinancialItem import FinancialItem
 from nfpy.DB.DB import get_db_glob
 from nfpy.Handlers.QueryBuilder import get_qb_glob
 from nfpy.Tools.Exceptions import MissingData
@@ -21,7 +20,7 @@ class AssetFactory(metaclass=Singleton):
         self._qb = get_qb_glob()
         self._known_assets = {}
 
-    def _fetch_asset(self, uid: str) -> FinancialItem:
+    def _fetch_asset(self, uid: str):
         """ Given the asset_type creates the correct asset object. """
         q = self._qb.select(self._INFO_TABLE, fields=['uid', 'type'], keys=['uid'])
         res = self._db.execute(q, (uid,)).fetchone()
@@ -44,7 +43,7 @@ class AssetFactory(metaclass=Singleton):
             flag = False
         return flag
 
-    def get(self, uid: str) -> FinancialItem:
+    def get(self, uid: str):
         """ Return the correct asset object given the uid. """
         if not uid:
             raise ValueError('Specify a uid')
