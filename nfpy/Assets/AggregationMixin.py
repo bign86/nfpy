@@ -57,14 +57,14 @@ class AggregationMixin(object):
     def cnsts_df(self) -> pd.DataFrame:
         return self._cnsts_df
 
-    @cnsts_df.setter
-    def cnsts_df(self, v: pd.Series):
-        self._cnsts_df[v.name] = v
-
-    @cnsts_df.deleter
-    def cnsts_df(self):
-        cal = get_calendar_glob().calendar
-        self._cnsts_df = pd.DataFrame(index=cal)
+    # @cnsts_df.setter
+    # def cnsts_df(self, v: pd.Series):
+    #     self._cnsts_df[v.name] = v
+    #
+    # @cnsts_df.deleter
+    # def cnsts_df(self):
+    #     cal = get_calendar_glob().calendar
+    #     self._cnsts_df = pd.DataFrame(index=cal)
 
     # FIXME: better to return None?
     @property

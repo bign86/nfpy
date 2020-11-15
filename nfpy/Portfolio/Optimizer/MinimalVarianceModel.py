@@ -3,7 +3,6 @@
 #
 
 import numpy as np
-import pandas as pd
 from nfpy.Portfolio.Optimizer.BaseOptimizer import BaseOptimizer, \
     OptimizerConf, OptimizerResult
 

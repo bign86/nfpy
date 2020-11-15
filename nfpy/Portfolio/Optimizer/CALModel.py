@@ -7,10 +7,12 @@
 import numpy as np
 
 from nfpy.Assets.Portfolio import Portfolio
+from nfpy.Financial.Returns import compound
 from nfpy.Handlers.RateFactory import get_rf_glob
 from nfpy.Portfolio.Optimizer.BaseOptimizer import BaseOptimizer
 from nfpy.Portfolio.Optimizer.MarkowitzModel import MarkowitzModel
 from nfpy.Portfolio.Optimizer.MaxSharpeModel import MaxSharpeModel
+from nfpy.Tools.Constants import BDAYS_IN_1Y
 
 
 class CALModel(BaseOptimizer):
@@ -29,7 +31,7 @@ class CALModel(BaseOptimizer):
 
         if self._rf_ret is None:
             rf = get_rf_glob().get_rf(self._ptf.currency)
-            self._rf_ret = rf.last_price()
+            self._rf_ret = compound(rf.last_price(), BDAYS_IN_1Y)
 
     def _optimize(self):
         """ Optimize following the Markowitz procedure """
@@ -65,7 +67,6 @@ class CALModel(BaseOptimizer):
         r.weights = cal_wgt + msh_wgt + mkw_wgt
         r.ptf_variance = cal_var + msh_var + mkw_var
         r.ptf_return = cal_ret + msh_ret + mkw_ret
-        # r.sharpe.append(_ptf_ret / np.sqrt(opt.fun))
 
         return r
 
@@ -88,7 +89,7 @@ class CALModel(BaseOptimizer):
             Input:
                 msh_ret [float]: max sharpe portfolio's return
                 msh_var [float]: max sharpe portfolio's variance
-                msh_wgt [np.array]: max sharpe portfolio's weigths
+                msh_wgt [np.array]: max sharpe portfolio's weights
                 num_pts [int]: grid size to calculate
 
             Output:

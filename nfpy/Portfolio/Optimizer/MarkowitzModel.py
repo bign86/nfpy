@@ -4,12 +4,12 @@
 # given portfolio
 #
 
-from typing import Iterable, Sized
+from typing import Sequence
 import numpy as np
 
 from nfpy.Assets.Portfolio import Portfolio
 from nfpy.Portfolio.Optimizer.BaseOptimizer import BaseOptimizer, \
-    OptimizerConf  # , OptimizerResult
+    OptimizerConf
 
 
 class MarkowitzModel(BaseOptimizer):
@@ -17,8 +17,8 @@ class MarkowitzModel(BaseOptimizer):
 
     _LABEL = 'Markowitz'
 
-    def __init__(self, ptf: Portfolio, iterations: int = 50, points: int = None,
-                 ret_grid: Iterable = None, gamma: float = None,
+    def __init__(self, ptf: Portfolio, iterations: int = 50, points: int = 20,
+                 ret_grid: Sequence = None, gamma: float = None,
                  max_ret: float = 1e6, min_ret: float = .0, **kwargs):
         # Input variables
         self._num = points
@@ -31,7 +31,7 @@ class MarkowitzModel(BaseOptimizer):
     def _initialize(self):
         super()._initialize()
 
-        if self._ret_grid:
+        if self._ret_grid is not None:
             self._num = len(self._ret_grid)
             self._max_ret = max(self._ret_grid)
             self._min_ret = min(self._ret_grid)

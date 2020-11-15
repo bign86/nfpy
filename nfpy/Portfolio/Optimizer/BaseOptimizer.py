@@ -10,8 +10,12 @@ import numpy.random as rnd
 from scipy.optimize import minimize, OptimizeResult
 
 from nfpy.Assets.Portfolio import Portfolio
-from nfpy.Financial.Returns import compound
+from nfpy.Financial.Returns import compound, expct_ret
+from nfpy.Handlers.AssetFactory import get_af_glob
+from nfpy.Handlers.Calendar import get_calendar_glob
+from nfpy.Handlers.CurrencyFactory import get_fx_glob
 from nfpy.Tools.Constants import BDAYS_IN_1Y
+from nfpy.Tools.TSUtils import dropna
 from nfpy.Tools.Utilities import AttributizedDict
 
 
@@ -54,11 +58,13 @@ class BaseOptimizer(metaclass=ABCMeta):
                  gamma: float = None, **kwargs):
         # Input variables
         self._ptf = ptf
-        self._iter = iterations
+        self._iter = np.abs(iterations)
         self._gamma = gamma
         # self._coupons = coupons
 
         # Working variables
+        self._af = get_af_glob()
+        self._fx = get_fx_glob()
         self._calc_var = None
         self._len = None
         self._ret = None
@@ -73,20 +79,44 @@ class BaseOptimizer(metaclass=ABCMeta):
 
     def _initialize(self):
         """ Initialize the input object and set the state for the optimization. """
+        if self._ptf is None:
+            raise ValueError('No portfolio in input to {}'.format(self._LABEL))
+        if self._iter is None or self._iter == 0:
+            raise ValueError('Wrong iteration value in input to {}'.format(self._LABEL))
+
         self._set_ptf()
         self._calc_var = self._fn_var_l2 if self._gamma else self._fn_var
 
     def _set_ptf(self):
         """ Set quantities related to portfolios. """
-        ptf = self._ptf
+        ptf, ccy = self._ptf, self._ptf.currency
+        self._len = ptf.num_constituents - 1
 
-        self._uids = ptf.constituents_uids
-        self._len = ptf.num_constituents
+        uid_list = ptf.constituents_uids.copy()
+        uid_list.remove(ccy)
 
-        ret = ptf.expected_constituents_return()
-        vola = ptf.constituents_volatility()
-        cov = ptf.covariance.values
-        self._ret = compound(ret, BDAYS_IN_1Y)
+        cal = get_calendar_glob()
+        ret = np.zeros((len(cal), self._len))
+        for i, uid in enumerate(uid_list):
+            asset = self._af.get(uid)
+            r = asset.returns.values
+            pos_ccy = asset.currency
+
+            if ccy != pos_ccy:
+                fx = self._fx.get(pos_ccy, ccy)
+                fx_ret = fx.returns.values
+                r = r + fx_ret + r * fx_ret
+
+            ret[:, i] = r
+
+        ret, _ = dropna(ret, axis=1)
+        e_ret = expct_ret(ret, cal.calendar.values, is_log=False)
+        vola = np.nanstd(ret, axis=0)
+        cov = np.cov(ret, rowvar=False)
+
+        self._uids = uid_list
+        self._ret = compound(e_ret, BDAYS_IN_1Y)
+        # print(self._ret)
         self._var = (vola ** 2.) * BDAYS_IN_1Y
         self._cov = cov * BDAYS_IN_1Y
 
