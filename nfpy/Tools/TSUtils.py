@@ -2,25 +2,25 @@
 # TSUtils
 # Utilities functions to work on time series
 #
-
+from copy import deepcopy
 from typing import Iterable, Union
 import numpy as np
 import pandas as pd
 
 
-def skewness(ts: np.array) -> float:
+def skewness(ts: np.ndarray) -> float:
     """ Calculates the third standard moment. """
     ts_zm = ts - np.nanmean(ts)
     return np.power(ts_zm, 3) / (np.nanstd(ts) ** 3)
 
 
-def kurtosis(ts: np.array) -> float:
+def kurtosis(ts: np.ndarray) -> float:
     """ Calculates the fourth standard moment. """
     ts_zm = ts - np.nanmean(ts)
     return np.power(ts_zm, 4) / (np.nanstd(ts) ** 4)
 
 
-def series_momenta(ts: np.array) -> tuple:
+def series_momenta(ts: np.ndarray) -> tuple:
     """ Calculates first 4 momenta of the input series
 
         Output:
@@ -70,7 +70,7 @@ def rolling_sum(v: np.ndarray, w):
     return ret[w - 1:]
 
 
-def rolling_mean(v: np.array, w: int):
+def rolling_mean(v: np.ndarray, w: int):
     """ Compute the rolling mean of the input array.
 
         Input:
@@ -83,7 +83,7 @@ def rolling_mean(v: np.array, w: int):
     return rolling_sum(v, w) / w
 
 
-def trim_ts(v: np.array, dt: np.array,
+def trim_ts(v: Union[None, np.ndarray], dt: np.ndarray,
             start: Union[np.datetime64, pd.Timestamp] = None,
             end: Union[np.datetime64, pd.Timestamp] = None) -> tuple:
     """ Replicates the use of Pandas .loc[] to slice a time series on a given
@@ -111,19 +111,29 @@ def trim_ts(v: np.array, dt: np.array,
         search.append(np.datetime64(end))
     idx = np.searchsorted(dt, search)
 
+    if v is not None:
+        v = deepcopy(v)
+    dt = deepcopy(dt)
+
     if start and end:
-        v = v[idx[0]:idx[1]]
+        if v is not None:
+            v = v[idx[0]:idx[1]]
         dt = dt[idx[0]:idx[1]]
+
     elif start:
-        v = v[idx[0]:]
+        if v is not None:
+            v = v[idx[0]:]
         dt = dt[idx[0]:]
     elif end:
-        v = v[:idx[0]]
+        if v is not None:
+            v = v[:idx[0]]
         dt = dt[:idx[0]]
+
+    # v_ = None if v is None else v_
     return v, dt
 
 
-def last_valid_index(v: np.array) -> int:
+def last_valid_index(v: np.ndarray) -> int:
     """ Find the index of the last non-nan value. Similar to the Pandas method
         last_valid_index().
     """
@@ -135,30 +145,45 @@ def last_valid_index(v: np.array) -> int:
     return len(v) + i
 
 
-def dropna(v: np.array, axis: int = 0) -> tuple:
-    """ Drop NA from input array. A second array can be supplied that will be
-        kept aligned with the principal one.
+def dropna(v: np.ndarray, axis: int = 0) -> tuple:
+    """ Drop NA from 2D input array.
     """
     if len(v.shape) == 1:
         mask = ~np.isnan(v)
         _v = v[mask]
     else:
-        mask = ~np.any(np.isnan(v), axis=axis)
+        mask = ~np.any(np.isnan(v), axis=axis, keepdims=True)
+        tile_sh = (v.shape[axis], 1) if axis == 0 else (1, v.shape[axis])
+        mask = np.tile(mask, tile_sh)
+        _v = v[mask]
+        n = len(_v) // v.shape[axis]
         if axis == 0:
-            _v = v[:, mask]
+            _v = _v.reshape((v.shape[axis], n))
         else:
-            _v = v[mask, :]
+            _v = _v.reshape((n, v.shape[axis]))
     return _v, mask
 
 
-def fillna(v: np.array, n: float) -> np.array:
+def fillna(v: np.ndarray, n: float) -> np.ndarray:
     """ Fill nan in the input array with the supplied value. """
     mask = np.where(np.isnan(v))
     v[mask] = n
     return v
 
 
-def ts_yield(dt: np.array, ts: np.array, base: np.array,
+def ffill_cols(v: np.ndarray, n: float = 0):
+    """ Forward fill nan with the last valid value column-wise. """
+    mask = np.isnan(v)
+    tmp = v[0].copy()
+    v[0][mask[0]] = n
+    mask[0] = False
+    idx = np.where(~mask, np.arange(mask.shape[0])[:, None], 0)
+    out = np.take_along_axis(v, np.maximum.accumulate(idx, axis=0), axis=0)
+    v[0] = tmp
+    return out
+
+
+def ts_yield(dt: np.ndarray, ts: np.ndarray, base: np.ndarray,
              date: pd.Timestamp = None) -> float:
     """ Compute the yield of a time series with respect to a base series at a
         given date.

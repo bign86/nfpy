@@ -8,7 +8,8 @@ import pandas as pd
 from scipy import stats
 
 from nfpy.Financial.DiscountFactor import dcf
-from nfpy.Tools.TSUtils import trim_ts, rolling_sum, dropna, rolling_window, fillna
+from nfpy.Tools.TSUtils import trim_ts, rolling_sum, dropna, \
+    rolling_window, fillna
 
 
 def adj_factors(ts: np.array, div: np.array) -> np.array:
@@ -26,9 +27,7 @@ def adj_factors(ts: np.array, div: np.array) -> np.array:
     # Calculate conversion factors
     fc = 1. - (div / ts)
     cp = np.cumprod(fillna(fc, 1.))
-    adjfc = fc / cp * cp[-1]
-
-    return adjfc
+    return fc / cp * cp[-1]
 
 
 def fv(cf: np.ndarray, r: Union[float, np.ndarray],
@@ -94,8 +93,8 @@ def beta(dt: np.ndarray, ts: np.ndarray, proxy: np.ndarray,
     return dts, slope, intercept
 
 
-def capm(dt: np.ndarray, ts: np.ndarray, idx: np.ndarray, start: pd.Timestamp = None,
-         end: pd.Timestamp = None, w: int = None) -> tuple:
+def capm_beta(dt: np.ndarray, ts: np.ndarray, idx: np.ndarray,
+              start: pd.Timestamp = None, end: pd.Timestamp = None) -> tuple:
     """ Gives the beta of a series with respect to another (an index).
 
         Input:
@@ -104,7 +103,6 @@ def capm(dt: np.ndarray, ts: np.ndarray, idx: np.ndarray, start: pd.Timestamp = 
             idx [np.ndarray]: market proxy return time series
             start [pd.Timestamp]: start date of the series (default: None)
             end [pd.Timestamp]: end date of the series excluded (default: None)
-            w [int]: window size if rolling (default: None)
 
         Output:
             beta [float]: the beta
