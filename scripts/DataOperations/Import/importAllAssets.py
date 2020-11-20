@@ -4,10 +4,10 @@
 #
 
 from nfpy.Downloader.ImportFactory import get_impf_glob
-from nfpy.Handlers.Calendar import get_calendar_glob, today_, last_business_
+from nfpy.Handlers.Calendar import get_calendar_glob, today, last_business
 from nfpy.Handlers.Inputs import InputHandler
 
-__version__ = '0.3'
+__version__ = '0.3.1'
 _TITLE_ = "<<< Import into elaboration database script >>>"
 
 
@@ -15,7 +15,7 @@ if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
     cal = get_calendar_glob()
-    cal.initialize(today_(), last_business_())
+    cal.initialize(today(), last_business())
 
     impf = get_impf_glob()
     inh = InputHandler()

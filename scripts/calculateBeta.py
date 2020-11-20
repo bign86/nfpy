@@ -24,12 +24,12 @@ if __name__ == '__main__':
     db = get_db_glob()
     inh = InputHandler()
 
-    start_date = inh.input("Give starting date for time series: ", idesc='str')
+    start_date = inh.input("Give starting date for time series: ", idesc='datetime')
     if not start_date:
         raise ValueError('You must give a starting date.')
 
     end_date = inh.input("Give ending date for time series (default <today>): ",
-                         default=today(), idesc='timestamp', optional=True)
+                         default=today(), idesc='timestamp')
     print('\n * Calendar dates: {} - {}'.format(start_date, end_date))
     get_calendar_glob().initialize(end_date, start_date)
 
