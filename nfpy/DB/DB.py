@@ -155,8 +155,9 @@ def backup_db(db_path: str = None, f_name: str = None):
     from datetime import datetime
     from shutil import copyfile
 
+    conf = get_conf_glob()
     if not db_path:
-        db_path = get_conf_glob().db_path
+        db_path = conf.db_path
     else:
         if not isinstance(db_path, str):
             raise DatabaseError("Not a valid database name")
@@ -164,9 +165,10 @@ def backup_db(db_path: str = None, f_name: str = None):
     path, file = os.path.split(db_path)
 
     if f_name is None:
+        bak_path = conf.backup_dir
         name, ext = os.path.splitext(file)
         date = '_' + datetime.today().strftime('%Y%m%d_%H%M%S')
-        new_file = os.path.join(path, ''.join([name, date, ext]))
+        new_file = os.path.join(bak_path, ''.join([name, date, ext]))
     else:
         new_file = f_name
 
