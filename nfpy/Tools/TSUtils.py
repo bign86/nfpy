@@ -2,25 +2,25 @@
 # TSUtils
 # Utilities functions to work on time series
 #
+
 from copy import deepcopy
-from typing import Iterable, Union
+from typing import Union
 import numpy as np
-import pandas as pd
 
 
-def skewness(ts: np.ndarray) -> float:
+def skewness(ts: np.ndarray, axis: int = 0) -> float:
     """ Calculates the third standard moment. """
-    ts_zm = ts - np.nanmean(ts)
-    return np.power(ts_zm, 3) / (np.nanstd(ts) ** 3)
+    ts_zm = ts - np.nanmean(ts, axis=axis)
+    return np.power(ts_zm, 3) / (np.nanstd(ts, axis=axis) ** 3)
 
 
-def kurtosis(ts: np.ndarray) -> float:
+def kurtosis(ts: np.ndarray, axis: int = 0) -> float:
     """ Calculates the fourth standard moment. """
-    ts_zm = ts - np.nanmean(ts)
-    return np.power(ts_zm, 4) / (np.nanstd(ts) ** 4)
+    ts_zm = ts - np.nanmean(ts, axis=axis)
+    return np.power(ts_zm, 4) / (np.nanstd(ts, axis=axis) ** 4)
 
 
-def series_momenta(ts: np.ndarray) -> tuple:
+def series_momenta(ts: np.ndarray, axis: int = 0) -> tuple:
     """ Calculates first 4 momenta of the input series
 
         Output:
@@ -29,19 +29,19 @@ def series_momenta(ts: np.ndarray) -> tuple:
             skewness [float]: skewness (third momentum)
             kurtosis [float]: kurtosis (fourth momentum)
     """
-    mu = np.nanmean(ts)
+    mu = np.nanmean(ts, axis=axis)
 
-    std = np.nanstd(ts)
+    std = np.nanstd(ts, axis=axis)
     var = std * std
-    ts_zm = ts - np.nanmean(ts)
+    ts_zm = ts - np.nanmean(ts, axis=axis)
 
     ts_exp = np.power(ts_zm, 3)
     std_exp = var * std
-    skew = np.nanmean(ts_exp) / std_exp
+    skew = np.nanmean(ts_exp, axis=axis) / std_exp
 
     ts_exp = ts_exp * ts_zm
     std_exp = std_exp * std
-    kurt = np.nanmean(ts_exp) / std_exp
+    kurt = np.nanmean(ts_exp, axis=axis) / std_exp
 
     return mu, var, skew, kurt
 
@@ -53,7 +53,7 @@ def rolling_window(v: np.ndarray, w: int):
     return np.lib.stride_tricks.as_strided(v, shape=shape, strides=strides)
 
 
-def rolling_sum(v: np.ndarray, w):
+def rolling_sum(v: np.ndarray, w: int):
     """ Compute the rolling sum of the input array.
 
         Input:
@@ -63,9 +63,9 @@ def rolling_sum(v: np.ndarray, w):
         Output:
             ret [np.ndarray]: rolling sum output array
     """
-    ret = np.nancumsum(v, axis=0, dtype=float)
     # ret[:, n:] = ret[:, n:] - ret[:, :-n]
     # return ret[:, n - 1:]
+    ret = np.nancumsum(v, axis=0, dtype=float)
     ret[w:] = ret[w:] - ret[:-w]
     return ret[w - 1:]
 
@@ -84,52 +84,63 @@ def rolling_mean(v: np.ndarray, w: int):
 
 
 def trim_ts(v: Union[None, np.ndarray], dt: np.ndarray,
-            start: Union[np.datetime64, pd.Timestamp] = None,
-            end: Union[np.datetime64, pd.Timestamp] = None) -> tuple:
+            start: np.datetime64 = None, end: np.datetime64 = None,
+            axis: int = 0) -> tuple:
     """ Replicates the use of Pandas .loc[] to slice a time series on a given
         pair of dates. Returns the sliced values array and dates array.
 
         Input:
-            v [np.array]: value series to trim
-            dt [np.array]: dates series to trim
-            start [Union[np.datetime64, pd.Timestamp]]:
-                trimming start date (Default None)
-            end [Union[np.datetime64, pd.Timestamp]]:
-                trimming end date (Default None)
+            v [np.ndarray]: value series to trim
+            dt [np.ndarray]: dates series to trim
+            start [np.datetime64]: trimming start date (Default None)
+            end [np.datetime64]: trimming end date (Default None)
+            axis [int]: axis along which to cut
 
         Output:
-            v [np.array]: value series trimmed
-            dt [np.array]: dates series trimmed
+            v [np.ndarray]: value series trimmed
+            dt [np.ndarray]: dates series trimmed
     """
-    if start is None and end is None:
+    # Quick exit
+    if ((start is None) and (end is None)) or (len(dt) == 0):
         return v, dt
 
+    # If the dates array has length 1, return quickly
+    if len(dt) == 1:
+        t = dt[0]
+        if ((start is not None) and (t < start)) or \
+                ((end is not None) and (t > end)):
+            return np.array([]), np.array([])
+        else:
+            return v, dt
+
+    # Search the cut positions
     search = []
     if start:
-        search.append(np.datetime64(start))
+        search.append(start)
     if end:
-        search.append(np.datetime64(end))
+        search.append(end + np.timedelta64(1, 'D'))
     idx = np.searchsorted(dt, search)
 
+    # Do not modify the input
     if v is not None:
         v = deepcopy(v)
     dt = deepcopy(dt)
 
+    # Create the slice
     if start and end:
-        if v is not None:
-            v = v[idx[0]:idx[1]]
-        dt = dt[idx[0]:idx[1]]
-
+        slc = slice(idx[0], idx[1])
     elif start:
-        if v is not None:
-            v = v[idx[0]:]
-        dt = dt[idx[0]:]
-    elif end:
-        if v is not None:
-            v = v[:idx[0]]
-        dt = dt[:idx[0]]
+        slc = slice(idx[0], None)
+    else:
+        slc = slice(None, idx[0])
+    slc_list = [slice(None)] * len(v.shape)
+    slc_list[axis] = slc
 
-    # v_ = None if v is None else v_
+    # Perform the slicing
+    if v is not None:
+        v = v[tuple(slc_list)]
+    dt = dt[slc]
+
     return v, dt
 
 
@@ -151,7 +162,7 @@ def dropna(v: np.ndarray, axis: int = 0) -> tuple:
     if len(v.shape) == 1:
         mask = ~np.isnan(v)
         _v = v[mask]
-    else:
+    elif len(v.shape) == 2:
         mask = ~np.any(np.isnan(v), axis=axis, keepdims=True)
         tile_sh = (v.shape[axis], 1) if axis == 0 else (1, v.shape[axis])
         mask = np.tile(mask, tile_sh)
@@ -161,6 +172,9 @@ def dropna(v: np.ndarray, axis: int = 0) -> tuple:
             _v = _v.reshape((v.shape[axis], n))
         else:
             _v = _v.reshape((n, v.shape[axis]))
+    else:
+        raise NotImplementedError('3D+ arrays not supported')
+
     return _v, mask
 
 
@@ -184,149 +198,22 @@ def ffill_cols(v: np.ndarray, n: float = 0):
 
 
 def ts_yield(dt: np.ndarray, ts: np.ndarray, base: np.ndarray,
-             date: pd.Timestamp = None) -> float:
+             date: np.datetime64 = None) -> float:
     """ Compute the yield of a time series with respect to a base series at a
         given date.
 
         Inputs:
-            dt [np.array]: signal dates
-            ts [np.array]: signal array at numerator
-            base [np.array]: base series at denominator
-            date [pd.Timestamp]: compute date (default None)
+            dt [np.ndarray]: signal dates
+            ts [np.ndarray]: signal array at numerator
+            base [np.ndarray]: base series at denominator
+            date [np.datetime64]: compute date (default None)
 
         Output:
             yield [float]: dividend yield
     """
-    date = np.datetime64(date)
     ts, _ = trim_ts(ts, dt, end=date)
     base, _ = trim_ts(base, dt, end=date)
 
     idx_ts = last_valid_index(ts)
     idx_base = last_valid_index(base)
     return ts[idx_ts] / base[idx_base]
-
-
-def smooth(ts: pd.Series, w: int = 15) -> pd.Series:
-    """ Smooth a time series.
-
-        Input:
-            ts [pd.Series]: time series to smooth
-            w [int]: smoothing window (default: 15)
-
-        Output:
-            smooth [pd.Series]: smoothed time series
-    """
-    if w < 3:
-        return ts.ffill()
-    x = ts.ffill().values
-
-    if x.shape[0] < w:
-        raise ValueError("Input vector needs to be bigger than window size.")
-
-    if w % 2 == 0:
-        w = w + 1
-    h = w // 2
-
-    s = np.r_[x[w - 1:0:-1], x, x[-2:-w - 1:-1]]
-    wgt = np.hamming(w)
-
-    c = np.convolve(wgt / wgt.sum(), s, mode='valid')
-    return pd.Series(c[h:-h], index=ts.index)
-
-
-def find_minima(ts: pd.Series, idx_list: Iterable = None) -> pd.Series:
-    """ Find the minima of a series.
-
-        Input:
-            ts [pd.Series]: Input series
-            idx_list [Iterable]: list of locations to verify (default None)
-
-        Output:
-            _r [pd.Series]: output series of minima
-    """
-    if idx_list is None:
-        ts_diff = (ts < ts.shift(1)) & (ts < ts.shift(-1))
-        res = ts[ts_diff]
-    else:
-        ts_diff = []
-        for idx in idx_list:
-            loc = ts.index.get_loc(idx)
-            try:
-                if (ts.iat[loc] < ts.iat[loc - 1]) & (ts.iat[loc] < ts.iat[loc + 1]):
-                    ts_diff.append(idx)
-            except IndexError:
-                pass
-        res = ts.loc[ts_diff]
-    return res
-
-
-def find_maxima(ts: pd.Series, idx_list: Iterable = None) -> pd.Series:
-    """ Find the maxima of a series.
-
-        Input:
-            ts [pd.Series]: Input series
-            idx_list [Iterable]: list of locations to verify (Default None)
-
-        Output:
-            _r [pd.Series]: output series of maxima
-    """
-    if idx_list is None:
-        ts_diff = (ts > ts.shift(1)) & (ts > ts.shift(-1))
-        res = ts[ts_diff]
-    else:
-        ts_diff = []
-        for idx in idx_list:
-            loc = ts.index.get_loc(idx)
-            try:
-                if (ts.iat[loc] > ts.iat[loc - 1]) & \
-                        (ts.iat[loc] > ts.iat[loc + 1]):
-                    ts_diff.append(idx)
-            except IndexError:
-                pass
-        res = ts.loc[ts_diff]
-    return res
-
-
-def find_ts_extrema(ts: pd.Series, w: int = 15):
-    smoo = smooth(ts, w=w).values
-    length = len(smoo)
-    w_2 = w // 2
-
-    i_max, i_min = [], []
-    for i in range(-w_2, length, w):
-        _last = min(i + w, length)
-        i = max(i, 0)
-        if i >= _last:
-            break
-
-        # Search smoothed max
-        try:
-            idx_max = np.nanargmax(smoo[i:_last]) + i
-        except (KeyError, ValueError):
-            # If we end up here it means the everything is NaN
-            continue
-        max_center = smoo[idx_max]
-        try:
-            if (max_center >= smoo[idx_max - 1]) & \
-                    (max_center >= smoo[idx_max + 1]) & \
-                    (idx_max not in i_max):
-                i_max.append(idx_max)
-        except IndexError:
-            pass
-
-        # Search smoothed min
-        idx_min = np.nanargmin(smoo[i:_last]) + i
-        min_center = smoo[idx_min]
-        try:
-            if (min_center <= smoo[idx_min - 1]) & \
-                    (min_center <= smoo[idx_min + 1]) & \
-                    (idx_min not in i_min):
-                i_min.append(idx_min)
-        except IndexError:
-            pass
-
-    # Search maxima/minima
-    val = ts.values
-    max_i = [np.nanargmax(val[max(i - w_2, 0):min(i + w_2 + 1, length)]) + i - w_2 for i in i_max]
-    min_i = [np.nanargmin(val[max(i - w_2, 0):min(i + w_2 + 1, length)]) + i - w_2 for i in i_min]
-    return ts.iloc[max_i], ts.iloc[min_i]
