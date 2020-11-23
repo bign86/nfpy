@@ -2,10 +2,10 @@
 # Bond math functions
 # Functions with bond math
 #
-from typing import Union
 
+from typing import Union
 import numpy as np
-import pandas as pd
+# import pandas as pd
 from scipy.optimize import newton
 
 from nfpy.Financial.DiscountFactor import dcf
@@ -61,21 +61,21 @@ def convexity(cf: np.ndarray, p0: float, acc: float = .0) -> float:
     return __time_cf(cf, p0, acc, 2.)
 
 
-def accrued(dt: np.ndarray, t0: pd.Timestamp, inception: pd.Timestamp) -> tuple:
+def accrued(dt: np.ndarray, t0: np.datetime64, inception: np.datetime64) -> tuple:
     """ Calculate accrued interest. In input must be supplied the series of
         dates and the reference date.
 
         Input:
             dt [np.ndarray]: series of dates
-            t0 [pd.Timestamp]: reference date, must be given if dt is supplied
-            inception [pd.Timestamp]: inception date
+            t0 [np.datetime64]: reference date, must be given if dt is supplied
+            inception [np.datetime64]: inception date
 
         Output:
             perc [float]: percentage of cash flow accrued
             idx [int]: index of the cash flow where the accrued is assigned
     """
     td = np.timedelta64(DAYS_IN_1Y, 'D')
-    t0 = np.datetime64(t0, dtype='datetime64[ns]')
+    # t0 = np.datetime64(t0, dtype='datetime64[ns]')
 
     # Find the relevant cash flows
     pe = (dt - t0) / td
@@ -83,7 +83,8 @@ def accrued(dt: np.ndarray, t0: pd.Timestamp, inception: pd.Timestamp) -> tuple:
 
     # If there is no index found we accrue since inception
     if len(t0_idx) == 0:
-        idx, t_old = 0, np.datetime64(inception, dtype='datetime64[ns]')
+        # idx, t_old = 0, np.datetime64(inception, dtype='datetime64[ns]')
+        idx, t_old = 0, inception
 
     # If there is an index we accrue since the date found
     else:
@@ -96,7 +97,7 @@ def accrued(dt: np.ndarray, t0: pd.Timestamp, inception: pd.Timestamp) -> tuple:
 
 
 def cash_flows(cf: np.ndarray, dt: np.ndarray, ty: np.ndarray,
-               date: pd.Timestamp, inception: pd.Timestamp) -> tuple:
+               date: np.datetime64, inception: np.datetime64) -> tuple:
     """ Function to prepare the cash flows by applying the accrued interest.
     """
     code = get_dt_glob().get('cfC')
@@ -112,18 +113,20 @@ def cash_flows(cf: np.ndarray, dt: np.ndarray, ty: np.ndarray,
 
     else:
         td = np.timedelta64(DAYS_IN_1Y, 'D')
-        t0 = np.datetime64(date, dtype='datetime64[ns]')
-        pe = ((dt - t0) / td)[-n:]
+        # t0 = np.datetime64(date, dtype='datetime64[ns]')
+        # pe = ((dt - t0) / td)[-n:]
+        pe = ((dt - date) / td)[-n:]
 
     v = np.vstack((pe, pf))
 
     return v, perc
 
 
-def calc_fv(dates: Union[pd.Timestamp, np.ndarray], inception: pd.Timestamp,
-            maturity: pd.Timestamp, prices: Union[np.ndarray, float],
+def calc_fv(dates: Union[np.datetime64, np.ndarray], inception: np.datetime64,
+            maturity: np.datetime64, prices: Union[np.ndarray, float],
             cf_values: np.ndarray, cf_dates: np.ndarray, cf_types: np.ndarray,
             rates: float = None):
+    _ = prices
     # Quick exit if no dates
     _, dts = trim_ts(None, dates, start=inception, end=maturity)
     n = len(dts)
@@ -141,8 +144,8 @@ def calc_fv(dates: Union[pd.Timestamp, np.ndarray], inception: pd.Timestamp,
     return v, dts
 
 
-def calc_ytm(dates: Union[pd.Timestamp, np.ndarray], inception: pd.Timestamp,
-             maturity: pd.Timestamp, prices: Union[np.ndarray, float],
+def calc_ytm(dates: Union[np.datetime64, np.ndarray], inception: np.datetime64,
+             maturity: np.datetime64, prices: Union[np.ndarray, float],
              cf_values: np.ndarray, cf_dates: np.ndarray, cf_types: np.ndarray,
              rates: float = None):
     _ = rates
@@ -150,8 +153,8 @@ def calc_ytm(dates: Union[pd.Timestamp, np.ndarray], inception: pd.Timestamp,
                         cf_values, cf_dates, cf_types)
 
 
-def calc_duration(dates: Union[pd.Timestamp, np.ndarray],
-                  inception: pd.Timestamp, maturity: pd.Timestamp,
+def calc_duration(dates: Union[np.datetime64, np.ndarray],
+                  inception: np.datetime64, maturity: np.datetime64,
                   prices: Union[np.ndarray, float], cf_values: np.ndarray,
                   cf_dates: np.ndarray, cf_types: np.ndarray,
                   rates: float = None):
@@ -160,8 +163,8 @@ def calc_duration(dates: Union[pd.Timestamp, np.ndarray],
                         cf_values, cf_dates, cf_types)
 
 
-def calc_convexity(dates: Union[pd.Timestamp, np.ndarray],
-                   inception: pd.Timestamp, maturity: pd.Timestamp,
+def calc_convexity(dates: Union[np.datetime64, np.ndarray],
+                   inception: np.datetime64, maturity: np.datetime64,
                    prices: Union[np.ndarray, float], cf_values: np.ndarray,
                    cf_dates: np.ndarray, cf_types: np.ndarray,
                    rates: float = None):
@@ -170,8 +173,8 @@ def calc_convexity(dates: Union[pd.Timestamp, np.ndarray],
                         cf_values, cf_dates, cf_types)
 
 
-def _gen_bm_func(mode: str, dates: Union[pd.Timestamp, np.ndarray],
-                 inception: pd.Timestamp, maturity: pd.Timestamp,
+def _gen_bm_func(mode: str, dates: Union[np.datetime64, np.ndarray],
+                 inception: np.datetime64, maturity: np.datetime64,
                  prices: Union[np.ndarray, float], cf_values: np.ndarray,
                  cf_dates: np.ndarray, cf_types: np.ndarray):
     if mode == 'ytm':
@@ -184,7 +187,7 @@ def _gen_bm_func(mode: str, dates: Union[pd.Timestamp, np.ndarray],
         raise ValueError('_gen_bm_func() mode ({}) not recognized'.format(mode))
 
     if isinstance(prices, float):
-        prices = np.ndarray([prices])
+        prices = np.array([prices])
 
     # Quick exit if no dates
     prices, dts = trim_ts(prices, dates, start=inception, end=maturity)

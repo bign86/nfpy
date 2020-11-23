@@ -4,7 +4,7 @@
 
 from typing import Union
 import numpy as np
-import pandas as pd
+# import pandas as pd
 from scipy import stats
 
 from nfpy.Financial.DiscountFactor import dcf
@@ -12,15 +12,15 @@ from nfpy.Tools.TSUtils import trim_ts, rolling_sum, dropna, \
     rolling_window, fillna
 
 
-def adj_factors(ts: np.array, div: np.array) -> np.array:
+def adj_factors(ts: np.ndarray, div: np.ndarray) -> np.ndarray:
     """ Calculate the adjustment factors given a dividend series.
 
         Input:
-            ts [np.array]: price series to calculate the yield
-            div [np.array]: dividend series
+            ts [np.ndarray]: price series to calculate the yield
+            div [np.ndarray]: dividend series
 
         Output:
-            adjfc [np.array]: series of adjustment factors
+            adjfc [np.ndarray]: series of adjustment factors
     """
     assert len(ts) == len(div)
 
@@ -49,7 +49,7 @@ def fv(cf: np.ndarray, r: Union[float, np.ndarray],
 
 
 def beta(dt: np.ndarray, ts: np.ndarray, proxy: np.ndarray,
-         start: pd.Timestamp = None, end: pd.Timestamp = None,
+         start: np.datetime64 = None, end: np.datetime64 = None,
          w: int = None) -> tuple:
     """ Gives the beta of a series with respect to another (an index).
 
@@ -57,8 +57,8 @@ def beta(dt: np.ndarray, ts: np.ndarray, proxy: np.ndarray,
             dt [np.ndarray]: dates time series
             ts [np.ndarray]: equity or other series under analysis
             proxy [np.ndarray]: reference proxy time series
-            start [pd.Timestamp]: start date of the series (default: None)
-            end [pd.Timestamp]: end date of the series excluded (default: None)
+            start [np.datetime64]: start date of the series (default: None)
+            end [np.datetime64]: end date of the series excluded (default: None)
             w [int]: window size if rolling (default: None)
 
         Output:
@@ -94,15 +94,15 @@ def beta(dt: np.ndarray, ts: np.ndarray, proxy: np.ndarray,
 
 
 def capm_beta(dt: np.ndarray, ts: np.ndarray, idx: np.ndarray,
-              start: pd.Timestamp = None, end: pd.Timestamp = None) -> tuple:
+              start: np.datetime64 = None, end: np.datetime64 = None) -> tuple:
     """ Gives the beta of a series with respect to another (an index).
 
         Input:
             dt [np.ndarray]: dates series under analysis
             ts [np.ndarray]: return series under analysis
             idx [np.ndarray]: market proxy return time series
-            start [pd.Timestamp]: start date of the series (default: None)
-            end [pd.Timestamp]: end date of the series excluded (default: None)
+            start [np.datetime64]: start date of the series (default: None)
+            end [np.datetime64]: end date of the series excluded (default: None)
 
         Output:
             beta [float]: the beta
@@ -120,7 +120,7 @@ def capm_beta(dt: np.ndarray, ts: np.ndarray, idx: np.ndarray,
 
 
 def sharpe(dt: np.ndarray, xc: np.ndarray, br: np.ndarray = None,
-           start: pd.Timestamp = None, end: pd.Timestamp = None,
+           start: np.datetime64 = None, end: np.datetime64 = None,
            w: int = None) -> tuple:
     """ Calculates the Sharpe ratio for the given return series.
 
@@ -128,8 +128,8 @@ def sharpe(dt: np.ndarray, xc: np.ndarray, br: np.ndarray = None,
             xc [np.ndarray]: series of excess returns wrt a base return series
             br [np.ndarray]: base rate series. Subtracted to xc to obtain excess
                              returns (default: None)
-            start [pd.Timestamp]: start date of the series (default: None)
-            end [pd.Timestamp]: end date of the series excluded (default: None)
+            start [np.datetime64]: start date of the series (default: None)
+            end [np.datetime64]: end date of the series excluded (default: None)
             w [int]: rolling window size (default: None)
 
         Output:
@@ -157,7 +157,7 @@ def sharpe(dt: np.ndarray, xc: np.ndarray, br: np.ndarray = None,
 
 
 def tev(dt: np.ndarray, r: np.ndarray, bkr: np.ndarray,
-        start: pd.Timestamp = None, end: pd.Timestamp = None,
+        start: np.datetime64 = None, end: np.datetime64 = None,
         w: int = None) -> tuple:
     """ Calculates the Tracking Error Volatility (TEV) between a series of
         returns and a benchmark one.

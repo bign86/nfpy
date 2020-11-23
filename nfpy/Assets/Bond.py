@@ -125,15 +125,21 @@ class Bond(Asset):
         """
         # Clean dates
         if date is None:
-            date = [get_calendar_glob().t0]
+            date = get_calendar_glob().t0
 
         # Set prices series
         if p0 is None:
-            p0 = self.prices.loc[date].values
+            p0 = self.prices.loc[date]
 
-        v, date = calc_ytm(date.values, self._inception_date, self._maturity,
-                           p0, self.cf['value'].values, self.cf.index.values,
-                           self.cf['dtype'].values, None)
+        try:
+            p0 = p0.values
+            date = date.values
+        except AttributeError:
+            date = np.array([date.asm8])
+
+        v, date = calc_ytm(date, self._inception_date.asm8,
+                           self._maturity.asm8, p0, self.cf['value'].values,
+                           self.cf.index.values, self.cf['dtype'].values, None)
         return pd.Series(data=v, index=date)
 
     def fv(self, date: Union[pd.Timestamp, pd.DatetimeIndex] = None,
@@ -153,9 +159,9 @@ class Bond(Asset):
         if date is None:
             date = [get_calendar_glob().t0]
 
-        v, date = calc_fv(date.values, self._inception_date, self._maturity,
-                          None, self.cf['value'].values, self.cf.index.values,
-                          self.cf['dtype'].values, rate)
+        v, date = calc_fv(date.values, self._inception_date.asm8,
+                          self._maturity.asm8, None, self.cf['value'].values,
+                          self.cf.index.values, self.cf['dtype'].values, rate)
         return pd.Series(data=v, index=date)
 
     def duration(self, date: Union[pd.Timestamp, pd.DatetimeIndex] = None) \
@@ -189,9 +195,9 @@ class Bond(Asset):
         # Set prices series
         p0 = self.prices.loc[date].values
 
-        v, date = calc_duration(date.values, self._inception_date, self._maturity,
-                                p0, self.cf['value'].values, self.cf.index.values,
-                                self.cf['dtype'].values, None)
+        v, date = calc_duration(date.values, self._inception_date.asm8,
+                                self._maturity.asm8, p0, self.cf['value'].values,
+                                self.cf.index.values, self.cf['dtype'].values, None)
         return pd.Series(data=v, index=date)
 
     def convexity(self, date: Union[pd.Timestamp, pd.DatetimeIndex] = None) \
@@ -221,7 +227,7 @@ class Bond(Asset):
         # Set prices series
         p0 = self.prices.loc[date].values
 
-        v, date = calc_convexity(date.values, self._inception_date, self._maturity,
-                                 p0, self.cf['value'].values, self.cf.index.values,
-                                 self.cf['dtype'].values, None)
+        v, date = calc_convexity(date.values, self._inception_date.asm8,
+                                 self._maturity.asm8, p0, self.cf['value'].values,
+                                 self.cf.index.values, self.cf['dtype'].values, None)
         return pd.Series(data=v, index=date)

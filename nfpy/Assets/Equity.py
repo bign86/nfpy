@@ -18,6 +18,18 @@ class Equity(Asset):
     _TS_TABLE = 'EquityTS'
     _TS_ROLL_KEY_LIST = ['date']
 
+    def __init__(self, uid: str):
+        super().__init__(uid)
+        self._index = None
+
+    @property
+    def index(self) -> str:
+        return self._index
+
+    @index.setter
+    def index(self, v: str):
+        self._index = v
+
     @property
     # TODO: dividends are not adjusted for splits in the current implementation
     def dividends(self) -> pd.Series:
@@ -103,4 +115,5 @@ class Equity(Asset):
 
         eq = self.log_returns if log else self.returns
         idx = benchmark.log_returns if log else benchmark.returns
-        return beta(eq.index.values, eq.values, idx.values, start, end, w)
+        return beta(eq.index.values, eq.values, idx.values,
+                    start.asm8, end.asm8, w)
