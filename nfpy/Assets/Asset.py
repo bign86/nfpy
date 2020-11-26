@@ -96,7 +96,7 @@ class Asset(FinancialItem):
 
         p = self.prices
         ts, date = p.values, p.index.values
-        ts, _ = trim_ts(ts, date, end=dt)
+        ts, _ = trim_ts(ts, date, end=dt.asm8)
         idx = last_valid_index(ts)
         return ts[idx]
 
@@ -186,21 +186,41 @@ class Asset(FinancialItem):
                 is_log [bool]: it set to True use is_log returns (default: False)
 
             Output:
-                epct [Union[float, pd.Series]]: expected value for returns
+                mean_ret [Union[float, pd.Series]]: expected value for returns
         """
         _ret = self.log_returns if is_log else self.returns
         ts, dt = _ret.values, _ret.index.values
-        return expct_ret(ts, dt, start=start, end=end, is_log=is_log)
+        return expct_ret(ts, dt, start=start.asm8, end=end.asm8, is_log=is_log)
 
     def return_volatility(self, start: pd.Timestamp = None,
                           end: pd.Timestamp = None,
                           is_log: bool = False) -> float:
+        """ Volatility of asset returns.
+
+            Input:
+                start [pd.Timestamp]: start date of the series (default: None)
+                end [pd.Timestamp]: end date of the series excluded (default: None)
+                is_log [bool]: it set to True use is_log returns (default: False)
+
+            Output:
+                vola_ret [Union[float, pd.Series]]: expected value for returns
+        """
         _ret = self.log_returns if is_log else self.returns
-        _ts, _ = trim_ts(_ret.values, _ret.index.values, start=start, end=end)
+        _ts, _ = trim_ts(_ret.values, _ret.index.values, start=start.asm8, end=end.asm8)
         return float(np.nanstd(_ts))
 
     def total_return(self, start: pd.Timestamp = None, end: pd.Timestamp = None,
                      is_log: bool = False) -> Union[float, pd.Series]:
+        """ Total return over the period for the asset.
+
+            Input:
+                start [pd.Timestamp]: start date of the series (default: None)
+                end [pd.Timestamp]: end date of the series excluded (default: None)
+                is_log [bool]: it set to True use is_log returns (default: False)
+
+            Output:
+                tot_ret [Union[float, pd.Series]]: expected value for returns
+        """
         _ret = self.log_returns if is_log else self.returns
         ts, dt = _ret.values, _ret.index.values
-        return tot_ret(ts, dt, start=start, end=end, is_log=is_log)
+        return tot_ret(ts, dt, start=start.asm8, end=end.asm8, is_log=is_log)
