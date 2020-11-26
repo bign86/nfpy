@@ -18,8 +18,8 @@ class DividendFactory(object):
                  end: pd.Timestamp = None, confidence: float = .1):
         # Input
         self._eq = eq
-        self._start = start
-        self._t0 = end
+        self._start = start.asm8
+        self._t0 = end.asm8
 
         # Working variables
         self._div = None
@@ -103,7 +103,7 @@ class DividendFactory(object):
             Output:
                 yield [float]: dividend yield
         """
-        return ts_yield(self._dt, self._div, self._eq.prices, date)
+        return ts_yield(self._dt, self._div, self._eq.prices.values, date.asm8)
 
     def _calc_freq(self):
         """ Determine the frequency of dividends. The frequency is determined if
