@@ -6,7 +6,7 @@
 import pandas as pd
 
 from nfpy.Assets.Asset import Asset
-from nfpy.Financial.EquityMath import adj_factors, beta
+from nfpy.Financial.EquityMath import adj_factors, beta, correlation
 from nfpy.Handlers.AssetFactory import get_af_glob
 
 
@@ -117,3 +117,34 @@ class Equity(Asset):
         idx = benchmark.log_returns if log else benchmark.returns
         return beta(eq.index.values, eq.values, idx.values,
                     start.asm8, end.asm8, w)
+
+    def correlation(self, benchmark: Asset = None, start: pd.Timestamp = None,
+                    end: pd.Timestamp = None, w: int = None, log: bool = False)\
+            -> tuple:
+        """ Returns the beta between the equity and the benchmark index given as
+            input. If dates are specified, the beta is calculated on the resulting
+            interval (end date excluded). If a window is given, beta is calculated
+            rolling.
+
+            Input:
+                benchmark [Asset]: usually an index (default: reference index)
+                start [pd.Timestamp]: start date of the series (default: None)
+                end [pd.Timestamp]: end date of the series excluded (default: None)
+                w [int]: window size for rolling calculation (default: None)
+                is_log [bool]: it set to True use is_log returns (default: False)
+
+            Output:
+                dt [Union[float, pd.Series]]: dates of the regression (None if
+                                              not rolling)
+                beta [Union[float, pd.Series]]: beta of the regression
+                intercept [Union[float, pd.Series]]: intercept of the regression
+        """
+        if benchmark is None:
+            benchmark = get_af_glob().get(self.index)
+        elif not isinstance(benchmark, Asset):
+            raise TypeError('Wrong benchmark type')
+
+        eq = self.log_returns if log else self.returns
+        idx = benchmark.log_returns if log else benchmark.returns
+        return correlation(eq.index.values, eq.values, idx.values,
+                           start.asm8, end.asm8, w)

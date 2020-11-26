@@ -4,7 +4,6 @@
 
 from typing import Union
 import numpy as np
-# import pandas as pd
 from scipy import stats
 
 from nfpy.Financial.DiscountFactor import dcf
@@ -187,3 +186,39 @@ def tev(dt: np.ndarray, r: np.ndarray, bkr: np.ndarray,
         dts = dts[mask][w - 1:]
 
     return dts, res
+
+
+def correlation(dt: np.ndarray, ts: np.ndarray, proxy: np.ndarray,
+                start: np.datetime64 = None, end: np.datetime64 = None,
+                w: int = None) -> tuple:
+    """ Gives the beta of a series with respect to another (an index).
+
+        Input:
+            dt [np.ndarray]: dates time series
+            ts [np.ndarray]: equity or other series under analysis
+            proxy [np.ndarray]: reference proxy time series
+            start [np.datetime64]: start date of the series (default: None)
+            end [np.datetime64]: end date of the series excluded (default: None)
+            w [int]: window size if rolling (default: None)
+
+        Output:
+            dt [Union[np.ndarray, None]]: date (only if rolling else None)
+            slope [Union[np.ndarray, float]]: the beta
+            intercept [Union[np.ndarray, float]]: intercept of the regression
+            std_err [Union[np.ndarray, float]]: regression error
+    """
+    # That end > start is NOT checked at this level
+    tsa, dts = trim_ts(ts, dt, start=start, end=end)
+    prx, _ = trim_ts(proxy, dt, start=start, end=end)
+
+    v, mask = dropna(np.vstack((tsa, prx)))
+
+    if not w:
+        corr = np.corrcoef(v[1, :], v[0, :])
+        dts = None
+
+    else:
+        pass
+
+    return dts, corr
+
