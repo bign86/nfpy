@@ -73,7 +73,7 @@ class BaseFundamentalModel(metaclass=ABCMeta):
         """
         price = self._eq.prices
         ts, dt = price.values, price.index.values
-        ts, dt = trim_ts(ts, dt, self._start, self._t0)
+        ts, dt = trim_ts(ts, dt, self._start.asm8, self._t0.asm8)
         idx = last_valid_index(ts)
         cv_obj = self._fx.get(self._eq.currency, self._cmp.currency)
         self._last_price = ts[idx] * cv_obj.get(dt[idx])

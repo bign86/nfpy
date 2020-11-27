@@ -72,8 +72,7 @@ class DCFResult(AttributizedDict):
 
 
 class DiscountedCashFlowModel(BaseFundamentalModel):
-    """
-    """
+    """ Discounted Cash Flow Model class. """
 
     _RES_OBJ = DCFResult
     _COLS = ['fcf', 'net_income', 'fcf_coverage', 'revenues', 'revenues_returns',
@@ -92,9 +91,7 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
 
         self._ff = FundamentalsFactory(self._cmp)
         self._check_applicability()
-        self._record_inputs()
 
-    def _record_inputs(self):
         self._res_update(ccy=self._cmp.currency, perpetual_growth=self._p_rate,
                          uid=self._cmp.uid, equity=self._eq.uid, t0=self._t0,
                          start=self._start, past_horizon=self._ph,
@@ -133,8 +130,7 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
         past = self._ff.get_index(f)[-y:]
         curr = int(past[-1].year) + 1
         future = pd.DatetimeIndex([pd.Timestamp(y, 12, 31) for y in range(curr, curr + p)])
-        index = past.append(future)
-        return index.date
+        return past.append(future)
 
     def _calc_fcf_coverage(self, array: np.array):
         f, y = self.frequency, self._ph
@@ -219,7 +215,7 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
         beta = np.empty(y)
         for i, dt in enumerate(index[:y]):
             try:
-                beta[i] = self._eq.beta(start=pd.Timestamp(dt.year, 1, 1), end=dt)[0]
+                beta[i] = self._eq.beta(start=pd.Timestamp(dt.year, 1, 1), end=dt)[1]
             except ValueError:
                 beta[i] = .0
         # beta = np.array(beta)
@@ -246,11 +242,11 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
         array[12, y:] = mean_wacc
 
         # Get Cash Flows to discount
-        cf = np.zeros((yj + 1, 2))
-        cf[:, 0] = np.arange(1, yj + 2, 1)
-        cf[:yj, 1] = array[0, -yj:]
+        cf = np.zeros((2, yj + 1))
+        cf[0, :] = np.arange(1, yj + 2, 1)
+        cf[1, :yj] = array[0, -yj:]
         den = max(mean_wacc - self._p_rate, .025)
-        cf[-1, 1] = float(array[0, -1:]) * (1. + self._p_rate) / den
+        cf[1, -1] = float(array[0, -1:]) * (1. + self._p_rate) / den
 
         # Calculate Fair Value
         shares = float(self._ff.total_shares(f).values[-1])

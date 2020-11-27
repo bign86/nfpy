@@ -22,7 +22,7 @@ class DDMResult(BaseFundamentalResult):
 
 
 class DividendDiscountModel(BaseFundamentalModel):
-    """ Dividend Discount Model """
+    """ Dividend Discount Model class. """
 
     _RES_OBJ = DDMResult
 
@@ -36,9 +36,7 @@ class DividendDiscountModel(BaseFundamentalModel):
 
         self._df = DividendFactory(self._eq, self._start, self._t0, div_conf)
         self._check_applicability()
-        self._record_inputs()
 
-    def _record_inputs(self):
         self._res_update(div_conf=self._div_confidence, ccy=self._cmp.currency,
                          suspension=self._suspension, uid=self._cmp.uid,
                          equity=self._eq.uid, t0=self._t0, start=self._start,
@@ -117,13 +115,15 @@ class DividendDiscountModel(BaseFundamentalModel):
         # Create cash flows sequence and calculate final price
         cf = div_ts.iat[-1] + np.zeros(len(t))
         final_price = last_price * (compound(eq_drift, fp) + 1.)
-        self._cf_no_growth = np.array([t, cf]).T
-        self._cf_no_growth[-1, 1] += final_price
+        self._cf_no_growth = np.array([t, cf])  # .T
+        # self._cf_no_growth[-1, 1] += final_price
+        self._cf_no_growth[1, -1] += final_price
 
         # Calculate the DCF w/ growth
         cf_compound = cf * (compound(div_drift, t, 1. / freq) + 1.)
-        self._cf_growth = np.array([t, cf_compound]).T
-        self._cf_growth[-1, 1] += final_price
+        self._cf_growth = np.array([t, cf_compound])  # .T
+        # self._cf_growth[-1, 1] += final_price
+        self._cf_growth[1, -1] += final_price
 
         # Transform projected dividend series for plotting
         cf_zg = np.array([ft, cf])

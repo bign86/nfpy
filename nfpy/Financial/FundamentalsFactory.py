@@ -117,9 +117,9 @@ class FundamentalsFactory(object):
                 Common Shares + Preferred Shares
         """
         c = self._cnst
-        d = c[(freq, 'QTCO')]
+        d = c[(freq, 'QTCO')].fillna(method='ffill', inplace=False)
         try:
-            d = d + c[(freq, 'QTPO')]
+            d = d + c[(freq, 'QTPO')].fillna(method='ffill', inplace=False)
         except KeyError:
             pass
         d.name = '0TSOS'
