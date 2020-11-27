@@ -16,7 +16,6 @@ from .BaseDownloader import BasePage
 from .BaseProvider import BaseProvider
 from .DownloadsConf import InvestingSeriesConf, InvestingCashFlowConf,\
     InvestingBalanceSheetConf, InvestingIncomeStatementConf
-# from .ImportsConf import FinancialsCodeImport
 
 
 class InvestingProvider(BaseProvider):
@@ -40,7 +39,7 @@ class InvestingProvider(BaseProvider):
     where if.ticker = ? and if.statement = ?;"""
 
     @staticmethod
-    def _create_input_dict(last_date: str, rd_obj) -> dict:
+    def create_input_dict(last_date: str) -> dict:
         return {"st_date": last_date, "end_date": today(fmt='%Y-%m-%d')}
 
     def get_import_data(self, data: dict) -> Sequence[Sequence]:
@@ -280,13 +279,3 @@ class InvestingCashFlow(InvestingFinancialsBasePage):
     _PAGE = 'CashFlow'
     _COLUMNS = InvestingCashFlowConf
     _REPORT_TYPE = 'CAS'
-
-
-# class InvestingKeyRatios(InvestingBasePage):
-# _PAGE = 'KeyRatios'
-# _COLUMNS = InvestingSeriesConf
-# _TABLE = 'InvestingTOBEDEFINED'
-# _URL_SUFFIX = '-ratios'
-#
-# def _parse(self):
-#    """ Parse the fetched object. """

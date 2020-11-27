@@ -5,18 +5,16 @@
 #
 
 import datetime
-from pathlib import Path
-from typing import List, Union
+from typing import List
 from requests import RequestException
 
 from nfpy.DB.DB import get_db_glob
 from nfpy.Handlers.QueryBuilder import get_qb_glob
 from nfpy.Downloader.BaseDownloader import BasePage
-from nfpy.Handlers.Calendar import today_
+from nfpy.Handlers.Calendar import today, last_business, date_2_datetime
 from nfpy.Tools.Exceptions import MissingData, IsNoneError
 from nfpy.Tools.Singleton import Singleton
 
-# from .Morningstar import MorningstarProvider
 from .ECB import ECBProvider
 from .Yahoo import YahooProvider
 from .Investing import InvestingProvider
@@ -29,12 +27,13 @@ class DownloadFactory(metaclass=Singleton):
     """
 
     _TABLE = 'Downloads'
-    _PROVIDERS = {  # "Morningstar": MorningstarProvider(),
+    _PROVIDERS = {
                   "Yahoo": YahooProvider(),
                   "ECB": ECBProvider(),
                   "Investing": InvestingProvider(),
                   "IB": IBProvider()
                   }
+    _Q_MAX_DATE = "select max(date) from {} where ticker = ?"
 
     def __init__(self):
         self._db = get_db_glob()
@@ -111,7 +110,26 @@ class DownloadFactory(metaclass=Singleton):
         return fields, res, len(res)
 
     def _calc_default_input(self, prov: str, ticker: str, table: str) -> dict:
-        return self._PROVIDERS[prov].calc_default_input(ticker, table)
+        """ Calculates the default input for downloading for the given ticket
+            and the given table.
+
+            Input:
+                ticker [str]: ticker to be downloaded
+                table [str]: destination table
+
+            Output:
+                input [dict]: dictionary of the input
+        """
+        # search for the last available date in DB
+        last_date = self._db.execute(self._Q_MAX_DATE.format(table), (ticker,)).fetchone()
+        last_date = last_date[0] if last_date[0] is not None else '1990-01-01'
+
+        # If last available data is yesterday skip downloading
+        last_dt = datetime.datetime.strptime(last_date, '%Y-%m-%d').date()
+        if last_dt >= last_business(mode='datetime'):
+            raise RuntimeError('Already updated')
+
+        return self._PROVIDERS[prov].create_input_dict(last_date)
 
     def create_page_obj(self, provider: str, page: str) -> BasePage:
         """ Return an un-initialized page object of the correct type.
@@ -127,26 +145,6 @@ class DownloadFactory(metaclass=Singleton):
             raise ValueError("Provider {} not recognized".format(provider))
 
         return self._PROVIDERS[provider].create_page_obj(page)
-
-    @staticmethod
-    def initialize(page_obj: BasePage, ticker: str, currency: str,
-                   fname: Union[str, Path] = None, **kwargs) -> BasePage:
-        """ Initialize a page object with the correct parameters. If the page
-            object is initialized, this call operates as a no-op.
-        
-            Input:
-                page_obj [BasePage]: page object uninitialized
-                drow [tuple]: ...
-                fname [Union[str, Path]]: file name to load
-                **kwargs: parameters for specific page
-
-            Output:
-                obj [BasePage]: page object initialized
-        """
-        if not page_obj.is_inizialized:
-            asset = {'ticker': ticker, 'currency': currency}
-            page_obj.initialize(asset, fname, kwargs)
-        return page_obj
 
     def bulk_download(self, do_save: bool = True, override_date: bool = False,
                       uid: str = None, provider: str = None, page: str = None,
@@ -171,8 +169,8 @@ class DownloadFactory(metaclass=Singleton):
         print('We are about to download {} items'.format(num))
 
         # General variables
-        today_string = today_()
-        today_dt = today_(string=False)
+        today_string = today()
+        today_dt = today(mode='datetime')
         q_upd = self._qb.update(self._TABLE, fields=['last_update'])
 
         for item in upd_list:
@@ -180,7 +178,8 @@ class DownloadFactory(metaclass=Singleton):
 
             # Check the last update to avoid too frequent updates
             if last_upd_str and not override_date:
-                last_upd = datetime.datetime.strptime(last_upd_str, '%Y-%m-%d').date()
+                # last_upd = datetime.datetime.strptime(last_upd_str, '%Y-%m-%d').date()
+                last_upd = date_2_datetime(last_upd_str)
                 delta_days = (today_dt - last_upd).days
                 if delta_days < int(upd_freq):
                     print('[{}: {}] -> {} not updated since last update {} days ago'
@@ -195,7 +194,8 @@ class DownloadFactory(metaclass=Singleton):
                 except RuntimeError as e:
                     print(e)
                     continue
-                page = self.initialize(page, ticker, currency, **kwargs)
+                page.initialize({'ticker': ticker, 'currency': currency},
+                                None, kwargs)
 
                 # Perform download and save results
                 try:

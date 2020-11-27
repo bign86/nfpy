@@ -3,7 +3,6 @@
 # Base class to handle the single provider
 #
 
-import datetime
 from abc import ABCMeta, abstractmethod
 from typing import Sequence
 
@@ -11,7 +10,6 @@ from nfpy.DB.DB import get_db_glob
 from nfpy.Handlers.AssetFactory import get_af_glob
 from nfpy.Handlers.DatatypeFactory import get_dt_glob
 from nfpy.Handlers.QueryBuilder import get_qb_glob
-from nfpy.Handlers.Calendar import last_business
 from nfpy.Downloader.BaseDownloader import BasePage
 from nfpy.Tools.Utilities import import_symbol
 
@@ -27,13 +25,12 @@ class BaseProvider(metaclass=ABCMeta):
     _PAGES = {}
     _TABLES = {}
     _FINANCIALS_MAP = []
-    _Q_MAX_DATE = "select max(date) from {} where ticker = ?"
 
     def __init__(self):
         self._db = get_db_glob()
         self._qb = get_qb_glob()
         self._dt = get_dt_glob()
-        # FIXME: this is required just to get the asset elaboration table
+        # This is required just to get the asset elaboration table
         self._af = get_af_glob()
 
     @property
@@ -62,33 +59,9 @@ class BaseProvider(metaclass=ABCMeta):
         # TODO: break the query in two parts and run data cleaning routines
         self._db.execute(query, params, commit=True)
 
-    def calc_default_input(self, ticker: str, table: str) -> dict:
-        """ Calculates the default input for downloading for the given ticket
-            and the given table.
-
-            Input:
-                ticker [str]: ticker to be downloaded
-                table [str]: destination table
-
-            Output:
-                input [dict]: dictionary of the input
-        """
-        # search for the last available date in DB
-        last_date = self._db.execute(self._Q_MAX_DATE.format(table), (ticker,)).fetchone()
-        last_date = last_date[0] if last_date[0] is not None else '1990-01-01'
-
-        # If last available data is yesterday skip downloading
-        # TODO: check for last business day
-        rd_obj = datetime.datetime.strptime(last_date, '%Y-%m-%d').date()
-        # if rd_obj >= last_business_(string=False):
-        if rd_obj >= last_business(mode='datetime'):
-            raise RuntimeError('Already updated')
-
-        return self._create_input_dict(last_date, rd_obj)
-
     @staticmethod
     @abstractmethod
-    def _create_input_dict(last_date: str, rd_obj) -> dict:
+    def create_input_dict(last_date: str) -> dict:
         """ Input creation specific for each provider. """
 
     @abstractmethod

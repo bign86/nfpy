@@ -44,21 +44,21 @@ class YahooProvider(BaseProvider):
     where ye.ticker = ? and ye.dtype = ?;"""
 
     @staticmethod
-    def _create_input_dict(last_date: str, rd_obj) -> dict:
+    def create_input_dict(last_date: str) -> dict:
         return {'period1': last_date, 'period2': today(fmt='%Y-%m-%d')}
 
     def get_import_data(self, data: dict) -> Sequence[Sequence]:
         page = data['page']
         tck = data['ticker']
         uid = data['uid']
+
         t_src = self._TABLES[page]
+        t_dst = self._af.get(uid).ts_table
 
         if page == 'HistoricalPrices':
-            t_dst = self._af.get(uid).ts_table
             query = self._Q_IMPORT_PRICE
             params = (tck,)
         elif page in ('Splits', 'Dividends'):
-            t_dst = self._af.get(uid).ts_table
             code = self._dt.get(data['tgt_datatype'])
             query = self._Q_IMPORT_EVENT
             params = (tck, code)

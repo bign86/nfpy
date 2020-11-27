@@ -29,7 +29,7 @@ class IBProvider(BaseProvider):
     where ib.ticker = ?;"""  # and ib.code in ({codes});"""
 
     @staticmethod
-    def _create_input_dict(last_date: str, rd_obj) -> dict:
+    def create_input_dict(last_date: str) -> dict:
         return {}
 
     def get_import_data(self, data: dict) -> Sequence[Sequence]:

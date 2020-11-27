@@ -5,7 +5,7 @@
 import os
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from typing import Dict, Union, Optional
+from typing import Dict, Union
 
 import pandas as pd
 import requests
@@ -134,18 +134,21 @@ class BasePage(metaclass=ABCMeta):
             self._write_to_file(fname)
         self._write_to_DB()
 
-    def initialize(self, asset: dict, fname: Optional[Union[str, Path]] = None, p: Dict = None):
+    def initialize(self, asset: dict, fname: Union[str, Path] = None, p: dict = None):
         """ Parameters are checked before download, encoding is set, parsed
             object is deleted if present.
 
             Input:
                 asset [dict]: asset data
                 fname [Union[str, Path]]: file name to load
-                p [Dict[str, Union[str, int]]: dictionary of parameters to update
+                p [dict]: dictionary of parameters to update
 
             Errors:
                 MissingData: if data are not found in the database
         """
+        if self._is_initialized is True:
+            return
+
         if p:
             self.params = p
         self._ticker = asset['ticker']

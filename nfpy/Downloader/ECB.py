@@ -27,7 +27,7 @@ class ECBProvider(BaseProvider):
     select '{uid}', '1', ecb.date, ecb.value from {src} as ecb where ecb.ticker = ?;"""
 
     @staticmethod
-    def _create_input_dict(last_date: str, rd_obj) -> dict:
+    def create_input_dict(last_date: str) -> dict:
         return {'start': last_date, 'end': today(fmt='%Y-%m-%d')}
 
     def get_import_data(self, data: dict) -> Sequence[Sequence]:
