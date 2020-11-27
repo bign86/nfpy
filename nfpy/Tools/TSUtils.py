@@ -109,7 +109,8 @@ def trim_ts(v: Union[None, np.ndarray], dt: np.ndarray,
         t = dt[0]
         if ((start is not None) and (t < start)) or \
                 ((end is not None) and (t > end)):
-            return np.array([]), np.array([])
+            v = None if v is None else np.array([])
+            return v, np.array([])
         else:
             return v, dt
 
@@ -133,12 +134,13 @@ def trim_ts(v: Union[None, np.ndarray], dt: np.ndarray,
         slc = slice(idx[0], None)
     else:
         slc = slice(None, idx[0])
-    slc_list = [slice(None)] * len(v.shape)
-    slc_list[axis] = slc
 
     # Perform the slicing
     if v is not None:
+        slc_list = [slice(None)] * len(v.shape)
+        slc_list[axis] = slc
         v = v[tuple(slc_list)]
+
     dt = dt[slc]
 
     return v, dt
