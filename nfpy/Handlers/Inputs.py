@@ -10,7 +10,7 @@ import pandas as pd
 from nfpy.DB.DB import get_db_glob
 from nfpy.Downloader.DownloadFactory import get_dwnf_glob
 from nfpy.Handlers.AssetFactory import get_af_glob
-from nfpy.Handlers.Calendar import date_str_2_dt
+from nfpy.Handlers.Calendar import date_2_datetime
 from nfpy.Handlers.CurrencyFactory import get_fx_glob
 from nfpy.Tools.Constants import KNOWN_COUNTRIES
 
@@ -67,36 +67,32 @@ class InputHandler(object):
         _ = kwargs
         return re.sub('[!@#$?*;,:+]', '', v)
 
-    def _check_uid(self, uid: str) -> bool:
+    def _check_uid(self, uid: str) -> tuple:
         """ Validate a candidate uid checking existence. """
         if not self._af.exists(uid):
-            print(' * Uid already in database')
-            return False
-        return True
+            return False, 'Uid not found'
+        return True, 'Ok'
 
-    def _check_ccy(self, v: str) -> bool:
+    def _check_ccy(self, v: str) -> tuple:
         """ Validate a candidate currency checking existence. """
-        if not self._ccy.is_known_ccy(v):
-            print(' * Currency not recognized')
-            return False
-        return True
+        if not self._ccy.is_ccy(v):
+            return False, 'Currency not recognized'
+        return True, 'Ok'
 
     @staticmethod
-    def _check_country(v: str) -> bool:
+    def _check_country(v: str) -> tuple:
         """ Validate a candidate country checking existence. """
         if v not in KNOWN_COUNTRIES:
-            print(' * Country not recognized')
-            return False
-        return True
+            return False, 'Country not recognized'
+        return True, 'Ok'
 
     @staticmethod
-    def _check_isin(v: str) -> bool:
+    def _check_isin(v: str) -> tuple:
         """ Validate a candidate isin format. """
         pattern = re.compile("^([a-zA-Z]{2}[a-zA-Z0-9]{9}[0-9])$")
         if not pattern.match(v):
-            print(' * ISIN malformed')
-            return False
-        return True
+            return False, 'ISIN malformed'
+        return True, 'Ok'
 
     @staticmethod
     def _to_timestamp(v: str, **kwargs) -> pd.Timestamp:
@@ -122,7 +118,7 @@ class InputHandler(object):
             Output:
                 date [datetime.date]: formatted date
         """
-        return date_str_2_dt(v, fmt=kwargs['fmt'])
+        return date_2_datetime(v, fmt=kwargs['fmt'])
 
     def _convert(self, vin: str, idesc: str, **kwargs) \
             -> Union[List, str, int, float, bool, pd.Timestamp, datetime.date]:
@@ -154,7 +150,7 @@ class InputHandler(object):
 
         return v_out
 
-    def _validate(self, value: Any, checker: str) -> bool:
+    def _validate(self, value: Any, checker: str) -> tuple:
         try:
             valf = self._validators[checker]
         except KeyError:
@@ -190,21 +186,23 @@ class InputHandler(object):
             _v = input(msg).strip()
             # if not _v:
             #     _v = default
-            if not _v and not optional:
-                # if _v == default and not optional:
-                print('*** Mandatory ***')
-                continue
-            elif not _v and optional:
-                # elif _v == default and optional:
+            if (not _v) and (default is not None):
                 value = default
-                # value = _v
                 _validated = True
+            elif (not _v) and (optional is False):
+                print('*** Mandatory ***')
+                # if _v == default and not optional:
+                # continue
+            elif (not _v) and (optional is True):
+                _validated = True
+                # elif _v == default and optional:
+                # value = _v
             else:
                 value = self._convert(_v, idesc, **kwargs)
                 if checker:
-                    _validated = self._validate(value, checker)
+                    _validated, msg_out = self._validate(value, checker)
                     if not _validated:
-                        print('*** Not valid ***')
+                        print('*** Not valid: {}'.format(msg_out))
                 else:
                     _validated = True
         return value
