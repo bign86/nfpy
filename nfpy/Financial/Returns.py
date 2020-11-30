@@ -38,18 +38,18 @@ def logret(v: pd.Series, fillna: str = 'pad', w: int = 1) -> pd.Series:
             _r [pd.Series]: indexed series of is_log returns
     """
     v = ret(v, fillna, w)
-    return np.log(v + 1.)
+    return v.add(1.).log()
 
 
-def tot_ret(ts: np.array, dt: np.array, start: pd.Timestamp = None,
-            end: pd.Timestamp = None, is_log: bool = False) -> float:
+def tot_ret(ts: np.ndarray, dt: np.ndarray, start: np.datetime64 = None,
+            end: np.datetime64 = None, is_log: bool = False) -> float:
     """ Calculates the total return from a series.
 
         Input:
-            ts [np.array]: return series
-            dt [np.array]: date series
-            start [pd.Timestamp]: start date of the series (default: None)
-            end [pd.Timestamp]: end date of the series excluded (default: None)
+            ts [np.ndarray]: return series
+            dt [np.ndarray]: date series
+            start [np.datetime64]: start date of the series (default: None)
+            end [np.datetime64]: end date of the series excluded (default: None)
             is_log [bool]: set True for logarithmic returns (default: False)
 
         Output:
@@ -65,16 +65,16 @@ def tot_ret(ts: np.array, dt: np.array, start: pd.Timestamp = None,
     return r
 
 
-def expct_ret(ts: np.array, dt: np.array, start: pd.Timestamp = None,
-              end: pd.Timestamp = None, is_log: bool = False) -> float:
+def expct_ret(ts: np.ndarray, dt: np.ndarray, start: np.datetime64 = None,
+              end: np.datetime64 = None, is_log: bool = False) -> float:
     """ Expected return for the series in input. It corresponds to the geometric
         mean for standard returns, and to the simple mean for log returns.
 
         Input:
-            ts [np.array]: values of the series under analysis
-            dt [np.array]: dates of the series under analysis
-            start [pd.Timestamp]: start date of the series (default: None)
-            end [pd.Timestamp]: end date of the series excluded (default: None)
+            ts [np.ndarray]: values of the series under analysis
+            dt [np.ndarray]: dates of the series under analysis
+            start [np.datetime64]: start date of the series (default: None)
+            end [np.datetime64]: end date of the series excluded (default: None)
             is_log [bool]: set True for logarithmic returns (default: False)
 
         Output:
@@ -92,13 +92,13 @@ def expct_ret(ts: np.array, dt: np.array, start: pd.Timestamp = None,
     return expv
 
 
-def compound(r: Union[float, np.array], t: Union[int, np.array], n: int = 1) \
-        -> Union[float, np.array]:
+def compound(r: Union[float, np.ndarray], t: Union[int, np.ndarray], n: int = 1) \
+        -> Union[float, np.ndarray]:
     """ Compound input rate of return.
 
         Input:
-            r [Union[float, np.array]]: rate of return
-            t [Union[int, np.array]]: time of compounding
+            r [Union[float, np.ndarray]]: rate of return
+            t [Union[int, np.ndarray]]: time of compounding
             n [int]: frequency of compounding
     """
     return (1. + r / n) ** t - 1.
