@@ -36,17 +36,15 @@ class AssetFactory(metaclass=Singleton):
         return obj
 
     def exists(self, uid: str) -> bool:
-        flag = True
         try:
             _ = self.get(uid)
         except MissingData:
-            flag = False
-        return flag
+            return False
+        else:
+            return True
 
     def get(self, uid: str):
         """ Return the correct asset object given the uid. """
-        if not uid:
-            raise ValueError('Specify a uid')
         try:
             asset = self._known_assets[uid]
         except KeyError:
