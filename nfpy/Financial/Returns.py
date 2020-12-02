@@ -65,6 +65,32 @@ def tot_ret(ts: np.ndarray, dt: np.ndarray, start: np.datetime64 = None,
     return r
 
 
+def comp_ret(ts: np.ndarray, dt: np.ndarray, start: np.datetime64 = None,
+             end: np.datetime64 = None, base: float = 1., is_log: bool = False
+             ) -> np.ndarray:
+    """ Calculates the series obtained by compounding the returns
+
+        Input:
+            ts [np.ndarray]: return series
+            dt [np.ndarray]: date series
+            start [np.datetime64]: start date of the series (default: None)
+            end [np.datetime64]: end date of the series excluded (default: None)
+            base [float]: base level (default: 1.)
+            is_log [bool]: set True for logarithmic returns (default: False)
+
+        Output:
+            res [float]: compounded returns series
+    """
+    v, t = trim_ts(ts, dt, start=start, end=end)
+
+    if is_log:
+        res = base * (1. + np.nancumsum(v, axis=0))
+    else:
+        res = base * np.nancumprod((1. + v), axis=0)
+
+    return res
+
+
 def expct_ret(ts: np.ndarray, dt: np.ndarray, start: np.datetime64 = None,
               end: np.datetime64 = None, is_log: bool = False) -> float:
     """ Expected return for the series in input. It corresponds to the geometric
@@ -78,18 +104,16 @@ def expct_ret(ts: np.ndarray, dt: np.ndarray, start: np.datetime64 = None,
             is_log [bool]: set True for logarithmic returns (default: False)
 
         Output:
-            slope [float]: the beta
-            intercpt [float]: intercept of the regression
-            std_err [float]: regression error
+            exp_ret [float]: expected value of the return
     """
     v, t = trim_ts(ts, dt, start=start, end=end)
 
     if is_log:
-        expv = np.nanmean(v, axis=0)
+        exp_r = np.nanmean(v, axis=0)
     else:
-        expv = compound(tot_ret(v, t), 1./v.shape[0])
+        exp_r = compound(tot_ret(v, t), 1. / v.shape[0])
 
-    return expv
+    return exp_r
 
 
 def compound(r: Union[float, np.ndarray], t: Union[int, np.ndarray], n: int = 1) \
