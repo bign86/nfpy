@@ -115,8 +115,10 @@ class Equity(Asset):
 
         eq = self.log_returns if log else self.returns
         idx = benchmark.log_returns if log else benchmark.returns
+        start_dt = start.asm8 if start else None
+        end_dt = end.asm8 if end else None
         return beta(eq.index.values, eq.values, idx.values,
-                    start.asm8, end.asm8, w)
+                    start_dt, end_dt, w)
 
     def correlation(self, benchmark: Asset = None, start: pd.Timestamp = None,
                     end: pd.Timestamp = None, w: int = None, log: bool = False)\
@@ -146,5 +148,7 @@ class Equity(Asset):
 
         eq = self.log_returns if log else self.returns
         idx = benchmark.log_returns if log else benchmark.returns
+        start_dt = start.asm8 if start else None
+        end_dt = end.asm8 if end else None
         return correlation(eq.index.values, eq.values, idx.values,
-                           start.asm8, end.asm8, w)
+                           start_dt, end_dt, w)
