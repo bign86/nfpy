@@ -1,6 +1,6 @@
 #
-# Equity class
-# Base class for simple equity stock
+# Bond class
+# Base class for simple bonds
 #
 
 import warnings
@@ -139,18 +139,18 @@ class Bond(Asset):
 
         v, date = calc_ytm(date, self._inception_date.asm8,
                            self._maturity.asm8, p0, self.cf['value'].values,
-                           self.cf.index.values, self.cf['dtype'].values, None)
+                           self.cf.index.values, self.cf['dtype'].values, .0)
         return pd.Series(data=v, index=date)
 
-    def fv(self, date: Union[pd.Timestamp, pd.DatetimeIndex] = None,
-           rate: Union[float, Curve] = None) -> pd.Series:
+    def fv(self, rate: Union[float, Curve],
+           date: Union[pd.Timestamp, pd.DatetimeIndex] = None) -> pd.Series:
         """ Return the Fair Value at the given date. A single rate or a curve may
             may be given to discount the cash flows.
 
             Input:
+                r [Union[float, Curve]]: interest rate for discounting
                 date Union[pd.Timestamp, pd.DatetimeIndex]: evaluation date
                     for discounting, by default the t0 of the calendar
-                r [Union[float, Curve]]: interest rate for discounting
 
             Output:
                 fv [float]: Fair Value
@@ -160,7 +160,7 @@ class Bond(Asset):
             date = [get_calendar_glob().t0]
 
         v, date = calc_fv(date.values, self._inception_date.asm8,
-                          self._maturity.asm8, None, self.cf['value'].values,
+                          self._maturity.asm8, .0, self.cf['value'].values,
                           self.cf.index.values, self.cf['dtype'].values, rate)
         return pd.Series(data=v, index=date)
 
@@ -197,7 +197,7 @@ class Bond(Asset):
 
         v, date = calc_duration(date.values, self._inception_date.asm8,
                                 self._maturity.asm8, p0, self.cf['value'].values,
-                                self.cf.index.values, self.cf['dtype'].values, None)
+                                self.cf.index.values, self.cf['dtype'].values, .0)
         return pd.Series(data=v, index=date)
 
     def convexity(self, date: Union[pd.Timestamp, pd.DatetimeIndex] = None) \
@@ -229,5 +229,5 @@ class Bond(Asset):
 
         v, date = calc_convexity(date.values, self._inception_date.asm8,
                                  self._maturity.asm8, p0, self.cf['value'].values,
-                                 self.cf.index.values, self.cf['dtype'].values, None)
+                                 self.cf.index.values, self.cf['dtype'].values, .0)
         return pd.Series(data=v, index=date)
