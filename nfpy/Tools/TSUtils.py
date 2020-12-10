@@ -158,6 +158,23 @@ def last_valid_index(v: np.ndarray) -> int:
     return len(v) + i
 
 
+def last_valid_value(v: np.ndarray, dt: np.ndarray, t0: np.datetime64) -> tuple:
+    """ Find the last valid value at a date <= t0.
+
+        Input:
+            v [np.ndarray]: series of prices
+            dt [np.ndarray]: series of price dates
+            t0 [np.datetime64]: reference date
+
+        Output:
+            val [float]: value of the series at or before t0
+            idx [int]: corresponding index
+    """
+    pos = np.searchsorted(dt, t0, side='right')
+    idx = last_valid_index(v[:pos])
+    return float(v[idx]), idx
+
+
 def dropna(v: np.ndarray, axis: int = 0) -> tuple:
     """ Drop NA from 2D input array.
     """
