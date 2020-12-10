@@ -6,10 +6,10 @@
 import datetime
 import itertools
 import warnings
-from typing import Union, Type
 
 import numpy as np
 import pandas as pd
+from typing import Union, Type, Sequence
 from pandas.tseries.offsets import BDay, Week, MonthBegin, \
     QuarterEnd, BQuarterEnd, BusinessDay, YearEnd, BYearEnd
 
@@ -104,15 +104,11 @@ class Calendar(metaclass=Singleton):
     def __contains__(self, dt: Union[str, pd.Timestamp]) -> bool:
         return dt in self._calendar
 
-    def __getitem__(self, item):
-        """ Slice the calendar using string dates. """
-        start = self._calendar.searchsorted(date_str_2_dt(item.start))
-        stop = self._calendar.searchsorted(date_str_2_dt(item.stop))
-        sl = slice(start, stop, None)
-        return self._calendar[sl]
-
-    def initialize(self, end: Union[datetime.date, str], start: Union[datetime.date, str] = None,
+    def initialize(self, end: Union[pd.Timestamp, str], start: Union[pd.Timestamp, str] = None,
                    periods: int = None, fmt: str = '%Y-%m-%d'):
+        if self._initialized:
+            return
+
         # Errors check
         if (start is None) & (periods is None):
             raise ValueError('Either start time or number of periods are required')
@@ -126,7 +122,7 @@ class Calendar(metaclass=Singleton):
         else:
             self._end = pd.to_datetime(end, format=fmt)
         if not start:
-            self._start = self.shift(self._end, periods, False)
+            self._start = self.shift(self._end, periods, fwd=False)
         else:
             if isinstance(start, pd.Timestamp):
                 self._start = start
@@ -149,7 +145,10 @@ class Calendar(metaclass=Singleton):
         self._calendar = calcf(start=self._start, end=self._end,
                                freq=freq, normalize=True, holidays=holidays)
 
+        # TODO: move to last business date
         self._t0 = self.end
+
+        print(' * Calendar dates: {} - {}'.format(self._start, self._end, self._t0))
         self._initialized = True
 
     def get_offset(self, freq: str) -> Type[BusinessDay]:
@@ -157,7 +156,7 @@ class Calendar(metaclass=Singleton):
         return self._FREQ_LABELS[freq][1]
 
     def shift(self, end: pd.Timestamp, n: int, freq: str = None,
-              fwd: bool = True) -> pd.DatetimeIndex:
+              fwd: bool = True) -> pd.Timestamp:
         """ Shift the <end> date by <n> periods forward (fwd=True) or backwards (fwd=False). """
         freq = self.frequency if freq is None else freq
         periods = int(n) if fwd else -int(n)
@@ -167,30 +166,41 @@ class Calendar(metaclass=Singleton):
     def is_in_calendar(self, dt: Union[str, pd.Timestamp]) -> bool:
         """ Check whether the given date is part of the calendar """
         warnings.warn("Deprecated! Please use the 'in' keyword directly!", DeprecationWarning)
-        # if not isinstance(dt, (str, datetime.datetime, datetime.date, pd.Timestamp)):
-        #    raise RuntimeError('Type of the date not supported')
         return self.__contains__(dt)
 
 
-def date_str_2_dt(dt: str, fmt: str = '%Y-%m-%d') -> datetime.datetime:
-    return datetime.datetime.strptime(dt, fmt)
-
-
-def date_2_datetime(dt: Union[str, datetime.datetime, pd.Timestamp], fmt: str = '%Y-%m-%d'):
+def date_str_2_dt(dt: Union[Sequence[str], str], fmt: str = '%Y-%m-%d') \
+        -> Union[Sequence, datetime.datetime]:
+    warnings.warn("Deprecated! use date_2_datetime()!", DeprecationWarning)
     if isinstance(dt, str):
-        dt = datetime.datetime.strptime(dt, fmt)
-    elif isinstance(dt, pd.Timestamp):
-        dt = dt.to_pydatetime()
-    elif isinstance(dt, datetime.datetime):
-        pass
+        return datetime.datetime.strptime(dt, fmt)
+    elif isinstance(dt, Sequence):
+        return [datetime.datetime.strptime(d, fmt) for d in dt]
+
+
+def date_2_datetime(dt: Union[str, datetime.datetime, pd.Timestamp, Sequence],
+                    fmt: str = '%Y-%m-%d') \
+        -> Union[datetime.datetime, Sequence[datetime.datetime]]:
+    if isinstance(dt, (list, tuple)):
+        if isinstance(dt[0], str):
+            dt = [datetime.datetime.strptime(d, fmt) for d in dt]
+        elif isinstance(dt[0], pd.Timestamp):
+            dt = [d.to_pydatetime() for d in dt]
+        elif isinstance(dt[0], datetime.datetime):
+            pass
+        else:
+            raise TypeError('Date type ({}) not accepted'.format(type(dt)))
+        return dt
     else:
-        raise TypeError('Date type ({}) not accepted'.format(type(dt)))
-    return dt
-
-
-def get_today(string: bool = True, fmt: str = '%Y-%m-%d') -> Union[str, datetime.date]:
-    warnings.warn("Deprecated! Please use today()!", DeprecationWarning)
-    return today_(string, fmt)
+        if isinstance(dt, str):
+            dt = datetime.datetime.strptime(dt, fmt)
+        elif isinstance(dt, pd.Timestamp):
+            dt = dt.to_pydatetime()
+        elif isinstance(dt, datetime.datetime):
+            pass
+        else:
+            raise TypeError('Date type ({}) not accepted'.format(type(dt)))
+        return dt
 
 
 def today_(string: bool = True, fmt: str = '%Y-%m-%d')\
@@ -204,15 +214,15 @@ def today_(string: bool = True, fmt: str = '%Y-%m-%d')\
 
 
 def today(mode: str = 'str', fmt: str = '%Y-%m-%d')\
-        -> Union[str, datetime.date, pd.Timestamp]:
+        -> Union[str, datetime.datetime, pd.Timestamp]:
     """ Return a string with today date """
-    today__ = datetime.date.today()
+    t = datetime.date.today()
     if mode == 'str':
-        today__ = today__.strftime(fmt)
+        today__ = t.strftime(fmt)
     elif mode == 'timestamp':
-        today__ = pd.to_datetime(today__, format=fmt)
-    elif mode == 'datetime':
-        pass
+        today__ = pd.to_datetime(t, format=fmt)
+    elif mode in ('datetime', 'date'):
+        today__ = datetime.datetime(t.year, t.month, t.day)
     else:
         raise ValueError('Mode {} not recognized!'.format(mode))
     return today__
@@ -264,7 +274,7 @@ def calc_holidays(start: pd.Timestamp, end: pd.Timestamp) -> np.array:
         dt = '-'.join(map(strpad, [e[0], e[1][0], e[1][1]]))
         holidays[i] = pd.to_datetime(dt, format='%Y-%m-%d')
 
-    return holidays  # pd.DatetimeIndex(holidays)
+    return holidays
 
 
 def get_calendar_glob(freq: str = 'B') -> Calendar:
