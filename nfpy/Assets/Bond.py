@@ -153,16 +153,22 @@ class Bond(Asset):
                     for discounting, by default the t0 of the calendar
 
             Output:
-                fv [float]: Fair Value
+                fv [pd.Series]: Fair Value
         """
         # Handle input date
         if date is None:
-            date = [get_calendar_glob().t0]
+            dates = get_calendar_glob().t0.asm8
+        elif isinstance(date, pd.Timestamp):
+            dates = date.asm8
+        elif isinstance(date, pd.DatetimeIndex):
+            dates = date.values
+        else:
+            raise TypeError('Wrong date type supplied to bond.fv()')
 
-        v, date = calc_fv(date.values, self._inception_date.asm8,
-                          self._maturity.asm8, .0, self.cf['value'].values,
-                          self.cf.index.values, self.cf['dtype'].values, rate)
-        return pd.Series(data=v, index=date)
+        v, dates = calc_fv(dates, self._inception_date.asm8,
+                           self._maturity.asm8, .0, self.cf['value'].values,
+                           self.cf.index.values, self.cf['dtype'].values, rate)
+        return pd.Series(data=v, index=dates)
 
     def duration(self, date: Union[pd.Timestamp, pd.DatetimeIndex] = None) \
             -> pd.Series:
@@ -173,7 +179,7 @@ class Bond(Asset):
                     for discounting, by default the t0 of the calendar
             
             Output:
-                duration [float]: duration value
+                duration [pd.Series]: duration value
         """
         # quick exit for zero coupons
         if self.type == 'zero':
@@ -189,16 +195,23 @@ class Bond(Asset):
             warnings.warn("{}: callability not considered in duration"
                           .format(self.uid), ToBeImplementedWarning)
 
+        # Handle input date
         if date is None:
-            date = [get_calendar_glob().t0]
+            dates = get_calendar_glob().t0.asm8
+        elif isinstance(date, pd.Timestamp):
+            dates = date.asm8
+        elif isinstance(date, pd.DatetimeIndex):
+            dates = date.values
+        else:
+            raise TypeError('Wrong date type supplied to bond.fv()')
 
         # Set prices series
-        p0 = self.prices.loc[date].values
+        p0 = self.prices.loc[dates].values
 
-        v, date = calc_duration(date.values, self._inception_date.asm8,
-                                self._maturity.asm8, p0, self.cf['value'].values,
-                                self.cf.index.values, self.cf['dtype'].values, .0)
-        return pd.Series(data=v, index=date)
+        v, dates = calc_duration(dates, self._inception_date.asm8,
+                                 self._maturity.asm8, p0, self.cf['value'].values,
+                                 self.cf.index.values, self.cf['dtype'].values, .0)
+        return pd.Series(data=v, index=dates)
 
     def convexity(self, date: Union[pd.Timestamp, pd.DatetimeIndex] = None) \
             -> pd.Series:
@@ -209,7 +222,7 @@ class Bond(Asset):
                     for discounting, by default the t0 of the calendar
             
             Output:
-                convexity [float]: convexity value
+                convexity [pd.Series]: convexity value
         """
         # quick exit for floating rate bonds
         if self.rate_type == 'float':
@@ -221,13 +234,20 @@ class Bond(Asset):
             warnings.warn("{}: callability not considered in duration"
                           .format(self.uid), ToBeImplementedWarning)
 
+        # Handle input date
         if date is None:
-            date = [get_calendar_glob().t0]
+            dates = get_calendar_glob().t0.asm8
+        elif isinstance(date, pd.Timestamp):
+            dates = date.asm8
+        elif isinstance(date, pd.DatetimeIndex):
+            dates = date.values
+        else:
+            raise TypeError('Wrong date type supplied to bond.fv()')
 
         # Set prices series
-        p0 = self.prices.loc[date].values
+        p0 = self.prices.loc[dates].values
 
-        v, date = calc_convexity(date.values, self._inception_date.asm8,
-                                 self._maturity.asm8, p0, self.cf['value'].values,
-                                 self.cf.index.values, self.cf['dtype'].values, .0)
-        return pd.Series(data=v, index=date)
+        v, dates = calc_convexity(dates, self._inception_date.asm8,
+                                  self._maturity.asm8, p0, self.cf['value'].values,
+                                  self.cf.index.values, self.cf['dtype'].values, .0)
+        return pd.Series(data=v, index=dates)

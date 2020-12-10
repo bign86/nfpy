@@ -132,7 +132,7 @@ def cash_flows(cf: np.ndarray, dt: np.ndarray, ty: np.ndarray,
 def calc_fv(dates: Union[np.datetime64, np.ndarray], inception: np.datetime64,
             maturity: np.datetime64, prices: Union[np.ndarray, float],
             cf_values: np.ndarray, cf_dates: np.ndarray, cf_types: np.ndarray,
-            rates: float):
+            rates: Union[np.ndarray, float]):
     """ Function to calculate the fair value of a bond given the cash flows.0
 
         Input:
@@ -144,13 +144,24 @@ def calc_fv(dates: Union[np.datetime64, np.ndarray], inception: np.datetime64,
             cf_values [np.ndarray]: array of cash flows
             cf_dates [np.ndarray]: array of cash flow dates
             cf_types [np.ndarray]: array of cash flow types
-            rates: [float]: discount rate
+            rates: [Union[np.ndarray, float]]: discount rate
 
         Output:
             v [np.ndarray]: array of fair values
             dts [np.ndarray]: array of dates
     """
+    # Prepare input data
     _ = prices
+    is_single_date = isinstance(dates, np.datetime64)
+    is_single_rate = isinstance(rates, float)
+    if is_single_date & is_single_rate:
+        dates = np.array([dates])
+        rates = np.array([rates])
+    elif is_single_rate:
+        rates = np.array([rates]*len(dates))
+    elif is_single_date:
+        dates = np.array([dates]*len(rates))
+
     # Quick exit if no dates
     _, dts = trim_ts(None, dates, start=inception, end=maturity)
     n = len(dts)
@@ -159,7 +170,7 @@ def calc_fv(dates: Union[np.datetime64, np.ndarray], inception: np.datetime64,
 
     v = np.zeros(n)
     for i in range(n):
-        dt, r_, t_ = dts[i], rates, None
+        dt, r_, t_ = dts[i], rates[i], None
         try:
             pf, _ = cash_flows(cf_values, cf_dates, cf_types, dt, inception)
             v[i] = fv(pf, r_, t_)
@@ -171,7 +182,7 @@ def calc_fv(dates: Union[np.datetime64, np.ndarray], inception: np.datetime64,
 def calc_ytm(dates: Union[np.datetime64, np.ndarray], inception: np.datetime64,
              maturity: np.datetime64, prices: Union[np.ndarray, float],
              cf_values: np.ndarray, cf_dates: np.ndarray, cf_types: np.ndarray,
-             rates: float):
+             rates: Union[np.ndarray, float]):
     """ Function to calculate the yield to maturity of a bond given the cash flows.
 
         Input:
@@ -182,7 +193,8 @@ def calc_ytm(dates: Union[np.datetime64, np.ndarray], inception: np.datetime64,
             cf_values [np.ndarray]: array of cash flows
             cf_dates [np.ndarray]: array of cash flow dates
             cf_types [np.ndarray]: array of cash flow types
-            rates: [float]: discount rate (only for signature consistency)
+            rates: [Union[np.ndarray, float]]: discount rate
+                (only for signature consistency)
 
         Output:
             v [np.ndarray]: array of fair values
@@ -197,7 +209,7 @@ def calc_duration(dates: Union[np.datetime64, np.ndarray],
                   inception: np.datetime64, maturity: np.datetime64,
                   prices: Union[np.ndarray, float], cf_values: np.ndarray,
                   cf_dates: np.ndarray, cf_types: np.ndarray,
-                  rates: float):
+                  rates: Union[np.ndarray, float]):
     """ Function to calculate the duration of a bond given the cash flows.
 
         Input:
@@ -209,7 +221,8 @@ def calc_duration(dates: Union[np.datetime64, np.ndarray],
             cf_values [np.ndarray]: array of cash flows
             cf_dates [np.ndarray]: array of cash flow dates
             cf_types [np.ndarray]: array of cash flow types
-            rates: [float]: discount rate (only for signature consistency)
+            rates: [Union[np.ndarray, float]]: discount rate
+                (only for signature consistency)
 
         Output:
             v [np.ndarray]: array of fair values
@@ -224,7 +237,7 @@ def calc_convexity(dates: Union[np.datetime64, np.ndarray],
                    inception: np.datetime64, maturity: np.datetime64,
                    prices: Union[np.ndarray, float], cf_values: np.ndarray,
                    cf_dates: np.ndarray, cf_types: np.ndarray,
-                   rates: float):
+                   rates: Union[np.ndarray, float]):
     """ Function to calculate the convexity of a bond given the cash flows.
 
         Input:
@@ -236,7 +249,8 @@ def calc_convexity(dates: Union[np.datetime64, np.ndarray],
             cf_values [np.ndarray]: array of cash flows
             cf_dates [np.ndarray]: array of cash flow dates
             cf_types [np.ndarray]: array of cash flow types
-            rates: [float]: discount rate (only for signature consistency)
+            rates: [Union[np.ndarray, float]]: discount rate
+                (only for signature consistency)
 
         Output:
             v [np.ndarray]: array of fair values
@@ -254,6 +268,18 @@ def _gen_bm_func(mode: str, dates: Union[np.datetime64, np.ndarray],
     """ General function to calculate fair value, duration and convexity of a
         bond given the bond' cash flows, and maturity and inception dates.
     """
+    # Prepare input data
+    is_single_date = isinstance(dates, np.datetime64)
+    is_single_rate = isinstance(prices, float)
+    if is_single_date & is_single_rate:
+        dates = np.array([dates])
+        prices = np.array([prices])
+    elif is_single_rate:
+        prices = np.array([prices]*len(dates))
+    elif is_single_date:
+        dates = np.array([dates]*len(prices))
+
+    # Select calculation
     if mode == 'ytm':
         f_ = ytm
     elif mode == 'dur':
@@ -263,17 +289,11 @@ def _gen_bm_func(mode: str, dates: Union[np.datetime64, np.ndarray],
     else:
         raise ValueError('_gen_bm_func() mode ({}) not recognized'.format(mode))
 
-    if isinstance(prices, float):
-        prices = np.array([prices])
-
-    if isinstance(dates, np.datetime64):
-        dates = np.array([dates])
-
-    # If dates are provided we use market prices
+    # Trim data
     prices, dts = trim_ts(prices, dates, start=inception, end=maturity)
     n = len(dts)
-    # Quick exit if no dates
     if n == 0:
+        # Quick exit if no dates
         return np.array([])
 
     v = np.zeros(n)
