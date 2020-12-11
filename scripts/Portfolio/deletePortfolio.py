@@ -8,7 +8,7 @@ from nfpy.DB.DB import get_db_glob
 from nfpy.Handlers.QueryBuilder import get_qb_glob
 from nfpy.Handlers.Inputs import InputHandler
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< Delete portfolio script >>>"
 
 
@@ -26,10 +26,12 @@ if __name__ == '__main__':
     # ts_table = Portfolio._TS_TABLE
 
     # Choose a uid and check for existence
-    uid = inh.input("Give a uid for the new portfolio: ", idesc='uid')
+    uid = inh.input("Give a uid for the new portfolio: ", idesc='uid',
+                    checker='uid')
 
     # Are you sure?
-    proceed = inh.input("Do you want to proceed? (default No): ", idesc='bool')
+    proceed = inh.input("Do you want to proceed? (default No): ", idesc='bool',
+                        default=False)
 
     # Delete
     q_ptf = qb.delete(base_table, fields=('uid',))

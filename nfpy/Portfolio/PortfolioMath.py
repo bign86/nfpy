@@ -8,81 +8,101 @@ import numpy as np
 from nfpy.Handlers.AssetFactory import get_af_glob
 from nfpy.Handlers.Calendar import get_calendar_glob
 from nfpy.Handlers.CurrencyFactory import get_fx_glob
-from nfpy.Tools.TSUtils import ffill_cols, dropna
+from nfpy.Tools.TSUtils import ffill_cols, dropna, trim_ts
 
 
-def portfolio_value(uids: list, ccy: str, pos: np.array) -> tuple:
+def portfolio_value(uids: list, ccy: str, dt: np.ndarray, pos: np.ndarray) -> tuple:
     """ Get the value in the portfolio base currency of each position.
 
         Input:
             uids [Sequence]: list of uids in the position array
             ccy [str]: base currency
-            pos [np.array]: array of positions over time
+            dt [np.ndarray]: array of position dates
+            pos [np.ndarray]: array of positions over time
 
         Output:
-            tot_value [np.array]: series of portfolio total values
-            pos_value [np.array]: series of position values
+            dt [np.ndarray]: array of total value dates
+            tot_value [np.ndarray]: series of portfolio total values
+            pos_value [np.ndarray]: series of position values
     """
-    # Collect prices
     af, fx = get_af_glob(), get_fx_glob()
+    cal = get_calendar_glob()
+
+    # The -1 takes into account the presence of the base currency
+    pos, dt = trim_ts(pos, dt, start=cal.start.asm8, end=cal.end.asm8)
+
     for i, u in enumerate(uids):
         if u == ccy:
             continue
 
-        asset = af.get(u)
-        p = asset.prices
-        pos_ccy = asset.currency
-        rate = 1.
-        if pos_ccy != ccy:
-            fx_obj = fx.get(pos_ccy, ccy)
-            rate = fx_obj.prices.values
+        elif fx.is_ccy(u):
+            asset = fx.get(u, ccy)
+            value = asset.prices
 
-        pos[:, i] *= p.values * rate
+        else:
+            asset = af.get(u)
+            p = asset.prices
+            asset_ccy = asset.currency
+            rate = 1.
+            if asset_ccy != ccy:
+                fx_obj = fx.get(asset_ccy, ccy)
+                rate = fx_obj.prices.values
+            value = p.values * rate
+
+        pos[:, i] *= value
 
     # Forward-fill values
     pos = ffill_cols(pos, .0)
     tot_val = np.sum(pos, axis=1)
 
-    return tot_val, pos
+    return dt, tot_val, pos
 
 
-def weights(uids: list, ccy: str, pos: np.array) -> tuple:
+def weights(uids: list, ccy: str, dt: np.ndarray, pos: np.ndarray) -> tuple:
     """ Get the portfolio weights.
 
         Input:
             uids [Sequence]: list of uids in the position array
             ccy [str]: base currency
-            pos [np.array]: array of positions over time
+            dt [np.ndarray]: array of position dates
+            pos [np.ndarray]: array of positions over time
 
         Output:
-            wgt [np.array]: weights array
+            dt [np.ndarray]: array of weight dates
+            wgt [np.ndarray]: weights array
     """
-    tot_val, pos_val = portfolio_value(uids, ccy, pos)
-    return pos_val / tot_val[:, None]
+    dt, tot_val, pos_val = portfolio_value(uids, ccy, dt, pos)
+    wgt = pos_val / tot_val[:, None]
+    return dt, wgt
 
 
-def price_returns(uids: list, ccy: str, pos: np.array = None,
-                  wgt: np.array = None) -> np.array:
+def price_returns(uids: list, ccy: str, dt_pos: np.ndarray = None,
+                  pos: np.ndarray = None, dt_wgt: np.ndarray = None,
+                  wgt: np.ndarray = None) -> tuple:
     """ Get the portfolio price returns.
 
         Input:
             uids [Sequence]: list of uids in the position array
             ccy [str]: base currency
-            pos [np.array]: array of positions over time
-            wgt [np.array]: array of weights over time
+            dt_pos [np.ndarray]: array of position dates
+            pos [np.ndarray]: array of positions over time
+            dt_wgt [np.ndarray]: array of weight dates
+            wgt [np.ndarray]: array of weights over time
 
         Output:
-            ret [np.array]: returns series
+            dt [np.ndarray]: array of return dates
+            ret [np.ndarray]: returns series
     """
-    if not wgt and not pos:
+    if (wgt is None) and (pos is None):
         raise ValueError('Time series of positions required to calculate weights')
-    elif not wgt:
-        wgt = weights(uids, ccy, pos)
+    elif wgt is None:
+        dt_wgt, wgt = weights(uids, ccy, dt_pos, pos)
 
     af, fx = get_af_glob(), get_fx_glob()
+    ret = np.empty((len(dt_wgt), len(uids)))
     for i, u in enumerate(uids):
         if u == ccy:
-            wgt[:, i] *= .0
+            ret[:, i] = .0
             continue
 
         asset = af.get(u)
@@ -93,12 +113,13 @@ def price_returns(uids: list, ccy: str, pos: np.array = None,
             fx_obj = fx.get(pos_ccy, ccy)
             rate = fx_obj.returns.values
 
-        wgt[:, i] *= r + rate + r * rate
+        ret[:, i] = r + rate + r * rate
 
-    return np.sum(wgt, axis=1)
+    ret *= wgt
+    return dt_wgt, np.sum(ret, axis=1)
 
 
-def covariance(uids: list, ccy: str) -> np.array:
+def covariance(uids: list, ccy: str) -> tuple:
     """ Get the portfolio covariance.
 
         Input:
@@ -106,7 +127,7 @@ def covariance(uids: list, ccy: str) -> np.array:
             ccy [str]: base currency
 
         Output:
-            ret [np.array]: returns series
+            ret [np.ndarray]: returns series
             uids [Sequence]: ordered list of uids in the covariance matrix
     """
     af, fx = get_af_glob(), get_fx_glob()
@@ -135,7 +156,8 @@ def covariance(uids: list, ccy: str) -> np.array:
     return np.cov(ret), uids
 
 
-def correlation(uids: list, ccy: str) -> np.array:
+# Correlation exists also in EquityMath for two series.
+def correlation(uids: list, ccy: str) -> tuple:
     """ Get the portfolio correlation.
 
         Input:

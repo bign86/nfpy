@@ -3,15 +3,11 @@
 # Script to add or remove trades from portfolios.
 #
 
-import datetime
-from tabulate import tabulate
-
 from nfpy.Handlers.AssetFactory import get_af_glob
-from nfpy.Handlers.Calendar import get_calendar_glob, today_
-from nfpy.Portfolio.PortfolioManager import PortfolioManager
+from nfpy.Handlers.Calendar import get_calendar_glob, today
 from nfpy.Handlers.Inputs import InputHandler
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< Update portfolio positions script >>>"
 
 if __name__ == '__main__':
@@ -21,34 +17,22 @@ if __name__ == '__main__':
     cal = get_calendar_glob()
     inh = InputHandler()
 
-    end = today_(string=False) - datetime.timedelta(days=80)
-    start = (end - datetime.timedelta(days=365))
-    cal.initialize(end, start)
+    start = inh.input("Give a start date: ", idesc='timestamp')
+    end = inh.input("Give an end date (default today): ",
+                    idesc='timestamp', default=today(mode='timestamp'),
+                    optional=True)
+    cal.initialize(end, start=start)
 
-    uid = inh.input("\nGive a portfolio uid: ", idesc='str')
+    uid = inh.input("Give a portfolio uid: ", idesc='str', checker='uid')
     ptf = af.get(uid)
-    ptf.load()
-
-    print('\n * Calendar dates: {} - {}\n'.format(start, end))
-    pm = PortfolioManager()
 
     print('Portfolio @ {}'.format(ptf.date))
-    print('Portfolio constituents:')
-    f, data = pm.portfolio_summary(ptf)
-    print(tabulate(data, headers=f, showindex=True))
-
-    print('\n---------------------------------')
-    print('Updating...')
-    pm.update(ptf)
-    print('---------------------------------\n')
-
-    print('Portfolio @ {}'.format(ptf.date))
-    print('Portfolio constituents:')
-    f, data = pm.portfolio_summary(ptf)
-    print(tabulate(data, headers=f, showindex=True))
+    print('Portfolio constituents [{}]:\n{}'.format(ptf.num_constituents,
+                                                    ptf.constituents_uids))
+    print('Portfolio value: {:.2f} {}'.format(ptf.total_value.iat[-1], ptf.currency))
 
     save = inh.input("\nSave the new portfolio positions (default No)?: ",
-                     idesc='bool', default=False)
+                     idesc='bool', default=False, optional=True)
     if save:
         print('Saving...')
         ptf.write_cnsts()

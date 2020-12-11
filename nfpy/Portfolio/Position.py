@@ -5,24 +5,21 @@
 
 import pandas as pd
 
-# from nfpy.Assets.Asset import Asset
 from nfpy.Tools.Utilities import AttributizedDict
 
 
 class Position(AttributizedDict):
     """ Position class, contains the information on a single portfolio position. """
 
-    def __init__(self, pos_uid: str, date: pd.Timestamp, atype: str,  # currency: str,
-                 alp: float, quantity: float):  # , obj: Asset):
+    def __init__(self, pos_uid: str, date: pd.Timestamp, atype: str,
+                 currency: str, alp: float, quantity: float):
         super().__init__(self)
         self.uid = pos_uid
         self.date = date
-        # self.currency = currency    # position currency
+        self.currency = currency    # position currency
         self.alp = alp
-        # self.alp_ccy = alp_ccy
         self.quantity = quantity
         self.type = atype           # type of asset
-        # self.obj = obj              # asset object
 
 
 class Trade(AttributizedDict):

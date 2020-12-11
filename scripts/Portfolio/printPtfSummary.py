@@ -4,16 +4,18 @@
 #
 
 from tabulate import tabulate
+
 from nfpy.DB.DB import get_db_glob
 from nfpy.Handlers.AssetFactory import get_af_glob
 from nfpy.Handlers.QueryBuilder import get_qb_glob
 from nfpy.Handlers.Calendar import get_calendar_glob, today
-from nfpy.Portfolio.PortfolioManager import PortfolioManager
 from nfpy.Tools.Constants import BDAYS_IN_1Y
 from nfpy.Handlers.Inputs import InputHandler
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< Print portfolio summary script >>>"
+
+_FMT_ = '%Y-%m-%d'
 
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
@@ -22,11 +24,15 @@ if __name__ == '__main__':
     qb = get_qb_glob()
     af = get_af_glob()
     inh = InputHandler()
-    pm = PortfolioManager()
 
     cal = get_calendar_glob()
     end = today(mode='timestamp')
-    start = cal.shift(end, BDAYS_IN_1Y, False)
+    start = cal.shift(end, 2*BDAYS_IN_1Y, fwd=False)
+
+    msg = "Give an start date (default {}): "
+    start = inh.input(msg.format(start.strftime(_FMT_)), idesc='timestamp',
+                      default=start, optional=True)
+
     cal.initialize(end=end, start=start)
 
     # Get equity
@@ -36,18 +42,19 @@ if __name__ == '__main__':
 
     print('\n\nAvailable portfolios:')
     print(tabulate(res, headers=f, showindex=True))
-    uid = inh.input("\nGive a portfolio index: ", idesc='int')
-    ptf_uid = res[uid][0]
+    idx = inh.input("\nGive a portfolio index: ", idesc='int')
+    ptf_uid = res[idx][0]
 
     ptf = af.get(ptf_uid)
-    f, d = pm.summary(ptf)
+    f, d = ptf.summary()
+    tot_value = ptf.total_value.at[cal.t0]
 
     print('\n *** Portfolio info ***\n------------------------\n')
-    print('uid:\t\t{}\nCurrency:\t{}\nDate:\t\t{}'
-          .format(ptf_uid, ptf.base_currency, ptf.date))
+    print('Uid:\t\t{}\nCurrency:\t{}\nDate:\t\t{}\nInception:\t{}\nTot. Value:\t{:.2f}'
+          .format(ptf_uid, ptf.currency, ptf.date.strftime(_FMT_),
+                  ptf.inception_date.strftime(_FMT_), tot_value))
 
     print('\n\n *** Summary of positions ***\n------------------------------\n')
-    print(tabulate(d, headers=f))
-    print(end='\n\n')
+    print(tabulate(d, headers=f), end='\n\n')
 
     print("All done!")

@@ -6,20 +6,21 @@
 from tabulate import tabulate
 from nfpy.DB.DB import get_db_glob
 from nfpy.Handlers.AssetFactory import get_af_glob
-from nfpy.Handlers.Plotting import PlotOptimizerResult
+from nfpy.Handlers.Plotting import PlotPortfolioOptimization
 from nfpy.Handlers.QueryBuilder import get_qb_glob
-from nfpy.Handlers.Calendar import get_calendar_glob
+from nfpy.Handlers.Calendar import get_calendar_glob, today
 from nfpy.Tools.Utilities import import_symbol
 from nfpy.Handlers.Inputs import InputHandler
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< Optimize a portfolio script >>>"
 
 _OPT_H = ['Idx', 'Name', 'Module']
 _OPTIMIZERS = [(0, 'Efficient Frontier', 'MarkowitzModel'),
                (1, 'Min Variance', 'MinimalVarianceModel'),
                (2, 'Max Sharpe', 'MaxSharpeModel'),
-               (3, 'Risk Parity', 'RiskParityModel')]
+               (3, 'Risk Parity', 'RiskParityModel'),
+               (4, 'Capital Asset Line', 'CALModel')]
 
 
 if __name__ == '__main__':
@@ -31,8 +32,9 @@ if __name__ == '__main__':
     cal = get_calendar_glob()
     inh = InputHandler()
 
-    start = inh.input("Give a start date: ", idesc='str')
-    end = inh.input("Give an end date: ", idesc='str')
+    start = inh.input("Give a start date: ", idesc='timestamp')
+    end = inh.input("Give an end date (default today): ",
+                    idesc='timestamp', default=today(mode='timestamp'))
     cal.initialize(end, start=start)
 
     q = "select * from Assets where type = 'Portfolio'"
@@ -46,17 +48,28 @@ if __name__ == '__main__':
 
     print('\n\nAvailable optimizers:')
     print(tabulate(_OPTIMIZERS, headers=_OPT_H, showindex=False))
-    idx_l = inh.input("\nChoose optimizers indices (comma separated): ", idesc='int', is_list=True)
+    idx_l = inh.input("\nChoose optimizers indices (comma separated): ",
+                      idesc='int', is_list=True)
 
-    pl = PlotOptimizerResult()
+    pl = PlotPortfolioOptimization()
     for idx in idx_l:
         module = _OPTIMIZERS[idx][2]
         symbol = '.'.join(['nfpy.Portfolio.Optimizer', module, module])
         model = import_symbol(symbol)
         opt = model(ptf)
-        print(opt.result)
         res = opt.result
-        pl.add('pl', res)
+
+        if idx == 0:
+            label, marker = 'EF ', 'o'
+        elif idx == 1:
+            label, marker = 'MinVar ', 'd'
+        elif idx == 2:
+            label, marker = 'Sharpe ', 'x'
+        elif idx == 3:
+            label, marker = 'RP ', 'x'
+        else:
+            label, marker = 'CAL ', 'o'
+        pl.add(res, label=label + 'no gamma', marker=marker)
 
     pl.plot()
     pl.show()
