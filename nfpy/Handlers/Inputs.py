@@ -7,8 +7,6 @@ from datetime import datetime
 from typing import Union, List, Any
 import pandas as pd
 
-from nfpy.DB.DB import get_db_glob
-from nfpy.Downloader.DownloadFactory import get_dwnf_glob
 from nfpy.Handlers.AssetFactory import get_af_glob
 from nfpy.Handlers.Calendar import date_2_datetime
 from nfpy.Handlers.CurrencyFactory import get_fx_glob
@@ -35,10 +33,8 @@ class InputHandler(object):
     _DEFAULT_SEP = ','
 
     def __init__(self):
-        self._db = get_db_glob()
         self._af = get_af_glob()
         self._ccy = get_fx_glob()
-        self._dwn = get_dwnf_glob()
         self._converters = {'str': self._to_string, 'float': self._to_float,
                             'int': self._to_int, 'bool': self._to_bool,
                             'uid': self._to_string, 'datetime': self._to_datetime,
@@ -184,19 +180,13 @@ class InputHandler(object):
         value = None
         while not _validated:
             _v = input(msg).strip()
-            # if not _v:
-            #     _v = default
             if (not _v) and (default is not None):
                 value = default
                 _validated = True
             elif (not _v) and (optional is False):
                 print('*** Mandatory ***')
-                # if _v == default and not optional:
-                # continue
             elif (not _v) and (optional is True):
                 _validated = True
-                # elif _v == default and optional:
-                # value = _v
             else:
                 value = self._convert(_v, idesc, **kwargs)
                 if checker:
