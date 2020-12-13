@@ -3,59 +3,129 @@
 # Class to handle plots in a standardized way across the library
 #
 
-from abc import ABCMeta, abstractmethod
-from math import inf
-from typing import Union, Sized
+from abc import ABCMeta
+from typing import Union, Sequence
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
 from nfpy.Portfolio.Optimizer.BaseOptimizer import OptimizerResult
 
+plt.style.use('seaborn')
+# print(plt.style.library['seaborn'])
+
 
 class Plotting(metaclass=ABCMeta):
     """ Creates a defined environment. """
 
-    def __init__(self, xl: str = '', yl: str = '', zero: float = .0,
-                 use_zero: bool = False):
+    _RC = {}
+    _RC_TEXT = {}
+    _RC_AXIS = {'c': 'k', 'linewidth': .5}
+
+    def __init__(self, ncols: int = 1, nrows: int = 1, xl: str = '',
+                 yl: str = '', x_zero: float = None, y_zero: float = None,
+                 xlim: Sequence = (), ylim: Sequence = ()):
         # Inputs variables
-        self._xlim = [inf, -inf]
-        self._ylim = [inf, -inf]
-        self._xl = xl
-        self._yl = yl
-        self._zero = zero
-        self._use_zero = use_zero
+        self._ncols = int(ncols)
+        self._nrows = int(nrows)
+        self._xl = str(xl)
+        self._yl = str(yl)
+        self._x_zero = x_zero
+        self._y_zero = y_zero
+        self._xlim = xlim
+        self._ylim = ylim
 
         # Working variables
+        self._annotations = []
         self._plots = []
+        self._lines = []
         self._fig = None
         self._ax = None
 
-        self._init()
+        self._initialize()
 
-    def _init(self):
-        fig, ax = plt.subplots()
+    def _initialize(self):
+        fig, ax = plt.subplots(self._ncols, self._nrows)
         self._fig = fig
         self._ax = ax
 
-        if self._zero is not None:
-            self._use_zero = True
+    def __del__(self):
+        self.close()
 
-    def save(self, f_name: str):
+    def save(self, f_name: str, fmt: str = 'png'):
         """ Call the savefig() method. """
-        self._fig.savefig(f_name)
+        self._fig.tight_layout()
+        self._fig.savefig(f_name, format=fmt)
 
-    @abstractmethod
-    def add(self, *args, **kwargs):
+    def add(self, x: Union[pd.Series, np.array], y: np.array = None, **kwargs):
         """ Add more plots to be plotted. """
+        if isinstance(x, pd.Series):
+            _v = x
+            x, y = _v.index, _v.values
+        self._plots.append((x, y, kwargs))
 
-    @abstractmethod
+    def annotate(self, x: Union[pd.Series, np.array], y: np.array = None,
+                 labels: Sequence = (), **kwargs):
+        if isinstance(x, pd.Series):
+            _v = x
+            x, y = _v.index, _v.values
+        self._annotations.append((x, y, labels, kwargs))
+
+    def line(self, type: str, v: float, **kwargs):
+        self._lines.append((type, v, kwargs))
+
     def plot(self):
         """ Creates the figure. """
+        ax1, legend = self._ax, False
+        ax2, lp = None, []
+        for x, y, kw in self._plots:
+            try:
+                secondary = kw['secondary_y']
+                if secondary:
+                    if not ax2:
+                        ax2 = ax1.twinx()
+                    ax2.set_ylabel(kw['label'])
+                    ax2.legend(kw['label'])
+                    ax = ax2
+                else:
+                    ax = ax1
+                del kw['secondary_y']
+            except KeyError:
+                ax = ax1
+
+            rc = self._RC.copy()
+            rc.update(kw)
+            leg = ax.plot(x, y, **rc)
+
+            if 'label' in rc:
+                legend = True
+                lp.append(leg[0])
+
+        for mode, val, kw in self._lines:
+            if mode == 'h':
+                leg = ax1.axhline(val, **kw)
+            else:
+                leg = ax1.axvline(val, **kw)
+            if 'label' in kw:
+                legend = True
+                lp.append(leg)
+
+        # if self._use_zero:
+        if self._x_zero is not None:
+            ax1.axvline(self._x_zero, **self._RC_AXIS)
+        if self._y_zero is not None:
+            ax1.axhline(self._y_zero, **self._RC_AXIS)
+
+        ax1.set_xlabel(self._xl)
+        ax1.set_ylabel(self._yl)
+
+        if legend:
+            ax1.legend(lp, [l.get_label() for l in lp])
 
     @staticmethod
     def show():
         """ Show the figure to screen. """
+        plt.tight_layout()
         plt.show()
 
     @staticmethod
@@ -63,151 +133,143 @@ class Plotting(metaclass=ABCMeta):
         """ Call plt.clf(). """
         plt.clf()
 
+    @staticmethod
+    def cla():
+        """ Call plt.cla(). """
+        plt.cla()
 
-class PlotVarRet(Plotting):
-    """ Creates a variance/return plot. """
-
-    def add(self, x: Union[float, Sized], y: Union[float, Sized],
-            label: str = None, **kwargs):
-        """ Add more plots to be plotted. """
-        pl = (x, y, label, kwargs)
-        self._plots.append(pl)
-
-    def plot(self):
-        """ Creates the figure. """
-        ax = self._ax
-        for x, y, l, kw in self._plots:
-            if isinstance(x, Sized):
-                if len(x) != len(y):
-                    raise RuntimeError('Size of x and y mismatch in {}'
-                                       .format(self.__name__))
-
-                ax.scatter(x, y, **kw)
-                if l:
-                    ax.text(x, y, s=l, fontsize=6, fontvariant='small-caps', **kw)
-            elif isinstance(x, float):
-                ax.scatter(x, y, **kw)
-                if l:
-                    ax.text(x, y, s=l, fontsize=6, fontvariant='small-caps', **kw)
-            else:
-                raise TypeError('Data type not recognized in {} class'
-                                .format(self.__name__))
-
-        if self._use_zero:
-            plt.axvline(c='k', linewidth=.5)
-            plt.axhline(self._zero, c='k', linewidth=.5)
-        plt.xlabel('Variance')
-        plt.ylabel('Return')
+    def close(self, close_all: bool = False):
+        """ Call plt.close(). """
+        s = 'all' if close_all else self._fig
+        plt.close(s)
 
 
 class PlotLine(Plotting):
     """ Creates a line plot. """
 
-    def add(self, x: Union[pd.Series, np.array], y: np.array = None, **kwargs):
-        """ Add more plots to be plotted. """
-        if isinstance(x, pd.Series):
-            x = x.values
-            y = x.index
-        pl = (x, y, kwargs)
-        self._plots.append(pl)
-
-    def plot(self):
-        """ Creates the figure. """
-        ax = self._ax
-        for x, y, kw in self._plots:
-            ax.plot(x, y, **kw)
-
-        if self._use_zero:
-            plt.axhline(self._zero, c='k', linewidth=.5)
-        plt.xlabel(self._xl)
-        plt.ylabel(self._yl)
-        plt.legend()
+    _RC = {'linestyle': '-', 'marker': ''}
 
 
 class PlotTS(Plotting):
     """ Creates a time series plot. """
 
-    def add(self, x: Union[pd.Series, np.array], y: np.array = None, **kwargs):
-        """ Add more plots to be plotted. """
-        # if not isinstance(data, pd.Series):
-        #     raise TypeError('Plotting class expects Series for plotting time series')
-        if isinstance(x, pd.Series):
-            _v = x
-            x = _v.index
-            y = _v.values
-        # pl = (data, kwargs)
-        pl = (x, y, kwargs)
-        self._plots.append(pl)
+    _RC = {'linestyle': '-', 'marker': ''}
 
-    def plot(self):
-        """ Creates the figure. """
-        ax = self._ax
-        for x, y, kw in self._plots:
-            ax.plot(x, y, **kw)
-        # for data, kw in self._plots:
-        #     data.plot(ax=ax, **kw)
-
-        if self._use_zero:
-            plt.axhline(self._zero, c='k', linewidth=.5)
-        plt.xlabel('Date')
-        plt.ylabel('Price')
+    def __init__(self, ncols: int = 1, nrows: int = 1, xl: str = 'Date',
+                 yl: str = 'Price', x_zero: float = None, y_zero: float = None,
+                 xlim: Sequence = None, ylim: Sequence = None):
+        super().__init__(ncols, nrows, xl, yl, x_zero, y_zero, xlim, ylim)
 
 
 class PlotBeta(Plotting):
     """ Creates a beta plot. """
 
-    _COLORS = (('cornflowerblue', 'blue'), ('salmon', 'red'),
-               ('lime', 'green'), ('silver', 'grey'))
+    _RC = {'linestyle': '-', 'marker': 'o', 'alpha': .5}
+    _RC_BETA = {'linestyle': '-', 'marker': '', 'linewidth': 2.}
 
-    def add(self, index: pd.Series, instrument: pd.Series, params: tuple, **kwargs):
+    def __init__(self, ncols: int = 1, nrows: int = 1,
+                 xl: str = 'Index returns', yl: str = 'Equity returns',
+                 x_zero: float = None, y_zero: float = None,
+                 xlim: Sequence = None, ylim: Sequence = None):
+        super().__init__(ncols, nrows, xl, yl, x_zero, y_zero, xlim, ylim)
+
+    def add(self, x: Union[pd.Series, np.array], y: np.array = None,
+            params: Sequence = (), kw_line: dict = None, **kwargs):
         """ Add more plots to be plotted. """
         if len(self._plots) == 4:
             raise RuntimeError('Already enough regression plot')
-        if not isinstance(index, pd.Series) or not isinstance(instrument, pd.Series):
-            raise TypeError('Plotting class expects Series for plotting time series')
-        pl = (index, instrument, params, kwargs)
-        self._plots.append(pl)
 
-    def plot(self):
-        """ Creates the figure. """
-        # ax = self._ax
-        for n, data in enumerate(self._plots):
-            idx, instr, params, kw = data
-            sc, rc = self._COLORS[n]
-            x = np.linspace(min(np.min(idx), .0), np.max(idx), 2)
-            y = params[0] * x + params[1]
-            plt.scatter(idx, instr, color=sc, **kw)
-            if 'label' in kw:
-                del kw['label']
-            plt.plot(x, y, color=rc, linewidth=2., **kw)
-
-        if self._use_zero:
-            plt.axhline(self._zero, c='k', linewidth=.5)
-            plt.axvline(c='k', linewidth=.5)
-        plt.xlabel('Index returns')
-        plt.ylabel('Equity returns')
-        plt.legend()
-
-
-class PlotOptimizerResult(Plotting):
-    """ Creates a variance/return plot from a OptimizerResult object. """
-
-    def add(self, res: OptimizerResult, **kwargs):
-        """ Add more plots to be plotted. """
-        pl = (res, kwargs)
-        self._plots.append(pl)
+        if isinstance(x, pd.Series):
+            _v = x
+            x, y = _v.index, _v.values
+        self._plots.append((x, y, params, kw_line, kwargs))
 
     def plot(self):
         """ Creates the figure. """
         ax = self._ax
-        for r, kw in self._plots:
-            ax.scatter(r.ptf_variance, r.ptf_return, **kw)
-            ax.scatter(r.const_var, r.const_ret, **kw)
-            # ax.text(var, ret, s=uids, fontsize=6, fontvariant='small-caps')
+        for x, y, params, kw_line, kw in self._plots:
+            rc = self._RC.copy()
+            rc.update(kw)
+            ax.scatter(x, y, **rc)
 
-        if self._use_zero:
-            plt.axvline(c='k', linewidth=.5)
-            plt.axhline(self._zero, c='k', linewidth=.5)
-        plt.xlabel('Variance')
-        plt.ylabel('Return')
-        plt.legend()
+            xg = np.linspace(min(float(np.nanmin(x)), .0),
+                             float(np.nanmax(x)), 2)
+            yg = params[0] * xg + params[1]
+            rc_line = self._RC_BETA.copy()
+            kw_line = {} if not kw_line else kw_line
+            rc_line.update(kw_line)
+            label = r'$\beta_{1y}='+r'{:.2f}$'.format(params[0])
+            ax.plot(xg, yg, label=label, **rc_line)
+
+        # if self._use_zero
+        if self._y_zero is not None:
+            ax.axhline(self._y_zero, **self._RC_AXIS)
+            ax.axvline(**self._RC_AXIS)
+
+        ax.set_xlabel(self._xl)
+        ax.set_ylabel(self._yl)
+
+        if self._xlim:
+            ax.set_xlim(self._xlim)
+        if self._ylim:
+            ax.set_ylim(self._ylim)
+
+        ax.legend()
+
+
+class PlotVarRet(Plotting):
+    """ Creates a variance/return plot. """
+
+    _RC = {'linestyle': '-', 'marker': 'o'}
+    _RC_TEXT = {'fontsize': 8, 'fontvariant': 'small-caps'}
+
+    def __init__(self, ncols: int = 1, nrows: int = 1, xl: str = 'Variance',
+                 yl: str = 'Return', x_zero: float = None, y_zero: float = None,
+                 xlim: Sequence = None, ylim: Sequence = None):
+        super().__init__(ncols, nrows, xl, yl, x_zero, y_zero, xlim, ylim)
+
+    def plot(self):
+        """ Creates the figure. """
+        ax, labels_flag = self._ax, False
+        for x, y, kw in self._plots:
+            rc = self._RC.copy()
+            rc.update(kw)
+            ax.plot(x, y, **rc)
+
+        for x, y, l, kw in self._annotations:
+            rc = self._RC.copy()
+            rc.update(kw)
+            ax.scatter(x, y, **rc)
+            for i, k in enumerate(l):
+                ax.annotate(k, (x[i], y[i]), **self._RC_TEXT)
+
+        if self._y_zero is not None:
+            ax.axhline(self._y_zero, **self._RC_AXIS)
+            ax.axvline(**self._RC_AXIS)
+
+        ax.set_xlabel(self._xl)
+        ax.set_ylabel(self._yl)
+
+        ax.legend(loc=2, fancybox=True, framealpha=0.1)
+
+
+class PlotPortfolioOptimization(PlotVarRet):
+    """ Creates a variance/return plot from a OptimizerResult object. """
+
+    def add(self, res: OptimizerResult, **kwargs):
+        """ Add more plots to be plotted. """
+        self._plots.append((res, kwargs))
+
+    def plot(self):
+        """ Creates the figure. """
+        r = self._plots[0][0]
+        self._annotations = [(r.const_var, r.const_ret, r.uids, {'marker': 'x'})]
+
+        plots = []
+        for r, kw in self._plots:
+            x = np.array(r.ptf_variance)
+            y = np.array(r.ptf_return)
+            plots.append((x, y, kw))
+        self._plots = plots
+
+        super().plot()
