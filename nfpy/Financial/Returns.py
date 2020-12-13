@@ -41,13 +41,13 @@ def logret(v: pd.Series, fillna: str = 'pad', w: int = 1) -> pd.Series:
     return v.add(1.).log()
 
 
-def tot_ret(ts: np.ndarray, dt: np.ndarray, start: np.datetime64 = None,
+def tot_ret(ts: np.ndarray, dt: np.ndarray = None, start: np.datetime64 = None,
             end: np.datetime64 = None, is_log: bool = False) -> float:
     """ Calculates the total return from a series.
 
         Input:
             ts [np.ndarray]: return series
-            dt [np.ndarray]: date series
+            dt [np.ndarray]: date series (default: None)
             start [np.datetime64]: start date of the series (default: None)
             end [np.datetime64]: end date of the series excluded (default: None)
             is_log [bool]: set True for logarithmic returns (default: False)
@@ -55,24 +55,25 @@ def tot_ret(ts: np.ndarray, dt: np.ndarray, start: np.datetime64 = None,
         Output:
             ret [float]: expected return
     """
-    v, _ = trim_ts(ts, dt, start=start, end=end)
+    if dt is not None:
+        ts, _ = trim_ts(ts, dt, start=start, end=end)
 
     if is_log:
-        r = np.nansum(v, axis=0)
+        r = np.nansum(ts, axis=0)
     else:
-        r = np.nanprod((1. + v), axis=0) - 1.
+        r = np.nanprod((1. + ts), axis=0) - 1.
 
     return r
 
 
-def comp_ret(ts: np.ndarray, dt: np.ndarray, start: np.datetime64 = None,
+def comp_ret(ts: np.ndarray, dt: np.ndarray = None, start: np.datetime64 = None,
              end: np.datetime64 = None, base: float = 1., is_log: bool = False
              ) -> np.ndarray:
     """ Calculates the series obtained by compounding the returns
 
         Input:
             ts [np.ndarray]: return series
-            dt [np.ndarray]: date series
+            dt [np.ndarray]: date series (default: None)
             start [np.datetime64]: start date of the series (default: None)
             end [np.datetime64]: end date of the series excluded (default: None)
             base [float]: base level (default: 1.)
@@ -81,24 +82,26 @@ def comp_ret(ts: np.ndarray, dt: np.ndarray, start: np.datetime64 = None,
         Output:
             res [float]: compounded returns series
     """
-    v, t = trim_ts(ts, dt, start=start, end=end)
+    if dt is not None:
+        ts, dt = trim_ts(ts, dt, start=start, end=end)
 
     if is_log:
-        res = base * (1. + np.nancumsum(v, axis=0))
+        res = base * (1. + np.nancumsum(ts, axis=0))
     else:
-        res = base * np.nancumprod((1. + v), axis=0)
+        res = base * np.nancumprod((1. + ts), axis=0)
 
     return res
 
 
-def expct_ret(ts: np.ndarray, dt: np.ndarray, start: np.datetime64 = None,
-              end: np.datetime64 = None, is_log: bool = False) -> float:
+def expct_ret(ts: np.ndarray, dt: np.ndarray = None,
+              start: np.datetime64 = None, end: np.datetime64 = None,
+              is_log: bool = False) -> float:
     """ Expected return for the series in input. It corresponds to the geometric
         mean for standard returns, and to the simple mean for log returns.
 
         Input:
             ts [np.ndarray]: values of the series under analysis
-            dt [np.ndarray]: dates of the series under analysis
+            dt [np.ndarray]: dates of the series under analysis (default: None)
             start [np.datetime64]: start date of the series (default: None)
             end [np.datetime64]: end date of the series excluded (default: None)
             is_log [bool]: set True for logarithmic returns (default: False)
@@ -106,18 +109,19 @@ def expct_ret(ts: np.ndarray, dt: np.ndarray, start: np.datetime64 = None,
         Output:
             exp_ret [float]: expected value of the return
     """
-    v, t = trim_ts(ts, dt, start=start, end=end)
+    if dt is not None:
+        ts, dt = trim_ts(ts, dt, start=start, end=end)
 
     if is_log:
-        exp_r = np.nanmean(v, axis=0)
+        exp_r = np.nanmean(ts, axis=0)
     else:
-        exp_r = compound(tot_ret(v, t), 1. / v.shape[0])
+        exp_r = compound(tot_ret(ts, dt), 1. / ts.shape[0])
 
     return exp_r
 
 
-def compound(r: Union[float, np.ndarray], t: Union[int, np.ndarray], n: int = 1) \
-        -> Union[float, np.ndarray]:
+def compound(r: Union[float, np.ndarray], t: Union[int, np.ndarray],
+             n: int = 1) -> Union[float, np.ndarray]:
     """ Compound input rate of return.
 
         Input:
