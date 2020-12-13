@@ -5,20 +5,20 @@
 
 
 from nfpy.Handlers.Configuration import PARAMS_DICT__, create_new
-from nfpy.Handlers.Inputs import InputHandler
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< Configuration file creation script >>>"
 
 
 def create_configuration():
-    inh = InputHandler()
-
     print('Insert the following parameters:')
     parameters = {}
-    for k, v in PARAMS_DICT__.items():
-        p = inh.input(v + ': ', idesc='str')
-        parameters[k] = p if p else ''
+    for section in PARAMS_DICT__.keys():
+        sect_dict = {}
+        for k, v in PARAMS_DICT__[section].items():
+            p = input(v[1] + ': ').strip()
+            sect_dict[k] = p if p else ''
+        parameters[section] = sect_dict
 
     print('Creating new file...')
     create_new(parameters)

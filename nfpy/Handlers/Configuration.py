@@ -11,42 +11,33 @@ from typing import Any
 from nfpy import NFPY_ROOT_DIR
 from nfpy.Tools.Singleton import Singleton
 
-# Empty configuration file for on the fly generation
-# TODO: make the file generation dynamic through the use of dictionaries
-__CONTENT__ = """[DATABASE]
-db_dir = {dbf}
-db_name = {dbn}
-
-[FOLDERS]
-data_folder = {dataf}
-backup_folder = {bakf}
-
-[REPORTING]
-zip_format = {zipf}
-report_path = {rep_path}
-report_arch_path = {rep_arch_path}
-report_arch_dir = {rep_arch_dir}
-report_retention = {rep_ret}
-
-[IBAPI]
-ib_interface = {ib_intfc}
-ib_client_id = {ib_client}
-ib_tws_port = {ib_port}
-
-[OTHERS]
-base_ccy = {bfx}
-calendar_frequency = {calf}
-"""
-
 # Dictionary of parameters in the current configuration file
-PARAMS_DICT__ = {'dbf': 'database folder', 'dbn': 'database name',
-                 'dataf': 'data folder', 'bakf': 'backup folder',
-                 'bfx': 'base currency', 'calf': 'default calendar frequency',
-                 'ib_intfc': 'IBAPI interface', 'ib_client': 'IBAPI client ID',
-                 'ib_port': 'IBAPI TWS port', 'zip_format': 'Archive format',
-                 'rep_arch_path': 'Path to archive directory',
-                 'rep_ret': 'Report retention days',
-                 'rep_path': 'Path to report directory'}
+PARAMS_DICT__ = {
+    'DATABASE': {
+        'db_dir': (str, 'database folder'),
+        'db_name': (str, 'database name'),
+    },
+    'FOLDERS': {
+        'data_folder': (str, 'data folder'),
+        'backup_folder': (str, 'backup folder'),
+    },
+    'REPORTING': {
+        'zip_format': (str, 'Archive format'),
+        'report_path': (str, 'Path to report directory'),
+        'report_arch_path': (str, 'Path to archive directory'),
+        'report_retention': (str, 'Report retention days')
+    },
+    'IBAPI': {
+
+        'ib_interface': (str, 'IBAPI interface'),
+        'ib_client_id': (str, 'IBAPI client ID'),
+        'ib_tws_port': (int, 'IBAPI TWS port'),
+    },
+    'OTHERS': {
+        'base_ccy': (str, 'base currency'),
+        'calendar_frequency': (str, 'default calendar frequency')
+    }
+}
 
 
 class Configuration(metaclass=Singleton):
@@ -86,18 +77,25 @@ class Configuration(metaclass=Singleton):
         """ Parse the configuration file. """
         conf_path = self._get_conf_full_path()
         if not os.path.isfile(conf_path):
-            raise ValueError('Supplied file does not exist! Please give a valid one.')
+            raise ValueError('Supplied file does not exist! Give a valid one.')
 
         config = configparser.ConfigParser()
         config.read(conf_path)
 
-        db_path = os.path.join(config['DATABASE']['db_dir'], config['DATABASE']['db_name'])
+        # Add full db_path property
+        db_path = os.path.join(config['DATABASE']['db_dir'],
+                               config['DATABASE']['db_name'])
         config['DATABASE']['db_path'] = db_path
+        PARAMS_DICT__['DATABASE']['db_path'] = (str, '')
 
         for section in config.values():
-            for k, v in section.items():
-                print(k, v)
-                setattr(self, k, v)
+            try:
+                sect_p = PARAMS_DICT__[section.name]
+            except KeyError as ex:
+                pass
+            else:
+                for k, v in section.items():
+                    setattr(self, k, sect_p[k][0](v))
 
         self._conf_path = conf_path
         self._conf = config
@@ -119,5 +117,7 @@ def create_new(parameters: dict):
         os.remove(conf_path)
 
     f = open(conf_path, "w")
-    f.write(__CONTENT__.format(**parameters))
+    cp = configparser.ConfigParser()
+    cp.read_dict(parameters)
+    cp.write(f)
     f.close()
