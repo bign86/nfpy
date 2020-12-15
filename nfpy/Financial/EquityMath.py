@@ -218,7 +218,26 @@ def correlation(dt: np.ndarray, ts: np.ndarray, proxy: np.ndarray,
         dts = None
 
     else:
-        pass
+        # TODO: to be implemented
+        corr = None
 
     return dts, corr
 
+
+def sml(r: float, beta: float, rf: float, rm: float) -> tuple:
+    """ Calculate the theoretical fair return of the asset according to the SML
+        line and the actual asset relative over-/under- pricing.
+
+        Input:
+            r [float]: return of the asset
+            beta [float]: beta of the asset
+            rf [float]: risk free return
+            rm [float]: return of the market
+
+        Output:
+            rt [float]: theoretical SML fair return
+            delta [float]: over-/under- pricing
+    """
+    rt = (rm - rf) * beta + rf
+    delta = (r - rt)
+    return rt, delta
