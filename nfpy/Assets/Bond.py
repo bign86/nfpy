@@ -18,6 +18,7 @@ from nfpy.Handlers.Calendar import get_calendar_glob
 from nfpy.Tools.Constants import DAY_COUNT
 from nfpy.Tools.Exceptions import MissingData, UnsupportedWarning, \
     ToBeImplementedWarning
+from nfpy.Tools.TSUtils import last_valid_value
 
 
 class AccConv(object):
@@ -195,18 +196,28 @@ class Bond(Asset):
             warnings.warn("{}: callability not considered in duration"
                           .format(self.uid), ToBeImplementedWarning)
 
-        # Handle input date
+        # Handle missing input date
         if date is None:
-            dates = get_calendar_glob().t0.asm8
-        elif isinstance(date, pd.Timestamp):
+            date = get_calendar_glob().t0
+
+        # Set prices series
+        p = self.prices.loc[date]
+        try:
+            p0 = p.values
+        except AttributeError:
+            if np.isnan(p):
+                v = self.prices.values
+                dt = self.prices.index.values
+                p, _ = last_valid_value(v, dt, date.asm8)
+            p0 = p
+
+        # Transform to the right format prices and dates
+        if isinstance(date, pd.Timestamp):
             dates = date.asm8
         elif isinstance(date, pd.DatetimeIndex):
             dates = date.values
         else:
             raise TypeError('Wrong date type supplied to bond.fv()')
-
-        # Set prices series
-        p0 = self.prices.loc[dates].values
 
         v, dates = calc_duration(dates, self._inception_date.asm8,
                                  self._maturity.asm8, p0, self.cf['value'].values,
@@ -236,16 +247,25 @@ class Bond(Asset):
 
         # Handle input date
         if date is None:
-            dates = get_calendar_glob().t0.asm8
-        elif isinstance(date, pd.Timestamp):
+            date = get_calendar_glob().t0
+
+        # Set prices series
+        p = self.prices.loc[date]
+        try:
+            p0 = p.values
+        except AttributeError:
+            if np.isnan(p):
+                v = self.prices.values
+                dt = self.prices.index.values
+                p, _ = last_valid_value(v, dt, date.asm8)
+            p0 = p
+
+        if isinstance(date, pd.Timestamp):
             dates = date.asm8
         elif isinstance(date, pd.DatetimeIndex):
             dates = date.values
         else:
             raise TypeError('Wrong date type supplied to bond.fv()')
-
-        # Set prices series
-        p0 = self.prices.loc[dates].values
 
         v, dates = calc_convexity(dates, self._inception_date.asm8,
                                   self._maturity.asm8, p0, self.cf['value'].values,
