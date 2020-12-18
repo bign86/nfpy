@@ -13,7 +13,6 @@ from nfpy.Handlers.Configuration import get_conf_glob
 from .BaseDownloader import BasePage
 from .BaseProvider import BaseProvider
 from .DownloadsConf import IBFundamentalsConf
-# from .ImportsConf import FinancialsCodeImport
 from .IBApp import *
 
 
@@ -23,10 +22,9 @@ class IBProvider(BaseProvider):
     _PROVIDER = 'IB'
     _PAGES = {"Financials": "IBFundamentals"}
     _TABLES = {"Financials": "IBFinancials"}
-    # _FINANCIALS_MAP = FinancialsCodeImport
     _Q_IMPORT_FINAN = """insert or replace into {dst} (uid, code, date, freq, value)
     select distinct '{uid}', ib.code, ib.date, ib.freq, ib.value from {src} as ib
-    where ib.ticker = ?;"""  # and ib.code in ({codes});"""
+    where ib.ticker = ?;"""
 
     @staticmethod
     def create_input_dict(last_date: str) -> dict:
@@ -40,9 +38,8 @@ class IBProvider(BaseProvider):
 
         if page == 'Financials':
             t_dst = self._af.get(data['uid']).constituents_table
-            # codes = "'" + "', '".join([c for c in self._FINANCIALS_MAP]) + "'"
             query = self._Q_IMPORT_FINAN.format(**{'dst': t_dst, 'src': t_src,
-                                                   'uid': uid})  # , 'codes': codes})
+                                                   'uid': uid})
             params = (tck,)
         else:
             raise ValueError('Page {} for provider IB unrecognized'.format(page))

@@ -5,7 +5,7 @@
 
 import pandas as pd
 
-from nfpy.Assets.Asset import Asset
+from .Asset import Asset
 from nfpy.Tools.Constants import BDAYS_IN_1Y
 
 

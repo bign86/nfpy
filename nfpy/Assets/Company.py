@@ -7,8 +7,8 @@ import warnings
 import pandas as pd
 from itertools import groupby
 
-from nfpy.Assets.FinancialItem import FinancialItem
-from nfpy.Assets.AggregationMixin import AggregationMixin
+from .FinancialItem import FinancialItem
+from .AggregationMixin import AggregationMixin
 
 
 class Company(AggregationMixin, FinancialItem):

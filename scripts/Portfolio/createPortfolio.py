@@ -3,13 +3,12 @@
 # Script to create a new portfolio.
 #
 
-from nfpy.Assets.Portfolio import Portfolio
-from nfpy.DB.DB import get_db_glob
-from nfpy.Handlers.QueryBuilder import get_qb_glob
+from nfpy.Assets import Portfolio
+from nfpy.DB import (get_db_glob, get_qb_glob)
 from nfpy.Handlers.Calendar import date_2_datetime
 from nfpy.Handlers.Inputs import InputHandler, SQLITE2PY_CONVERSION
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< Create portfolio script >>>"
 
 

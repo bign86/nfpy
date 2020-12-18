@@ -10,11 +10,11 @@ from typing import Sequence
 import pandas as pd
 import requests
 
-from nfpy.Handlers.Calendar import today
-from nfpy.Tools.Exceptions import IsNoneError
 from .BaseDownloader import BasePage
 from .BaseProvider import BaseProvider
 from .DownloadsConf import ECBSeriesConf
+from nfpy.Handlers.Calendar import today
+from nfpy.Tools.Exceptions import IsNoneError
 
 
 class ECBProvider(BaseProvider):

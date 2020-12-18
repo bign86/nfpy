@@ -5,7 +5,7 @@
 
 import numpy as np
 
-from nfpy.Handlers.AssetFactory import get_af_glob
+from nfpy.Assets import get_af_glob
 from nfpy.Handlers.Calendar import get_calendar_glob
 from nfpy.Handlers.CurrencyFactory import get_fx_glob
 from nfpy.Tools.TSUtils import ffill_cols, dropna, trim_ts

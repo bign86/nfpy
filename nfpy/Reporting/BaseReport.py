@@ -5,7 +5,7 @@
 
 from abc import ABCMeta, abstractmethod
 from os.path import join, basename, normpath
-from typing import Tuple, List
+from typing import Tuple
 
 
 class BaseReport(metaclass=ABCMeta):
@@ -45,16 +45,16 @@ class BaseReport(metaclass=ABCMeta):
         """ Prepare the input arguments for the model. """
 
     @abstractmethod
-    def _create_output(self, res):
+    def _create_output(self, *args):
         """ Create the final output. """
 
-    def _get_image_paths(self, uid: str) -> Tuple[List, List]:
+    def _get_image_paths(self, text: str) -> Tuple[Tuple, Tuple]:
         img_path = self._img_path
 
         fig_full_name, fig_rel_name = [], []
         for l in self._IMG_LABELS:
-            name = '_'.join([uid, self._M_LABEL, l]) + '.png'
+            name = '_'.join([text, self._M_LABEL, l]) + '.png'
             fig_full_name.append(join(img_path, name))
             fig_rel_name.append(join(basename(normpath(img_path)), name))
 
-        return fig_full_name, fig_rel_name
+        return tuple(fig_full_name), tuple(fig_rel_name)

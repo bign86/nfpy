@@ -7,10 +7,9 @@ from abc import ABCMeta, abstractmethod
 from typing import Union, Any
 import pandas as pd
 
-from nfpy.Assets.Company import Company
+from nfpy.Assets import get_af_glob, Company
 from nfpy.Tools.Exceptions import AssetTypeError
 from nfpy.Tools.TSUtils import trim_ts, last_valid_index
-from nfpy.Handlers.AssetFactory import get_af_glob
 from nfpy.Handlers.Calendar import get_calendar_glob
 from nfpy.Handlers.CurrencyFactory import get_fx_glob
 from nfpy.Tools.Constants import DAYS_IN_1Y

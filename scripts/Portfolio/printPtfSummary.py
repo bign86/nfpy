@@ -5,17 +5,17 @@
 
 from tabulate import tabulate
 
-from nfpy.DB.DB import get_db_glob
-from nfpy.Handlers.AssetFactory import get_af_glob
-from nfpy.Handlers.QueryBuilder import get_qb_glob
+from nfpy.Assets import get_af_glob
+from nfpy.DB import (get_db_glob, get_qb_glob)
 from nfpy.Handlers.Calendar import get_calendar_glob, today
-from nfpy.Tools.Constants import BDAYS_IN_1Y
 from nfpy.Handlers.Inputs import InputHandler
+from nfpy.Tools.Constants import BDAYS_IN_1Y
 
-__version__ = '0.2'
+__version__ = '0.3'
 _TITLE_ = "<<< Print portfolio summary script >>>"
 
 _FMT_ = '%Y-%m-%d'
+
 
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')

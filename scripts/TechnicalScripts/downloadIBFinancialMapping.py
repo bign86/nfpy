@@ -5,12 +5,11 @@
 
 import xml.etree.ElementTree as ET
 
-from nfpy.DB.DB import get_db_glob
-from nfpy.Handlers.Configuration import get_conf_glob
-from nfpy.Handlers.QueryBuilder import get_qb_glob
+from nfpy.DB import (get_db_glob, get_qb_glob)
 from nfpy.Downloader.IBApp import IBAppFundamentals
+from nfpy.Handlers.Configuration import get_conf_glob
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< Interactive Brokers financials mapping download script >>>"
 
 

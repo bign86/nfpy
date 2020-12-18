@@ -3,17 +3,6 @@
 # Class to build the risk factors tree
 #
 
-from nfpy.Assets.FinancialItem import FinancialItem
-from nfpy.DB.DB import get_db_glob
-from nfpy.Handlers.QueryBuilder import get_qb_glob
-from nfpy.Tools.Exceptions import MissingData
-from nfpy.Tools.Singleton import Singleton
-from nfpy.Tools.Utilities import import_symbol, AttributizedDict
-
-
-
-
-
 
 class RiskFactorsFactory(object):
     """ Factory to create the risk factors tree from the asset objects """
@@ -25,5 +14,7 @@ class RiskFactorsFactory(object):
         self._tree = {}
 
     def get(self):
+        pass
 
     def set(self, assets):
+        pass

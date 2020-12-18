@@ -3,12 +3,11 @@
 # Create a new financial item in the database.
 #
 
-from nfpy.DB.DB import get_db_glob
-from nfpy.Handlers.QueryBuilder import get_qb_glob
+from nfpy.DB import (get_db_glob, get_qb_glob)
 from nfpy.Tools.Utilities import import_symbol
 from nfpy.Handlers.Inputs import InputHandler, SQLITE2PY_CONVERSION
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< Financial item creation script >>>"
 
 

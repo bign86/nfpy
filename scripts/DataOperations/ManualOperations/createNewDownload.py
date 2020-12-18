@@ -3,13 +3,12 @@
 # Register a new financial item in the database.
 #
 
-from nfpy.DB.DB import get_db_glob
+from nfpy.DB import (get_db_glob, get_qb_glob)
 from nfpy.Downloader.DownloadFactory import get_dwnf_glob
-from nfpy.Handlers.QueryBuilder import get_qb_glob
-from nfpy.Tools.Utilities import import_symbol
 from nfpy.Handlers.Inputs import InputHandler, SQLITE2PY_CONVERSION
+from nfpy.Tools.Utilities import import_symbol
 
-__version__ = '0.2'
+__version__ = '0.3'
 _TITLE_ = "<<< Create new download script >>>"
 
 

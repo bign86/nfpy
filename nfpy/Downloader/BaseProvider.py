@@ -6,11 +6,10 @@
 from abc import ABCMeta, abstractmethod
 from typing import Sequence
 
-from nfpy.DB.DB import get_db_glob
-from nfpy.Handlers.AssetFactory import get_af_glob
-from nfpy.Handlers.DatatypeFactory import get_dt_glob
-from nfpy.Handlers.QueryBuilder import get_qb_glob
+from nfpy.Assets import get_af_glob
+from nfpy.DB import (get_db_glob, get_qb_glob)
 from nfpy.Downloader.BaseDownloader import BasePage
+from nfpy.Handlers.DatatypeFactory import get_dt_glob
 from nfpy.Tools.Utilities import import_symbol
 
 

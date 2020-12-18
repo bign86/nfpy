@@ -6,15 +6,14 @@
 import pandas as pd
 from tabulate import tabulate
 
-from nfpy.DB.DB import get_db_glob
-from nfpy.Handlers.AssetFactory import get_af_glob
+from nfpy.Assets import get_af_glob
+from nfpy.DB import (get_db_glob, get_qb_glob)
 from nfpy.Handlers.Calendar import get_calendar_glob, today_
 from nfpy.Handlers.Inputs import InputHandler
-from nfpy.Handlers.QueryBuilder import get_qb_glob
 from nfpy.Tools.Constants import DAYS_IN_1Y
 from nfpy.Financial.DividendDiscountModel import DividendDiscountModel
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< Price equity script >>>"
 
 
@@ -44,11 +43,6 @@ if __name__ == '__main__':
     print(tabulate(res, headers=f, showindex=True))
     uid = inh.input("\nGive a company index: ", idesc='int')
     eq = res[uid][0]
-
-    # eq_uid = inh.input("Enter equity UID: ", idesc='str')
-    # if not eq_uid:
-    #    raise ValueError('You must give an equity UID.')
-    # eq = af.get(eq_uid)
 
     rrr = inh.input("Enter your required rate of return: ", idesc='float')
     if not rrr:

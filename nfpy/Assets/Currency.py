@@ -3,8 +3,7 @@
 # Class for currencies saved as change ratio against another currency
 #
 
-import pandas as pd
-from nfpy.Assets.Asset import Asset
+from .Asset import Asset
 
 
 class Currency(Asset):

@@ -8,11 +8,11 @@ from itertools import groupby
 
 import pandas as pd
 
-from nfpy.Assets.AggregationMixin import AggregationMixin
-from nfpy.Assets.Asset import Asset
+from .AggregationMixin import AggregationMixin
+from .Asset import Asset
+from .AssetFactory import get_af_glob
 from nfpy.Financial.EquityMath import sharpe, tev
 from nfpy.Financial.Returns import comp_ret
-from nfpy.Handlers.AssetFactory import get_af_glob
 from nfpy.Handlers.CurrencyFactory import get_fx_glob
 from nfpy.Portfolio.PortfolioMath import weights, portfolio_value, \
     price_returns, covariance, correlation

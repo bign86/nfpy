@@ -7,8 +7,8 @@ import numpy as np
 
 from typing import Union, Sequence
 
+from nfpy.Assets import get_af_glob
 from nfpy.Financial.Returns import expct_ret, compound
-from nfpy.Handlers.AssetFactory import get_af_glob
 from nfpy.Handlers.Calendar import get_calendar_glob
 from nfpy.Handlers.CurrencyFactory import get_fx_glob
 from nfpy.Handlers.RateFactory import get_rf_glob

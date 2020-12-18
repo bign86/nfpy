@@ -7,7 +7,7 @@ from typing import Union, Iterable
 import pandas as pd
 import numpy as np
 
-from nfpy.Assets.Portfolio import Portfolio
+from nfpy.Assets import Portfolio
 from nfpy.Handlers.Calendar import get_calendar_glob
 from nfpy.Tools.Utilities import AttributizedDict
 from nfpy.Var.RandomEngine import RandomEngine
@@ -34,8 +34,8 @@ class HistoricalVarModel(object):
     _KNOWN_RF = ['Equity', 'Indices', 'Currency', 'Rate', 'Curve', 'Bond']
     _KNOWN_MODELS = {'Dummy': DummyVarEvolver, 'LN-D': None, 'G-BM': GBMEvolver, 'HW-1F': None}
 
-    def __init__(self, portfolio: Union[Portfolio, Iterable], numpaths: int, horizon: int,
-                 observations: int, mapping: dict = None, date: pd.Timestamp = None):
+    def __init__(self, portfolio: Union[Portfolio, Iterable], paths: int,
+                 horizon: int, observations: int = None, mapping: dict = None):
         if mapping is None:
             mapping = {}
 
@@ -54,13 +54,13 @@ class HistoricalVarModel(object):
         self._num_rf = None
 
         # Random engine
-        self._rnd_engine = RandomEngine()
+        self._rnd_engine = None
 
         # Outputs
         self._res = None
 
         # perform immediate sanity check
-        self._initialize(portfolio, numpaths, horizon, observations, mapping, date)
+        self._initialize(portfolio, paths, horizon, observations, mapping)
 
     @property
     def frequency(self) -> str:
@@ -90,19 +90,18 @@ class HistoricalVarModel(object):
         # TODO
         return ''
 
-    def _initialize(self, portfolio: Union[Portfolio, Iterable], numpaths: int, horizon: int,
-                    observations: int, mapping: dict, date: pd.Timestamp):
+    def _initialize(self, portfolio: Union[Portfolio, Iterable], paths: int,
+                    horizon: int, observations: int, mapping: dict):
         # setting up calendar
-        # TODO: sanity checks on date (type and value)
         cal = get_calendar_glob()
-        self._t0 = cal.t0 if not date else date
+        self._t0 = cal.t0
         self._freq = cal.frequency
 
         # lengths
         # TODO: sanity checks on the inputs
         self._horizon = int(horizon)
         self._obs = int(observations)
-        self._n = int(numpaths)
+        self._n = int(paths)
 
         # asset class <-> model mapping
         for k in mapping.keys():
@@ -141,6 +140,7 @@ class HistoricalVarModel(object):
         # fase 2: calculate sigma
         self._initialize_random_engine()
 
+
         # fase 3: perform simulation
         self._simulate()
 
@@ -171,8 +171,8 @@ class HistoricalVarModel(object):
     def _initialize_random_engine(self):
         """ calculates the sigma for the risk factors
         """
-        self._rnd_engine.initialize_generator(self._rf, self._t0, self._obs,
-                                              self._num_rf, self._horizon, self._n)
+        self._rnd_engine = RandomEngine(self._rf, self._obs, self._num_rf,
+                                        self._horizon, self._n)
 
     def _simulate(self):
         """ for each rf in the dict perform the calculation, to be
@@ -186,7 +186,7 @@ class HistoricalVarModel(object):
         """
         # size of the draws matrix
         # draws_size = self._num_rf, self._horizon
-        self._save_path = np.ones((self._n, self._horizon+1))
+        self._save_path = np.ones((self._n, self._horizon + 1))
 
         for n in range(self._n):
             # FIXME: can I just run on the values()?
@@ -223,7 +223,7 @@ class HistoricalVarModel(object):
         print('')
 
         for s in series:
-            s.hist(bins=70)
+            s.hist(bins=150)
         plt.plot()
         plt.show()
 

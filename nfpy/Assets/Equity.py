@@ -5,9 +5,9 @@
 
 import pandas as pd
 
-from nfpy.Assets.Asset import Asset
+from .Asset import Asset
+from .AssetFactory import get_af_glob
 from nfpy.Financial.EquityMath import adj_factors, beta, correlation
-from nfpy.Handlers.AssetFactory import get_af_glob
 
 
 class Equity(Asset):

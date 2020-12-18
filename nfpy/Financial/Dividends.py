@@ -6,7 +6,7 @@
 import numpy as np
 import pandas as pd
 
-from nfpy.Assets.Equity import Equity
+from nfpy.Assets import Equity
 from nfpy.Financial.Returns import compound
 from nfpy.Tools.TSUtils import trim_ts, ts_yield, dropna
 from nfpy.Tools.Constants import BDAYS_IN_1Y

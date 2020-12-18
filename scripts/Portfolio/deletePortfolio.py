@@ -3,12 +3,11 @@
 # Script to delete a portfolio.
 #
 
-from nfpy.Assets.Portfolio import Portfolio
-from nfpy.DB.DB import get_db_glob
-from nfpy.Handlers.QueryBuilder import get_qb_glob
+from nfpy.Assets import Portfolio
+from nfpy.DB import (get_db_glob, get_qb_glob)
 from nfpy.Handlers.Inputs import InputHandler
 
-__version__ = '0.2'
+__version__ = '0.3'
 _TITLE_ = "<<< Delete portfolio script >>>"
 
 

@@ -3,7 +3,7 @@
 # Class for indices
 #
 
-from nfpy.Assets.Asset import Asset
+from .Asset import Asset
 
 
 class Indices(Asset):

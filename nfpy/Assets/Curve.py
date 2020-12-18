@@ -9,9 +9,9 @@ from typing import Union
 import pandas as pd
 import numpy as np
 
-from nfpy.Assets.AggregationMixin import AggregationMixin
-from nfpy.Assets.Asset import Asset
-from nfpy.Handlers.AssetFactory import get_af_glob
+from .AggregationMixin import AggregationMixin
+from .Asset import Asset
+from .AssetFactory import get_af_glob
 from nfpy.Tools.Exceptions import MissingData
 
 

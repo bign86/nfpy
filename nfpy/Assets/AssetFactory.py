@@ -3,8 +3,7 @@
 # Base class for a single asset
 #
 
-from nfpy.DB.DB import get_db_glob
-from nfpy.Handlers.QueryBuilder import get_qb_glob
+from nfpy.DB import (get_db_glob, get_qb_glob)
 from nfpy.Tools.Exceptions import MissingData
 from nfpy.Tools.Singleton import Singleton
 from nfpy.Tools.Utilities import import_symbol

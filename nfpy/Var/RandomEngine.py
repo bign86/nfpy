@@ -8,14 +8,19 @@ import pandas as pd
 import numpy.random as rnd
 from numpy.linalg import cholesky
 
+from nfpy.Tools.TSUtils import dropna, trim_ts
+
 
 class RandomEngine(object):
 
-    def __init__(self):
+    def __init__(self, rf_dict: dict, obs: int, dim: int, length: int, it: int,
+                 start: pd.Timestamp = None, end: pd.Timestamp = None):
         # Sigma related
         self._dim = None
         self._obs = None
         self._index = None
+        self._start = None
+        self._end = None
 
         # Random draws related
         self._length = None
@@ -27,7 +32,7 @@ class RandomEngine(object):
         self._choly = None
         self._draws = None
 
-        self._is_initialized = False
+        self._initialize(rf_dict, obs, dim, length, it, start, end)
 
     @property
     def seed(self) -> int:
@@ -38,57 +43,47 @@ class RandomEngine(object):
         self._seed = v
 
     @property
-    def sigma(self) -> pd.DataFrame:
+    def sigma(self) -> np.array:
         return self._sigma
 
     @property
-    def cholesky(self) -> pd.DataFrame:
+    def cholesky(self) -> np.array:
         return self._choly
 
     @property
     def size(self) -> tuple:
         return self._iter, self._dim, self._length
 
-    @property
-    def is_initialized(self) -> bool:
-        return self._is_initialized
+    def _initialize(self, rf_dict: dict, obs: int, dim: int, length: int,
+                    it: int, start: pd.Timestamp, end: pd.Timestamp):
+        # Consistency check
+        if not rf_dict:
+            raise ValueError('Risk Factors not present!')
+        if int(dim) <= 0:
+            raise ValueError('Number of paths inconsistent!')
+        if int(length) <= 0:
+            raise ValueError('Length of the future projection inconsistent!')
 
-    def calc_sigma(self, rf_dict: dict, date: pd.Timestamp, obs: int) -> pd.DataFrame:
+        # Calculate correlation matrix and cholesky
         nrf = len(rf_dict)
         mat = np.empty((nrf, obs))
 
-        index = []
-        i = 0
+        index, i = [], 0
         for k, rf in rf_dict.items():
             index.append(k)
-            r = rf.returns.loc[:date]
-            mat[i, :] = r[-obs:].values
+            r = rf.returns
+            v, _ = trim_ts(r.values, r.index.values, start, end)
+            mat[i, :] = r[-obs:]
             i = i + 1
 
         # calculate covariance matrix
+        mat, _ = dropna(mat)
         sigma = np.cov(mat)
         choly = cholesky(sigma)
-        choly = pd.DataFrame(data=choly, index=index)
 
-        # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-        #   print(sigma)
-
-        self._dim = nrf
-        self._obs = obs
-        self._index = index
-        self._sigma = pd.DataFrame(data=sigma, index=index)
-        self._choly = choly
-
-        return choly
-
-    def initialize_generator(self, rf_dict: dict, date: pd.Timestamp,
-                             obs: int, dim: int, length: int, it: int):
         # draw normal random numbers
         size = (it, dim, length)
         draws = rnd.normal(size=size)
-
-        # calculate correlation matrix and cholesky
-        choly = self.calc_sigma(rf_dict, date, obs)
 
         # apply cholesky
         for i in range(size[0]):
@@ -99,7 +94,13 @@ class RandomEngine(object):
         self._length = length
         self._iter = it
         self._draws = draws
-        self._is_initialized = True
+        self._dim = nrf
+        self._obs = obs
+        self._index = index
+        self._sigma = sigma
+        self._choly = choly
+        self._start = end
+        self._end = start
 
     def get(self, it: int, rf: str) -> np.array:
         i = self._index.index(rf)

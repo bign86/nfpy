@@ -3,9 +3,9 @@
 # Script to backup a database
 #
 
-from nfpy.DB.DB import backup_db
+from nfpy.DB import backup_db
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< Backup Database Script >>>"
 
 

@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Union, List, Any
 import pandas as pd
 
-from nfpy.Handlers.AssetFactory import get_af_glob
+from nfpy.Assets import get_af_glob
 from nfpy.Handlers.Calendar import date_2_datetime
 from nfpy.Handlers.CurrencyFactory import get_fx_glob
 from nfpy.Tools.Constants import KNOWN_COUNTRIES

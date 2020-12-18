@@ -4,17 +4,16 @@
 
 import pandas as pd
 
-from nfpy.DB.DB import get_db_glob
-from nfpy.Handlers.AssetFactory import get_af_glob
+from nfpy.Assets import get_af_glob
+from nfpy.DB import (get_db_glob, get_qb_glob)
 from nfpy.Handlers.Configuration import get_conf_glob
-from nfpy.Handlers.QueryBuilder import get_qb_glob
 from nfpy.Tools.Exceptions import MissingData
 from nfpy.Tools.Singleton import Singleton
 
 
 # TODO: This makes the inversion every time, we could store two different
 #       series with inversion already performed for speed at the expense
-#       of more memory usege
+#       of more memory usage
 class Conversion(object):
     """ Object that wraps the currency asset for conversions. """
 
@@ -100,7 +99,7 @@ class CurrencyFactory(metaclass=Singleton):
     def base_ccy(self, v: str):
         self._base_ccy = self._validate_ccy(v)
 
-    def is_known_ccy(self, v: str) -> bool:
+    def is_ccy(self, v: str) -> bool:
         return v in self._KNOWN_CCY
 
     def is_base_ccy(self, v: str) -> bool:

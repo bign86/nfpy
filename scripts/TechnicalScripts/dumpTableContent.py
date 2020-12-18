@@ -6,14 +6,14 @@
 import csv
 from os.path import join
 
-from nfpy.DB.DB import get_db_glob
+from nfpy.DB import (get_db_glob, get_qb_glob)
 from nfpy.Handlers.Calendar import now
 from nfpy.Handlers.Configuration import get_conf_glob
-from nfpy.Handlers.QueryBuilder import get_qb_glob
 from nfpy.Handlers.Inputs import InputHandler
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< Dump Table script >>>"
+
 
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')

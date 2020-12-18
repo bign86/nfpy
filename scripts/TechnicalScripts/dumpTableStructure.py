@@ -2,11 +2,12 @@
 # Dump table structure script
 #
 
-from nfpy.Handlers.QueryBuilder import get_qb_glob
+from nfpy.DB import get_qb_glob
 from nfpy.Handlers.Inputs import InputHandler
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< Dump table structure script >>>"
+
 
 if __name__ == '__main__':
 

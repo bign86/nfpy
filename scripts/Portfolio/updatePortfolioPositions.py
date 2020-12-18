@@ -3,11 +3,11 @@
 # Script to add or remove trades from portfolios.
 #
 
-from nfpy.Handlers.AssetFactory import get_af_glob
+from nfpy.Assets import get_af_glob
 from nfpy.Handlers.Calendar import get_calendar_glob, today
 from nfpy.Handlers.Inputs import InputHandler
 
-__version__ = '0.2'
+__version__ = '0.3'
 _TITLE_ = "<<< Update portfolio positions script >>>"
 
 if __name__ == '__main__':

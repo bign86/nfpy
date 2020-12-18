@@ -6,7 +6,7 @@
 from typing import Callable
 import pandas as pd
 
-from nfpy.Assets.Company import Company
+from nfpy.Assets import Company
 from nfpy.Tools.Exceptions import MissingData
 
 

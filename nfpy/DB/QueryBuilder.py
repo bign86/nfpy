@@ -7,10 +7,10 @@ from copy import deepcopy
 from operator import itemgetter
 from typing import Generator, List, Sequence
 
+from .DB import get_db_glob
+from .Table import Table, Column
 from nfpy.Tools.Exceptions import MissingData
 from nfpy.Tools.Singleton import Singleton
-from nfpy.DB.DB import get_db_glob
-from nfpy.DB.Table import Table, Column
 
 
 class QueryBuilder(metaclass=Singleton):

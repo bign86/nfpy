@@ -10,8 +10,8 @@ from typing import Union
 import numpy as np
 import pandas as pd
 
-from nfpy.Assets.Curve import Curve
-from nfpy.Assets.Asset import Asset
+from .Asset import Asset
+from .Curve import Curve
 from nfpy.Financial.BondMath import calc_ytm, calc_fv, \
     calc_duration, calc_convexity
 from nfpy.Handlers.Calendar import get_calendar_glob

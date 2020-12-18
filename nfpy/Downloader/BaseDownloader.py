@@ -14,7 +14,7 @@ from nfpy.DB.DB import get_db_glob
 from nfpy.Handlers.Calendar import now
 from nfpy.Handlers.Configuration import get_conf_glob
 from nfpy.Handlers.DatatypeFactory import get_dt_glob
-from nfpy.Handlers.QueryBuilder import get_qb_glob
+from nfpy.DB.QueryBuilder import get_qb_glob
 from nfpy.Tools.Exceptions import IsNoneError
 from nfpy.Tools.Utilities import FileObject
 

@@ -5,8 +5,7 @@
 
 from requests import RequestException
 
-from nfpy.DB.DB import get_db_glob
-from nfpy.Handlers.QueryBuilder import get_qb_glob
+from nfpy.DB import (get_db_glob, get_qb_glob)
 from nfpy.Tools.Singleton import Singleton
 from nfpy.Tools.Exceptions import CalendarError, MissingData, IsNoneError
 

@@ -3,11 +3,10 @@
 # Script to rebuild a table
 #
 
-from nfpy.DB.DB import get_db_glob, backup_db
+from nfpy.DB import (get_db_glob, backup_db, get_qb_glob)
 from nfpy.Handlers.Inputs import InputHandler
-from nfpy.Handlers.QueryBuilder import get_qb_glob
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< Rebuild a table script >>>"
 
 Q_CREATE = 'SELECT sql FROM sqlite_master where tbl_name = ?;'

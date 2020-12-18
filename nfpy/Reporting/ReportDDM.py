@@ -44,15 +44,14 @@ class ReportDDM(BaseReport):
         res.div_fig = fig_rel_name[0]
 
         # Save out figure
-        div_pl = PlotTS()
-        # ax = res.div_ts.plot(marker='o')
-        # past_div = res.div_ts
-        div_pl.add(res.div_ts, marker='o')
-        div_pl.add(res.div_zg[0, :], res.div_zg[1, :], marker='o')
-        div_pl.add(res.div_gwt[0, :], res.div_gwt[1, :], marker='o')
-        # fig = ax.get_figure()
+        div_pl = PlotTS(yl='Dividend')
+        div_pl.add(res.div_ts, marker='o', label='historical')
+        div_pl.add(res.div_zg[0, :], res.div_zg[1, :], marker='o', label='no growth')
+        div_pl.add(res.div_gwt[0, :], res.div_gwt[1, :], marker='o', label='w/ growth')
         div_pl.plot()
         div_pl.save(fig_full_name[0])
         div_pl.clf()
+
+        div_pl.close(True)
 
         return res

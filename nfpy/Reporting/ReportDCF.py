@@ -30,4 +30,5 @@ class ReportDCF(BaseReport):
 
     def _create_output(self, res):
         """ Create the final output. """
+        res.df.index = res.df.index.strftime("%Y-%m-%d")
         return res

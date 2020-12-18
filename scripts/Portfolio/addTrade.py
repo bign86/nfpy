@@ -5,12 +5,10 @@
 
 from tabulate import tabulate
 
-from nfpy.DB.DB import get_db_glob
-from nfpy.Handlers.QueryBuilder import get_qb_glob
-from nfpy.Portfolio.PortfolioManager import PortfolioManager
+from nfpy.DB import (get_db_glob, get_qb_glob)
 from nfpy.Handlers.Inputs import InputHandler
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< Add trade script >>>"
 
 _COLS_ORDER = ['ptf_uid', 'date', 'pos_uid', 'buy_sell', 'currency',

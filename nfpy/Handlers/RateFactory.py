@@ -6,10 +6,8 @@
 import warnings
 from itertools import groupby
 
-from nfpy.Assets.Rate import Rate
-from nfpy.DB.DB import get_db_glob
-from nfpy.Handlers.AssetFactory import get_af_glob
-from nfpy.Handlers.QueryBuilder import get_qb_glob
+from nfpy.Assets import (get_af_glob, Rate)
+from nfpy.DB import (get_db_glob, get_qb_glob)
 from nfpy.Tools.Exceptions import MissingData
 from nfpy.Tools.Singleton import Singleton
 

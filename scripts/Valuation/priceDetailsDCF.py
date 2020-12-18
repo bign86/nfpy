@@ -9,15 +9,15 @@ import numpy as np
 import pandas as pd
 from tabulate import tabulate
 
+from nfpy.Assets import get_af_glob
 from nfpy.Financial.DiscountedCashFlowModel import DiscountedCashFlowModel
-from nfpy.Handlers.AssetFactory import get_af_glob
 from nfpy.Handlers.Calendar import get_calendar_glob, today
 from nfpy.Handlers.Inputs import InputHandler
 
 plt.interactive(False)
 np.set_printoptions(precision=3, suppress=True)
 
-__version__ = '0.1'
+__version__ = '0.3'
 _TITLE_ = "<<< Price equity DCF details script >>>"
 
 
