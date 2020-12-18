@@ -12,7 +12,7 @@ from nfpy.Handlers.Plotting import PlotBeta
 from nfpy.Handlers.QueryBuilder import get_qb_glob
 from nfpy.Handlers.Inputs import InputHandler
 
-__version__ = '0.2'
+__version__ = '0.3'
 _TITLE_ = "<<< Beta calculation script >>>"
 
 
@@ -30,7 +30,6 @@ if __name__ == '__main__':
 
     end_date = inh.input("Give ending date for time series (default <today>): ",
                          default=today(), idesc='timestamp')
-    print('\n * Calendar dates: {} - {}'.format(start_date, end_date))
     get_calendar_glob().initialize(end_date, start_date)
 
     q = "select * from Assets where type = 'Equity'"
@@ -64,12 +63,12 @@ if __name__ == '__main__':
     print('             {}'.format(eq.description))
     print('Proxy      : {} ({})'.format(bmk.uid, bmk.type))
     print('             {}'.format(bmk.description))
-    print('Beta       : {:2.4f}'.format(b))
-    print('Intercept  : {:2.4f}'.format(itc))
-    print('Correlation: {:2.4f}\n'.format(rho))
+    print('Beta       : {:2.3f}'.format(b))
+    print('Intercept  : {:2.3f}'.format(itc))
+    print('Correlation: {:2.3f}\n'.format(rho))
 
-    plt = PlotBeta(use_zero=True)
-    plt.add(bmk.returns, eq.returns, (b, itc), label=eq.uid)
+    plt = PlotBeta()
+    plt.add(bmk.returns.values, eq.returns.values, (b, itc))
     plt.plot()
     plt.show()
 
