@@ -165,7 +165,8 @@ class PlotBeta(Plotting):
     """ Creates a beta plot. """
 
     _RC = {'linestyle': '-', 'marker': 'o', 'alpha': .5}
-    _RC_BETA = {'linestyle': '-', 'marker': '', 'linewidth': 2.}
+    _RC_BETA = {'linestyle': '-', 'marker': '', 'linewidth': 2.,
+                'label': r'$\beta={:.2}$'}
 
     def __init__(self, ncols: int = 1, nrows: int = 1,
                  xl: str = 'Index returns', yl: str = 'Equity returns',
@@ -198,8 +199,11 @@ class PlotBeta(Plotting):
             rc_line = self._RC_BETA.copy()
             kw_line = {} if not kw_line else kw_line
             rc_line.update(kw_line)
-            label = r'$\beta_{1y}='+r'{:.2f}$'.format(params[0])
-            ax.plot(xg, yg, label=label, **rc_line)
+            try:
+                rc_line['label'] = rc_line['label'].format(params[0])
+            except KeyError:
+                pass
+            ax.plot(xg, yg, **rc_line)
 
         # if self._use_zero
         if self._y_zero is not None:
