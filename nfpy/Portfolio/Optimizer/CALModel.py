@@ -6,13 +6,9 @@
 
 import numpy as np
 
-from nfpy.Assets.Portfolio import Portfolio
-from nfpy.Financial.Returns import compound
-from nfpy.Handlers.RateFactory import get_rf_glob
 from nfpy.Portfolio.Optimizer.BaseOptimizer import BaseOptimizer
 from nfpy.Portfolio.Optimizer.MarkowitzModel import MarkowitzModel
 from nfpy.Portfolio.Optimizer.MaxSharpeModel import MaxSharpeModel
-from nfpy.Tools.Constants import BDAYS_IN_1Y
 
 
 class CALModel(BaseOptimizer):
@@ -20,24 +16,20 @@ class CALModel(BaseOptimizer):
 
     _LABEL = 'CALModel'
 
-    def __init__(self, ptf: Portfolio, iterations: int = 50,
-                 points: int = 20, rf_ret: float = None, **kwargs):
+    def __init__(self, mean_returns: np.ndarray, covariance: np.ndarray,
+                 iterations: int = 50, points: int = 20,
+                 rf_ret: float = None, **kwargs):
+        super().__init__(mean_returns=mean_returns, covariance=covariance,
+                         iterations=iterations, **kwargs)
+
         self._num = points
         self._rf_ret = rf_ret
-        super().__init__(ptf=ptf, iterations=iterations)
-
-    def _initialize(self):
-        super()._initialize()
-
-        if self._rf_ret is None:
-            rf = get_rf_glob().get_rf(self._ptf.currency)
-            self._rf_ret = compound(rf.last_price(), BDAYS_IN_1Y)
 
     def _optimize(self):
         """ Optimize following the Markowitz procedure """
 
         # Search for the max sharpe portfolio
-        msh = MaxSharpeModel(ptf=self._ptf, iterations=self._iter)
+        msh = MaxSharpeModel(self._ret, self._cov, iterations=self._iter)
         msh_res = msh.result
         msh_ret = msh_res.ptf_return
         msh_var = msh_res.ptf_variance
@@ -53,12 +45,15 @@ class CALModel(BaseOptimizer):
         cal_ret, cal_var, cal_wgt = cal_res
 
         # Calculate the EF above the sharpe optimum
-        mkw = MarkowitzModel(ptf=self._ptf, iterations=self._iter,
-                             points=up_pts, min_ret=msh_ret[0])
-        mkw_res = mkw.result
-        mkw_ret = mkw_res.ptf_return
-        mkw_var = mkw_res.ptf_variance
-        mkw_wgt = mkw_res.weights
+        if up_pts > 0:
+            mkw = MarkowitzModel(self._ret, self._cov, iterations=self._iter,
+                                 points=up_pts, min_ret=msh_ret[0])
+            mkw_res = mkw.result
+            mkw_ret = mkw_res.ptf_return
+            mkw_var = mkw_res.ptf_variance
+            mkw_wgt = mkw_res.weights
+        else:
+            mkw_ret = mkw_var = mkw_wgt = []
 
         # Build up the final portfolio
         r = self._create_result_obj()
@@ -78,18 +73,17 @@ class CALModel(BaseOptimizer):
 
         down_pts = int(round((self._num - 1) * ms_res_share))
         up_pts = int(self._num - 1 - down_pts)
-        # assert self._num == 1 + up_pts + down_pts
 
         return down_pts, up_pts
 
     def _calc_lending_line(self, msh_ret: float, msh_var: float,
-                           msh_wgt: np.array, num_pts: int) -> tuple:
+                           msh_wgt: np.ndarray, num_pts: int) -> tuple:
         """ Calculates the lending portfolios below sharpe.
 
             Input:
                 msh_ret [float]: max sharpe portfolio's return
                 msh_var [float]: max sharpe portfolio's variance
-                msh_wgt [np.array]: max sharpe portfolio's weights
+                msh_wgt [np.ndarray]: max sharpe portfolio's weights
                 num_pts [int]: grid size to calculate
 
             Output:
