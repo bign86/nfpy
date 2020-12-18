@@ -8,8 +8,8 @@ from tabulate import tabulate
 from nfpy.Assets import get_af_glob
 from nfpy.DB import (get_db_glob, get_qb_glob)
 from nfpy.Handlers.Calendar import get_calendar_glob, today
-from nfpy.Handlers.Inputs import InputHandler
 from nfpy.Handlers.Plotting import PlotPortfolioOptimization
+from nfpy.Tools.Inputs import InputHandler
 from nfpy.Tools.Utilities import import_symbol
 
 __version__ = '0.3'

@@ -7,8 +7,7 @@
 from typing import Sequence
 import numpy as np
 
-from nfpy.Portfolio.Optimizer.BaseOptimizer import BaseOptimizer, \
-    OptimizerConf
+from .BaseOptimizer import (BaseOptimizer, OptimizerConf)
 
 
 class MarkowitzModel(BaseOptimizer):

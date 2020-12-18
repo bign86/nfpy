@@ -5,7 +5,7 @@
 
 from nfpy.Assets import get_af_glob
 from nfpy.Handlers.Calendar import get_calendar_glob, today
-from nfpy.Handlers.Inputs import InputHandler
+from nfpy.Tools.Inputs import InputHandler
 
 __version__ = '0.3'
 _TITLE_ = "<<< Update portfolio positions script >>>"

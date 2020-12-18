@@ -16,10 +16,10 @@ class Position(AttributizedDict):
         super().__init__(self)
         self.uid = pos_uid
         self.date = date
-        self.currency = currency    # position currency
+        self.currency = currency  # position currency
         self.alp = alp
         self.quantity = quantity
-        self.type = atype           # type of asset
+        self.type = atype  # type of asset
 
 
 class Trade(AttributizedDict):
@@ -35,7 +35,6 @@ class Trade(AttributizedDict):
         self.price = .0
         self.costs = .0
         self.market = ''
-
 
 # def new_trade(self, ptf_uid: str, date: Union[str, datetime, pd.Timestamp],
 #               pos_uid: str, buy_sell: int, currency: str, quantity: float, price: float,
@@ -59,5 +58,3 @@ class Trade(AttributizedDict):
 #     else:
 #         a_obj = self._af.get(pos_uid)
 #     return Position(pos_uid, date, atype, currency, alp, quantity, a_obj)
-
-

@@ -5,8 +5,7 @@
 import numpy as np
 from typing import Optional
 
-from nfpy.Portfolio.Optimizer.BaseOptimizer import BaseOptimizer, \
-    OptimizerConf, OptimizerResult
+from .BaseOptimizer import (BaseOptimizer, OptimizerConf, OptimizerResult)
 
 
 class RiskParityModel(BaseOptimizer):

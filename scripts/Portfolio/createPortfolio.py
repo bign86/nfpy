@@ -6,7 +6,7 @@
 from nfpy.Assets import Portfolio
 from nfpy.DB import (get_db_glob, get_qb_glob)
 from nfpy.Handlers.Calendar import date_2_datetime
-from nfpy.Handlers.Inputs import InputHandler, SQLITE2PY_CONVERSION
+from nfpy.Tools.Inputs import InputHandler, SQLITE2PY_CONVERSION
 
 __version__ = '0.2'
 _TITLE_ = "<<< Create portfolio script >>>"

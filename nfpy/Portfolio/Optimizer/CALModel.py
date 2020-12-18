@@ -6,9 +6,9 @@
 
 import numpy as np
 
-from nfpy.Portfolio.Optimizer.BaseOptimizer import BaseOptimizer
-from nfpy.Portfolio.Optimizer.MarkowitzModel import MarkowitzModel
-from nfpy.Portfolio.Optimizer.MaxSharpeModel import MaxSharpeModel
+from .BaseOptimizer import BaseOptimizer
+from .MarkowitzModel import MarkowitzModel
+from .MaxSharpeModel import MaxSharpeModel
 
 
 class CALModel(BaseOptimizer):

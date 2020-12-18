@@ -3,8 +3,7 @@
 #
 
 import numpy as np
-from nfpy.Portfolio.Optimizer.BaseOptimizer import BaseOptimizer, \
-    OptimizerConf, OptimizerResult
+from .BaseOptimizer import (BaseOptimizer, OptimizerConf, OptimizerResult)
 
 
 class MaxSharpeModel(BaseOptimizer):

@@ -6,7 +6,7 @@
 from tabulate import tabulate
 
 from nfpy.DB import (get_db_glob, get_qb_glob)
-from nfpy.Handlers.Inputs import InputHandler
+from nfpy.Tools.Inputs import InputHandler
 
 __version__ = '0.2'
 _TITLE_ = "<<< Add trade script >>>"

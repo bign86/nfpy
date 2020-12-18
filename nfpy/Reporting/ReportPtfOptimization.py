@@ -10,7 +10,7 @@ from nfpy.Assets import get_af_glob
 from nfpy.Handlers.Calendar import get_calendar_glob
 from nfpy.Handlers.CurrencyFactory import get_fx_glob
 from nfpy.Handlers.Plotting import PlotPortfolioOptimization
-from nfpy.Portfolio.OptimizationEngine import OptimizationEngine, ResultOptimization
+from nfpy.Portfolio import OptimizationEngine, ResultOptimization
 from nfpy.Reporting.BaseReport import BaseReport
 from nfpy.Tools.Utilities import AttributizedDict
 
