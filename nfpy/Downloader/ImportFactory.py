@@ -6,13 +6,13 @@
 from requests import RequestException
 
 from nfpy.DB import (get_db_glob, get_qb_glob)
-from nfpy.Tools.Singleton import Singleton
-from nfpy.Tools.Exceptions import CalendarError, MissingData, IsNoneError
+from nfpy.Tools import Singleton
+from nfpy.Tools.Exceptions import (CalendarError, MissingData, IsNoneError)
 
-from .IB import IBProvider
 from .ECB import ECBProvider
-from .Yahoo import YahooProvider
+from .IB import IBProvider
 from .Investing import InvestingProvider
+from .Yahoo import YahooProvider
 
 
 class ImportFactory(metaclass=Singleton):

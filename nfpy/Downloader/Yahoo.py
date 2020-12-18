@@ -11,16 +11,16 @@ from abc import abstractmethod
 from collections import defaultdict
 from io import StringIO
 from typing import Sequence
-
 import pandas as pd
 import requests
 
 from nfpy.Handlers.Calendar import today
 from nfpy.Tools.Exceptions import IsNoneError
+
 from .BaseDownloader import BasePage
 from .BaseProvider import BaseProvider
-from .DownloadsConf import YahooFinancialsConf, YahooHistPricesConf,\
-    YahooHistDividendsConf, YahooHistSplitsConf
+from .DownloadsConf import (YahooFinancialsConf, YahooHistPricesConf,
+                            YahooHistDividendsConf, YahooHistSplitsConf)
 
 
 class YahooProvider(BaseProvider):

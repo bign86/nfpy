@@ -4,24 +4,22 @@ from os.path import join
 import numpy as np
 import pandas as pd
 
-from nfpy.Handlers.Configuration import get_conf_glob
-from nfpy.Handlers.Inputs import InputHandler
+from nfpy.Tools.Configuration import get_conf_glob
+from nfpy.Tools.Inputs import InputHandler
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< Import into elaboration database script >>>"
-# _T = {0: 1, 2: 2, 1: 3}
 _COLS = ['ticker', 'date', 'price', 'open', 'high', 'low', 'volume']
 
 
-def translate(fin: str, ticker: str):
+def translate(_fin: str, _ticker: str):
     folder = get_conf_glob().backup_dir
-    bond = csv.reader(open(join(folder, fin), 'r'), delimiter='\t')
+    bond = csv.reader(open(join(folder, _fin), 'r'), delimiter='\t')
     data = []
 
     for line in bond:
-        row = [ticker, None, None, None, None, None, None]
+        row = [_ticker, None, None, None, None, None, None]
         for n, f in enumerate(line, start=1):
-            # if n in _T:
             if n == 1:
                 v = pd.to_datetime(f.strip()).strftime('%Y-%m-%d')
             else:
@@ -36,9 +34,6 @@ def translate(fin: str, ticker: str):
                     v = int(float(v.replace('B', '')) * 1e9)
                 else:
                     v = float(v)
-            # else:
-            #    continue
-            # row[_T[n]] = v
             row[n] = v
         data.append(row)
 

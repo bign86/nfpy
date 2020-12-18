@@ -8,9 +8,10 @@ from typing import Sequence
 
 from nfpy.Assets import get_af_glob
 from nfpy.DB import (get_db_glob, get_qb_glob)
-from nfpy.Downloader.BaseDownloader import BasePage
 from nfpy.Handlers.DatatypeFactory import get_dt_glob
 from nfpy.Tools.Utilities import import_symbol
+
+from .BaseDownloader import BasePage
 
 
 class BaseProvider(metaclass=ABCMeta):

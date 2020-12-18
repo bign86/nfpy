@@ -4,8 +4,8 @@
 #
 
 from nfpy.DB import (get_db_glob, get_qb_glob)
-from nfpy.Downloader.DownloadFactory import get_dwnf_glob
-from nfpy.Handlers.Inputs import InputHandler, SQLITE2PY_CONVERSION
+from nfpy.Downloader import get_dwnf_glob
+from nfpy.Tools.Inputs import InputHandler, SQLITE2PY_CONVERSION
 from nfpy.Tools.Utilities import import_symbol
 
 __version__ = '0.3'

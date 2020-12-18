@@ -6,9 +6,9 @@
 from tabulate import tabulate
 
 from nfpy.DB import (get_db_glob, get_qb_glob)
-from nfpy.Downloader.DownloadFactory import get_dwnf_glob
+from nfpy.Downloader import get_dwnf_glob
 from nfpy.Handlers.Calendar import today
-from nfpy.Handlers.Inputs import InputHandler
+from nfpy.Tools.Inputs import InputHandler
 from nfpy.Tools.Utilities import list_to_dict
 
 __version__ = '0.3'

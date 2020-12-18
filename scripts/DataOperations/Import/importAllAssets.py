@@ -3,9 +3,9 @@
 # Script to import everything is in automatic import.
 #
 
-from nfpy.Downloader.ImportFactory import get_impf_glob
+from nfpy.Downloader import get_impf_glob
 from nfpy.Handlers.Calendar import get_calendar_glob, today, last_business
-from nfpy.Handlers.Inputs import InputHandler
+from nfpy.Tools.Inputs import InputHandler
 
 __version__ = '0.3.1'
 _TITLE_ = "<<< Import into elaboration database script >>>"

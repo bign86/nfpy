@@ -9,15 +9,15 @@ from typing import List
 from requests import RequestException
 
 from nfpy.DB import (get_db_glob, get_qb_glob)
-from nfpy.Downloader.BaseDownloader import BasePage
 from nfpy.Handlers.Calendar import today, last_business, date_2_datetime
+from nfpy.Tools import Singleton
 from nfpy.Tools.Exceptions import MissingData, IsNoneError
-from nfpy.Tools.Singleton import Singleton
 
+from .BaseDownloader import BasePage
 from .ECB import ECBProvider
-from .Yahoo import YahooProvider
 from .Investing import InvestingProvider
 from .IB import IBProvider
+from .Yahoo import YahooProvider
 
 
 class DownloadFactory(metaclass=Singleton):

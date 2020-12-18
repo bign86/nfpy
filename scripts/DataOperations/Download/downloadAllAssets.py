@@ -3,8 +3,8 @@
 # Script to download everything is in automatic download.
 #
 
-from nfpy.Downloader.DownloadFactory import get_dwnf_glob
-from nfpy.Handlers.Inputs import InputHandler
+from nfpy.Downloader import get_dwnf_glob
+from nfpy.Tools.Inputs import InputHandler
 
 __version__ = '0.2'
 _TITLE_ = "<<< Update database script >>>"

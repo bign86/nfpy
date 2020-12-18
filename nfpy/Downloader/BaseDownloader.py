@@ -10,11 +10,10 @@ from typing import Dict, Union
 import pandas as pd
 import requests
 
-from nfpy.DB.DB import get_db_glob
+from nfpy.DB import (get_db_glob, get_qb_glob)
 from nfpy.Handlers.Calendar import now
-from nfpy.Handlers.Configuration import get_conf_glob
 from nfpy.Handlers.DatatypeFactory import get_dt_glob
-from nfpy.DB.QueryBuilder import get_qb_glob
+from nfpy.Tools.Configuration import get_conf_glob
 from nfpy.Tools.Exceptions import IsNoneError
 from nfpy.Tools.Utilities import FileObject
 
@@ -132,7 +131,7 @@ class BasePage(metaclass=ABCMeta):
             self._parse()
         if backup:
             self._write_to_file(fname)
-        self._write_to_DB()
+        self._write_to_db()
 
     def initialize(self, asset: dict, fname: Union[str, Path] = None, p: dict = None):
         """ Parameters are checked before download, encoding is set, parsed
@@ -232,7 +231,7 @@ class BasePage(metaclass=ABCMeta):
         with fd.open(mode='w') as f:
             f.write(self._robj.text)
 
-    def _write_to_DB(self):
+    def _write_to_db(self):
         """ Write to the database table. """
         # Get all fields and data
         fields_all = self._res.columns.values.tolist()

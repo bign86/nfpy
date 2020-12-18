@@ -5,33 +5,36 @@
 
 import json
 from typing import Sequence
-
 import pandas as pd
 from random import randint
 from bs4 import BeautifulSoup
 
 from nfpy.Handlers.Calendar import today
 from nfpy.Tools.Exceptions import MissingData
+
 from .BaseDownloader import BasePage
 from .BaseProvider import BaseProvider
-from .DownloadsConf import InvestingSeriesConf, InvestingCashFlowConf,\
-    InvestingBalanceSheetConf, InvestingIncomeStatementConf
+from .DownloadsConf import (InvestingSeriesConf, InvestingCashFlowConf,
+                            InvestingBalanceSheetConf, InvestingIncomeStatementConf)
 
 
 class InvestingProvider(BaseProvider):
     """ Class for the Investing.com provider. """
 
     _PROVIDER = 'Investing'
-    _PAGES = {"HistoricalPrices": "InvestingHistoricalPrices",
-              "Dividends": "InvestingDividends",
-              "IncomeStatement": "InvestingIncomeStatement",
-              "BalanceSheet": "InvestingBalanceSheet",
-              "CashFlow": "InvestingCashFlow",
-              }
-    _TABLES = {"HistoricalPrices": "InvestingPrices",
-               "IncomeStatement": "InvestingFinancials",
-               "BalanceSheet": "InvestingFinancials",
-               "CashFlow": "InvestingFinancials"}
+    _PAGES = {
+        "HistoricalPrices": "InvestingHistoricalPrices",
+        "Dividends": "InvestingDividends",
+        "IncomeStatement": "InvestingIncomeStatement",
+        "BalanceSheet": "InvestingBalanceSheet",
+        "CashFlow": "InvestingCashFlow",
+    }
+    _TABLES = {
+        "HistoricalPrices": "InvestingPrices",
+        "IncomeStatement": "InvestingFinancials",
+        "BalanceSheet": "InvestingFinancials",
+        "CashFlow": "InvestingFinancials"
+    }
     _Q_IMPORT_PRICE = """insert or replace into {dst} (uid, dtype, date, value)
     select '{uid}', '1', ip.date, ip.price from {src} as ip where ip.ticker = ?;"""
     _Q_IMPORT_FINAN = """insert or replace into {dst} (uid, code, date, freq, value)

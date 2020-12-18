@@ -9,8 +9,8 @@ import os
 from operator import itemgetter
 
 from nfpy.DB import (get_db_glob, get_qb_glob)
-from nfpy.Handlers.Configuration import get_conf_glob
-from nfpy.Handlers.Inputs import InputHandler
+from nfpy.Tools.Configuration import get_conf_glob
+from nfpy.Tools.Inputs import InputHandler
 
 __version__ = '0.2'
 _TITLE_ = "<<< Import Csv script >>>"

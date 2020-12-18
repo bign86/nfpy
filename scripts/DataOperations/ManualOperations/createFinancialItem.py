@@ -5,7 +5,7 @@
 
 from nfpy.DB import (get_db_glob, get_qb_glob)
 from nfpy.Tools.Utilities import import_symbol
-from nfpy.Handlers.Inputs import InputHandler, SQLITE2PY_CONVERSION
+from nfpy.Tools.Inputs import InputHandler, SQLITE2PY_CONVERSION
 
 __version__ = '0.2'
 _TITLE_ = "<<< Financial item creation script >>>"
