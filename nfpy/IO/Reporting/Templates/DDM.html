@@ -1,0 +1,21 @@
+{% set ret_zg = (current_model_res.ret_no_growth * 100) %}
+{% set ret_wg = (current_model_res.ret_with_growth * 100) %}
+<h5>Dividend Discount Model</h5>
+<table>
+  <tr>
+    <td>Last Price</td>
+    <td>No Growth</td>
+    <td>w/ growth</td>
+  </tr>
+  <tr>
+    <td>{{ '%0.2f'| format(current_model_res.last_price|float) }} {{ current_model_res.ccy }}</td>
+    <td>{{ '%0.2f'| format(current_model_res.fair_value_no_growth|float) }} {{ current_model_res.ccy }}</td>
+    <td>{{ '%0.2f'| format(current_model_res.fair_value_with_growth|float) }} {{ current_model_res.ccy }}</td>
+  </tr>
+  <tr>
+    <td></td>
+    <td>{{ '%0.2f'| format(ret_zg|float) }}%</td>
+    <td>{{ '%0.2f'| format(ret_wg|float) }}%</td>
+  </tr>
+</table>
+<img src="{{ current_model_res.div_fig }}", alt="Dividends plot">

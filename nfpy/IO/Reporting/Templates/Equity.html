@@ -1,0 +1,18 @@
+{% set current_asset_info = current_asset_dict["info"] %}
+<table>
+  <tr>
+    <td>Isin: {{ current_asset_info["isin"] }}</td>
+    <td>Currency: {{ current_asset_info["currency"] }}</td>
+    <td>Company: <a href="#{{ current_asset_info['company_uid'] }}">{{ current_asset_info["company_uid"] }}</a></td>
+  </tr>
+  <tr>
+    <td>Description: {{ current_asset_info["description"] }}</td>
+    <td>Country: {{ current_asset_info["country"] }}</td>
+    <td>Index: <a href="#{{ current_asset_info['index'] }}">{{ current_asset_info["index"] }}</a></td>
+  </tr>
+</table>
+
+{%- if "MEDM" in current_asset_dict %}
+  {% set current_model_res = current_asset_dict["MEDM"] %}
+  {%- include 'MEDM.html' with context -%}
+{%- endif -%}

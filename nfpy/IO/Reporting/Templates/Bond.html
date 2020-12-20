@@ -1,0 +1,23 @@
+{% set current_asset_info = current_asset_dict["info"] %}
+<table>
+  <tr>
+    <td>Isin: {{ current_asset_info["isin"] }}</td>
+    <td>Currency: {{ current_asset_info["currency"] }}</td>
+    <td>Inception: {{ current_asset_info["inception_date"].strftime('%Y-%m-%d') }}</td>
+    <td>Coupon: {{ current_asset_info["coupon"] }}</td>
+  </tr>
+  <tr>
+    <td>Description: {{ current_asset_info["description"] }}</td>
+    <td>Issuer: {{ current_asset_info["issuer"] }}</td>
+    <td>Maturity: {{ current_asset_info["maturity"].strftime('%Y-%m-%d') }}</td>
+    <td>Coupon frequency: {{ current_asset_info["c_per_year"] }}</td>
+  </tr>
+  <tr>
+    <td>Asset class: {{ current_asset_info["asset_class"] }}</td>
+  </tr>
+</table>
+
+{%- if "MBDM" in current_asset_dict %}
+  {% set current_model_res = current_asset_dict["MBDM"] %}
+  {%- include 'MBDM.html' with context -%}
+{%- endif -%}

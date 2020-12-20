@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <link rel= "stylesheet" type= "text/css" href= "style.css">
+    <title>Report NFPY</title>
+  </head>
+  <body>
+    <h1>{{ title }}</h1>
+    <h3><a name="uidList"></a>List of UIDs</h3>
+    {%- for asset_type in assets.keys()|sort -%}
+      <h4>{{ asset_type }}:</h4>
+      {%- for uid in assets[asset_type] -%}
+        <a href="#{{ uid }}">{{ uid }}</a>
+      {% endfor -%}
+    {% endfor -%}
+
+    <h2>Reports</h2>
+    {%- for asset_type in assets.keys()|sort -%}
+      <h3>{{ asset_type }}</h3>
+      {%- for uid in assets[asset_type] -%}
+        <a name="{{ uid }}"></a><h4><a href="#uidList">Top</a> - {{ uid }}</h4>
+        {% set current_asset_dict = all_res[uid] %}
+        {%- include asset_type ~ '.html' with context -%}
+      {%- endfor -%}
+    {%- endfor -%}
+  </body>
+</html>

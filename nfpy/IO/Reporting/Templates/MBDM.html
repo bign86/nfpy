@@ -1,0 +1,24 @@
+<h5>MBDM</h5>
+<img src="{{ current_model_res.prices_long }}" alt="Full history of prices">
+<img src="{{ current_model_res.prices_short }}" alt="Last 90 days of prices">
+<img src="{{ current_model_res.prices_ytm }}" alt="YTM vs price">
+
+<p>
+Main data @ {{ current_model_res.last_price_date.strftime('%Y-%m-%d') }}<br />
+Last price: {{ '%.3f' | format(current_model_res.last_price|float) }} {{ current_asset_info["currency"] }}<br />
+Last YTM: {{ '%.3f' | format(current_model_res.last_ytm|float) }}<br />
+Duration: {{ '%0.2f'| format(current_model_res.duration|float) }}<br />
+Convexity: {{ '%0.2f'| format(current_model_res.convexity|float) }}
+</p>
+
+
+<p>{{ current_model_res.stats.T.to_html(formatters=
+    {
+        'volatility': '{:,.1%}'.format,
+        'mean return': '{:,.1%}'.format,
+        'tot. return': '{:,.1%}'.format
+    }) }} {{ current_model_res.fair_values.to_html(formatters=
+    {
+        'Fv': '{:,.2f}'.format,
+        '%diff': '{:,.1%}'.format
+    }) }}</p>
