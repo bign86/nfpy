@@ -8,11 +8,11 @@ from typing import Union
 import numpy as np
 import pandas as pd
 
-from nfpy.Assets.FinancialItem import FinancialItem
-from nfpy.Financial.Returns import logret, ret, expct_ret, tot_ret
-from nfpy.Handlers.Calendar import get_calendar_glob
-from nfpy.Tools.Exceptions import MissingData, CalendarError
-from nfpy.Tools.TSUtils import last_valid_index, trim_ts
+from nfpy.Calendar import get_calendar_glob
+import nfpy.Math as Mat
+from nfpy.Tools import (Exceptions as Ex)
+
+from .FinancialItem import FinancialItem
 
 
 class Asset(FinancialItem):
@@ -31,7 +31,7 @@ class Asset(FinancialItem):
         if c:
             self._df = pd.DataFrame(index=c.calendar)
         else:
-            raise CalendarError("Calendar not initialized as required!!!")
+            raise Ex.CalendarError("Calendar not initialized as required!!!")
         self._cal = c
 
     @property
@@ -96,8 +96,8 @@ class Asset(FinancialItem):
 
         p = self.prices
         ts, date = p.values, p.index.values
-        ts, _ = trim_ts(ts, date, end=dt.asm8)
-        idx = last_valid_index(ts)
+        ts, _ = Mat.trim_ts(ts, date, end=dt.asm8)
+        idx = Mat.last_valid_index(ts)
         return ts[idx]
 
     def load_returns(self):
@@ -137,7 +137,7 @@ class Asset(FinancialItem):
         conn = self._db.connection
         df = pd.read_sql_query(q, conn, index_col=['date'], params=data)
         if df.empty:
-            raise MissingData("{} {} not found in the database!".format(self.uid, dt))
+            raise Ex.MissingData("{} {} not found in the database!".format(self.uid, dt))
 
         df = df.rename(columns={"value": str(dt)})
         self._df = self._df.merge(df, how='left', left_index=True, right_index=True)
@@ -145,11 +145,11 @@ class Asset(FinancialItem):
 
     def calc_returns(self) -> pd.Series:
         """ Calculates the returns from the series of the prices. """
-        return ret(self.prices)
+        return Mat.ret(self.prices)
 
     def calc_log_returns(self) -> pd.Series:
         """ Calculates the log returns from the series of the prices. """
-        return logret(self.prices)
+        return Mat.logret(self.prices)
 
     def write_dtype(self, dt: str):
         """ Writes a time series to the DB. The content of the column 'datatype'
@@ -190,7 +190,7 @@ class Asset(FinancialItem):
         """
         _ret = self.log_returns if is_log else self.returns
         ts, dt = _ret.values, _ret.index.values
-        return expct_ret(ts, dt, start=start.asm8, end=end.asm8, is_log=is_log)
+        return Mat.expct_ret(ts, dt, start=start.asm8, end=end.asm8, is_log=is_log)
 
     def return_volatility(self, start: pd.Timestamp = None,
                           end: pd.Timestamp = None,
@@ -206,7 +206,7 @@ class Asset(FinancialItem):
                 vola_ret [Union[float, pd.Series]]: expected value for returns
         """
         _ret = self.log_returns if is_log else self.returns
-        _ts, _ = trim_ts(_ret.values, _ret.index.values, start=start.asm8, end=end.asm8)
+        _ts, _ = Mat.trim_ts(_ret.values, _ret.index.values, start=start.asm8, end=end.asm8)
         return float(np.nanstd(_ts))
 
     def total_return(self, start: pd.Timestamp = None, end: pd.Timestamp = None,
@@ -223,4 +223,4 @@ class Asset(FinancialItem):
         """
         _ret = self.log_returns if is_log else self.returns
         ts, dt = _ret.values, _ret.index.values
-        return tot_ret(ts, dt, start=start.asm8, end=end.asm8, is_log=is_log)
+        return Mat.tot_ret(ts, dt, start=start.asm8, end=end.asm8, is_log=is_log)

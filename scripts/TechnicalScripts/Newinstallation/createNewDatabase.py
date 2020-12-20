@@ -2,16 +2,17 @@
 # Create Database script
 # Creates a new database from scratch
 #
+
 import json
 import os
 import pickle
 from pathlib import Path
 
 from nfpy import NFPY_ROOT_DIR
-from nfpy.DB.DB import get_db_glob
-from nfpy.Handlers.Configuration import get_conf_glob
+from nfpy.Configuration import get_conf_glob
+import nfpy.DB as DB
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< Database creation script >>>"
 
 Q_DEC = "insert into DecDatatype (datatype, encoding) values (?, ?);"
@@ -252,7 +253,7 @@ def get_db_handler():
 
     # database creation
     print('Creating the new database...')
-    db_ = get_db_glob()
+    db_ = DB.get_db_glob()
 
     if not db_:
         raise RuntimeError('I can not connect to the database... Sorry, but I got to stop here :(')
@@ -287,12 +288,12 @@ def populate_database(db_):
     try:
         data_file = Path(os.path.join(NFPY_ROOT_DIR, PKL_FILE))
         data_dict = pickle.load(data_file.open('rb'))
-    except Exception:
+    except Exception as ex1:
         try:
             data_file = Path(os.path.join(NFPY_ROOT_DIR, JSN_FILE))
             data_dict = json.load(data_file.open('rb'))
-        except Exception as ex:
-            raise ex
+        except Exception as ex2:
+            raise ex2
 
     data_file.close()
 

@@ -9,10 +9,9 @@ import numpy as np
 import pandas as pd
 from tabulate import tabulate
 
-from nfpy.Financial.DividendDiscountModel import DividendDiscountModel
-from nfpy.Handlers.Calendar import get_calendar_glob, today_
-from nfpy.Handlers.Inputs import InputHandler
-from nfpy.Handlers.Plotting import PlotLine
+from nfpy.Calendar import (get_calendar_glob, today)
+from nfpy.Financial.Models import DividendDiscountModel
+import nfpy.IO as IO
 
 plt.interactive(False)
 np.set_printoptions(precision=3, suppress=True)
@@ -34,12 +33,12 @@ def print_results():
 
 def print_plots():
     last_price = ddm.get_last_price()
-    pl1 = PlotLine(xl='Year', yl='Fair value', zero=last_price)
+    pl1 = IO.PlotLine(xl='Year', yl='Fair value', x_zero=last_price)
     pl1.add(v1[:, 0], v1[:, 2], color='k', linewidth=2., label='no_growth')
     pl1.add(v1[:, 0], v1[:, 3], color='b', linewidth=2., label='growth')
     pl1.plot()
 
-    pl2 = PlotLine(xl='Discount rate', yl='Fair value', zero=last_price)
+    pl2 = IO.PlotLine(xl='Discount rate', yl='Fair value', x_zero=last_price)
     pl2.add(v2[:, 1], v2[:, 2], color='k', linewidth=2., label='no_growth')
     pl2.add(v2[:, 1], v2[:, 3], color='b', linewidth=2., label='growth')
     pl2.plot()
@@ -49,10 +48,10 @@ def print_plots():
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
-    inh = InputHandler()
+    inh = IO.InputHandler()
 
     # Calculate the starting date to ensure enough past data are loaded
-    end_date = today_(string=False)
+    end_date = today(mode='datetime')
     curr_year = end_date.year
     start_date = pd.Timestamp(curr_year - 6, 1, 1)
     get_calendar_glob().initialize(end_date, start_date)

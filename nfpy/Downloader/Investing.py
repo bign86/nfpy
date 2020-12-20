@@ -3,14 +3,14 @@
 # Downloads data from investing.com
 #
 
-import json
-from typing import Sequence
-import pandas as pd
-from random import randint
 from bs4 import BeautifulSoup
+import json
+import pandas as pd
+from typing import Sequence
+from random import randint
 
-from nfpy.Handlers.Calendar import today
-from nfpy.Tools.Exceptions import MissingData
+from nfpy.Calendar import today
+from nfpy.Tools import Exceptions as Ex
 
 from .BaseDownloader import BasePage
 from .BaseProvider import BaseProvider
@@ -184,7 +184,7 @@ class InvestingDividends(InvestingBasePage):
 
     def _parse(self):
         if self._robj.text == '':
-            raise MissingData('No data found in downloaded response')
+            raise Ex.MissingData('No data found in downloaded response')
 
         j = json.loads(self._robj.text)
         soup = BeautifulSoup(j['historyRows'], "html.parser")

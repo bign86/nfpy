@@ -2,8 +2,8 @@
 # Dump table structure script
 #
 
-from nfpy.DB import get_qb_glob
-from nfpy.Handlers.Inputs import InputHandler
+import nfpy.DB as DB
+import nfpy.IO as IO
 
 __version__ = '0.2'
 _TITLE_ = "<<< Dump table structure script >>>"
@@ -11,8 +11,8 @@ _TITLE_ = "<<< Dump table structure script >>>"
 
 if __name__ == '__main__':
 
-    qb = get_qb_glob()
-    inh = InputHandler()
+    qb = DB.get_qb_glob()
+    inh = IO.InputHandler()
 
     table = inh.input("Give me a table to dump: ")
     t_exists = qb.exists_table(table)

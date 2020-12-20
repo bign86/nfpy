@@ -5,7 +5,7 @@
 
 import pandas as pd
 
-from nfpy.Handlers.Calendar import get_calendar_glob
+from nfpy.Calendar import get_calendar_glob
 
 
 class AggregationMixin(object):

@@ -5,18 +5,17 @@
 #
 
 import datetime
-from typing import List
 from requests import RequestException
+from typing import List
 
-from nfpy.DB import (get_db_glob, get_qb_glob)
-from nfpy.Handlers.Calendar import today, last_business, date_2_datetime
-from nfpy.Tools import Singleton
-from nfpy.Tools.Exceptions import MissingData, IsNoneError
+from nfpy.Calendar import (today, last_business, date_2_datetime)
+import nfpy.DB as DB
+from nfpy.Tools import (Singleton, Exceptions as Ex)
 
 from .BaseDownloader import BasePage
 from .ECB import ECBProvider
-from .Investing import InvestingProvider
 from .IB import IBProvider
+from .Investing import InvestingProvider
 from .Yahoo import YahooProvider
 
 
@@ -35,8 +34,8 @@ class DownloadFactory(metaclass=Singleton):
     _Q_MAX_DATE = "select max(date) from {} where ticker = ?"
 
     def __init__(self):
-        self._db = get_db_glob()
-        self._qb = get_qb_glob()
+        self._db = DB.get_db_glob()
+        self._qb = DB.get_qb_glob()
         self._downloads_list = None
 
     def providers(self) -> List:
@@ -208,7 +207,8 @@ class DownloadFactory(metaclass=Singleton):
                 else:
                     page.printout()
 
-            except (MissingData, IsNoneError, RuntimeError, RequestException, ValueError) as e:
+            except (Ex.MissingData, Ex.IsNoneError, RuntimeError,
+                    RequestException, ValueError) as e:
                 print(e)
             else:
                 if do_save is True:

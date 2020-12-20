@@ -6,11 +6,10 @@
 from tabulate import tabulate
 
 from nfpy.Assets import get_af_glob
-from nfpy.DB import (get_db_glob, get_qb_glob)
-from nfpy.Handlers.Calendar import get_calendar_glob, today
-from nfpy.Handlers.Plotting import PlotPortfolioOptimization
-from nfpy.Tools.Inputs import InputHandler
-from nfpy.Tools.Utilities import import_symbol
+from nfpy.Calendar import (get_calendar_glob, today)
+import nfpy.DB as DB
+import nfpy.IO as IO
+from nfpy.Tools import Utilities as Ut
 
 __version__ = '0.3'
 _TITLE_ = "<<< Optimize a portfolio script >>>"
@@ -26,11 +25,11 @@ _OPTIMIZERS = [(0, 'Efficient Frontier', 'MarkowitzModel'),
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
-    db = get_db_glob()
-    qb = get_qb_glob()
+    db = DB.get_db_glob()
+    qb = DB.get_qb_glob()
     af = get_af_glob()
     cal = get_calendar_glob()
-    inh = InputHandler()
+    inh = IO.InputHandler()
 
     start = inh.input("Give a start date: ", idesc='timestamp')
     end = inh.input("Give an end date (default today): ",
@@ -51,11 +50,11 @@ if __name__ == '__main__':
     idx_l = inh.input("\nChoose optimizers indices (comma separated): ",
                       idesc='int', is_list=True)
 
-    pl = PlotPortfolioOptimization()
+    pl = IO.PlotPortfolioOptimization()
     for idx in idx_l:
         module = _OPTIMIZERS[idx][2]
         symbol = '.'.join(['nfpy.Portfolio.Optimizer', module, module])
-        model = import_symbol(symbol)
+        model = Ut.import_symbol(symbol)
         opt = model(ptf)
         res = opt.result
 

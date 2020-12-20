@@ -3,8 +3,8 @@
 # Script to download everything is in automatic download.
 #
 
-from nfpy.Downloader import get_dwnf_glob
-from nfpy.Tools.Inputs import InputHandler
+import nfpy.Downloader as Dwn
+import nfpy.IO as IO
 
 __version__ = '0.2'
 _TITLE_ = "<<< Update database script >>>"
@@ -12,8 +12,8 @@ _TITLE_ = "<<< Update database script >>>"
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
-    dwnf = get_dwnf_glob()
-    inh = InputHandler()
+    dwnf = Dwn.get_dwnf_glob()
+    inh = IO.InputHandler()
 
     do_save, override_date, override_active = True, False, False
     provider, page, uid = None, None, None

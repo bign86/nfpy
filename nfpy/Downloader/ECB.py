@@ -3,14 +3,14 @@
 # Downloads data from the European Central Bank
 #
 
-import re
 from io import StringIO
-from typing import Sequence
 import pandas as pd
+import re
 import requests
+from typing import Sequence
 
-from nfpy.Handlers.Calendar import today
-from nfpy.Tools.Exceptions import IsNoneError
+from nfpy.Calendar import today
+from nfpy.Tools import Exceptions as Ex
 
 from .BaseDownloader import BasePage
 from .BaseProvider import BaseProvider
@@ -82,7 +82,7 @@ class ECBBasePage(BasePage):
 
         crumb = re.search(self._CRUMB_PATTERN, res.text)
         if crumb is None:
-            raise IsNoneError("Cannot find the crumb cookie from ECB")
+            raise Ex.IsNoneError("Cannot find the crumb cookie from ECB")
 
         return crumb.group(1)
 

@@ -3,9 +3,9 @@
 # Script to import everything is in automatic import.
 #
 
-from nfpy.Downloader import get_impf_glob
-from nfpy.Handlers.Calendar import get_calendar_glob, today, last_business
-from nfpy.Tools.Inputs import InputHandler
+from nfpy.Calendar import (get_calendar_glob, today, last_business)
+import nfpy.Downloader as Dwn
+import nfpy.IO as IO
 
 __version__ = '0.3.1'
 _TITLE_ = "<<< Import into elaboration database script >>>"
@@ -16,9 +16,8 @@ if __name__ == '__main__':
 
     cal = get_calendar_glob()
     cal.initialize(today(), last_business())
-
-    impf = get_impf_glob()
-    inh = InputHandler()
+    impf = Dwn.get_impf_glob()
+    inh = IO.InputHandler()
 
     override_active = False
     provider, page, uid = None, None, None

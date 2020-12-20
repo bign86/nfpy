@@ -9,9 +9,8 @@ from typing import Iterable
 
 import pandas as pd
 
-from nfpy.Handlers.Configuration import get_conf_glob
-from nfpy.Tools.Exceptions import DatabaseError
-from nfpy.Tools.Singleton import Singleton
+from nfpy.Configuration import get_conf_glob
+from nfpy.Tools import (Singleton, Exceptions as Ex)
 
 # Conversion between db types and python types
 SQLITE2PY_TYPES = {
@@ -119,8 +118,8 @@ class DBHandler(metaclass=Singleton):
         v = self.execute(q).fetchone()[0]
         self._db_version = float(v)
         if v < _MIN_DB_VERSION:
-            raise DatabaseError('DB version {} < {} (minimum version)'
-                                .format(v, _MIN_DB_VERSION))
+            raise Ex.DatabaseError('DB version {} < {} (minimum version)'
+                                   .format(v, _MIN_DB_VERSION))
 
         self._is_connected = True
 
@@ -147,7 +146,7 @@ def get_db_glob(db_path: str = None) -> DBHandler:
         db_path = get_conf_glob().db_path
     else:
         if not isinstance(db_path, str):
-            raise DatabaseError("Not a valid database name")
+            raise Ex.DatabaseError("Not a valid database name")
     return DBHandler(db_path)
 
 
@@ -160,7 +159,7 @@ def backup_db(db_path: str = None, f_name: str = None):
         db_path = conf.db_path
     else:
         if not isinstance(db_path, str):
-            raise DatabaseError("Not a valid database name")
+            raise Ex.DatabaseError("Not a valid database name")
 
     path, file = os.path.split(db_path)
 

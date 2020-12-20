@@ -4,8 +4,8 @@
 #
 
 from nfpy.Assets import Portfolio
-from nfpy.DB import (get_db_glob, get_qb_glob)
-from nfpy.Tools.Inputs import InputHandler
+import nfpy.DB as DB
+import nfpy.IO as IO
 
 __version__ = '0.3'
 _TITLE_ = "<<< Delete portfolio script >>>"
@@ -14,9 +14,9 @@ _TITLE_ = "<<< Delete portfolio script >>>"
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
-    db = get_db_glob()
-    qb = get_qb_glob()
-    inh = InputHandler()
+    db = DB.get_db_glob()
+    qb = DB.get_qb_glob()
+    inh = IO.InputHandler()
 
     # Variable
     base_table = Portfolio._BASE_TABLE

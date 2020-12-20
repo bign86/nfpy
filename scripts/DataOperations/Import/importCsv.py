@@ -8,9 +8,9 @@ import csv
 import os
 from operator import itemgetter
 
-from nfpy.DB import (get_db_glob, get_qb_glob)
-from nfpy.Tools.Configuration import get_conf_glob
-from nfpy.Tools.Inputs import InputHandler
+from nfpy.Configuration import get_conf_glob
+import nfpy.DB as DB
+import nfpy.IO as IO
 
 __version__ = '0.2'
 _TITLE_ = "<<< Import Csv script >>>"
@@ -20,19 +20,19 @@ if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
     conf = get_conf_glob()
-    db = get_db_glob()
-    qb = get_qb_glob()
-    inh = InputHandler()
+    db = DB.get_db_glob()
+    qb = DB.get_qb_glob()
+    inh = IO.InputHandler()
 
     # get and validate inputs
     dsrc = conf.backup_dir
     msg = "Give me filename to upload (must be present in the data source folder {}): ".format(dsrc)
-    name = inh.v_input(msg, cf=str)
+    name = inh.input(msg, idesc='str')
     src_file = os.path.join(dsrc, name)
     if not os.path.isfile(src_file):
         raise ValueError('Supplied file does not exist! Please give a valid one.')
 
-    table = inh.v_input("Give me a table to update: ", cf=str)
+    table = inh.input("Give me a table to update: ", idesc='str')
     t_exists = qb.exists_table(table)
     if not t_exists:
         raise ValueError('Supplied table name does not exist! Please give a valid one.')

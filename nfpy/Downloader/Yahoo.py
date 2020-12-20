@@ -3,19 +3,19 @@
 # Downloads data from Yahoo
 #
 
-import codecs
-import json
-import re
-import copy
 from abc import abstractmethod
+import codecs
 from collections import defaultdict
+import copy
 from io import StringIO
-from typing import Sequence
+import json
 import pandas as pd
+import re
 import requests
+from typing import Sequence
 
-from nfpy.Handlers.Calendar import today
-from nfpy.Tools.Exceptions import IsNoneError
+from nfpy.Calendar import today
+from nfpy.Tools import Exceptions as Ex
 
 from .BaseDownloader import BasePage
 from .BaseProvider import BaseProvider
@@ -104,7 +104,7 @@ class YahooBasePage(BasePage):
 
         crumb = re.search(self._CRUMB_PATTERN, res.text)
         if crumb is None:
-            raise IsNoneError("Cannot find the crumb cookie from Yahoo")
+            raise Ex.IsNoneError("Cannot find the crumb cookie from Yahoo")
 
         self._jar = res.cookies
         return codecs.decode(crumb.group(1), 'unicode_escape')

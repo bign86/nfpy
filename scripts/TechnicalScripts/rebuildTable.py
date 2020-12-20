@@ -3,8 +3,8 @@
 # Script to rebuild a table
 #
 
-from nfpy.DB import (get_db_glob, backup_db, get_qb_glob)
-from nfpy.Handlers.Inputs import InputHandler
+import nfpy.DB as DB
+import nfpy.IO as IO
 
 __version__ = '0.2'
 _TITLE_ = "<<< Rebuild a table script >>>"
@@ -16,9 +16,9 @@ Q_RENAME_TBL = 'alter table _TBL_ rename to _OLDTBL_;'
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
-    db = get_db_glob()
-    qb = get_qb_glob()
-    inh = InputHandler()
+    db = DB.get_db_glob()
+    qb = DB.get_qb_glob()
+    inh = IO.InputHandler()
 
     # Select table and fetch structure
     table = inh.input("Which table you want to rebuild?: ", idesc='str')
@@ -56,7 +56,7 @@ if __name__ == '__main__':
     # Perform backup
     do_backup = inh.input("Do you want to backup the database?: ", idesc='bool')
     if do_backup:
-        backup_db()
+        DB.backup_db()
 
     if to_add_dict and not to_remove:
         # Add columns one by one

@@ -5,14 +5,13 @@
 
 import json
 import os
-import pickle
 from pathlib import Path
+import pickle
 
 from nfpy import NFPY_ROOT_DIR
-from nfpy.DB.DB import get_db_glob
-from nfpy.Handlers.QueryBuilder import get_qb_glob
+import nfpy.DB as DB
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< Database static data dump creation script >>>"
 
 PKL_FILE = 'db_static_data.p'
@@ -22,8 +21,8 @@ TBL_LIST = ['DecDatatype', 'SystemInfo', 'MapFinancials']
 
 
 def get_db_data():
-    db = get_db_glob()
-    qb = get_qb_glob()
+    db = DB.get_db_glob()
+    qb = DB.get_qb_glob()
     return {t: db.execute(qb.selectall(t)).fetchall() for t in TBL_LIST}
 
 

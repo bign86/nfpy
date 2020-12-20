@@ -3,11 +3,10 @@
 # Add a new report to the database
 #
 
-from nfpy.Handlers.Calendar import get_calendar_glob, today, last_business
-from nfpy.Handlers.Inputs import InputHandler
-from nfpy.Reporting.ReportingEngine import ReportingEngine
+from nfpy.Calendar import (get_calendar_glob, today, last_business)
+import nfpy.IO as IO
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< New report add script >>>"
 
 
@@ -17,8 +16,8 @@ if __name__ == '__main__':
     cal = get_calendar_glob()
     cal.initialize(today(), last_business())
 
-    inh = InputHandler()
-    re = ReportingEngine()
+    inh = IO.InputHandler()
+    re = IO.get_re_glob()
 
     # Create model object from input
     uid = inh.input("Insert UID: ")

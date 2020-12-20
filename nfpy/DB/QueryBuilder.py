@@ -5,12 +5,12 @@
 from collections import OrderedDict
 from copy import deepcopy
 from operator import itemgetter
-from typing import Generator, List, Sequence
+from typing import (Generator, List, Sequence)
+
+from nfpy.Tools import (Singleton, Exceptions as Ex)
 
 from .DB import get_db_glob
-from .Table import Table, Column
-from nfpy.Tools.Exceptions import MissingData
-from nfpy.Tools.Singleton import Singleton
+from .Table import (Table, Column)
 
 
 class QueryBuilder(metaclass=Singleton):
@@ -27,7 +27,7 @@ class QueryBuilder(metaclass=Singleton):
         """
         res = self._db.execute("PRAGMA TABLE_INFO([{}]);".format(table)).fetchall()
         if not res:
-            raise MissingData('Table {} not found in the database'.format(table))
+            raise Ex.MissingData('Table {} not found in the database'.format(table))
         res = sorted(res, key=itemgetter(0))
 
         l = []

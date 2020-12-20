@@ -1,11 +1,10 @@
 import csv
-from os.path import join
-
 import numpy as np
+from os.path import join
 import pandas as pd
 
-from nfpy.Tools.Configuration import get_conf_glob
-from nfpy.Tools.Inputs import InputHandler
+from nfpy.Configuration import get_conf_glob
+import nfpy.IO as IO
 
 __version__ = '0.2'
 _TITLE_ = "<<< Import into elaboration database script >>>"
@@ -50,7 +49,7 @@ def translate(_fin: str, _ticker: str):
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
-    inh = InputHandler()
+    inh = IO.InputHandler()
 
     fin = inh.input('Insert file name: ', idesc='str')
     ticker = inh.input('Insert ticker: ', idesc='str')

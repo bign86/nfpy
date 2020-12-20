@@ -5,9 +5,9 @@
 
 import xml.etree.ElementTree as ET
 
-from nfpy.DB import (get_db_glob, get_qb_glob)
+from nfpy.Configuration import get_conf_glob
+import nfpy.DB as DB
 from nfpy.Downloader.IBApp import IBAppFundamentals
-from nfpy.Handlers.Configuration import get_conf_glob
 
 __version__ = '0.2'
 _TITLE_ = "<<< Interactive Brokers financials mapping download script >>>"
@@ -46,8 +46,8 @@ def fetchfromdb(db_, qb_) -> tuple:
 
 
 if __name__ == '__main__':
-    qb = get_qb_glob()
-    db = get_db_glob()
+    qb = DB.get_qb_glob()
+    db = DB.get_db_glob()
     conf = get_conf_glob()
 
     ticker = ['KO', '']

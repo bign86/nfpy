@@ -5,10 +5,10 @@
 
 from pandas import DateOffset
 
-from nfpy.Handlers.Calendar import get_calendar_glob, today
-from nfpy.Reporting.ReportingEngine import ReportingEngine
+from nfpy.Calendar import (get_calendar_glob, today)
+from nfpy.IO import get_re_glob
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< Report generation script >>>"
 
 
@@ -20,6 +20,6 @@ if __name__ == '__main__':
     start = end - DateOffset(years=10)
     cal.initialize(end, start)
 
-    ReportingEngine().run()
+    get_re_glob().run()
 
     print('All done!')

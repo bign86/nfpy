@@ -5,8 +5,8 @@
 
 from tabulate import tabulate
 
-from nfpy.DB import (get_db_glob, get_qb_glob)
-from nfpy.Tools.Inputs import InputHandler
+import nfpy.DB as DB
+import nfpy.IO as IO
 
 __version__ = '0.2'
 _TITLE_ = "<<< Add trade script >>>"
@@ -48,9 +48,9 @@ def insert_trade_data():
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
-    db = get_db_glob()
-    qb = get_qb_glob()
-    inh = InputHandler()
+    db = DB.get_db_glob()
+    qb = DB.get_qb_glob()
+    inh = IO.InputHandler()
 
     # List available portfolios
     q_ptf = "select * from Assets where type = 'Portfolio'"

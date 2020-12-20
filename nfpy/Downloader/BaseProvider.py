@@ -7,9 +7,9 @@ from abc import ABCMeta, abstractmethod
 from typing import Sequence
 
 from nfpy.Assets import get_af_glob
-from nfpy.DB import (get_db_glob, get_qb_glob)
-from nfpy.Handlers.DatatypeFactory import get_dt_glob
-from nfpy.Tools.Utilities import import_symbol
+from nfpy.Tools.DatatypeFactory import get_dt_glob
+import nfpy.DB as DB
+from nfpy.Tools import Utilities as Ut
 
 from .BaseDownloader import BasePage
 
@@ -27,8 +27,8 @@ class BaseProvider(metaclass=ABCMeta):
     _FINANCIALS_MAP = []
 
     def __init__(self):
-        self._db = get_db_glob()
-        self._qb = get_qb_glob()
+        self._db = DB.get_db_glob()
+        self._qb = DB.get_qb_glob()
         self._dt = get_dt_glob()
         # This is required just to get the asset elaboration table
         self._af = get_af_glob()
@@ -45,7 +45,7 @@ class BaseProvider(metaclass=ABCMeta):
         if page not in self._PAGES:
             raise ValueError("Page {} not available for {}".format(page, self._PROVIDER))
         symbol = '.'.join(['nfpy.Downloader', self._PROVIDER, self._PAGES[page]])
-        class_ = import_symbol(symbol)
+        class_ = Ut.import_symbol(symbol)
         return class_()
 
     def do_import(self, data: dict):

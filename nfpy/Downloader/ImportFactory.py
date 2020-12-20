@@ -5,9 +5,8 @@
 
 from requests import RequestException
 
-from nfpy.DB import (get_db_glob, get_qb_glob)
-from nfpy.Tools import Singleton
-from nfpy.Tools.Exceptions import (CalendarError, MissingData, IsNoneError)
+import nfpy.DB as DB
+from nfpy.Tools import (Singleton, Exceptions as Ex)
 
 from .ECB import ECBProvider
 from .IB import IBProvider
@@ -26,8 +25,8 @@ class ImportFactory(metaclass=Singleton):
                   }
 
     def __init__(self):
-        self._db = get_db_glob()
-        self._qb = get_qb_glob()
+        self._db = DB.get_db_glob()
+        self._qb = DB.get_qb_glob()
         self._imports_list = None
 
     def imports_by_uid(self, uid: str = None, provider: str = None, page: str = None,
@@ -98,9 +97,10 @@ class ImportFactory(metaclass=Singleton):
             try:
                 print(import_data)
                 self.do_import(import_data)
-            except CalendarError as cal:
+            except Ex.CalendarError as cal:
                 raise cal
-            except (MissingData, IsNoneError, RuntimeError, RequestException) as e:
+            except (Ex.MissingData, Ex.IsNoneError,
+                    RuntimeError, RequestException) as e:
                 print(e)
 
 

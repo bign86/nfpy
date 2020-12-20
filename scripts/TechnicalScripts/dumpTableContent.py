@@ -6,10 +6,10 @@
 import csv
 from os.path import join
 
-from nfpy.DB import (get_db_glob, get_qb_glob)
-from nfpy.Handlers.Calendar import now
-from nfpy.Handlers.Configuration import get_conf_glob
-from nfpy.Handlers.Inputs import InputHandler
+from nfpy.Calendar import now
+from nfpy.Configuration import get_conf_glob
+import nfpy.DB as DB
+import nfpy.IO as IO
 
 __version__ = '0.2'
 _TITLE_ = "<<< Dump Table script >>>"
@@ -18,10 +18,10 @@ _TITLE_ = "<<< Dump Table script >>>"
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
-    db = get_db_glob()
-    qb = get_qb_glob()
+    db = DB.get_db_glob()
+    qb = DB.get_qb_glob()
     conf = get_conf_glob()
-    inh = InputHandler()
+    inh = IO.InputHandler()
 
     # get the table to dump
     table = inh.input("Table to dump: ", idesc='str')

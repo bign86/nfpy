@@ -7,11 +7,11 @@ import pandas as pd
 from tabulate import tabulate
 
 from nfpy.Assets import get_af_glob
-from nfpy.DB import (get_db_glob, get_qb_glob)
-from nfpy.Handlers.Calendar import get_calendar_glob, today_
-from nfpy.Handlers.Inputs import InputHandler
-from nfpy.Tools.Constants import DAYS_IN_1Y
-from nfpy.Financial.DividendDiscountModel import DividendDiscountModel
+from nfpy.Calendar import (get_calendar_glob, today)
+import nfpy.DB as DB
+from nfpy.Financial.Models import DividendDiscountModel
+import nfpy.IO as IO
+from nfpy.Tools import Constants as Cn
 
 __version__ = '0.2'
 _TITLE_ = "<<< Price equity script >>>"
@@ -20,18 +20,18 @@ _TITLE_ = "<<< Price equity script >>>"
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
-    qb = get_qb_glob()
-    db = get_db_glob()
+    qb = DB.get_qb_glob()
+    db = DB.get_db_glob()
     af = get_af_glob()
     cal = get_calendar_glob()
-    inh = InputHandler()
+    inh = IO.InputHandler()
 
     end_date = inh.input("At which date perform the calculation? (default: today): ",
-                         idesc='datetime', optional=True, default=today_(string=False))
+                         idesc='datetime', optional=True, default=today(mode='datetime'))
     years = inh.input("How long is the forecasting period (in years)?: ", idesc='float')
 
     # Calculate the starting date with a +.1 to ensure to have enough past data
-    start_date = end_date - pd.Timedelta(days=DAYS_IN_1Y * (years + .1))
+    start_date = end_date - pd.Timedelta(days=Cn.DAYS_IN_1Y * (years + .1))
     cal.initialize(end_date, start_date)
 
     # Get equity

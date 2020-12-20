@@ -4,8 +4,8 @@
 #
 
 from nfpy.Assets import get_af_glob
-from nfpy.Handlers.Calendar import get_calendar_glob, today
-from nfpy.Tools.Inputs import InputHandler
+from nfpy.Calendar import (get_calendar_glob, today)
+import nfpy.IO as IO
 
 __version__ = '0.3'
 _TITLE_ = "<<< Update portfolio positions script >>>"
@@ -15,7 +15,7 @@ if __name__ == '__main__':
 
     af = get_af_glob()
     cal = get_calendar_glob()
-    inh = InputHandler()
+    inh = IO.InputHandler()
 
     start = inh.input("Give a start date: ", idesc='timestamp')
     end = inh.input("Give an end date (default today): ",

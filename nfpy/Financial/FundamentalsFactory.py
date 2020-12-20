@@ -7,7 +7,7 @@ from typing import Callable
 import pandas as pd
 
 from nfpy.Assets import Company
-from nfpy.Tools.Exceptions import MissingData
+from nfpy.Tools import Exceptions as Ex
 
 
 class FundamentalsFactory(object):
@@ -181,7 +181,7 @@ class FundamentalsFactory(object):
                 cnst[(freq, 'STIE')] + cnst[(freq, 'SCEX')] + \
                 cnst[(freq, 'SOCF')]
         else:
-            raise MissingData('{} [{}] for {} not found'
-                              .format('FCFF', '0FCFF', self._comp.uid))
+            raise Ex.MissingData('{} [{}] for {} not found'
+                                 .format('FCFF', '0FCFF', self._comp.uid))
         d.name = '0FCFF'
         return d

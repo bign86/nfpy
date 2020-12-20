@@ -3,12 +3,12 @@
 # Base class for company database
 #
 
-import warnings
-import pandas as pd
 from itertools import groupby
+import pandas as pd
+import warnings
 
-from .FinancialItem import FinancialItem
 from .AggregationMixin import AggregationMixin
+from .FinancialItem import FinancialItem
 
 
 class Company(AggregationMixin, FinancialItem):

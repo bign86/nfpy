@@ -10,9 +10,9 @@ import pandas as pd
 from tabulate import tabulate
 
 from nfpy.Assets import get_af_glob
-from nfpy.Financial.DiscountedCashFlowModel import DiscountedCashFlowModel
-from nfpy.Handlers.Calendar import get_calendar_glob, today
-from nfpy.Handlers.Inputs import InputHandler
+from nfpy.Calendar import (get_calendar_glob, today)
+from nfpy.Financial.Models import DiscountedCashFlowModel
+import nfpy.IO as IO
 
 plt.interactive(False)
 np.set_printoptions(precision=3, suppress=True)
@@ -59,7 +59,7 @@ if __name__ == '__main__':
 
     # Handlers
     af = get_af_glob()
-    inh = InputHandler()
+    inh = IO.InputHandler()
 
     # Get inputs
     cmp = inh.input("Give a company uid: ", idesc='uid')

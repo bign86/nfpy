@@ -3,10 +3,10 @@
 # Register a new financial item in the database.
 #
 
-from nfpy.DB import (get_db_glob, get_qb_glob)
+import nfpy.DB as DB
 from nfpy.Downloader import get_dwnf_glob
-from nfpy.Tools.Inputs import InputHandler, SQLITE2PY_CONVERSION
-from nfpy.Tools.Utilities import import_symbol
+import nfpy.IO as IO
+from nfpy.Tools import Utilities as Ut
 
 __version__ = '0.3'
 _TITLE_ = "<<< Create new download script >>>"
@@ -21,7 +21,7 @@ def update_table(_table: str, _data: dict) -> tuple:
         if _c.field in _data:
             _d.append(_data[_c.field])
             continue
-        _col_type = SQLITE2PY_CONVERSION[_c.type]
+        _col_type = IO.SQLITE2PY_CONVERSION[_c.type]
         _check = None
         if _c.field == 'currency':
             _check = 'currency'
@@ -41,10 +41,10 @@ def update_table(_table: str, _data: dict) -> tuple:
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
-    db = get_db_glob()
-    qb = get_qb_glob()
+    db = DB.get_db_glob()
+    qb = DB.get_qb_glob()
     dwn = get_dwnf_glob()
-    inh = InputHandler()
+    inh = IO.InputHandler()
 
     data = dict()
     queries = dict()
@@ -98,7 +98,7 @@ if __name__ == '__main__':
 
         # Find the right table
         asset_type = inh.input("Insert asset_type: ", idesc='str')
-        asset_obj = import_symbol('.'.join(['nfpy.Assets', asset_type, asset_type]))
+        asset_obj = Ut.import_symbol('.'.join(['nfpy.Assets', asset_type, asset_type]))
         table = asset_obj._BASE_TABLE
         print("Updating table {}".format(table))
         if not qb.exists_table(table):

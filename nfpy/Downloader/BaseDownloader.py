@@ -2,20 +2,19 @@
 # Base class for Pages
 #
 
+from abc import (ABCMeta, abstractmethod)
 import os
-from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from typing import Dict, Union
+from typing import (Dict, Union)
 
 import pandas as pd
 import requests
 
-from nfpy.DB import (get_db_glob, get_qb_glob)
-from nfpy.Handlers.Calendar import now
-from nfpy.Handlers.DatatypeFactory import get_dt_glob
-from nfpy.Tools.Configuration import get_conf_glob
-from nfpy.Tools.Exceptions import IsNoneError
-from nfpy.Tools.Utilities import FileObject
+import nfpy.DB as IO
+from nfpy.Calendar import now
+from nfpy.Configuration import get_conf_glob
+import nfpy.Financial as Fin
+from nfpy.Tools import (Exceptions as Ex, Utilities as Ut)
 
 
 class BasePage(metaclass=ABCMeta):
@@ -37,9 +36,9 @@ class BasePage(metaclass=ABCMeta):
     _HEADER = {}
 
     def __init__(self, p: Dict = None):
-        self._db = get_db_glob()
-        self._qb = get_qb_glob()
-        self._dt = get_dt_glob()
+        self._db = IO.get_db_glob()
+        self._qb = IO.get_qb_glob()
+        self._dt = Fin.get_dt_glob()
         self._p = self._PARAMS
         self._ticker = None
         self._robj = None
@@ -55,7 +54,7 @@ class BasePage(metaclass=ABCMeta):
     @property
     def ticker(self) -> str:
         if self._ticker is None:
-            raise IsNoneError("The ticker must be given!")
+            raise Ex.IsNoneError("The ticker must be given!")
         return self._ticker
 
     @property
@@ -117,7 +116,7 @@ class BasePage(metaclass=ABCMeta):
                 _l.append(p)
 
         if _l:
-            raise IsNoneError("The following parameters are required: {}".format(', '.join(_l)))
+            raise Ex.IsNoneError("The following parameters are required: {}".format(', '.join(_l)))
 
     def save(self, backup: bool = False, fname: str = None):
         """ Save the downloaded page in the DB and on a file.
@@ -133,14 +132,15 @@ class BasePage(metaclass=ABCMeta):
             self._write_to_file(fname)
         self._write_to_db()
 
-    def initialize(self, asset: dict, fname: Union[str, Path] = None, p: dict = None):
+    def initialize(self, asset: dict, fname: Union[str, Path] = None,
+                   params: dict = None):
         """ Parameters are checked before download, encoding is set, parsed
             object is deleted if present.
 
             Input:
                 asset [dict]: asset data
                 fname [Union[str, Path]]: file name to load
-                p [dict]: dictionary of parameters to update
+                params [dict]: dictionary of parameters to update
 
             Errors:
                 MissingData: if data are not found in the database
@@ -148,8 +148,8 @@ class BasePage(metaclass=ABCMeta):
         if self._is_initialized is True:
             return
 
-        if p:
-            self.params = p
+        if params:
+            self.params = params
         self._ticker = asset['ticker']
         self._curr = asset['currency']
         if fname is not None:
@@ -179,7 +179,7 @@ class BasePage(metaclass=ABCMeta):
         if self._fname is None:
             raise ValueError("File to load not specified!")
 
-        r = FileObject(self._fname)
+        r = Ut.FileObject(self._fname)
         r.encoding = self._ENCODING
         self._robj = r
 

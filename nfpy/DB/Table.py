@@ -3,11 +3,12 @@
 #
 
 from collections import OrderedDict
-from typing import Sequence, Generator
-from nfpy.Tools.Utilities import AttributizedDict
+from typing import (Sequence, Generator)
+
+from nfpy.Tools import Utilities as Ut
 
 
-class Column(AttributizedDict):
+class Column(Ut.AttributizedDict):
     """ Class that defines a database column with its properties. """
 
     def __init__(self, name: str):
@@ -17,7 +18,6 @@ class Column(AttributizedDict):
         self.ordinal = None
         self.notnull = False
         self.is_primary = False
-        # self.is_rolling = False
 
 
 class Table(object):

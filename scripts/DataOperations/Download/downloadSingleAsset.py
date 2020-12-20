@@ -5,11 +5,11 @@
 
 from tabulate import tabulate
 
-from nfpy.DB import (get_db_glob, get_qb_glob)
-from nfpy.Downloader import get_dwnf_glob
-from nfpy.Handlers.Calendar import today
-from nfpy.Tools.Inputs import InputHandler
-from nfpy.Tools.Utilities import list_to_dict
+from nfpy.Calendar import today
+import nfpy.DB as DB
+import nfpy.Downloader as Dwn
+import nfpy.IO as IO
+from nfpy.Tools import Utilities as Ut
 
 __version__ = '0.3'
 _TITLE_ = "<<< Download single asset script >>>"
@@ -18,10 +18,10 @@ _TITLE_ = "<<< Download single asset script >>>"
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
-    f = get_dwnf_glob()
-    qb = get_qb_glob()
-    db = get_db_glob()
-    inh = InputHandler()
+    f = Dwn.get_dwnf_glob()
+    qb = DB.get_qb_glob()
+    db = DB.get_db_glob()
+    inh = IO.InputHandler()
 
     uid = inh.input("Give a UID to download for: ", idesc='str')
     fields, data = f.downloads_by_uid(uid=uid, active=False)
@@ -43,9 +43,9 @@ if __name__ == '__main__':
     if num_params > 0:
         msg = "Type the additional parameters as a comma separated list of key, value pairs:\n"
         pin = inh.input(msg, idesc='str', is_list=True, default=[])
-        kwargs = list_to_dict(pin)
+        kwargs = Ut.list_to_dict(pin)
 
-    p = f.initialize(p, dwn[3], dwn[4], **kwargs)
+    p.initialize(dwn[3], dwn[4], kwargs)
     p.fetch()
     p.printout()
 

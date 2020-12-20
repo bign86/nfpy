@@ -2,19 +2,19 @@
 # Dividends factory class
 # Methods to deal with dividends
 #
+from __future__ import annotations
 
 import numpy as np
 import pandas as pd
 
-from nfpy.Assets import Equity
-from nfpy.Financial.Returns import compound
-from nfpy.Tools.TSUtils import trim_ts, ts_yield, dropna
-from nfpy.Tools.Constants import BDAYS_IN_1Y
+# from nfpy.Assets import Equity
+import nfpy.Math as Mat
+from nfpy.Tools import (Constants as Cn)
 
 
 class DividendFactory(object):
 
-    def __init__(self, eq: Equity, start: pd.Timestamp = None,
+    def __init__(self, eq, start: pd.Timestamp = None,
                  end: pd.Timestamp = None, confidence: float = .1):
         # Input
         self._eq = eq
@@ -84,8 +84,8 @@ class DividendFactory(object):
     def _initialize(self, c: float):
         """ Initialize the factory. """
         div = self._eq.dividends
-        ts, dt = trim_ts(div.values, div.index.values, self._start, self._t0)
-        ts, mask = dropna(ts)
+        ts, dt = Mat.trim_ts(div.values, div.index.values, self._start, self._t0)
+        ts, mask = Mat.dropna(ts)
         self._num = ts.shape[0]
         self._div = ts
         self._dt = dt[mask]
@@ -103,7 +103,7 @@ class DividendFactory(object):
             Output:
                 yield [float]: dividend yield
         """
-        return ts_yield(self._dt, self._div, self._eq.prices.values, date.asm8)
+        return Mat.ts_yield(self._dt, self._div, self._eq.prices.values, date.asm8)
 
     def _calc_freq(self):
         """ Determine the frequency of dividends. The frequency is determined if
@@ -144,8 +144,8 @@ class DividendFactory(object):
                              .format(self._eq.uid))
 
         returns, distance = self.returns, self.distance
-        daily_ret = compound(returns, 1. / distance)
-        annualized_ret = compound(returns, BDAYS_IN_1Y / distance)
+        daily_ret = Mat.compound(returns, 1. / distance)
+        annualized_ret = Mat.compound(returns, Cn.BDAYS_IN_1Y / distance)
         self._daily_drift = np.mean(daily_ret)
         self._ann_drift = np.mean(annualized_ret)
 

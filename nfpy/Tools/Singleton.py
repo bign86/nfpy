@@ -8,7 +8,7 @@ from abc import ABCMeta
 
 
 class Singleton(type):
-    """ Metaclass to define singletons. """
+    """ MetaclassMC to define singletons. """
 
     _instances = {}
 

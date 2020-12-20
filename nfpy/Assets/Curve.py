@@ -3,16 +3,16 @@
 # Aggregation of single rates of different tenors
 #
 
+import numpy as np
 from operator import itemgetter
+import pandas as pd
 from typing import Union
 
-import pandas as pd
-import numpy as np
+from nfpy.Tools import Exceptions as Ex
 
 from .AggregationMixin import AggregationMixin
 from .Asset import Asset
 from .AssetFactory import get_af_glob
-from nfpy.Tools.Exceptions import MissingData
 
 
 class Curve(AggregationMixin, Asset):
@@ -31,7 +31,7 @@ class Curve(AggregationMixin, Asset):
         q = self._qb.select(self._CONSTITUENTS_TABLE, fields=["bucket"], keys=["uid"])
         res = self._db.execute(q, (self._uid,)).fetchall()
         if not res:
-            raise MissingData('No constituents found for Curve {}'.format(self.uid))
+            raise Ex.MissingData('No constituents found for Curve {}'.format(self.uid))
 
         af = get_af_glob()
         bucket_list = []

@@ -5,9 +5,10 @@
 
 import pandas as pd
 
+import nfpy.Math as Mat
+
 from .Asset import Asset
 from .AssetFactory import get_af_glob
-from nfpy.Financial.EquityMath import adj_factors, beta, correlation
 
 
 class Equity(Asset):
@@ -60,7 +61,7 @@ class Equity(Asset):
             adj_fct = self._df['adj_factors']
         except KeyError:
             # FIXME: splits are not present since Yahoo does the adjustment for splits
-            adj_fct = adj_factors(self.raw_prices.values, self.dividends.values)
+            adj_fct = Mat.adj_factors(self.raw_prices.values, self.dividends.values)
             self._df['adj_price'] = adj_fct * self.raw_prices
             self._df['adj_factors'] = adj_fct
         return adj_fct
@@ -72,7 +73,7 @@ class Equity(Asset):
         try:
             prices = self._df['adj_price']
         except KeyError:
-            adj_fct = adj_factors(self.raw_prices.values, self.dividends.values)
+            adj_fct = Mat.adj_factors(self.raw_prices.values, self.dividends.values)
             prices = adj_fct * self.raw_prices
             self._df['adj_price'] = prices
             self._df['adj_factors'] = adj_fct
@@ -106,6 +107,7 @@ class Equity(Asset):
                 dt [Union[float, pd.Series]]: dates of the regression (None if
                                               not rolling)
                 beta [Union[float, pd.Series]]: beta of the regression
+                adj_beta [Union[float, pd.Series]]: adjusted beta
                 intercept [Union[float, pd.Series]]: intercept of the regression
         """
         if benchmark is None:
@@ -117,11 +119,11 @@ class Equity(Asset):
         idx = benchmark.log_returns if log else benchmark.returns
         start_dt = start.asm8 if start else None
         end_dt = end.asm8 if end else None
-        return beta(eq.index.values, eq.values, idx.values,
-                    start_dt, end_dt, w)
+        return Mat.beta(eq.index.values, eq.values, idx.values,
+                        start_dt, end_dt, w)
 
     def correlation(self, benchmark: Asset = None, start: pd.Timestamp = None,
-                    end: pd.Timestamp = None, w: int = None, log: bool = False)\
+                    end: pd.Timestamp = None, w: int = None, log: bool = False) \
             -> tuple:
         """ Returns the beta between the equity and the benchmark index given as
             input. If dates are specified, the beta is calculated on the resulting
@@ -150,5 +152,5 @@ class Equity(Asset):
         idx = benchmark.log_returns if log else benchmark.returns
         start_dt = start.asm8 if start else None
         end_dt = end.asm8 if end else None
-        return correlation(eq.index.values, eq.values, idx.values,
-                           start_dt, end_dt, w)
+        return Mat.correlation(eq.index.values, eq.values, idx.values,
+                               start_dt, end_dt, w)

@@ -5,19 +5,16 @@
 
 from datetime import timedelta
 from itertools import groupby
-
 import pandas as pd
+
+import nfpy.Financial as Fin
+import nfpy.Math as Mat
+from nfpy.Tools import Exceptions as Ex
 
 from .AggregationMixin import AggregationMixin
 from .Asset import Asset
 from .AssetFactory import get_af_glob
-from nfpy.Financial.EquityMath import sharpe, tev
-from nfpy.Financial.Returns import comp_ret
-from nfpy.Handlers.CurrencyFactory import get_fx_glob
-from nfpy.Portfolio.PortfolioMath import weights, portfolio_value, \
-    price_returns, covariance, correlation
-from nfpy.Portfolio.Position import Position
-from nfpy.Tools.Exceptions import CalendarError
+from .Position import Position
 
 
 class Portfolio(AggregationMixin, Asset):
@@ -33,7 +30,7 @@ class Portfolio(AggregationMixin, Asset):
 
     def __init__(self, uid: str, date: pd.Timestamp = None):
         super().__init__(uid)
-        self._fx = get_fx_glob()
+        self._fx = Fin.get_fx_glob()
 
         self._weights = pd.DataFrame()
         self._date = date
@@ -105,7 +102,8 @@ class Portfolio(AggregationMixin, Asset):
             fmt = '%Y-%m-%d'
             msg = """Calendar staring @ {} but loading required @ {}.
 Consider moving back the calendar start date."""
-            raise CalendarError(msg.format(start_date.strftime(fmt), date.strftime(fmt)))
+            raise Ex.CalendarError(msg.format(start_date.strftime(fmt),
+                                              date.strftime(fmt)))
 
         # Initialize needed variables
         uid_list, positions = [], {}
@@ -169,7 +167,7 @@ Consider moving back the calendar start date."""
         if not trades:
             return uid_list, positions, df
 
-        af, fx = get_af_glob(), get_fx_glob()
+        af, fx = get_af_glob(), Fin.get_fx_glob()
         ccy = self._currency
 
         # Get the cash position
@@ -299,7 +297,7 @@ Consider moving back the calendar start date."""
         uids, ccy = self._cnsts_uids, self._currency
         pos = self._cnsts_df.values
         dt_df = self._cnsts_df.index.values
-        dt, wgt = weights(uids, ccy, dt_df, pos)
+        dt, wgt = Mat.weights(uids, ccy, dt_df, pos)
         self._weights = pd.DataFrame(wgt, index=dt, columns=uids)
 
     def _calc_total_value(self) -> pd.Series:
@@ -310,12 +308,12 @@ Consider moving back the calendar start date."""
         uids, ccy = self._cnsts_uids, self._currency
         pos = self._cnsts_df.values
         dt_df = self._cnsts_df.index.values
-        dt, tot_val, _ = portfolio_value(uids, ccy, dt_df, pos)
+        dt, tot_val, _ = Mat.portfolio_value(uids, ccy, dt_df, pos)
         return pd.Series(tot_val, index=dt)
 
     def _calc_performance(self) -> pd.Series:
         r = self.returns
-        p = comp_ret(r.values, r.index.values, base=1.)
+        p = Mat.comp_ret(r.values, r.index.values, base=1.)
         return pd.Series(p, index=r.index)
 
     def calc_returns(self) -> pd.Series:
@@ -327,7 +325,7 @@ Consider moving back the calendar start date."""
         dt_pos = self._cnsts_df.index.values
         wgt = self.weights.values
         dt_wgt = self.weights.index.values
-        dt, ret = price_returns(uids, ccy, dt_pos, pos, dt_wgt, wgt)
+        dt, ret = Mat.price_returns(uids, ccy, dt_pos, pos, dt_wgt, wgt)
         return pd.Series(ret, index=dt)
 
     def tev(self, benchmark: Asset, w: int = None) -> pd.Series:
@@ -344,7 +342,7 @@ Consider moving back the calendar start date."""
             v = r.values
             dt = r.index.values
             bkr = benchmark.returns.values
-            ret = tev(dt, v, bkr, w=w)
+            ret = Mat.tev(dt, v, bkr, w=w)
             self._df["TEV"] = ret
         return ret
 
@@ -357,25 +355,26 @@ Consider moving back the calendar start date."""
             xc = r.values
             dt = r.index.values
             br = rf.returns.values
-            ret = sharpe(dt, xc, br=br, w=w)
+            ret = Mat.sharpe(dt, xc, br=br, w=w)
             self._df["sharpe"] = ret
         return ret
 
     def covariance(self) -> pd.DataFrame:
         """ Get the covariance matrix for the underlying constituents. """
-        cov, uids = covariance(self._cnsts_uids, self._currency)
+        cov, uids = Mat.covariance(self._cnsts_uids, self._currency)
         return pd.DataFrame(cov, columns=uids, index=uids)
 
     def correlation(self) -> pd.DataFrame:
         """ Get the correlation matrix for the underlying constituents. """
-        cov, uids = correlation(self._cnsts_uids, self._currency)
+        cov, uids = Mat.ptf_correlation(self._cnsts_uids, self._currency)
         return pd.DataFrame(cov, columns=uids, index=uids)
 
     def summary(self) -> tuple:
         """ Show the portfolio summary in the portfolio base currency. """
         # Run through positions and collect data for the summary
-        data = [(p.uid, p.date.strftime('%Y-%m-%d'), p.type, p.alp, p.quantity,
-                 p.alp * p.quantity, p.currency) for p in self._dict_cnsts.values()]
+        data = [(p.uid, p.date.strftime('%Y-%m-%d'), p.type, p.alp,
+                 p.quantity, p.alp * p.quantity, p.currency)
+                for p in self._dict_cnsts.values()]
 
         # Sort accordingly to the key <type, uid>
         data.sort(key=lambda t: (t[2], t[0]))

@@ -3,10 +3,8 @@
 # Base class for a single asset
 #
 
-from nfpy.DB import (get_db_glob, get_qb_glob)
-from nfpy.Tools.Exceptions import MissingData
-from nfpy.Tools.Singleton import Singleton
-from nfpy.Tools.Utilities import import_symbol
+import nfpy.DB as DB
+from nfpy.Tools import (Singleton, Exceptions as Ex, Utilities as Ut)
 
 
 class AssetFactory(metaclass=Singleton):
@@ -15,8 +13,8 @@ class AssetFactory(metaclass=Singleton):
     _INFO_TABLE = 'Assets'
 
     def __init__(self):
-        self._db = get_db_glob()
-        self._qb = get_qb_glob()
+        self._db = DB.get_db_glob()
+        self._qb = DB.get_qb_glob()
         self._known_assets = {}
 
     def _fetch_asset(self, uid: str):
@@ -24,11 +22,11 @@ class AssetFactory(metaclass=Singleton):
         q = self._qb.select(self._INFO_TABLE, fields=['uid', 'type'], keys=['uid'])
         res = self._db.execute(q, (uid,)).fetchone()
         if not res:
-            raise MissingData('{} not found in the asset types list!'.format(uid))
+            raise Ex.MissingData('{} not found in the asset types list!'.format(uid))
 
         atype = res[1]
         symbol = '.'.join(['nfpy.Assets', atype, atype])
-        class_ = import_symbol(symbol)
+        class_ = Ut.import_symbol(symbol)
         obj = class_(uid)
         obj.load()
         self._known_assets[uid] = obj
@@ -37,7 +35,7 @@ class AssetFactory(metaclass=Singleton):
     def exists(self, uid: str) -> bool:
         try:
             _ = self.get(uid)
-        except MissingData:
+        except Ex.MissingData:
             return False
         else:
             return True

@@ -4,9 +4,9 @@
 #
 
 from nfpy.Assets import Portfolio
-from nfpy.DB import (get_db_glob, get_qb_glob)
-from nfpy.Handlers.Calendar import date_2_datetime
-from nfpy.Tools.Inputs import InputHandler, SQLITE2PY_CONVERSION
+from nfpy.Calendar import date_2_datetime
+import nfpy.DB as DB
+import nfpy.IO as IO
 
 __version__ = '0.2'
 _TITLE_ = "<<< Create portfolio script >>>"
@@ -15,9 +15,9 @@ _TITLE_ = "<<< Create portfolio script >>>"
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
-    db = get_db_glob()
-    qb = get_qb_glob()
-    inh = InputHandler()
+    db = DB.get_db_glob()
+    qb = DB.get_qb_glob()
+    inh = IO.InputHandler()
 
     # Variable
     base_table = Portfolio._BASE_TABLE
@@ -45,7 +45,7 @@ if __name__ == '__main__':
         if c.field == 'uid':
             ptf_data.append(uid)
             continue
-        col_type = SQLITE2PY_CONVERSION[c.type]
+        col_type = IO.SQLITE2PY_CONVERSION[c.type]
         v = inh.input("Insert {} ({}): ".format(c.field, c.type), idesc=col_type)
         if c.field == 'base_currency':
             base_currency = v
@@ -66,7 +66,7 @@ if __name__ == '__main__':
         if c.field in pos_dict:
             pos_data.append(pos_dict[c.field])
             continue
-        col_type = SQLITE2PY_CONVERSION[c.type]
+        col_type = IO.SQLITE2PY_CONVERSION[c.type]
         v = inh.input("Insert {} ({}): ".format(c.field, c.type), idesc=col_type)
         if c.field == 'base_currency':
             base_currency = v

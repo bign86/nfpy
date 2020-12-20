@@ -5,9 +5,9 @@
 
 from typing import Union
 
-from nfpy.DB import (get_db_glob, get_qb_glob)
-from nfpy.Handlers.DatatypeFactory import get_dt_glob
-from nfpy.Tools.Exceptions import MissingData, IsNoneError
+from nfpy.Tools.DatatypeFactory import get_dt_glob
+import nfpy.DB as DB
+from nfpy.Tools import Exceptions as Ex
 
 
 class FinancialItem(object):
@@ -17,8 +17,8 @@ class FinancialItem(object):
     _BASE_TABLE = ''
 
     def __init__(self, uid: str):
-        self._qb = get_qb_glob()
-        self._db = get_db_glob()
+        self._qb = DB.get_qb_glob()
+        self._db = DB.get_db_glob()
         self._dt = get_dt_glob()
         self._uid = str(uid)
         self._is_loaded = False
@@ -84,7 +84,7 @@ class FinancialItem(object):
 
         res = self._db.execute(q, data).fetchall()
         if not res:
-            raise MissingData("{} not found in the database!".format(data))
+            raise Ex.MissingData("{} not found in the database!".format(data))
 
         self._fill_anag(res[0], self.base_table)
         self._is_loaded = True
@@ -96,7 +96,7 @@ class FinancialItem(object):
         # data for delete are made only by primary keys
         del_data = tuple(getattr(self, k, None) for k in self._qb.get_keys(t))
         if None in del_data:
-            raise IsNoneError("One primary key is None in {}".format(self.uid))
+            raise Ex.IsNoneError("One primary key is None in {}".format(self.uid))
         q = self._qb.delete(t)
         self._db.execute(q, del_data)
 

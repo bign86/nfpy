@@ -6,10 +6,9 @@
 from tabulate import tabulate
 
 from nfpy.Assets import get_af_glob
-from nfpy.DB import (get_db_glob, get_qb_glob)
-from nfpy.Handlers.Calendar import get_calendar_glob, today
-from nfpy.Handlers.Inputs import InputHandler
-from nfpy.Handlers.Plotting import PlotBeta
+from nfpy.Calendar import (get_calendar_glob, today)
+import nfpy.DB as DB
+import nfpy.IO as IO
 
 __version__ = '0.5'
 _TITLE_ = "<<< Beta calculation script >>>"
@@ -19,9 +18,9 @@ if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
     af = get_af_glob()
-    qb = get_qb_glob()
-    db = get_db_glob()
-    inh = InputHandler()
+    qb = DB.get_qb_glob()
+    db = DB.get_db_glob()
+    inh = IO.InputHandler()
 
     start_date = inh.input("Give starting date for time series: ", idesc='datetime')
     if not start_date:
@@ -51,7 +50,7 @@ if __name__ == '__main__':
                     idesc='int', optional=True)
     bmk = af.get(res[idx][0]) if idx else None
 
-    dt, b, itc = eq.beta(bmk)
+    dt, b, adj_b, itc = eq.beta(bmk)
     if not idx:
         bmk = af.get(eq.index)
     rho = eq.returns.corr(bmk.returns)
@@ -63,10 +62,11 @@ if __name__ == '__main__':
     print('Proxy      : {} ({})'.format(bmk.uid, bmk.type))
     print('             {}'.format(bmk.description))
     print('Beta       : {:2.3f}'.format(b))
+    print('Adj. Beta  : {:2.3f}'.format(adj_b))
     print('Intercept  : {:2.3f}'.format(itc))
     print('Correlation: {:2.3f}\n'.format(rho))
 
-    plt = PlotBeta()
+    plt = IO.PlotBeta()
     plt.add(bmk.returns.values, eq.returns.values, (b, itc))
     plt.plot()
     plt.show()
