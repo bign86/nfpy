@@ -208,7 +208,8 @@ class QueryBuilder(metaclass=Singleton):
 
         miss_keys = set(keys) - set(ins_fields)
         if miss_keys:
-            msg = "Missing the following keys in the insert list " + ",".join(map(str, miss_keys))
+            msg = "Missing the following keys in the insert list " + \
+                  ",".join(map(str, miss_keys))
             raise ValueError(msg)
 
         query = command + " into [" + str(ins_table) + "]"
@@ -221,20 +222,26 @@ class QueryBuilder(metaclass=Singleton):
 
         return query
 
-    def update(self, table: str, fields: Sequence = (), where: str = "") -> str:
+    def update(self, table: str, fields: Sequence = (), keys: Sequence = (),
+               where: str = "") -> str:
         """ Builds an insert query the for input table. The where condition is
             applied by default on the primary key of the table:
             
             Input:
                 table [str]: for the from clause
                 fields [Sequence[str]]: list of fields to update
+                keys [Sequence[str]]: if present use only these keys to create
+                    the where condition, if given empty no keys will be used.
+                    If None is given use ALL primary keys to build the query
                 where [str]: additional where condition
 
             Return:
                 query [str]: query ready to be used in an execute
         """
         # FIXME: add check on keys for safety
-        keys = [f for f in self.get_keys(table)]
+        if not keys:
+            keys = [f for f in self.get_keys(table)]
+
         if not fields:
             fields = self.get_fields(table)
 
