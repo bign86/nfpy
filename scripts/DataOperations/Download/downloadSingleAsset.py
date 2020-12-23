@@ -23,7 +23,7 @@ if __name__ == '__main__':
     db = DB.get_db_glob()
     inh = IO.InputHandler()
 
-    uid = inh.input("Give a UID to download for: ", idesc='str')
+    uid = inh.input("Give a UID to download for: ", idesc='str', checker='uid')
     fields, data = f.downloads_by_uid(uid=uid, active=False)
     if not data:
         raise ValueError('Supplied UID does not exist! Please give a valid one.')
@@ -31,7 +31,7 @@ if __name__ == '__main__':
     tab = tabulate(data, headers=fields, showindex=True)
     print(tab, end='\n\n')
     choice = inh.input('Index: ', idesc='int')
-    while choice >= len(data) or choice < 0:
+    while 0 > choice >= len(data):
         print('*** Invalid index! ***')
         choice = inh.input('Index: ', idesc='int')
 
@@ -49,8 +49,7 @@ if __name__ == '__main__':
     p.fetch()
     p.printout()
 
-    save = inh.input('\nSave the results to database?', idesc='bool', default=False)
-    if save:
+    if inh.input('\nSave the results to database?', idesc='bool', default=False):
         p.save()
         # TODO: write a logic inside the download factory to get rid of this
         #       external logic here. We don't want to deal with QueryBuilder and
@@ -59,4 +58,4 @@ if __name__ == '__main__':
         q_upd = qb.merge('Downloads', fields=['last_update'])
         db.execute(q_upd, data_upd, commit=True)
 
-    print('fine')
+    print('All done!')

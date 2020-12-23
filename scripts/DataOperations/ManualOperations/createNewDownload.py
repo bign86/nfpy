@@ -4,7 +4,7 @@
 #
 
 import nfpy.DB as DB
-from nfpy.Downloader import get_dwnf_glob
+import nfpy.Downloader as Dwn
 import nfpy.IO as IO
 from nfpy.Tools import Utilities as Ut
 
@@ -43,7 +43,7 @@ if __name__ == '__main__':
 
     db = DB.get_db_glob()
     qb = DB.get_qb_glob()
-    dwn = get_dwnf_glob()
+    dwn = Dwn.get_dwnf_glob()
     inh = IO.InputHandler()
 
     data = dict()
@@ -52,18 +52,18 @@ if __name__ == '__main__':
     # DOWNLOADS
     # Add ticker to Download table
     data['ticker'] = inh.input("Give a downloading ticker to add: ", idesc='str')
-    data['provider'] = inh.input("Give the provider: ", idesc='str')
-    if not dwn.provider_exists(data['provider']):
-        raise ValueError('The provider {} does not exist'.format(data['provider']))
+    data['provider'] = inh.input("Give the provider: ", idesc='str',
+                                 checker='provider')
     data['page'] = inh.input("Give the download page: ", idesc='str')
     if not dwn.page_exists(data['provider'], data['page']):
-        raise ValueError('The page {} does not exist in this provider'.format(data['page']))
+        raise ValueError('The page {} does not exist in this provider'
+                         .format(data['page']))
 
-    add = inh.input("Add to download database?: ", idesc='bool')
-    if add:
+    if inh.input("Add to download database?: ", idesc='bool'):
         # Check whether the combination uid, provider, page exists
         q = qb.select('Downloads', keys=('ticker', 'provider', 'page'))
-        res = db.execute(q, (data['ticker'], data['provider'], data['page'])).fetchall()
+        params = (data['ticker'], data['provider'], data['page'])
+        res = db.execute(q, params).fetchall()
         if res:
             raise ValueError("The selected combination already exists in Downloads!")
 
@@ -75,11 +75,11 @@ if __name__ == '__main__':
 
     # IMPORTS
     # Add to Imports?
-    add = inh.input("Add to imports?: ", idesc='bool')
-    if add:
+    if inh.input("Add to imports?: ", idesc='bool'):
         # Check if combination exists in Imports
         q = qb.select('Imports', keys=('ticker', 'provider', 'page'))
-        res = db.execute(q, (data['ticker'], data['provider'], data['page'])).fetchall()
+        params = (data['ticker'], data['provider'], data['page'])
+        res = db.execute(q, params).fetchall()
         if res:
             raise ValueError("The selected combination already exists in Imports!")
 
@@ -88,8 +88,7 @@ if __name__ == '__main__':
 
     # ELABORATION
     # Add to elaboration database?
-    add = inh.input("Add to elaboration database?: ", idesc='bool')
-    if add:
+    if inh.input("Add to elaboration database?: ", idesc='bool'):
         # Check whether the uid already exists
         q = qb.select('Assets', keys=('uid',))
         res = db.execute(q, (data['uid'],)).fetchall()
@@ -102,7 +101,8 @@ if __name__ == '__main__':
         table = asset_obj._BASE_TABLE
         print("Updating table {}".format(table))
         if not qb.exists_table(table):
-            raise ValueError("Table {} does not exists in the database".format(table))
+            raise ValueError("Table {} does not exists in the database"
+                             .format(table))
 
         # Update the table
         data, qr = update_table(table, data)
@@ -115,8 +115,7 @@ if __name__ == '__main__':
         print('Params: {}'.format(', '.join(map(str, v[1]))), end='\n\n')
 
     # Final insert
-    add = inh.input('Do you want to proceed?: ', idesc='bool')
-    if add:
+    if inh.input('Do you want to proceed?: ', idesc='bool'):
         for t in queries.values():
             query, data = t
             db.execute(query, data)

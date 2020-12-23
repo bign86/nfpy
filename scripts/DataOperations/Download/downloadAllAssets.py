@@ -6,7 +6,7 @@
 import nfpy.Downloader as Dwn
 import nfpy.IO as IO
 
-__version__ = '0.2'
+__version__ = '0.3'
 _TITLE_ = "<<< Update database script >>>"
 
 if __name__ == '__main__':
@@ -24,11 +24,13 @@ if __name__ == '__main__':
         override_date = inh.input("Override dates (default No)?: ",
                                   idesc='bool', default=False, optional=True)
         provider = inh.input("Download for a specific provider (default None)?: ",
-                             idesc='str', default=None, optional=True)
+                             idesc='str', default=None, optional=True,
+                             checker='provider')
         page = inh.input("Download for a specific page (default None)?: ",
                          idesc='str', default=None, optional=True)
         uid = inh.input("Download for a specific uid (default None)?: ",
-                        idesc='str', default=None, optional=True)
+                        idesc='str', default=None, optional=True,
+                        checker='uid')
         override_active = inh.input("Override automatic (default No)?: ",
                                     idesc='bool', default=False, optional=True)
 
