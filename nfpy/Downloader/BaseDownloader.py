@@ -13,8 +13,7 @@ import requests
 import nfpy.DB as IO
 from nfpy.Calendar import now
 from nfpy.Configuration import get_conf_glob
-import nfpy.Financial as Fin
-from nfpy.Tools import (Exceptions as Ex, Utilities as Ut)
+from nfpy.Tools import (get_dt_glob, Exceptions as Ex, Utilities as Ut)
 
 
 class BasePage(metaclass=ABCMeta):
@@ -38,7 +37,7 @@ class BasePage(metaclass=ABCMeta):
     def __init__(self, p: Dict = None):
         self._db = IO.get_db_glob()
         self._qb = IO.get_qb_glob()
-        self._dt = Fin.get_dt_glob()
+        self._dt = get_dt_glob()
         self._p = self._PARAMS
         self._ticker = None
         self._robj = None
