@@ -25,13 +25,22 @@ PARAMS_DICT__ = {
         'zip_format': (str, 'Archive format'),
         'report_path': (str, 'Path to report directory'),
         'report_arch_path': (str, 'Path to archive directory'),
-        'report_retention': (str, 'Report retention days')
+        'report_retention': (str, 'Report retention days'),
+        'plot_long_win': (str, 'max'),
+        'plot_short_win': (int, 120),
+        'ewma_fast': (int, 21),
+        'ewma_slow': (int, 120),
     },
     'IBAPI': {
 
         'ib_interface': (str, 'IBAPI interface'),
         'ib_client_id': (str, 'IBAPI client ID'),
         'ib_tws_port': (int, 'IBAPI TWS port'),
+    },
+    'LOGGING': {
+        'log_level': (int, 1),
+        'log_path': (str, '/home/andrea/progetti/nfpy_data'),
+        'log_file': (str, 'nfpy_log'),
     },
     'OTHERS': {
         'base_ccy': (str, 'base currency'),
