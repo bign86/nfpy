@@ -7,7 +7,6 @@ import numpy as np
 from scipy.optimize import newton
 from typing import Union
 
-# from nfpy.Tools.DatatypeFactory import get_dt_glob
 from nfpy.Tools import (get_dt_glob, Constants as Cn, Exceptions as Ex)
 
 from .DiscountFactor import dcf
@@ -16,8 +15,16 @@ from .TSUtils import trim_ts
 
 
 def ytm(cf: np.ndarray, p0: float, acc: float = .0) -> float:
-    """ Calculated the YTM using the values from the cash flow dataframe as
-        a numpy array for speed and reliability.
+    """ Calculates the YTM using the cash flows and market price, taking into
+        account the presence of accrued interest.
+
+        Input:
+            cf [np.ndarray]: data (periods, value) of cash flows
+            p0 [float]: market price at t0
+            accrued [float]: accrued interest to subtract from dirty price
+
+        Output:
+            res [float]: yield to maturity
     """
     def _min_ytm(r, dt):
         return fv(dt, r, None, acc) - p0
@@ -32,7 +39,8 @@ def __time_cf(cf: np.ndarray, p0: float, acc: float, exp: float) -> float:
 
 
 def duration(cf: np.ndarray, p0: float, acc: float = .0) -> float:
-    """ Bond duration.
+    """ Calculates the bond duration from the cash flows and the market price,
+        taking into account the presence of accrued interest.
 
         Input:
             cf [np.ndarray]: data (periods, value) of cash flows
@@ -132,8 +140,8 @@ def cash_flows(cf: np.ndarray, dt: np.ndarray, ty: np.ndarray,
 def calc_fv(dates: Union[np.datetime64, np.ndarray], inception: np.datetime64,
             maturity: np.datetime64, prices: Union[np.ndarray, float],
             cf_values: np.ndarray, cf_dates: np.ndarray, cf_types: np.ndarray,
-            rates: Union[np.ndarray, float]):
-    """ Function to calculate the fair value of a bond given the cash flows.0
+            rates: Union[np.ndarray, float]) -> tuple:
+    """ Function to calculate the fair value of a bond given the cash flows.
 
         Input:
             dates [Union[np.datetime64, np.ndarray]]: array of cash flow dates
@@ -158,17 +166,17 @@ def calc_fv(dates: Union[np.datetime64, np.ndarray], inception: np.datetime64,
         dates = np.array([dates])
         rates = np.array([rates])
     elif is_single_rate:
-        rates = np.array([rates]*len(dates))
+        rates = np.array([rates] * len(dates))
     elif is_single_date:
-        dates = np.array([dates]*len(rates))
+        dates = np.array([dates] * len(rates))
 
     # Quick exit if no dates
     _, dts = trim_ts(None, dates, start=inception, end=maturity)
     n = len(dts)
     if n == 0:
-        return np.array([])
+        return np.array([]), np.array([])
 
-    v = np.zeros(n)
+    v = np.empty(n)
     for i in range(n):
         dt, r_, t_ = dts[i], rates[i], None
         try:
@@ -182,7 +190,7 @@ def calc_fv(dates: Union[np.datetime64, np.ndarray], inception: np.datetime64,
 def calc_ytm(dates: Union[np.datetime64, np.ndarray], inception: np.datetime64,
              maturity: np.datetime64, prices: Union[np.ndarray, float],
              cf_values: np.ndarray, cf_dates: np.ndarray, cf_types: np.ndarray,
-             rates: Union[np.ndarray, float]):
+             rates: Union[np.ndarray, float]) -> tuple:
     """ Function to calculate the yield to maturity of a bond given the cash flows.
 
         Input:
@@ -209,7 +217,7 @@ def calc_duration(dates: Union[np.datetime64, np.ndarray],
                   inception: np.datetime64, maturity: np.datetime64,
                   prices: Union[np.ndarray, float], cf_values: np.ndarray,
                   cf_dates: np.ndarray, cf_types: np.ndarray,
-                  rates: Union[np.ndarray, float]):
+                  rates: Union[np.ndarray, float]) -> tuple:
     """ Function to calculate the duration of a bond given the cash flows.
 
         Input:
@@ -237,7 +245,7 @@ def calc_convexity(dates: Union[np.datetime64, np.ndarray],
                    inception: np.datetime64, maturity: np.datetime64,
                    prices: Union[np.ndarray, float], cf_values: np.ndarray,
                    cf_dates: np.ndarray, cf_types: np.ndarray,
-                   rates: Union[np.ndarray, float]):
+                   rates: Union[np.ndarray, float]) -> tuple:
     """ Function to calculate the convexity of a bond given the cash flows.
 
         Input:
@@ -264,7 +272,7 @@ def calc_convexity(dates: Union[np.datetime64, np.ndarray],
 def _gen_bm_func(mode: str, dates: Union[np.datetime64, np.ndarray],
                  inception: np.datetime64, maturity: np.datetime64,
                  prices: Union[np.ndarray, float], cf_values: np.ndarray,
-                 cf_dates: np.ndarray, cf_types: np.ndarray):
+                 cf_dates: np.ndarray, cf_types: np.ndarray) -> tuple:
     """ General function to calculate fair value, duration and convexity of a
         bond given the bond' cash flows, and maturity and inception dates.
     """
@@ -275,9 +283,9 @@ def _gen_bm_func(mode: str, dates: Union[np.datetime64, np.ndarray],
         dates = np.array([dates])
         prices = np.array([prices])
     elif is_single_rate:
-        prices = np.array([prices]*len(dates))
+        prices = np.array([prices] * len(dates))
     elif is_single_date:
-        dates = np.array([dates]*len(prices))
+        dates = np.array([dates] * len(prices))
 
     # Select calculation
     if mode == 'ytm':
@@ -294,9 +302,9 @@ def _gen_bm_func(mode: str, dates: Union[np.datetime64, np.ndarray],
     n = len(dts)
     if n == 0:
         # Quick exit if no dates
-        return np.array([])
+        return np.array([]), np.array([])
 
-    v = np.zeros(n)
+    v = np.empty(n)
     for i in range(n):
         dt, p = dts[i], prices[i]
         if np.isnan(p):
@@ -308,3 +316,42 @@ def _gen_bm_func(mode: str, dates: Union[np.datetime64, np.ndarray],
             except Ex.IsNoneError:
                 v[i] = np.nan
     return v, dts
+
+
+def calc_dcf(date: np.datetime64, inception: np.datetime64,
+             maturity: np.datetime64, cf_values: np.ndarray,
+             cf_dates: np.ndarray, cf_types: np.ndarray,
+             rates: Union[np.ndarray, float]) -> np.ndarray:
+    """ Function to prepare the cash flows by applying the accrued interest.
+
+        Input:
+            date: [np.datetime64]: reference date
+            inception [np.datetime64]: inception date of the bond
+            maturity [np.datetime64]: maturity date of the bond
+            cf_values [np.ndarray]: array of cash flows
+            cf_dates [np.ndarray]: array of cash flow dates
+            cf_types [np.ndarray]: array of cash flow types
+            rates: [Union[np.ndarray, float]]: discount rate
+
+        Output:
+            v [np.ndarray]: array of fair values
+    """
+    if isinstance(rates, float):
+        rates = np.array([rates])
+    dates = np.array([date])
+
+    # Quick exit if no dates
+    _, dts = trim_ts(None, dates, start=inception, end=maturity)
+    if len(dts) == 0:
+        return np.array([])
+
+    pf, _ = cash_flows(cf_values, cf_dates, cf_types, dts[0], inception)
+
+    m = len(rates)
+    v = np.empty((m, pf.shape[1]))
+    for i in range(m):
+        try:
+            v[i, :] = dcf(pf, rates[i], None)
+        except Ex.IsNoneError:
+            v[i, :] = np.nan
+    return v
