@@ -8,7 +8,7 @@ import datetime
 from requests import RequestException
 from typing import List
 
-from nfpy.Calendar import (today, last_business, date_2_datetime)
+import nfpy.Calendar as Cal
 import nfpy.DB as DB
 from nfpy.Tools import (Singleton, Exceptions as Ex)
 
@@ -20,8 +20,8 @@ from .Yahoo import YahooProvider
 
 
 class DownloadFactory(metaclass=Singleton):
-    """ Factory to download data from internet. The basic element is the page that
-        depends on both provider and ticker downloaded.
+    """ Factory to download data from internet. The basic element is the page
+        that depends on both provider and ticker downloaded.
     """
 
     _TABLE = 'Downloads'
@@ -68,7 +68,8 @@ class DownloadFactory(metaclass=Singleton):
         return page in self._PROVIDERS[provider].pages
 
     def downloads_by_uid(self, provider: str = None, page: str = None,
-                         uid: str = None, ticker: str = None, active: bool = True) -> tuple:
+                         uid: str = None, ticker: str = None,
+                         active: bool = True) -> tuple:
         """ Return all download entries by uid.
 
             Input:
@@ -99,7 +100,8 @@ class DownloadFactory(metaclass=Singleton):
             k_cond.append('ticker')
             params += (ticker, )
 
-        q_uid = self._qb.select(self._TABLE, fields=fields, keys=k_cond, where=w_cond)
+        q_uid = self._qb.select(self._TABLE, fields=fields,
+                                keys=k_cond, where=w_cond)
         res = self._db.execute(q_uid, params).fetchall()
         if not res:
             return fields, None, 0
@@ -119,12 +121,13 @@ class DownloadFactory(metaclass=Singleton):
                 input [dict]: dictionary of the input
         """
         # search for the last available date in DB
-        last_date = self._db.execute(self._Q_MAX_DATE.format(table), (ticker,)).fetchone()
+        q = self._Q_MAX_DATE.format(table)
+        last_date = self._db.execute(q, (ticker,)).fetchone()
         last_date = last_date[0] if last_date[0] is not None else '1990-01-01'
 
         # If last available data is yesterday skip downloading
         last_dt = datetime.datetime.strptime(last_date, '%Y-%m-%d').date()
-        if last_dt >= last_business(mode='datetime'):
+        if last_dt >= Cal.last_business(mode='datetime'):
             raise RuntimeError('Already updated')
 
         return self._PROVIDERS[prov].create_input_dict(last_date)
@@ -167,17 +170,16 @@ class DownloadFactory(metaclass=Singleton):
         print('We are about to download {} items'.format(num))
 
         # General variables
-        today_string = today()
-        today_dt = today(mode='datetime')
-        q_upd = self._qb.update(self._TABLE, fields=['last_update'])
+        today_string = Cal.today()
+        today_dt = Cal.today(mode='datetime')
+        q_upd = self._qb.update(self._TABLE, fields=('last_update',))
 
         for item in upd_list:
             uid, provider, page_name, ticker, currency, upd_freq, last_upd_str = item
 
             # Check the last update to avoid too frequent updates
             if last_upd_str and not override_date:
-                # last_upd = datetime.datetime.strptime(last_upd_str, '%Y-%m-%d').date()
-                last_upd = date_2_datetime(last_upd_str)
+                last_upd = Cal.date_2_datetime(last_upd_str)
                 delta_days = (today_dt - last_upd).days
                 if delta_days < int(upd_freq):
                     print('[{}: {}] -> {} not updated since last update {} days ago'
