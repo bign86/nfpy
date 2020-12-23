@@ -9,6 +9,7 @@ import pandas as pd
 
 from nfpy.Assets import get_af_glob
 from nfpy.Calendar import date_2_datetime
+import nfpy.Downloader as Dwn
 import nfpy.Financial as Fin
 
 from nfpy.Tools import Constants as Cn
@@ -36,13 +37,19 @@ class InputHandler(object):
     def __init__(self):
         self._af = get_af_glob()
         self._ccy = Fin.get_fx_glob()
-        self._converters = {'str': self._to_string, 'float': self._to_float,
-                            'int': self._to_int, 'bool': self._to_bool,
-                            'uid': self._to_string, 'datetime': self._to_datetime,
-                            'currency': self._to_string, 'timestamp': self._to_timestamp,
-                            'country': self._to_string}
-        self._validators = {'uid': self._check_uid, 'currency': self._check_ccy,
-                            'isin': self._check_isin, 'country': self._check_country}
+        self._dwn = Dwn.get_dwnf_glob()
+        self._converters = {
+            'str': self._to_string, 'float': self._to_float,
+            'int': self._to_int, 'bool': self._to_bool,
+            'uid': self._to_string, 'datetime': self._to_datetime,
+            'currency': self._to_string, 'timestamp': self._to_timestamp,
+            'country': self._to_string
+        }
+        self._validators = {
+            'uid': self._check_uid, 'currency': self._check_ccy,
+            'isin': self._check_isin, 'country': self._check_country,
+            'provider': self._check_provider
+        }
 
     @staticmethod
     def _to_int(v: str, **kwargs) -> int:
@@ -74,6 +81,12 @@ class InputHandler(object):
         """ Validate a candidate currency checking existence. """
         if not self._ccy.is_ccy(v):
             return False, 'Currency not recognized'
+        return True, 'Ok'
+
+    def _check_provider(self, v: str) -> tuple:
+        """ Validate a candidate downloading provider checking existence. """
+        if not self._dwn.provider_exists(v):
+            return False, 'Provider not recognized'
         return True, 'Ok'
 
     @staticmethod
@@ -122,6 +135,16 @@ class InputHandler(object):
         """ Converts the supplied input by cleaning the string and casting to the
             appropriate data type. An exception is cast if casting is impossible or
             if inputs are empty.
+
+            Input:
+                msg [str]: message string
+                idesc [str]: converted type
+
+            Exceptions:
+                KeyError: if input descriptor not recognized
+                TypeError: non-string input or failed conversion to target
+                           data type
+                ValueError: if error in conversion of the input
         """
         if not isinstance(vin, str):
             raise TypeError("Only string are accepted as inputs in input validation")
@@ -162,8 +185,9 @@ class InputHandler(object):
             if inputs are empty.
 
             Input:
-                vin [str]: input string as given by the user
+                msg [str]: message string
                 idesc [str]: converted type (default str)
+                optional [bool]: whether the input is optional (default False)
                 default [Any]: default input value (default None)
                 checker [Any]: check function (default None)
                 sep [str]: list separator (default comma ',')
