@@ -115,10 +115,11 @@ def cash_flows(cf: np.ndarray, dt: np.ndarray, ty: np.ndarray,
         Output:
             v [np.ndarray]: array of time distances in years from cash flows and
                 cash flow values including accrued interest
+            dt [np.ndarray]: array of dates
             perc [float]: percentage of cash flow accrued
     """
     code = get_dt_glob().get('cfC')
-    pf, _ = trim_ts(cf, dt, start=date)
+    pf, dt = trim_ts(cf, dt, start=date)
     n = len(pf)
     ty, perc = ty[-n:], .0
 
@@ -134,7 +135,7 @@ def cash_flows(cf: np.ndarray, dt: np.ndarray, ty: np.ndarray,
 
     v = np.vstack((pe, pf))
 
-    return v, perc
+    return v, dt, perc
 
 
 def calc_fv(dates: Union[np.datetime64, np.ndarray], inception: np.datetime64,
@@ -180,7 +181,7 @@ def calc_fv(dates: Union[np.datetime64, np.ndarray], inception: np.datetime64,
     for i in range(n):
         dt, r_, t_ = dts[i], rates[i], None
         try:
-            pf, _ = cash_flows(cf_values, cf_dates, cf_types, dt, inception)
+            pf, _, _ = cash_flows(cf_values, cf_dates, cf_types, dt, inception)
             v[i] = fv(pf, r_, t_)
         except Ex.IsNoneError:
             v[i] = np.nan
@@ -311,7 +312,7 @@ def _gen_bm_func(mode: str, dates: Union[np.datetime64, np.ndarray],
             v[i] = np.nan
         else:
             try:
-                pf, _ = cash_flows(cf_values, cf_dates, cf_types, dt, inception)
+                pf, _, _ = cash_flows(cf_values, cf_dates, cf_types, dt, inception)
                 v[i] = f_(pf, p)
             except Ex.IsNoneError:
                 v[i] = np.nan
@@ -321,7 +322,7 @@ def _gen_bm_func(mode: str, dates: Union[np.datetime64, np.ndarray],
 def calc_dcf(date: np.datetime64, inception: np.datetime64,
              maturity: np.datetime64, cf_values: np.ndarray,
              cf_dates: np.ndarray, cf_types: np.ndarray,
-             rates: Union[np.ndarray, float]) -> np.ndarray:
+             rates: Union[np.ndarray, float]) -> tuple:
     """ Function to prepare the cash flows by applying the accrued interest.
 
         Input:
@@ -335,6 +336,7 @@ def calc_dcf(date: np.datetime64, inception: np.datetime64,
 
         Output:
             v [np.ndarray]: array of fair values
+            dt [np.ndarray]: array of dates
     """
     if isinstance(rates, float):
         rates = np.array([rates])
@@ -343,9 +345,9 @@ def calc_dcf(date: np.datetime64, inception: np.datetime64,
     # Quick exit if no dates
     _, dts = trim_ts(None, dates, start=inception, end=maturity)
     if len(dts) == 0:
-        return np.array([])
+        return np.array([]), np.array([])
 
-    pf, _ = cash_flows(cf_values, cf_dates, cf_types, dts[0], inception)
+    pf, dt, _ = cash_flows(cf_values, cf_dates, cf_types, dts[0], inception)
 
     m = len(rates)
     v = np.empty((m, pf.shape[1]))
@@ -354,4 +356,42 @@ def calc_dcf(date: np.datetime64, inception: np.datetime64,
             v[i, :] = dcf(pf, rates[i], None)
         except Ex.IsNoneError:
             v[i, :] = np.nan
-    return v
+    return v, dt
+
+
+def aggregate_cf(cf_values: np.ndarray, cf_dates: np.ndarray) -> tuple:
+    """ Function to aggregate the cash flows by date.
+
+        Input:
+            cf_values [np.ndarray]: array of cash flows
+            cf_dates [np.ndarray]: array of cash flow dates
+
+        Output:
+            ret [np.ndarray]: array of aggregated cash flows
+            dt [np.ndarray]: array of dates
+    """
+    dim_1 = True if len(cf_values.shape) == 1 else False
+    cf_dt_unique = np.unique(cf_dates)
+
+    if dim_1:
+        cf_values = cf_values[None, :]
+
+    ret = np.zeros((cf_values.shape[0], cf_dt_unique.shape[0]))
+    last_cf_date, j = None, 0
+    for i in range(cf_dates.shape[0]):
+        dt = cf_dates[i]
+        if dt == last_cf_date:
+            j -= 1
+        last_cf_date = dt
+        ret[:, j] += cf_values[:, i]
+        j += 1
+
+    # This version takes the double of the time of the previous
+    # ret = np.empty((cf_values.shape[0], cf_dt_unique.shape[0]))
+    # for i, d in enumerate(cf_dt_unique):
+    #     ret[:, i] = np.sum(cf_values[:, np.where(cf_dates == d)[0]], axis=1)
+
+    if dim_1:
+        ret = np.ravel(ret)
+
+    return ret, cf_dt_unique
