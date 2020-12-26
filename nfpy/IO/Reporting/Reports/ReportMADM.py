@@ -35,12 +35,18 @@ class ReportMADM(BaseReport):
 
         div_pl = IO.PlotTS()
         div_pl.add(p)
+        div_pl.add(res.ma_slow, color='C2', linewidth=1.5,
+                   linestyle='--', label='MA slow')
         div_pl.plot()
         div_pl.save(full_name_long)
         div_pl.clf()
 
         div_pl = IO.PlotTS()
         div_pl.add(p.loc[start:])
+        div_pl.add(res.ma_fast[start:], color='C1', linewidth=1.5,
+                   linestyle='--', label='MA fast')
+        div_pl.add(res.ma_slow[start:], color='C2', linewidth=1.5,
+                   linestyle='--', label='MA slow')
         div_pl.plot()
         div_pl.save(full_name_short)
 

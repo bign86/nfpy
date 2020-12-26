@@ -3,7 +3,7 @@
 # Report class for the Market Equity Data Model
 #
 
-from nfpy.Financial.Models.MarketEquityDataModel import MarketEquityDataModel
+from nfpy.Financial.Models import MarketEquityDataModel
 from nfpy.Calendar import get_calendar_glob
 import nfpy.IO as IO
 
@@ -32,12 +32,18 @@ class ReportMEDM(ReportMADM):
 
         div_pl = IO.PlotTS()
         div_pl.add(p)
+        div_pl.add(res.ma_slow, color='C2', linewidth=1.5,
+                   linestyle='--', label='MA slow')
         div_pl.plot()
         div_pl.save(fig_full_name[0])
         div_pl.clf()
 
         div_pl = IO.PlotTS()
         div_pl.add(p.loc[start:])
+        div_pl.add(res.ma_fast[start:], color='C1', linewidth=1.5,
+                   linestyle='--', label='MA fast')
+        div_pl.add(res.ma_slow[start:], color='C2', linewidth=1.5,
+                   linestyle='--', label='MA slow')
         div_pl.plot()
         div_pl.save(fig_full_name[1])
 
