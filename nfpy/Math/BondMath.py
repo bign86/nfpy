@@ -119,7 +119,7 @@ def cash_flows(cf: np.ndarray, dt: np.ndarray, ty: np.ndarray,
             perc [float]: percentage of cash flow accrued
     """
     code = get_dt_glob().get('cfC')
-    pf, dt = trim_ts(cf, dt, start=date)
+    pf, dts = trim_ts(cf, dt, start=date)
     n = len(pf)
     ty, perc = ty[-n:], .0
 
@@ -135,7 +135,7 @@ def cash_flows(cf: np.ndarray, dt: np.ndarray, ty: np.ndarray,
 
     v = np.vstack((pe, pf))
 
-    return v, dt, perc
+    return v, dts, perc
 
 
 def calc_fv(dates: Union[np.datetime64, np.ndarray], inception: np.datetime64,
