@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from typing import Union, Sequence
 
-from nfpy.Portfolio import OptimizerResult
+from nfpy.Financial.Optimizer import OptimizerResult
 
 plt.style.use('seaborn')
 # print(plt.style.library['seaborn'])
