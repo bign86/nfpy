@@ -72,7 +72,7 @@ class Portfolio(AggregationMixin, Asset):
         try:
             res = self._df["price"]
         except KeyError:
-            res = self._calc_performance()
+            res = self.performance()
             self._df["price"] = res
         return res
 
@@ -310,11 +310,6 @@ Consider moving back the calendar start date."""
         dt_df = self._cnsts_df.index.values
         dt, tot_val, _ = Mat.portfolio_value(uids, ccy, dt_df, pos)
         return pd.Series(tot_val, index=dt)
-
-    def _calc_performance(self) -> pd.Series:
-        r = self.returns
-        p = Mat.comp_ret(r.values, r.index.values, base=1.)
-        return pd.Series(p, index=r.index)
 
     def calc_returns(self) -> pd.Series:
         if not self._cnsts_loaded:
