@@ -68,7 +68,7 @@ def tot_ret(ts: np.ndarray, dt: np.ndarray = None, start: np.datetime64 = None,
 
 def comp_ret(ts: np.ndarray, dt: np.ndarray = None, start: np.datetime64 = None,
              end: np.datetime64 = None, base: float = 1., is_log: bool = False
-             ) -> np.ndarray:
+             ) -> tuple:
     """ Calculates the series obtained by compounding the returns
 
         Input:
@@ -80,17 +80,18 @@ def comp_ret(ts: np.ndarray, dt: np.ndarray = None, start: np.datetime64 = None,
             is_log [bool]: set True for logarithmic returns (default: False)
 
         Output:
-            res [float]: compounded returns series
+            res [np.ndarray]: compounded returns series
+            dt [np.ndarray]: trimmed dates series
     """
     if dt is not None:
         ts, dt = trim_ts(ts, dt, start=start, end=end)
 
     if is_log:
-        res = base * (1. + np.nancumsum(ts, axis=0))
+        res = base * np.exp(np.nancumsum(ts, axis=0))
     else:
         res = base * np.nancumprod((1. + ts), axis=0)
 
-    return res
+    return res, dt
 
 
 def expct_ret(ts: np.ndarray, dt: np.ndarray = None,
@@ -110,7 +111,7 @@ def expct_ret(ts: np.ndarray, dt: np.ndarray = None,
             exp_ret [float]: expected value of the return
     """
     if dt is not None:
-        ts, dt = trim_ts(ts, dt, start=start, end=end)
+        ts, _ = trim_ts(ts, dt, start=start, end=end)
 
     if is_log:
         exp_r = np.nanmean(ts, axis=0)

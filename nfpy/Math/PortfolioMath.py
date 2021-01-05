@@ -80,7 +80,8 @@ def weights(uids: list, ccy: str, dt: np.ndarray, pos: np.ndarray) -> tuple:
 def price_returns(uids: list, ccy: str, dt_pos: np.ndarray = None,
                   pos: np.ndarray = None, dt_wgt: np.ndarray = None,
                   wgt: np.ndarray = None) -> tuple:
-    """ Get the portfolio price returns.
+    """ Get the portfolio price returns by consolidating constituents returns
+        and adjusting for the currency.
 
         Input:
             uids [Sequence]: list of uids in the position array
