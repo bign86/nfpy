@@ -176,7 +176,7 @@ class Asset(FinancialItem):
         del self.dtype
 
     def expct_return(self, start: pd.Timestamp = None, end: pd.Timestamp = None,
-                     is_log: bool = False) -> Union[float, pd.Series]:
+                     is_log: bool = False) -> float:
         """ Expected return for the asset. It corresponds to the geometric mean
             for standard returns, and to the simple mean for log returns.
 
@@ -186,11 +186,15 @@ class Asset(FinancialItem):
                 is_log [bool]: it set to True use is_log returns (default: False)
 
             Output:
-                mean_ret [Union[float, pd.Series]]: expected value for returns
+                mean_ret [float]: expected value for returns
         """
         _ret = self.log_returns if is_log else self.returns
+        if start:
+            start = start.asm8
+        if end:
+            end = end.asm8
         ts, dt = _ret.values, _ret.index.values
-        return Mat.expct_ret(ts, dt, start=start.asm8, end=end.asm8, is_log=is_log)
+        return Mat.expct_ret(ts, dt, start=start, end=end, is_log=is_log)
 
     def return_volatility(self, start: pd.Timestamp = None,
                           end: pd.Timestamp = None,
@@ -203,14 +207,18 @@ class Asset(FinancialItem):
                 is_log [bool]: it set to True use is_log returns (default: False)
 
             Output:
-                vola_ret [Union[float, pd.Series]]: expected value for returns
+                vola_ret [float]: expected value for returns
         """
         _ret = self.log_returns if is_log else self.returns
-        _ts, _ = Mat.trim_ts(_ret.values, _ret.index.values, start=start.asm8, end=end.asm8)
+        if start:
+            start = start.asm8
+        if end:
+            end = end.asm8
+        _ts, _ = Mat.trim_ts(_ret.values, _ret.index.values, start=start, end=end)
         return float(np.nanstd(_ts))
 
     def total_return(self, start: pd.Timestamp = None, end: pd.Timestamp = None,
-                     is_log: bool = False) -> Union[float, pd.Series]:
+                     is_log: bool = False) -> float:
         """ Total return over the period for the asset.
 
             Input:
@@ -219,8 +227,34 @@ class Asset(FinancialItem):
                 is_log [bool]: it set to True use is_log returns (default: False)
 
             Output:
-                tot_ret [Union[float, pd.Series]]: expected value for returns
+                tot_ret [float]: expected value for returns
         """
         _ret = self.log_returns if is_log else self.returns
+        if start:
+            start = start.asm8
+        if end:
+            end = end.asm8
         ts, dt = _ret.values, _ret.index.values
-        return Mat.tot_ret(ts, dt, start=start.asm8, end=end.asm8, is_log=is_log)
+        return Mat.tot_ret(ts, dt, start=start, end=end, is_log=is_log)
+
+    def performance(self, start: pd.Timestamp = None, end: pd.Timestamp = None,
+                    is_log: bool = False, base: float = 1.) -> pd.Series:
+        """ Compounded returns of the asset from a base value.
+
+            Input:
+                start [pd.Timestamp]: start date of the series (default: None)
+                end [pd.Timestamp]: end date of the series excluded (default: None)
+                is_log [bool]: it set to True use is_log returns (default: False)
+                base [float]: base value (default: 1.)
+
+            Output:
+                perf [pd.Series]: Compounded returns series
+        """
+        r = self.returns
+        if start:
+            start = start.asm8
+        if end:
+            end = end.asm8
+        p, dt = Mat.comp_ret(r.values, r.index.values, start=start,
+                             end=end, base=base, is_log=is_log)
+        return pd.Series(p, index=dt)
