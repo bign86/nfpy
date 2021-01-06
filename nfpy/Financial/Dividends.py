@@ -2,12 +2,11 @@
 # Dividends factory class
 # Methods to deal with dividends
 #
-from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+from typing import Union
 
-# from nfpy.Assets import Equity
 import nfpy.Math as Mat
 from nfpy.Tools import (Constants as Cn)
 
@@ -24,6 +23,8 @@ class DividendFactory(object):
         # Working variables
         self._div = None
         self._dt = None
+        self._div_special = None
+        self._dt_special = None
         self._num = None
         self._flim = None
         self._dist = None
@@ -42,6 +43,15 @@ class DividendFactory(object):
     @property
     def dividends(self) -> pd.Series:
         return pd.Series(self._div, index=self._dt)
+
+    @property
+    def dividends_special(self) -> Union[pd.Series, None]:
+        if self._div_special is None:
+            self._initialize_special_div()
+        if len(self._div_special) == 0:
+            return None
+        else:
+            return pd.Series(self._div_special, index=self._dt_special)
 
     @property
     def num(self) -> int:
@@ -85,14 +95,22 @@ class DividendFactory(object):
         """ Initialize the factory. """
         div = self._eq.dividends
         ts, dt = Mat.trim_ts(div.values, div.index.values, self._start, self._t0)
-        ts, mask = Mat.dropna(ts)
         self._num = ts.shape[0]
         self._div = ts
-        self._dt = dt[mask]
+        self._dt = dt
 
         u, d = 1 + c, 1 - c
         self._flim = [int(365 * d), int(365 * u), int(180 * d),
                       int(180 * u), int(90 * d), int(90 * u)]
+
+    def _initialize_special_div(self):
+        """ Initialize special dividends. This operation is not part of the
+            standard initialization. Special dividends are evaluated lazyLY.
+        """
+        div = self._eq.dividends_special
+        ts, dt = Mat.trim_ts(div.values, div.index.values, self._start, self._t0)
+        self._div_special = ts
+        self._dt_special = dt
 
     def dyield(self, date: pd.Timestamp = None) -> float:
         """ Compute the dividend yield at given date.

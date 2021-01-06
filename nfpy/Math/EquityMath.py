@@ -7,25 +7,40 @@ from typing import Union
 from scipy import stats
 
 from .DiscountFactor import dcf
-from .TSUtils import (dropna, fillna, rolling_sum, rolling_window, trim_ts)
+from .TSUtils import (dropna, rolling_sum, rolling_window, trim_ts, last_valid_index)
 
 
-def adj_factors(ts: np.ndarray, div: np.ndarray) -> np.ndarray:
+def adj_factors(ts: np.ndarray, dt: np.ndarray, div: np.ndarray,
+                div_dt: np.ndarray) -> np.ndarray:
     """ Calculate the adjustment factors given a dividend series.
 
         Input:
             ts [np.ndarray]: price series to calculate the yield
+            dt [np.ndarray]: price series date index
             div [np.ndarray]: dividend series
+            div_dt [np.ndarray]: dividend series date index
 
         Output:
             adjfc [np.ndarray]: series of adjustment factors
     """
-    assert len(ts) == len(div)
+    adj = np.ones(ts.shape)
 
     # Calculate conversion factors
-    fc = 1. - (div / ts)
-    cp = np.cumprod(fillna(fc, 1.))
-    return fc / cp * cp[-1]
+    idx = np.searchsorted(dt, div_dt)
+    for n, i in enumerate(idx):
+        try:
+            v = last_valid_index(ts, i)
+            # if v != i:
+            #     print("ts[{} - {}] = {} -->  ts[{} - {}] = {}"
+            #           .format(i, dt[i], ts[i], v, dt[v], ts[v]))
+        except ValueError:
+            pass
+        else:
+            adj[i] -= div[n] / ts[v]
+        # print("div[{}] = {}     ts[{}] = {}     adj = {}".format(n, div[n], i, v, adj[i]))
+
+    cp = np.nancumprod(adj)
+    return adj / cp * cp[-1]
 
 
 def fv(cf: np.ndarray, r: Union[float, np.ndarray],
@@ -73,7 +88,7 @@ def beta(dt: np.ndarray, ts: np.ndarray, proxy: np.ndarray,
 
     if not w:
         slope, intercept, _, _, std_err = stats.linregress(v[1, :], v[0, :])
-        adj_beta = 1./3. + 2./3. * slope
+        adj_beta = 1. / 3. + 2. / 3. * slope
         dts = None
 
     else:
@@ -86,7 +101,7 @@ def beta(dt: np.ndarray, ts: np.ndarray, proxy: np.ndarray,
         intercept = (sumy - slope * sumx) / w
 
         slope, _ = dropna(slope)
-        adj_beta = 1./3. + 2./3. * slope
+        adj_beta = 1. / 3. + 2. / 3. * slope
         intercept, _ = dropna(intercept)
         dts = dts[mask][w - 1:]
 
@@ -225,13 +240,13 @@ def correlation(dt: np.ndarray, ts: np.ndarray, proxy: np.ndarray,
     return dts, corr
 
 
-def sml(r: float, beta: float, rf: float, rm: float) -> tuple:
+def sml(r: float, exposure: float, rf: float, rm: float) -> tuple:
     """ Calculate the theoretical fair return of the asset according to the SML
         line and the actual asset relative over-/under- pricing.
 
         Input:
             r [float]: return of the asset
-            beta [float]: beta of the asset
+            exposure [float]: beta of the asset
             rf [float]: risk free return
             rm [float]: return of the market
 
@@ -239,6 +254,6 @@ def sml(r: float, beta: float, rf: float, rm: float) -> tuple:
             rt [float]: theoretical SML fair return
             delta [float]: over-/under- pricing
     """
-    rt = (rm - rf) * beta + rf
+    rt = (rm - rf) * exposure + rf
     delta = (r - rt)
     return rt, delta

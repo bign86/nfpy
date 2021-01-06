@@ -6,6 +6,7 @@
 import pandas as pd
 
 import nfpy.Math as Mat
+from nfpy.Tools import (Exceptions as Ex)
 
 from .Asset import Asset
 from .AssetFactory import get_af_glob
@@ -22,6 +23,9 @@ class Equity(Asset):
     def __init__(self, uid: str):
         super().__init__(uid)
         self._index = None
+        self._div = None
+        self._div_special = None
+        self._split = None
 
     @property
     def index(self) -> str:
@@ -34,25 +38,44 @@ class Equity(Asset):
     @property
     # TODO: dividends are not adjusted for splits in the current implementation
     def dividends(self) -> pd.Series:
-        """ Loads the dividends series for the equity. The dividends are first 
-            converted in the base currency.
+        """ Loads the regular dividends series for the equity. The dividends are
+            first converted in the base currency.
         """
-        try:
-            res = self._df['dividend']
-        except KeyError:
-            self.load_dtype('dividend')
-            res = self._df['dividend']
-        return res
+        if self._div is None:
+            try:
+                res = self.load_dtype('dividend')['dividend']
+            except Ex.MissingData:
+                res = pd.Series()
+            finally:
+                self._div = res
+        return self._div
+
+    @property
+    # TODO: dividends are not adjusted for splits in the current implementation
+    def dividends_special(self) -> pd.Series:
+        """ Loads the special dividends series for the equity. The dividends are
+            first converted in the base currency.
+        """
+        if self._div_special is None:
+            try:
+                res = self.load_dtype('dividendSpecial')
+            except Ex.MissingData:
+                res = pd.Series()
+            finally:
+                self._div_special = res
+        return self._div_special
 
     @property
     def splits(self) -> pd.Series:
         """ Loads the splits series for the equity. """
-        try:
-            res = self._df['split']
-        except KeyError:
-            self.load_dtype('split')
-            res = self._df['split']
-        return res
+        if self._split is None:
+            try:
+                res = self.load_dtype('split')
+            except Ex.MissingData:
+                res = pd.Series()
+            finally:
+                self._split = res
+        return self._split
 
     @property
     def adjusting_factors(self) -> pd.Series:
@@ -61,8 +84,11 @@ class Equity(Asset):
             adj_fct = self._df['adj_factors']
         except KeyError:
             # FIXME: splits are not present since Yahoo does the adjustment for splits
-            adj_fct = Mat.adj_factors(self.raw_prices.values, self.dividends.values)
-            self._df['adj_price'] = adj_fct * self.raw_prices
+            rp = self.raw_prices
+            div = self.dividends
+            adj_fct = Mat.adj_factors(rp.values, rp.index.values,
+                                      div.values, div.index.values)
+            self._df['adj_price'] = adj_fct * rp
             self._df['adj_factors'] = adj_fct
         return adj_fct
 
@@ -71,12 +97,24 @@ class Equity(Asset):
     def prices(self) -> pd.Series:
         """ Returns the series of prices adjusted for dividends. """
         try:
-            prices = self._df['adj_price']
+            _ = self._df['adj_price']
         except KeyError:
-            adj_fct = Mat.adj_factors(self.raw_prices.values, self.dividends.values)
-            prices = adj_fct * self.raw_prices
-            self._df['adj_price'] = prices
-            self._df['adj_factors'] = adj_fct
+            div = self.dividends
+            rp = self.raw_prices
+
+            # If the equity doesn't pay dividends adj_factors = 1.
+            if div is None:
+                self._df['adj_price'] = rp
+                self._df['adj_factors'] = 1.
+
+            # If the equity does pay dividends calculate adj_factors
+            else:
+                adj_fct = Mat.adj_factors(rp.values, rp.index.values,
+                                          div.values, div.index.values)
+                self._df['adj_price'] = adj_fct * rp
+                self._df['adj_factors'] = adj_fct
+        finally:
+            prices = self._df['adj_price']
         return prices
 
     @property
@@ -85,7 +123,7 @@ class Equity(Asset):
         try:
             res = self._df["price"]
         except KeyError:
-            self.load_dtype("price")
+            self.load_dtype_in_df("price")
             res = self._df["price"]
         return res
 
