@@ -146,16 +146,23 @@ def trim_ts(v: Union[None, np.ndarray], dt: np.ndarray,
     return v, dt
 
 
-def last_valid_index(v: np.ndarray) -> int:
+def last_valid_index(v: np.ndarray, start: int = None) -> int:
     """ Find the index of the last non-nan value. Similar to the Pandas method
         last_valid_index().
+
+        Input:
+            v [np.ndarray]: input series
+            start [int]: starting index
+
+        Output:
+            i [int]: last valid index
     """
-    i = -1
-    while np.isnan(v[i]):
+    i = start if start else len(v) - 1
+    while np.isnan(v[i]) and (i >= 0):
         i -= 1
-    if -i > len(v):
+    if i < 0:
         raise ValueError('The series is all nans')
-    return len(v) + i
+    return i
 
 
 def last_valid_value(v: np.ndarray, dt: np.ndarray, t0: np.datetime64) -> tuple:
