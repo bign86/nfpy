@@ -3,9 +3,6 @@
 # Functions to backtest simple strategies
 #
 
-import numpy as np
-import pandas as pd
-
 from nfpy.Trading.Strategies import *
 
 
@@ -38,7 +35,8 @@ def backtest(price: pd.Series, signals: pd.Series, nominal: float = 1.) -> tuple
         sig.at[p.index[-1]] = -1.
         p = p[sig.index]
 
-    cols = ['tr_start', 'tr_end', 'p_buy', 'p_sell', 'days', 'total_ret', 'daily_ret']
+    cols = ['tr_start', 'tr_end', 'p_buy', 'p_sell',
+            'days', 'total_ret', 'daily_ret']
     df = pd.DataFrame(index=range(len(sig[sig > 0.])), columns=cols)
 
     cash = nominal

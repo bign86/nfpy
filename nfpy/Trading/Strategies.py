@@ -4,11 +4,14 @@
 # The output is a list of buy/sell signals
 #
 
-from nfpy.Trading.Signals import *
+import pandas as pd
+import numpy as np
+
+import nfpy.Trading.Signals as Sig
 
 
 def sma_price_cross(v: pd.Series, w: int = 25) -> tuple:
-    _sma = sma(v, w)
+    _sma = Sig.sma(v, w)
 
     cross = pd.Series(np.where(v > _sma, 1, 0), index=v.index)
     signals = cross.diff(1).dropna()
@@ -17,8 +20,8 @@ def sma_price_cross(v: pd.Series, w: int = 25) -> tuple:
 
 
 def two_sma_cross(v: pd.Series, fast: int = 25, slow: int = 100) -> tuple:
-    fast_sma = sma(v, fast)
-    slow_sma = sma(v, slow)
+    fast_sma = Sig.sma(v, fast)
+    slow_sma = Sig.sma(v, slow)
 
     cross = pd.Series(np.where(fast_sma > slow_sma, 1, 0), index=v.index)
     signals = cross.diff(1).dropna()
@@ -27,7 +30,7 @@ def two_sma_cross(v: pd.Series, fast: int = 25, slow: int = 100) -> tuple:
 
 
 def ema_price_cross(v: pd.Series, w: int = 25) -> tuple:
-    _ema = ewma(v, w)
+    _ema = Sig.ewma(v, w)
 
     cross = pd.Series(np.where(v > _ema, 1, 0), index=v.index)
     signals = cross.diff(1).dropna()
@@ -36,8 +39,8 @@ def ema_price_cross(v: pd.Series, w: int = 25) -> tuple:
 
 
 def two_ema_cross(v: pd.Series, fast: int = 9, slow: int = 21) -> tuple:
-    fast_ema = ewma(v, fast)
-    slow_ema = ewma(v, slow)
+    fast_ema = Sig.ewma(v, fast)
+    slow_ema = Sig.ewma(v, slow)
 
     cross = pd.Series(np.where(fast_ema > slow_ema, 1, 0), index=v.index)
     signals = cross.diff(1).dropna()
@@ -45,14 +48,14 @@ def two_ema_cross(v: pd.Series, fast: int = 9, slow: int = 21) -> tuple:
     return fast_ema, slow_ema, signals
 
 
-def momentum_swing(v: pd.Series, fast: int = 8, slow: int = 25, trend: int = 200,
-                   ma_type: str = 'ewma') -> tuple:
+def momentum_swing(v: pd.Series, fast: int = 8, slow: int = 25,
+                   trend: int = 200, ma_type: str = 'ewma') -> tuple:
     if ma_type == 'ewma':
         _crossf = two_ema_cross
-        _smaf = sma
+        _smaf = Sig.sma
     elif ma_type == 'sma':
         _crossf = two_sma_cross
-        _smaf = ewma
+        _smaf = Sig.ewma
     else:
         raise ValueError('Moving average type {} not recognized'.format(ma_type))
 
@@ -78,8 +81,9 @@ def momentum_swing(v: pd.Series, fast: int = 8, slow: int = 25, trend: int = 200
     return fast_sma, slow_sma, trend_sma, signals
 
 
-def macd_swing(v: pd.Series, fast: int = 50, slow: int = 200, wmacd: int = 40) -> tuple:
-    macd_line, signal_line, histogram = macd(v, fast, slow, wmacd)
+def macd_swing(v: pd.Series, fast: int = 50, slow: int = 200,
+               wmacd: int = 40) -> tuple:
+    macd_line, signal_line, histogram, _, _ = Sig.macd(v, fast, slow, wmacd)
 
     cross = pd.Series(np.where(macd_line > signal_line, 1, 0), index=v.index)
     signals = cross.diff(1).dropna()

@@ -7,7 +7,7 @@
 import numpy as np
 import pandas as pd
 
-from nfpy.Handlers.Calendar import get_calendar_glob
+from nfpy.Calendar import get_calendar_glob
 
 
 def sma(v: pd.Series, w: int = 21) -> pd.Series:
