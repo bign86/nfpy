@@ -67,12 +67,14 @@ class BaseFundamentalModel(metaclass=ABCMeta):
             same currency as the company for consistency with the reported
             financial statements figures.
         """
-        price = self._eq.prices
-        ts, dt = price.values, price.index.values
-        ts, dt = Mat.trim_ts(ts, dt, self._start.asm8, self._t0.asm8)
-        idx = Mat.last_valid_index(ts)
+        # price = self._eq.prices
+        # ts, dt = price.values, price.index.values
+        # ts, dt = Mat.trim_ts(ts, dt, self._start.asm8, self._t0.asm8)
+        # idx = Mat.last_valid_index(ts)
+        # v = ts[idx]
+        v, dt, _ = self._eq.last_price(self._t0)
         cv_obj = self._fx.get(self._eq.currency, self._cmp.currency)
-        self._last_price = ts[idx] * cv_obj.get(dt[idx])
+        self._last_price = v * cv_obj.get(dt)
 
     def _res_update(self, **kwargs):
         self._dt.update(kwargs)

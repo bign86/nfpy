@@ -79,7 +79,7 @@ class GordonGrowthModel(BaseFundamentalModel):
             d_rate = kwargs['d_rate']
         except KeyError:
             rf = get_rf_glob().get_rf(self._cmp.currency)
-            d_rate = rf.last_price(self._t0)
+            d_rate = rf.last_price(self._t0)[0]
 
         # Check model consistency
         den = d_rate - self._calc_drift()

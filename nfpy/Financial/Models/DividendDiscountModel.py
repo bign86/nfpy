@@ -114,14 +114,12 @@ class DividendDiscountModel(BaseFundamentalModel):
         # Create cash flows sequence and calculate final price
         cf = div_ts.iat[-1] + np.zeros(len(t))
         final_price = last_price * (Mat.compound(eq_drift, fp) + 1.)
-        self._cf_no_growth = np.array([t, cf])  # .T
-        # self._cf_no_growth[-1, 1] += final_price
+        self._cf_no_growth = np.array([t, cf])
         self._cf_no_growth[1, -1] += final_price
 
         # Calculate the DCF w/ growth
         cf_compound = cf * (Mat.compound(div_drift, t, 1. / freq) + 1.)
-        self._cf_growth = np.array([t, cf_compound])  # .T
-        # self._cf_growth[-1, 1] += final_price
+        self._cf_growth = np.array([t, cf_compound])
         self._cf_growth[1, -1] += final_price
 
         # Transform projected dividend series for plotting
@@ -143,7 +141,7 @@ class DividendDiscountModel(BaseFundamentalModel):
             d_rate = kwargs['d_rate']
         except KeyError:
             rf = get_rf_glob().get_rf(self._cmp.currency)
-            d_rate = rf.last_price(self._t0)
+            d_rate = rf.last_price(self._t0)[0]
 
         # Obtain the period-rate from the annualized rate
         d_rate *= self.frequency

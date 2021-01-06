@@ -94,7 +94,7 @@ class OptimizationEngine(object):
 
         if (self._rf_ret is None) and ('CALModel' in self._algo):
             rf = self._rf.get_rf(ccy)
-            self._rf_ret = Mat.compound(rf.last_price(), Cn.BDAYS_IN_1Y)
+            self._rf_ret = Mat.compound(rf.last_price()[0], Cn.BDAYS_IN_1Y)
 
     def run(self):
         res_list = []
