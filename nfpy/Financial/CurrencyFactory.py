@@ -76,9 +76,9 @@ class CurrencyFactory(metaclass=Singleton):
     """ Handles currency exchanges. """
 
     _TABLE = 'Currency'
-    _KNOWN_CCY = ['EUR', 'USD', 'GBP', 'CHF', 'CAD', 'ZAR', 'AUD', 'YEN', 'NWK',
-                  'ARS', 'HKD', 'NZD', 'TRY', 'RUB']
-    _BASE_CCY = ['EUR', 'USD', 'GBP', 'CHF']
+    _KNOWN_CCY = ['ARS', 'AUD', 'CAD', 'CNY', 'CHF', 'EUR', 'GBP', 'HKD', 'JPY',
+                  'NZD', 'NWK', 'RUB', 'TRY', 'USD', 'ZAR']
+    _BASE_CCY = ['CHF', 'EUR', 'GBP', 'USD']
 
     def __init__(self):
         self._af = get_af_glob()
@@ -135,7 +135,10 @@ class CurrencyFactory(metaclass=Singleton):
             fxc = self._dict_ccy[(src_ccy, tgt_ccy)]
         return fxc
 
-    def apply(self, v: pd.Series, src_ccy: str, tgt_ccy: str) -> pd.Series:
+    # TODO: to be implemented
+    @staticmethod
+    def apply(v: pd.Series, src_ccy: str, tgt_ccy: str) -> pd.Series:
+        RuntimeWarning('Not implemented')
         if src_ccy == tgt_ccy:
             return v
         return v
