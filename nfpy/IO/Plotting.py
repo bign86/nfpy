@@ -7,7 +7,7 @@ from abc import ABCMeta
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from typing import Union, Sequence
+from typing import (Union, Sequence)
 
 from nfpy.Financial.Optimizer import OptimizerResult
 
@@ -71,8 +71,9 @@ class Plotting(metaclass=ABCMeta):
             x, y = _v.index, _v.values
         self._annotations.append((x, y, labels, kwargs))
 
-    def line(self, type: str, v: float, **kwargs):
-        self._lines.append((type, v, kwargs))
+    def line(self, type_: str, v: Union[float, np.array], range_: tuple = (),
+             **kwargs):
+        self._lines.append((type_, v, range_, kwargs))
 
     def plot(self):
         """ Creates the figure. """
@@ -101,11 +102,15 @@ class Plotting(metaclass=ABCMeta):
                 legend = True
                 lp.append(leg[0])
 
-        for mode, val, kw in self._lines:
-            if mode == 'h':
+        for mode, val, rng, kw in self._lines:
+            if mode == 'xh':
                 leg = ax1.axhline(val, **kw)
-            else:
+            elif mode == 'xv':
                 leg = ax1.axvline(val, **kw)
+            elif mode == 'h':
+                leg = ax1.hlines(val, *rng, **kw)
+            else:
+                leg = ax1.vlines(val, *rng, **kw)
             if 'label' in kw:
                 legend = True
                 lp.append(leg)
