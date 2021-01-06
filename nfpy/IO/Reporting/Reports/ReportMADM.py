@@ -29,17 +29,24 @@ class ReportMADM(BaseReport):
         res.prices_long, res.prices_short = fig_rel_name
         full_name_long, full_name_short = fig_full_name
 
-        # Save out figure
-        start = get_calendar_glob().shift(res.date, 120, 'D', fwd=False)
         p = res.prices
+
+        # Slow plot
+        start = get_calendar_glob().start.asm8
 
         div_pl = IO.PlotTS()
         div_pl.add(p)
         div_pl.add(res.ma_slow, color='C2', linewidth=1.5,
                    linestyle='--', label='MA slow')
+        div_pl.line('h', res.sr_slow, (start, res.date.asm8), color='b',
+                    linewidth=.5, linestyles='-')
+
         div_pl.plot()
         div_pl.save(full_name_long)
         div_pl.clf()
+
+        # Fast plot
+        start = get_calendar_glob().shift(res.date, 120, 'D', fwd=False).asm8
 
         div_pl = IO.PlotTS()
         div_pl.add(p.loc[start:])
@@ -47,6 +54,9 @@ class ReportMADM(BaseReport):
                    linestyle='--', label='MA fast')
         div_pl.add(res.ma_slow[start:], color='C2', linewidth=1.5,
                    linestyle='--', label='MA slow')
+        div_pl.line('h', res.sr_fast, (start, res.date.asm8), color='k',
+                    linewidth=.5, linestyles='--')
+
         div_pl.plot()
         div_pl.save(full_name_short)
 
