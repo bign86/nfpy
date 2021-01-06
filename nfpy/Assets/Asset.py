@@ -3,8 +3,6 @@
 # Base class for a single asset
 #
 
-from typing import Union
-
 import numpy as np
 import pandas as pd
 
@@ -56,7 +54,7 @@ class Asset(FinancialItem):
         try:
             res = self._df["price"]
         except KeyError:
-            self.load_dtype("price")
+            self.load_dtype_in_df("price")
             res = self._df["price"]
         return res
 
@@ -89,24 +87,35 @@ class Asset(FinancialItem):
         """ Returns the full DataFrame for the asset. """
         return self._df
 
-    def last_price(self, dt: pd.Timestamp = None) -> float:
-        """ Returns the last valid price at date. """
+    def last_price(self, dt: pd.Timestamp = None) -> tuple:
+        """ Returns the last valid price at date.
+
+            Input:
+                dt [pd.Timestamp]: reference date (default: None)
+
+            Output:
+                v [flaot]: last valid price
+                date [pd.Timestamp]: date of the last valid price
+                idx [int]: index of the last valid price
+        """
         if not dt:
             dt = self._cal.t0
 
         p = self.prices
         ts, date = p.values, p.index.values
-        ts, _ = Mat.trim_ts(ts, date, end=dt.asm8)
-        idx = Mat.last_valid_index(ts)
-        return ts[idx]
+
+        pos = np.searchsorted(date, [dt.asm8])
+        idx = Mat.last_valid_index(ts, pos)
+
+        return ts[idx], date[idx], idx
 
     def load_returns(self):
-        self.load_dtype("return")
+        self.load_dtype_in_df("return")
 
     def load_log_returns(self):
-        self.load_dtype("logReturn")
+        self.load_dtype_in_df("logReturn")
 
-    def load_dtype(self, dt: str):
+    def load_dtype(self, dt: str) -> pd.DataFrame:
         """ Fetch from the DB a time series. The content of the column 'datatype'
             of the table containing the time series is given in input.
 
@@ -139,7 +148,12 @@ class Asset(FinancialItem):
         if df.empty:
             raise Ex.MissingData("{} {} not found in the database!".format(self.uid, dt))
 
-        df = df.rename(columns={"value": str(dt)})
+        df.index = pd.to_datetime(df.index)
+        df.rename(columns={"value": str(dt)}, inplace=True)
+        return df
+
+    def load_dtype_in_df(self, dt: str) -> None:
+        df = self.load_dtype(dt)
         self._df = self._df.merge(df, how='left', left_index=True, right_index=True)
         self._df.sort_index(inplace=True)
 
