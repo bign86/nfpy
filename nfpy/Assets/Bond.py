@@ -39,7 +39,7 @@ class Bond(Asset):
         self._callable = None
         self._inception_date = None
         self._day_count = None
-        self._cf = pd.DataFrame()
+        self._cf = None
 
     @property
     def maturity(self) -> pd.Timestamp:
@@ -84,7 +84,7 @@ class Bond(Asset):
 
     @property
     def cf(self) -> pd.DataFrame:
-        if self._cf.empty:
+        if self._cf is None:
             self._load_cf()
         return self._cf
 
@@ -101,7 +101,8 @@ class Bond(Asset):
 
         cf = pd.DataFrame(data=r, columns=cols)
         cf['date'] = cf['date'].astype(np.datetime64)
-        cf['period'] = (cf['date'] - get_calendar_glob().t0) / timedelta(days=365)
+        cf['period'] = (cf['date'] - get_calendar_glob().t0) / \
+                       timedelta(days=Cn.DAYS_IN_1Y)
         cf = cf.set_index(['date'])
         cf.sort_index(inplace=True)
 

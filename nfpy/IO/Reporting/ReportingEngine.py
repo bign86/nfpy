@@ -135,12 +135,6 @@ class ReportingEngine(metaclass=Singleton):
         q = self._qb.select(self._TBL_ITEMS, keys=k)
         return self._db.execute(q, p).fetchall()
 
-    ############################################################################
-
-    # @property
-    # def results(self) -> dict:
-    #     return self._res
-
     def _calculate(self, tbg: list):
         """ Calculates results by calling all models. """
         cid = self._curr_img_dir
