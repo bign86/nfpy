@@ -81,41 +81,23 @@ class Equity(Asset):
     def adjusting_factors(self) -> pd.Series:
         """ Returns the series of adjusting factors for splits and dividends. """
         try:
-            adj_fct = self._df['adj_factors']
+            adj_f = self._df['adj_factors']
         except KeyError:
             # FIXME: splits are not present since Yahoo does the adjustment for splits
-            rp = self.raw_prices
-            div = self.dividends
-            adj_fct = Mat.adj_factors(rp.values, rp.index.values,
-                                      div.values, div.index.values)
-            self._df['adj_price'] = adj_fct * rp
-            self._df['adj_factors'] = adj_fct
-        return adj_fct
+            self._adjust_prices()
+            adj_f = self._df['adj_factors']
+        return adj_f
 
-    @property
     # TODO: splits are not considered in the current implementation
+    @property
     def prices(self) -> pd.Series:
         """ Returns the series of prices adjusted for dividends. """
         try:
-            _ = self._df['adj_price']
+            adj_p = self._df['adj_price']
         except KeyError:
-            div = self.dividends
-            rp = self.raw_prices
-
-            # If the equity doesn't pay dividends adj_factors = 1.
-            if div is None:
-                self._df['adj_price'] = rp
-                self._df['adj_factors'] = 1.
-
-            # If the equity does pay dividends calculate adj_factors
-            else:
-                adj_fct = Mat.adj_factors(rp.values, rp.index.values,
-                                          div.values, div.index.values)
-                self._df['adj_price'] = adj_fct * rp
-                self._df['adj_factors'] = adj_fct
-        finally:
-            prices = self._df['adj_price']
-        return prices
+            self._adjust_prices()
+            adj_p = self._df['adj_price']
+        return adj_p
 
     @property
     def raw_prices(self) -> pd.Series:
@@ -126,6 +108,20 @@ class Equity(Asset):
             self.load_dtype_in_df("price")
             res = self._df["price"]
         return res
+
+    def _adjust_prices(self):
+        div = self.dividends
+        rp = self.raw_prices
+        adj_p, adj_f = rp, 1.
+
+        # If the equity does pay dividends calculate adj_factors
+        if div is not None:
+            adj_f = Mat.adj_factors(rp.values, rp.index.values,
+                                    div.values, div.index.values)
+            adj_p = adj_f * rp
+
+        self._df['adj_price'] = adj_p
+        self._df['adj_factors'] = adj_f
 
     def beta(self, benchmark: Asset = None, start: pd.Timestamp = None,
              end: pd.Timestamp = None, w: int = None, log: bool = False) -> tuple:
