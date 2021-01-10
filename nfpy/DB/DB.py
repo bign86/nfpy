@@ -25,7 +25,7 @@ SQLITE2PY_TYPES = {
     'BOOL': bool,
 }
 
-_MIN_DB_VERSION = 0.3
+_MIN_DB_VERSION = 0.4
 
 
 class DBHandler(metaclass=Singleton):
@@ -164,7 +164,7 @@ def backup_db(db_path: str = None, f_name: str = None):
     path, file = os.path.split(db_path)
 
     if f_name is None:
-        bak_path = conf.backup_dir
+        bak_path = conf.backup_folder
         name, ext = os.path.splitext(file)
         date = '_' + datetime.today().strftime('%Y%m%d_%H%M%S')
         new_file = os.path.join(bak_path, ''.join([name, date, ext]))

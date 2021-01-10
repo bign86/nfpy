@@ -22,7 +22,8 @@ from .Reports import *
 class ReportingEngine(metaclass=Singleton):
     """ Main class for reporting. """
 
-    _TABLE = 'Reports'
+    _TBL_REPORTS = 'Reports'
+    _TBL_ITEMS = 'ReportItems'
     _DT_FMT = '%Y%m%d'
     _IMG_DIR = 'img'
     _REPORTS = {'DDM': ReportDDM, 'DCF': ReportDCF, 'MADM': ReportMADM,
@@ -39,14 +40,10 @@ class ReportingEngine(metaclass=Singleton):
         self._conf = get_conf_glob()
 
         # Work variables
-        self._p = None
-        self._curr_report_dir = None
-        self._curr_img_dir = None
-        self._rep_path = None
-
-        # Output
-        self._res = None
-        self._assets = None
+        self._p = {}
+        self._curr_report_dir = ''
+        self._curr_img_dir = ''
+        self._rep_path = ''
 
         self._initialize()
 
@@ -60,47 +57,48 @@ class ReportingEngine(metaclass=Singleton):
         """ Return the report object given the report name. """
         return self._REPORTS[r]
 
-    @property
-    def results(self) -> dict:
-        return self._res
+    def add(self, what: str, **kwargs):
+        """ Add an item in the report items table. """
+        if what == 'report':
+            table = self._TBL_REPORTS
+        elif what == 'item':
+            table = self._TBL_ITEMS
+        else:
+            raise ValueError('Mode {} not recognized!'.format(what))
 
-    def add(self, uid: str, model: str, params: dict, active: bool = False):
-        """ Add an item in the reporting table. """
-        cols = ('uid', 'model', 'parameters', 'active')
-        jp = json.dumps(params)
-        p = (uid, model, jp, active)
-        q = self._qb.insert(self._TABLE, cols)
+        cols, p = [], []
+        for c in self._qb.get_fields(table):
+            cols.append(c)
+            try:
+                if c == 'parameters':
+                    p.append(json.dumps(kwargs[c]))
+                else:
+                    p.append(kwargs[c])
+            except KeyError:
+                raise KeyError('Missing specification of {}'.format(c))
+
+        q = self._qb.insert(table, cols)
         self._db.execute(q, p, commit=True)
 
-    def remove(self, uid: str = None, model: str = None):
-        """ Remove an item in the reporting table. """
-        q = self._qb.delete(self._TABLE, ('uid', 'model'))
-        self._db.executemany(q, (uid, model), commit=True)
-
-    def list(self) -> list:
-        """ List reports matching the current setting. """
-        if not self._p:
-            k = ['active']
-            p = [True]
+    def remove(self, what: str, **kwargs):
+        """ Remove an item in the report items table. """
+        if what == 'report':
+            table = self._TBL_REPORTS
+        elif what == 'item':
+            table = self._TBL_ITEMS
         else:
-            k = ['uid', 'model']
-            p = [self._p[l] for l in k]
-            if not self._p['override_auto']:
-                k.append('active')
-                p.append(True)
-        q = self._qb.select(self._TABLE, keys=k)
-        return self._db.execute(q, p).fetchall()
+            raise ValueError('Mode {} not recognized!'.format(what))
 
-    def set_reports(self, uid: str = None, model: str = None,
-                    override_auto: bool = False):
-        """ Set the parameters to filter reports.
+        cols, p = [], []
+        for c in self._qb.get_keys(table):
+            cols.append(c)
+            try:
+                p.append(kwargs[c])
+            except KeyError:
+                raise KeyError('Missing specification of {}'.format(c))
 
-            Input:
-                uid [Iterable]: list of uids to report for
-                model [Iterable]: list of modes to report for
-                override_auto [bool]: override the auto flag
-        """
-        self._p = locals()
+        q = self._qb.delete(table, cols)
+        self._db.executemany(q, p, commit=True)
 
     def create_new_directory(self):
         """ Create a new directory for the current report. """
@@ -118,6 +116,31 @@ class ReportingEngine(metaclass=Singleton):
         else:
             print('Successfully created the directory {}'.format(new_path))
 
+    def set_report(self, report: str):
+        """ Set the report to be produced. """
+        self._p = report
+
+    def list(self) -> list:
+        """ List reports matching the current setting. """
+        if not self._p:
+            k, p = ('active',), (True,)
+        else:
+            k, p = ('report',), (self._p,)
+        q = self._qb.select(self._TBL_REPORTS, keys=k)
+        return self._db.execute(q, p).fetchall()
+
+    def _fetch_report_items(self, report: str) -> list:
+        """ Fetch the list of item to be calculated for the current report. """
+        k, p = ('report', 'active'), (report, True)
+        q = self._qb.select(self._TBL_ITEMS, keys=k)
+        return self._db.execute(q, p).fetchall()
+
+    ############################################################################
+
+    # @property
+    # def results(self) -> dict:
+    #     return self._res
+
     def _calculate(self, tbg: list):
         """ Calculates results by calling all models. """
         cid = self._curr_img_dir
@@ -125,8 +148,8 @@ class ReportingEngine(metaclass=Singleton):
         ret_dict = defaultdict(dict)
         asset_dict = defaultdict(list)
         for item in tbg:
-            u, m, p, _ = item
-            print(u, m)
+            rp, u, m, p, _ = item
+            print(rp, u, m)
             pd = json.loads(p)
             report = self._REPORTS[m]
 
@@ -143,14 +166,13 @@ class ReportingEngine(metaclass=Singleton):
         for k, v in asset_dict.items():
             asset_dict[k] = sorted(set(v))
 
-        self._res = ret_dict
-        self._assets = asset_dict
+        return ret_dict, asset_dict
 
-    def _add_asset_info(self):
+    def _add_asset_info(self, res: dict, assets: dict):
         """ Add asset infos to the results. """
-        for a_type, assets in self._assets.items():
-            for uid in assets:
-                self._res[uid]['info'] = self._gen_info(a_type, uid)
+        for a_type, asset in assets.items():
+            for uid in asset:
+                res[uid]['info'] = self._gen_info(a_type, uid)
 
     def _gen_info(self, a_type: str, uid: str) -> dict:
         asset = self._af.get(uid)
@@ -173,16 +195,16 @@ class ReportingEngine(metaclass=Singleton):
             pass
         return {k: getattr(asset, k) for k in f}
 
-    def _generate(self, name: str, rep_type: str):
+    def _generate(self, name: str, template: str, res: dict, assets: dict):
         """ Generates the actual report. """
         title = "Report - {}".format(self._cal.end.strftime('%Y-%m-%d'))
-        report = '' .join([rep_type, self._REP_EXT])
-        name = '' .join([name, self._REP_EXT])
+        report = ''.join([template, self._REP_EXT])
+        name = ''.join([name, self._REP_EXT])
 
         j_loader = FileSystemLoader(self._TMPL_PATH)
         j_env = Environment(loader=j_loader)
         main = j_env.get_template(report)
-        out = main.render(title=title, all_res=self._res, assets=self._assets)
+        out = main.render(title=title, all_res=res, assets=assets)
 
         out_file = os.path.join(self._curr_report_dir, name)
         outf = open(out_file, 'w')
@@ -192,8 +214,8 @@ class ReportingEngine(metaclass=Singleton):
     def run(self):
         """ Run the report engine. """
         # Reports to be generated
-        tbg = self.list()
-        if not tbg:
+        reports = self.list()
+        if not reports:
             print("No reports to generate.")
             return
 
@@ -201,16 +223,14 @@ class ReportingEngine(metaclass=Singleton):
         self.create_new_directory()
 
         # Calculate model results
-        self._calculate(tbg)
-        self._add_asset_info()
+        for report in reports:
+            tbg = self._fetch_report_items(report[0])
+            ret_dict, asset_dict = self._calculate(tbg)
+            self._add_asset_info(ret_dict, asset_dict)
 
-        # Generate reports
-        if not self._p:
-            name, rep_type = 'main', 'main'
-        else:
-            name = '_'.join([self._p['uid'], self._p['model']])
-            rep_type = self._p['model']
-        self._generate(name, rep_type)
+            # Generate reports
+            name, template = report[0:2]
+            self._generate(name, template, ret_dict, asset_dict)
 
 
 def get_re_glob() -> ReportingEngine:

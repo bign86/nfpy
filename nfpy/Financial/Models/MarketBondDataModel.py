@@ -25,10 +25,10 @@ class MarketBondDataModel(MarketAssetsDataBaseModel):
 
     def _calculate(self):
         super()._calculate()
+        self._calc_bond_math()
 
-        # Variables
-        t0 = self._t0.asm8
-        asset = self._asset
+    def _calc_bond_math(self):
+        asset, t0 = self._asset, self._t0
         p = asset.prices
         last_price = self._dt['last_price']
         last_p_date = self._dt['last_price_date'].asm8
@@ -63,7 +63,7 @@ class MarketBondDataModel(MarketAssetsDataBaseModel):
         rates = np.zeros(4)
         rates[1:] = np.arange(-.01, .011, .01) + last_ytm
 
-        arr_fv, _ = Mat.calc_fv(t0, asset.inception_date.asm8,
+        arr_fv, _ = Mat.calc_fv(t0.asm8, asset.inception_date.asm8,
                                 asset.maturity.asm8, .0,
                                 asset.cf['value'].values, asset.cf.index.values,
                                 asset.cf['dtype'].values, rates)
@@ -71,7 +71,7 @@ class MarketBondDataModel(MarketAssetsDataBaseModel):
         arr_fv = np.vstack((arr_fv, arr_fv_delta))
 
         # Fair values and discounted cash flows
-        arr_dcf, cf_dt = Mat.calc_dcf(t0, asset.inception_date.asm8,
+        arr_dcf, cf_dt = Mat.calc_dcf(t0.asm8, asset.inception_date.asm8,
                                       asset.maturity.asm8,
                                       asset.cf['value'].values,
                                       asset.cf.index.values,
@@ -88,8 +88,8 @@ class MarketBondDataModel(MarketAssetsDataBaseModel):
         fair_values = pd.DataFrame(arr_cf, index=rates, columns=cols)
 
         # Convexity and duration
-        dur = self._asset.duration(self._t0)
-        cvx = self._asset.convexity(self._t0)
+        dur = asset.duration(t0)
+        cvx = asset.convexity(t0)
 
         # Record results
         self._res_update(yields=ytm, yields_array=arr_ytm[:, :7],
@@ -99,6 +99,8 @@ class MarketBondDataModel(MarketAssetsDataBaseModel):
 
 
 def MBDModel(uid: str, date: Union[str, pd.Timestamp] = None,
+             w_ma_slow: int = 120, w_ma_fast: int = 21, sr_mult: float = 5.,
              date_fmt: str = '%Y-%m-%d') -> MBDMResult:
     """ Shortcut for the calculation. Intermediate results are lost. """
-    return MarketBondDataModel(uid, date, date_fmt).result()
+    return MarketBondDataModel(uid, date, w_ma_slow, w_ma_fast, sr_mult,
+                               date_fmt).result()

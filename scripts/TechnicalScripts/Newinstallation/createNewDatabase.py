@@ -12,7 +12,7 @@ from nfpy import NFPY_ROOT_DIR
 from nfpy.Configuration import get_conf_glob
 import nfpy.DB as DB
 
-__version__ = '0.2'
+__version__ = '0.3'
 _TITLE_ = "<<< Database creation script >>>"
 
 Q_DEC = "insert into DecDatatype (datatype, encoding) values (?, ?);"
@@ -168,9 +168,15 @@ TABLES_TO_CREATE = [
             references Rate(uid)) without rowid;"""
     ),
     (
+        'ReportItems',
+        """create table ReportItems (report TEXT, uid TEXT, model TEXT,
+            parameters TEXT, active BOOL NOT NULL,
+            primary key (report, uid, model)) without rowid;"""
+    ),
+    (
         'Reports',
-        """create table Reports (uid TEXT, model TEXT, parameters TEXT,
-            active BOOL NOT NULL, primary key (uid, model)) without rowid;"""
+        """create table Reports (report TEXT, template TEXT, active BOOL,
+            primary key (report)) without rowid;"""
     ),
     (
         'SystemInfo',

@@ -26,7 +26,11 @@ class ReportMBDM(ReportMADM):
         res.prices_ytm = fig_rel_name[2]
 
         # Save out figure
-        start = get_calendar_glob().shift(res.date, 120, 'D', fwd=False)
+        try:
+            w = self._p['w_plot_fast']
+        except KeyError:
+            w = 120
+        start = get_calendar_glob().shift(res.date, w, 'D', fwd=False)
         p = res.prices
         y = res.yields
 
