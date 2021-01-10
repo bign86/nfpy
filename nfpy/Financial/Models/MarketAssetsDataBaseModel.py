@@ -25,7 +25,7 @@ class MarketAssetsDataBaseModel(object):
     _RES_OBJ = BaseMADMResult
 
     def __init__(self, uid: str, date: Union[str, pd.Timestamp] = None,
-                 w_slow: int = 120, w_fast: int = 21, sr_mult: float = 5.,
+                 w_ma_slow: int = 120, w_ma_fast: int = 21, sr_mult: float = 5.,
                  date_fmt: str = '%Y-%m-%d', **kwargs):
         # Handlers
         self._cal = get_calendar_glob()
@@ -38,8 +38,8 @@ class MarketAssetsDataBaseModel(object):
             self._t0 = self._cal.t0
         elif isinstance(date, str):
             self._t0 = pd.to_datetime(date, format=date_fmt)
-        self._w_slow = w_slow
-        self._w_fast = w_fast
+        self._w_ma_slow = w_ma_slow
+        self._w_ma_fast = w_ma_fast
         self._sr_mult = sr_mult
 
         # Working data
@@ -48,21 +48,38 @@ class MarketAssetsDataBaseModel(object):
                             Cn.DAYS_IN_1Y, 3 * Cn.DAYS_IN_1Y)
         self._is_calculated = False
 
+        self._res_update(date=self._t0, uid=self._uid, w_slow=self._w_ma_slow,
+                         w_fast=self._w_ma_fast)
+
     def _res_update(self, **kwargs):
         self._dt.update(kwargs)
 
     def _calculate(self):
+        # Price results
+        self._calc_price_res()
+
+        # Time-dependent statistics
+        self._calc_statistics()
+
+        # Trading quantities
+        self._calc_trading()
+
+    def _calc_price_res(self):
         asset, t0 = self._asset, self._t0
 
-        # Price results
         prices = asset.prices
         v = prices.values
         dt = prices.index.values
         last_price, idx = Mat.last_valid_value(v, dt, t0.asm8)
         last_p_date = prices.index[idx]
 
-        # Variances
+        self._res_update(prices=prices, last_price=last_price,
+                         last_price_date=last_p_date)
+
+    def _calc_statistics(self):
+        asset, t0 = self._asset, self._t0
         length = len(self._time_spans)
+
         stats = np.empty((3, length))
         for i in range(length):
             n = self._time_spans[i]
@@ -73,31 +90,34 @@ class MarketAssetsDataBaseModel(object):
             total_ret = asset.total_return(start, t0)
             stats[2, i] = Mat.compound(total_ret, Cn.BDAYS_IN_1Y / n)
 
-        # Moving averages
-        ma_fast = Sig.ewma(prices, w=self._w_fast)
-        ma_slow = Sig.ewma(prices, w=self._w_slow)
-
-        # Support/resistances
-        p_slow = prices.iloc[-int(self._w_slow * self._sr_mult):]
-        _, _, max_i, min_i = Tr.find_ts_extrema(p_slow, w=self._w_slow)
-        all_i = sorted(max_i + min_i)
-        pp = p_slow.iloc[all_i]
-        c_slow = Tr.group_extrema(pp)[0]
-
-        p_fast = prices.iloc[-int(self._w_fast * self._sr_mult):]
-        _, _, max_i, min_i = Tr.find_ts_extrema(p_fast, w=self._w_fast)
-        all_i = sorted(max_i + min_i)
-        pp = p_fast.iloc[all_i]
-        c_fast = Tr.group_extrema(pp)[0]
-
-        # Record results
         calc = ['volatility', 'mean return', 'tot. return']
         self._res_update(stats=pd.DataFrame(stats, index=calc,
-                                            columns=self._time_spans),
-                         date=t0, prices=prices, last_price=last_price,
-                         last_price_date=last_p_date, uid=self._uid,
-                         ma_fast=ma_fast, ma_slow=ma_slow, sr_slow=c_slow,
-                         sr_fast=c_fast)
+                                            columns=self._time_spans))
+
+    def _calc_trading(self):
+        prices = self._asset.prices
+        w_fast, w_slow = self._w_ma_fast, self._w_ma_slow
+
+        # Moving averages
+        wma_fast = Sig.ewma(prices, w=w_fast)
+        wma_slow = Sig.ewma(prices, w=w_slow)
+
+        # Support/resistances
+        p_slow = prices.iloc[-int(w_slow * self._sr_mult):]
+        _, _, max_i, min_i = Tr.find_ts_extrema(p_slow, w=w_slow)
+        all_i = sorted(max_i + min_i)
+        pp = p_slow.iloc[all_i]
+        sr_slow = Tr.group_extrema(pp, dump=.75)[0]
+
+        p_fast = prices.iloc[-int(w_fast * self._sr_mult):]
+        _, _, max_i, min_i = Tr.find_ts_extrema(p_fast, w=w_fast)
+        all_i = sorted(max_i + min_i)
+        pp = p_fast.iloc[all_i]
+        sr_fast = Tr.group_extrema(pp, dump=.75)[0]
+
+        # Record results
+        self._res_update(w_fast=w_fast, ma_fast=wma_fast, sr_fast=sr_fast,
+                         w_slow=w_slow, ma_slow=wma_slow, sr_slow=sr_slow)
 
     def _create_output(self):
         res = self._RES_OBJ()
@@ -114,8 +134,8 @@ class MarketAssetsDataBaseModel(object):
 
 
 def MADModel(uid: str, date: Union[str, pd.Timestamp] = None,
-             w_slow: int = 120, w_fast: int = 21, sr_mult: float = 5.,
+             w_ma_slow: int = 120, w_ma_fast: int = 21, sr_mult: float = 5.,
              date_fmt: str = '%Y-%m-%d') -> BaseMADMResult:
     """ Shortcut for the calculation. Intermediate results are lost. """
-    return MarketAssetsDataBaseModel(uid, date, w_slow, w_fast, sr_mult,
+    return MarketAssetsDataBaseModel(uid, date, w_ma_slow, w_ma_fast, sr_mult,
                                      date_fmt).result()

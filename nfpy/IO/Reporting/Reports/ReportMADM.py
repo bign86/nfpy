@@ -18,7 +18,9 @@ class ReportMADM(BaseReport):
 
     def _init_input(self) -> dict:
         """ Prepare the input arguments for the model. """
-        return {'uid': self._uid}
+        d = {'uid': self._uid}
+        d.update(self._p)
+        return d
 
     def _create_output(self, res):
         """ Create the final output. """
@@ -37,7 +39,7 @@ class ReportMADM(BaseReport):
         div_pl = IO.PlotTS()
         div_pl.add(p)
         div_pl.add(res.ma_slow, color='C2', linewidth=1.5,
-                   linestyle='--', label='MA slow')
+                   linestyle='--', label='MA {}'.format(res.w_slow))
         div_pl.line('h', res.sr_slow, (start, res.date.asm8), color='b',
                     linewidth=.5, linestyles='-')
 
@@ -46,14 +48,18 @@ class ReportMADM(BaseReport):
         div_pl.clf()
 
         # Fast plot
-        start = get_calendar_glob().shift(res.date, 120, 'D', fwd=False).asm8
+        try:
+            w = self._p['w_plot_fast']
+        except KeyError:
+            w = 120
+        start = get_calendar_glob().shift(res.date, w, 'D', fwd=False).asm8
 
         div_pl = IO.PlotTS()
         div_pl.add(p.loc[start:])
         div_pl.add(res.ma_fast[start:], color='C1', linewidth=1.5,
-                   linestyle='--', label='MA fast')
+                   linestyle='--', label='MA {}'.format(res.w_fast))
         div_pl.add(res.ma_slow[start:], color='C2', linewidth=1.5,
-                   linestyle='--', label='MA slow')
+                   linestyle='--', label='MA {}'.format(res.w_slow))
         div_pl.line('h', res.sr_fast, (start, res.date.asm8), color='k',
                     linewidth=.5, linestyles='--')
 
