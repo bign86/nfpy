@@ -207,7 +207,8 @@ class BasePage(metaclass=ABCMeta):
         elif self.req_method == 'post':
             r = req.post(self.baseurl, data=self._p, headers=headers)
         else:
-            raise ValueError('Request method {} not recognized'.format(self.req_method))
+            raise ValueError('Request method {} not recognized'
+                             .format(self.req_method))
 
         print("{}\n{}".format(r.request.url, r.status_code))
         if r.status_code == 200:
@@ -216,7 +217,8 @@ class BasePage(metaclass=ABCMeta):
             self._robj = r
         else:
             raise RuntimeWarning("Error {} in downloading the page {} because of\n{}"
-                                 .format(r.status_code, self.__class__.__name__, r.reason))
+                                 .format(r.status_code, self.__class__.__name__,
+                                         r.reason))
 
     def _write_to_file(self, fname: str = None):
         """ Write to a text file. """

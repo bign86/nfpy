@@ -9,6 +9,7 @@ from collections import defaultdict
 import copy
 from io import StringIO
 import json
+import numpy as np
 import pandas as pd
 import re
 import requests
@@ -246,8 +247,9 @@ class YahooHistoricalBasePage(YahooBasePage):
             raise RuntimeError("Error in converting dates for Yahoo historical prices download")
 
         crumb = self._fetch_crumb()
-        print("CRUMB: {}".format(crumb))
-        self.params = {'period1': int(d1), 'period2': int(d2), 'crumb': crumb, 'events': self.event}
+        # print("CRUMB: {}".format(crumb))
+        self.params = {'period1': int(d1), 'period2': int(d2),
+                       'crumb': crumb, 'events': self.event}
 
     def _parse_csv(self) -> pd.DataFrame:
         # TODO check that columns in the file are correct
@@ -256,7 +258,7 @@ class YahooHistoricalBasePage(YahooBasePage):
         df = pd.read_csv(data, sep=',', header=None, names=names, skiprows=1)
 
         # When downloading prices the oldest row is often made of nulls, this is to remove it
-        df.replace(to_replace='null', value=pd.np.nan, inplace=True)
+        df.replace(to_replace='null', value=np.nan, inplace=True)
         df.dropna(subset=names[1:], inplace=True)
         df.insert(0, 'ticker', self.ticker)
         return df

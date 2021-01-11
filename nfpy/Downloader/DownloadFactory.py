@@ -188,6 +188,7 @@ class DownloadFactory(metaclass=Singleton):
 
             # If the last update check is passed go on with the update
             try:
+                print('{}: {} -> {}[{}]'.format(uid, ticker, provider, page_name))
                 page = self.create_page_obj(provider, page_name)
                 try:
                     kwargs = self._calc_default_input(provider, ticker, page.table)
