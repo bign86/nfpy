@@ -20,8 +20,10 @@ class IBProvider(BaseProvider):
     """ Class for the Interactive Brokers provider. """
 
     _PROVIDER = 'IB'
-    _PAGES = {"Financials": "IBFundamentals"}
-    _TABLES = {"Financials": "IBFinancials"}
+    _PAGES = {'Financials': ('IBFundamentals',
+                             'IBFinancials',
+                             'financials',
+                             'financials')}
     _Q_IMPORT_FINAN = """insert or replace into {dst} (uid, code, date, freq, value)
     select distinct '{uid}', ib.code, ib.date, ib.freq, ib.value from {src} as ib
     where ib.ticker = ?;"""
@@ -34,7 +36,7 @@ class IBProvider(BaseProvider):
         page = data['page']
         tck = data['ticker'].split('/')[0]
         uid = data['uid']
-        t_src = self._TABLES[page]
+        t_src = self._PAGES[page][1]
 
         if page == 'Financials':
             t_dst = self._af.get(data['uid']).constituents_table

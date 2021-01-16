@@ -21,10 +21,9 @@ class ECBProvider(BaseProvider):
     """ Class for the European Central Bank provider. """
 
     _PROVIDER = 'ECB'
-    _PAGES = {"Series": "ECBSeries"}
-    _TABLES = {"Series": "ECBSeries"}
+    _PAGES = {'Series': ('ECBSeries', 'ECBSeries', 'value', 'price')}
     _Q_IMPORT_PRICE = """insert or replace into {dst} (uid, dtype, date, value)
-    select '{uid}', '1', ecb.date, ecb.value from {src} as ecb where ecb.ticker = ?;"""
+select '{uid}', '1', ecb.date, ecb.value from {src} as ecb where ecb.ticker = ?;"""
 
     @staticmethod
     def create_input_dict(last_date: str) -> dict:
@@ -34,7 +33,7 @@ class ECBProvider(BaseProvider):
         page = data['page']
         uid = data['uid']
         tck = data['ticker']
-        t_src = self._TABLES[page]
+        t_src = self._PAGES[page][1]
 
         if page == 'Series':
             t_dst = self._af.get(uid).ts_table

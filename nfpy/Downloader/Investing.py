@@ -23,17 +23,26 @@ class InvestingProvider(BaseProvider):
 
     _PROVIDER = 'Investing'
     _PAGES = {
-        "HistoricalPrices": "InvestingHistoricalPrices",
-        "Dividends": "InvestingDividends",
-        "IncomeStatement": "InvestingIncomeStatement",
-        "BalanceSheet": "InvestingBalanceSheet",
-        "CashFlow": "InvestingCashFlow",
-    }
-    _TABLES = {
-        "HistoricalPrices": "InvestingPrices",
-        "IncomeStatement": "InvestingFinancials",
-        "BalanceSheet": "InvestingFinancials",
-        "CashFlow": "InvestingFinancials"
+        'HistoricalPrices': ('InvestingHistoricalPrices',
+                             'InvestingPrices',
+                             'price',
+                             'price'),
+        'Dividends': ('InvestingDividends',
+                      None,
+                      '',
+                      ''),
+        'IncomeStatement': ('InvestingIncomeStatement',
+                            'InvestingFinancials',
+                            'financials',
+                            'financials'),
+        'BalanceSheet': ('InvestingBalanceSheet',
+                         'InvestingFinancials',
+                         'financials',
+                         'financials'),
+        'CashFlow': ('InvestingCashFlow',
+                     'InvestingFinancials',
+                     'financials',
+                     'financials'),
     }
     _Q_IMPORT_PRICE = """insert or replace into {dst} (uid, dtype, date, value)
     select '{uid}', '1', ip.date, ip.price from {src} as ip where ip.ticker = ?;"""
@@ -46,15 +55,17 @@ class InvestingProvider(BaseProvider):
         return {"st_date": last_date, "end_date": today(fmt='%Y-%m-%d')}
 
     def get_import_data(self, data: dict) -> Sequence[Sequence]:
-        statements = {'IncomeStatement': 'INC', 'BalanceSheet': 'BAL', 'CashFlow': 'CAS'}
+        statements = {'IncomeStatement': 'INC', 'BalanceSheet': 'BAL',
+                      'CashFlow': 'CAS'}
         page = data['page']
         tck = data['ticker'].split('/')[0]
         uid = data['uid']
-        t_src = self._TABLES[page]
+        t_src = self._PAGES[page][1]
 
         if page == 'HistoricalPrices':
             t_dst = self._af.get(uid).ts_table
-            query = self._Q_IMPORT_PRICE.format(**{'dst': t_dst, 'src': t_src, 'uid': uid})
+            query = self._Q_IMPORT_PRICE.format(**{'dst': t_dst, 'src': t_src,
+                                                   'uid': uid})
             params = (tck,)
         elif page in ('IncomeStatement', 'BalanceSheet', 'CashFlow'):
             t_dst = self._af.get(uid).constituents_table
@@ -63,7 +74,8 @@ class InvestingProvider(BaseProvider):
                                                    'uid': uid})
             params = (tck, st)
         else:
-            raise ValueError('Page {} for provider Investing unrecognized'.format(page))
+            raise ValueError('Page {} for provider Investing unrecognized'
+                             .format(page))
 
         return query, params
 
@@ -174,8 +186,8 @@ class InvestingDividends(InvestingBasePage):
     _COLUMNS = InvestingSeriesConf
     _TABLE = ''
     _URL_SUFFIX = '/equities/MoreDividendsHistory'
-    _PARAMS = {"pairID": None, 'last_timestamp': None}
-    _MANDATORY = ["pairID", 'last_timestamp']
+    _PARAMS = {'pairID': None, 'last_timestamp': None}
+    _MANDATORY = ['pairID', 'last_timestamp']
 
     def _local_initializations(self):
         """ Local initializations for the single page. """

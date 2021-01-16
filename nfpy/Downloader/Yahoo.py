@@ -28,16 +28,23 @@ class YahooProvider(BaseProvider):
     """ Class for the Yahoo Finance provider. """
 
     _PROVIDER = 'Yahoo'
-    _PAGES = {"HistoricalPrices": "YahooPrices",
-              "Financials": "YahooFinancials",
-              "Dividends": "YahooDividends",
-              "Splits": "YahooSplits"
+    _PAGES = {'HistoricalPrices': ('YahooPrices',
+                                   'YahooPrices',
+                                   'close',
+                                   'price'),
+              'Financials': ('YahooFinancials',
+                             None,
+                             'financials',
+                             'financials'),
+              'Dividends': ('YahooDividends',
+                            'YahooEvents',
+                            'value',
+                            'dividend'),
+              'Splits': ('YahooSplits',
+                         'YahooEvents',
+                         'value',
+                         'split')
               }
-    _TABLES = {"HistoricalPrices": "YahooPrices",
-               "Financials": None,
-               "Dividends": "YahooEvents",
-               "Splits": "YahooEvents"
-               }
     _Q_IMPORT_PRICE = """insert or replace into {dst} (uid, dtype, date, value)
     select '{uid}', '1', yp.date, yp.close from {src} as yp where yp.ticker = ?;"""
     _Q_IMPORT_EVENT = """insert or replace into {dst} (uid, dtype, date, value)
@@ -53,7 +60,7 @@ class YahooProvider(BaseProvider):
         tck = data['ticker']
         uid = data['uid']
 
-        t_src = self._TABLES[page]
+        t_src = self._PAGES[page][1]
         t_dst = self._af.get(uid).ts_table
 
         if page == 'HistoricalPrices':

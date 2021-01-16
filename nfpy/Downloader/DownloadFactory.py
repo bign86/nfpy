@@ -42,9 +42,9 @@ class DownloadFactory(metaclass=Singleton):
         """ Return a list of _all_ available providers. """
         return list(self._PROVIDERS.keys())
 
-    def pages(self, provider: str) -> List:
-        """ Return a list of _all_ available pages for the given provider. """
-        return list(self._PROVIDERS[provider].pages)
+    # def pages(self, provider: str) -> List:
+    #     """ Return a list of _all_ available pages for the given provider. """
+    #     return list(self._PROVIDERS[provider].pages)
 
     @staticmethod
     def print_parameters(page_obj: BasePage) -> int:

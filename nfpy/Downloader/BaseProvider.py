@@ -23,7 +23,6 @@ class BaseProvider(metaclass=ABCMeta):
 
     _PROVIDER = ''
     _PAGES = {}
-    _TABLES = {}
     _FINANCIALS_MAP = []
 
     def __init__(self):
@@ -37,14 +36,15 @@ class BaseProvider(metaclass=ABCMeta):
     def pages(self):
         return self._PAGES.keys()
 
-    @property
-    def tables(self):
-        return self._TABLES.keys()
+    def pages_spec(self, v: str) -> tuple:
+        return self._PAGES[v]
 
     def create_page_obj(self, page: str) -> BasePage:
         if page not in self._PAGES:
-            raise ValueError("Page {} not available for {}".format(page, self._PROVIDER))
-        symbol = '.'.join(['nfpy.Downloader', self._PROVIDER, self._PAGES[page]])
+            raise ValueError("Page {} not available for {}"
+                             .format(page, self._PROVIDER))
+        symbol = '.'.join(['nfpy.Downloader', self._PROVIDER,
+                           self._PAGES[page][0]])
         class_ = Ut.import_symbol(symbol)
         return class_()
 
@@ -55,7 +55,6 @@ class BaseProvider(metaclass=ABCMeta):
                 data [dict]: data from the Imports table
         """
         query, params = self.get_import_data(data)
-        # print(query, params)
         # TODO: break the query in two parts and run data cleaning routines
         self._db.execute(query, params, commit=True)
 

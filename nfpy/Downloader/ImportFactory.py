@@ -29,8 +29,9 @@ class ImportFactory(metaclass=Singleton):
         self._qb = DB.get_qb_glob()
         self._imports_list = None
 
-    def imports_by_uid(self, uid: str = None, provider: str = None, page: str = None,
-                       ticker: str = None, active: bool = True) -> tuple:
+    def imports_by_uid(self, uid: str = None, provider: str = None,
+                       page: str = None, ticker: str = None,
+                       active: bool = True) -> tuple:
         """ Return all import entries by uid.
 
             Input:
@@ -45,22 +46,22 @@ class ImportFactory(metaclass=Singleton):
                 data [list]: list of tuples, each one a fetched row
         """
         fields = list(self._qb.get_fields(self._TABLE))
-        w_cond = 'active = 1' if active else ''
-        k_cond, params = [], ()
+        w = 'active = 1' if active else ''
+        k, params = [], ()
         if uid:
-            k_cond.append('uid')
+            k.append('uid')
             params += (uid, )
         if provider:
-            k_cond.append('provider')
+            k.append('provider')
             params += (provider, )
         if page:
-            k_cond.append('page')
+            k.append('page')
             params += (page, )
         if ticker:
-            k_cond.append('ticker')
+            k.append('ticker')
             params += (ticker, )
 
-        q_uid = self._qb.select(self._TABLE, fields=fields, keys=k_cond, where=w_cond)
+        q_uid = self._qb.select(self._TABLE, fields=fields, keys=k, where=w)
         res = self._db.execute(q_uid, params).fetchall()
         if not res:
             return fields, None
@@ -74,8 +75,9 @@ class ImportFactory(metaclass=Singleton):
             raise ValueError("Provider {} not recognized".format(data['provider']))
         self._PROVIDERS[data['provider']].do_import(data)
 
-    def bulk_import(self, uid: str = None, provider: str = None, page: str = None,
-                    ticker: str = None, override_active: bool = False):
+    def bulk_import(self, uid: str = None, provider: str = None,
+                    page: str = None, ticker: str = None,
+                    override_active: bool = False):
         """ Performs a bulk import of the system based on the 'auto' flag in the
             Imports table.
 
@@ -87,8 +89,10 @@ class ImportFactory(metaclass=Singleton):
                 override_active [bool]: disregard 'active' (default False)
         """
         active = not override_active
-        fields, import_list, num = self.imports_by_uid(provider=provider, page=page,
-                                                       uid=uid, ticker=ticker,
+        fields, import_list, num = self.imports_by_uid(provider=provider,
+                                                       page=page,
+                                                       uid=uid,
+                                                       ticker=ticker,
                                                        active=active)
         print('We are about to import {} items'.format(num))
 
