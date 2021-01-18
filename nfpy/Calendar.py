@@ -13,6 +13,7 @@ from typing import Union, Type, Sequence
 from pandas.tseries.offsets import Day, BDay, Week, MonthBegin, \
     QuarterEnd, BQuarterEnd, BusinessDay, YearEnd, BYearEnd
 
+from nfpy.Configuration import get_conf_glob
 from nfpy.Tools import Singleton
 
 _HOLYDAYS_MASK_ = ((1, 1), (5, 1), (6, 2), (8, 15), (12, 24), (12, 25), (12, 26))
@@ -21,21 +22,21 @@ _WEEKEND_MASK_STR_ = ('Sat', 'Sun')
 _WEEK_MASK_INT_ = (0, 1, 2, 3, 4)
 _WEEK_MASK_STR_ = ('Mon', 'Tue', 'Wen', 'Thu', 'Fri')
 
+_FREQ_LABELS = {'D': ('D', Day),
+                'B': ('B', BDay),
+                'W': ('W', Week),
+                'M': ('M', MonthBegin),
+                'Q': ('Q', QuarterEnd),
+                'BQ': ('BQ', BQuarterEnd),
+                'A': ('A', YearEnd),
+                'BA': ('BA', BYearEnd)}
+
 
 # Calendar class
 class Calendar(metaclass=Singleton):
     """ Universal calendar class to initialize dataframes. """
 
-    _FREQ_LABELS = {'D': ('B', BDay),
-                    'B': ('B', BDay),
-                    'W': ('W', Week),
-                    'M': ('M', MonthBegin),
-                    'Q': ('Q', QuarterEnd),
-                    'BQ': ('BQ', BQuarterEnd),
-                    'A': ('A', YearEnd),
-                    'BA': ('BA', BYearEnd)}
-
-    def __init__(self, freq='B'):
+    def __init__(self):
         """ Creates a new calendar with given frequency. """
         self._frequency = None
         self.fmt = None
@@ -44,9 +45,6 @@ class Calendar(metaclass=Singleton):
         self._t0 = None
         self._calendar = None
         self._initialized = False
-
-        # Check frequency errors and set
-        self.frequency = freq
 
     @property
     def calendar(self) -> pd.DatetimeIndex:
@@ -83,14 +81,6 @@ class Calendar(metaclass=Singleton):
     def frequency(self) -> str:
         return self._frequency
 
-    @frequency.setter
-    def frequency(self, freq: str):
-        f = freq.upper()
-        if f not in self._FREQ_LABELS:
-            raise RuntimeError("Frequency {} not supported!".format(f))
-        else:
-            self._frequency = self._FREQ_LABELS[f][0]
-
     @property
     def holidays(self) -> np.array:
         return calc_holidays(self.start, self.end)
@@ -104,7 +94,8 @@ class Calendar(metaclass=Singleton):
     def __contains__(self, dt: Union[str, pd.Timestamp]) -> bool:
         return dt in self._calendar
 
-    def initialize(self, end: Union[pd.Timestamp, str], start: Union[pd.Timestamp, str] = None,
+    def initialize(self, end: Union[pd.Timestamp, str],
+                   start: Union[pd.Timestamp, str] = None,
                    periods: int = None, fmt: str = '%Y-%m-%d'):
         if self._initialized:
             return
@@ -122,7 +113,7 @@ class Calendar(metaclass=Singleton):
         else:
             self._end = pd.to_datetime(end, format=fmt)
         if not start:
-            self._start = self.shift(self._end, periods, fwd=False)
+            self._start = self.shift(self._end, -periods)
         else:
             if isinstance(start, pd.Timestamp):
                 self._start = start
@@ -133,17 +124,19 @@ class Calendar(metaclass=Singleton):
             self._start, self._end = self._end, self._start
 
         # Get the calendar
-        if self._frequency == 'B':
+        freq = get_conf_glob().calendar_frequency
+        if freq == 'B':
             calcf = pd.bdate_range
             holidays = calc_holidays(self.start, self.end)
-            freq = 'C'
+            f = 'C'
         else:
             calcf = pd.date_range
             holidays = None
-            freq = self._frequency
+            f = freq
 
         self._calendar = calcf(start=self._start, end=self._end,
-                               freq=freq, normalize=True, holidays=holidays)
+                               freq=f, normalize=True, holidays=holidays)
+        self._frequency = freq
 
         offset = max(0, self._end.weekday() - 4)
         # offset = min(2, max(0, (self.end.weekday() + 6) % 7 - 3))
@@ -156,19 +149,34 @@ class Calendar(metaclass=Singleton):
 
     def get_offset(self, freq: str) -> Type[BusinessDay]:
         """ Get a DateOffset object dependent on the frequency """
-        return self._FREQ_LABELS[freq][1]
+        return _FREQ_LABELS[freq][1]
 
-    def shift(self, end: pd.Timestamp, n: int, freq: str = None,
-              fwd: bool = True) -> pd.Timestamp:
-        """ Shift the <end> date by <n> periods forward (fwd=True) or backwards (fwd=False). """
-        freq = self.frequency if freq is None else freq
-        periods = int(n) if fwd else -int(n)
-        offset = self._FREQ_LABELS[freq][1]
-        return end + offset(periods)
+    def shift(self, dt: pd.Timestamp, n: int, freq: str = None,
+              method: str = 'nearest') -> pd.Timestamp:
+        """ Shift the <end> date by <n> periods forward or backwards.
+
+            Input:
+                dt [pd.Timestamp]: initial date
+                n [int]: number of periods forward (if positive) or backwards
+                        (if negative)
+                freq [str]: frequency of the periods of the movement (defaults
+                        to the calendar frequency)
+                method [str]: method for finding the calendar date (default
+                        'nearest')
+
+            Output:
+                target [pd.Timestamp]: target calendar date
+        """
+        freq = self._frequency if freq is None else freq
+        offset = _FREQ_LABELS[freq][1]
+        shifted = dt + offset(int(n))
+        target = self._calendar.get_loc(shifted, method=method)
+        return self._calendar[target]
 
     def is_in_calendar(self, dt: Union[str, pd.Timestamp]) -> bool:
         """ Check whether the given date is part of the calendar """
-        warnings.warn("Deprecated! Please use the 'in' keyword directly!", DeprecationWarning)
+        warnings.warn("Deprecated! Please use the 'in' keyword directly!",
+                      DeprecationWarning)
         return self.__contains__(dt)
 
 
@@ -256,7 +264,8 @@ def last_business(offset: int = 1, mode: str = 'str', fmt: str = '%Y-%m-%d') \
     return lbd_
 
 
-def now(string: bool = True, fmt: str = '%Y-%m-%d %H:%M') -> Union[str, datetime.datetime]:
+def now(string: bool = True, fmt: str = '%Y-%m-%d %H:%M') \
+        -> Union[str, datetime.datetime]:
     """ Return a string with today date """
     now_ = datetime.datetime.now()
     if string:
@@ -280,6 +289,22 @@ def calc_holidays(start: pd.Timestamp, end: pd.Timestamp) -> np.array:
     return holidays
 
 
-def get_calendar_glob(freq: str = 'B') -> Calendar:
+def shift(dt: pd.Timestamp, n: int, freq: str) -> pd.Timestamp:
+    """ Shift the <dt> date by <n> periods forward or backwards.
+
+        Input:
+            dt [pd.Timestamp]: initial date
+            n [int]: number of periods forward (if positive) or backwards
+                    (if negative)
+            freq [str]: frequency of the periods of the movement
+
+        Output:
+            target [pd.Timestamp]: target calendar date
+    """
+    offset = _FREQ_LABELS[freq][1]
+    return dt + offset(int(n))
+
+
+def get_calendar_glob() -> Calendar:
     """ Returns the pointer to the global DB """
-    return Calendar(freq=freq)
+    return Calendar()
