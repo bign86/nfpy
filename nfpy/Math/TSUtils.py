@@ -182,6 +182,42 @@ def last_valid_value(v: np.ndarray, dt: np.ndarray, t0: np.datetime64) -> tuple:
     return float(v[idx]), idx
 
 
+def next_valid_index(v: np.ndarray, start: int = None) -> int:
+    """ Find the index of the next non-nan value.
+
+        Input:
+            v [np.ndarray]: input series
+            start [int]: starting index
+
+        Output:
+            i [int]: next valid index
+    """
+    i = start if start else 0
+    n = len(v)
+    while np.isnan(v[i]) and (i < n):
+        i += 1
+    if i == n:
+        raise ValueError('The series is all nans')
+    return i
+
+
+def next_valid_value(v: np.ndarray, dt: np.ndarray, t0: np.datetime64) -> tuple:
+    """ Find the next valid value at a date >= t0.
+
+        Input:
+            v [np.ndarray]: series of prices
+            dt [np.ndarray]: series of price dates
+            t0 [np.datetime64]: reference date
+
+        Output:
+            val [float]: value of the series at or after t0
+            idx [int]: corresponding index
+    """
+    pos = np.searchsorted(dt, t0, side='left')
+    idx = next_valid_index(v[pos:])
+    return float(v[pos+idx]), pos+idx
+
+
 def dropna(v: np.ndarray, axis: int = 0) -> tuple:
     """ Drop NA from 2D input array.
     """
