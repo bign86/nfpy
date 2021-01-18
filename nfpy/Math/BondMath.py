@@ -7,7 +7,8 @@ import numpy as np
 from scipy.optimize import newton
 from typing import Union
 
-from nfpy.Tools import (get_dt_glob, Constants as Cn, Exceptions as Ex)
+from nfpy.DatatypeFactory import get_dt_glob
+from nfpy.Tools import (Constants as Cn, Exceptions as Ex)
 
 from .DiscountFactor import dcf
 from .EquityMath import fv

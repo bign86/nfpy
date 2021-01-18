@@ -5,7 +5,7 @@
 
 from typing import Union
 
-from nfpy.Tools.DatatypeFactory import get_dt_glob
+from nfpy.DatatypeFactory import get_dt_glob
 import nfpy.DB as DB
 from nfpy.Tools import Exceptions as Ex
 

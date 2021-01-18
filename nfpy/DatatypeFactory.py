@@ -7,7 +7,7 @@ import warnings
 
 import nfpy.DB as DB
 
-from .Singleton import Singleton
+from nfpy.Tools.Singleton import Singleton
 
 
 class DatatypeFactory(metaclass=Singleton):

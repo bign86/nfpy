@@ -13,7 +13,8 @@ import requests
 import nfpy.DB as IO
 from nfpy.Calendar import now
 from nfpy.Configuration import get_conf_glob
-from nfpy.Tools import (get_dt_glob, Exceptions as Ex, Utilities as Ut)
+from nfpy.DatatypeFactory import get_dt_glob
+from nfpy.Tools import (Exceptions as Ex, Utilities as Ut)
 
 
 class BasePage(metaclass=ABCMeta):

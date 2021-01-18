@@ -7,7 +7,7 @@ from abc import ABCMeta, abstractmethod
 from typing import Sequence
 
 from nfpy.Assets import get_af_glob
-from nfpy.Tools.DatatypeFactory import get_dt_glob
+from nfpy.DatatypeFactory import get_dt_glob
 import nfpy.DB as DB
 from nfpy.Tools import Utilities as Ut
 
