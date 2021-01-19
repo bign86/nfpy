@@ -4,6 +4,7 @@
 #
 
 import pandas as pd
+from typing import TypeVar
 
 from nfpy.Calendar import get_calendar_glob
 
@@ -89,3 +90,6 @@ class AggregationMixin(object):
     def _write_cnsts(self):
         """ Save to the database the constituents. """
         raise NotImplementedError('To be implemented in child classes.')
+
+
+TyAggregation = TypeVar('TyAggregation', bound=AggregationMixin)

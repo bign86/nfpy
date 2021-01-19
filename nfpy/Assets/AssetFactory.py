@@ -6,6 +6,8 @@
 import nfpy.DB as DB
 from nfpy.Tools import (Singleton, Exceptions as Ex, Utilities as Ut)
 
+from .FinancialItem import TyFI
+
 
 class AssetFactory(metaclass=Singleton):
     """ Factory to create asset objects from their types """
@@ -22,7 +24,8 @@ class AssetFactory(metaclass=Singleton):
         q = self._qb.select(self._INFO_TABLE, fields=['uid', 'type'], keys=['uid'])
         res = self._db.execute(q, (uid,)).fetchone()
         if not res:
-            raise Ex.MissingData('{} not found in the asset types list!'.format(uid))
+            raise Ex.MissingData('{} not found in the asset types list!'
+                                 .format(uid))
 
         atype = res[1]
         symbol = '.'.join(['nfpy.Assets', atype, atype])
@@ -40,7 +43,7 @@ class AssetFactory(metaclass=Singleton):
         else:
             return True
 
-    def get(self, uid: str):
+    def get(self, uid: str) -> TyFI:
         """ Return the correct asset object given the uid. """
         try:
             asset = self._known_assets[uid]

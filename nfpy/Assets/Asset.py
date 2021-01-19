@@ -5,6 +5,7 @@
 
 import numpy as np
 import pandas as pd
+from typing import TypeVar
 
 from nfpy.Calendar import get_calendar_glob
 import nfpy.Math as Mat
@@ -72,8 +73,8 @@ class Asset(FinancialItem):
 
     @property
     def log_returns(self) -> pd.Series:
-        """ Returns the is_log returns for the asset. If not available calculates
-            them from prices.
+        """ Returns the is_log returns for the asset. If not available
+            calculates them from prices.
         """
         try:
             res = self._df["logReturn"]
@@ -124,8 +125,8 @@ class Asset(FinancialItem):
 
             Output:
                 The method returns no value but the fetched data are merged in
-                the main DataFrame accessible from the obj.data property. The new
-                series will have the same name as the datatype.
+                the main DataFrame accessible from the obj.data property. The
+                new series will have the same name as the datatype.
 
             Exceptions:
                 KeyError: if datatype is not recognized in the decoding table
@@ -137,7 +138,8 @@ class Asset(FinancialItem):
         # Take results and append to the unique dataframe indexed on the calendar
         q = self._qb.select(self.ts_table, fields=['date', 'value'],
                             rolling=self.ts_roll_key_list)
-        data = self._get_dati_for_query(self.ts_table, rolling=self.ts_roll_key_list)
+        data = self._get_dati_for_query(self.ts_table,
+                                        rolling=self.ts_roll_key_list)
         self.dtype = -1
 
         cal = get_calendar_glob()
@@ -146,7 +148,8 @@ class Asset(FinancialItem):
         conn = self._db.connection
         df = pd.read_sql_query(q, conn, index_col=['date'], params=data)
         if df.empty:
-            raise Ex.MissingData("{} {} not found in the database!".format(self.uid, dt))
+            raise Ex.MissingData("{} {} not found in the database!"
+                                 .format(self.uid, dt))
 
         df.index = pd.to_datetime(df.index)
         df.rename(columns={"value": str(dt)}, inplace=True)
@@ -272,3 +275,6 @@ class Asset(FinancialItem):
         p, dt = Mat.comp_ret(r.values, r.index.values, start=start,
                              end=end, base=base, is_log=is_log)
         return pd.Series(p, index=dt)
+
+
+TyAsset = TypeVar('TyAsset', bound=Asset)

@@ -3,7 +3,7 @@
 # Base class for financial items with biographical data
 #
 
-from typing import Union
+from typing import (Sequence, TypeVar)
 
 from nfpy.DatatypeFactory import get_dt_glob
 import nfpy.DB as DB
@@ -49,7 +49,7 @@ class FinancialItem(object):
         data = tuple(getattr(self, k) for k in keys)
         return data
 
-    def _fill_anag(self, res: Union[list, tuple], table: str, cols: list = None):
+    def _fill_anag(self, res: Sequence, table: str, cols: list = None):
         """ Cycle through all fields setting the properties
         
             Input:
@@ -59,8 +59,8 @@ class FinancialItem(object):
                              all table columns are assumed
 
             Exception:
-                AttributeError: if the attribute already exists. That may mean that
-                        a column name in the table is conflicting with the
+                AttributeError: if the attribute already exists. That may mean
+                        that a column name in the table is conflicting with the
                         object attributes.
 
             The method does not override primary keys for safetyness
@@ -105,3 +105,6 @@ class FinancialItem(object):
         data = tuple(getattr(self, c, None) for c in self._qb.get_fields(t))
         q = self._qb.insert(t)
         self._db.execute(q, data, commit=True)
+
+
+TyFI = TypeVar('TyFI', bound=FinancialItem)
