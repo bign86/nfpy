@@ -9,12 +9,17 @@ import warnings
 
 import numpy as np
 import pandas as pd
-from typing import Union, Type, Sequence
-from pandas.tseries.offsets import Day, BDay, Week, MonthBegin, \
-    QuarterEnd, BQuarterEnd, BusinessDay, YearEnd, BYearEnd
+import pandas.tseries.offsets as off
+from typing import (Union, Sequence, TypeVar)
 
 from nfpy.Configuration import get_conf_glob
 from nfpy.Tools import Singleton
+
+TyDate = TypeVar('TyDate',
+                 bound=Union[str, pd.Timestamp,
+                             datetime.datetime, np.datetime64])
+TyDateSequence = TypeVar('TyDateSequence',
+                         bound=Union[pd.DatetimeIndex, Sequence])
 
 _HOLYDAYS_MASK_ = ((1, 1), (5, 1), (6, 2), (8, 15), (12, 24), (12, 25), (12, 26))
 _WEEKEND_MASK_INT_ = (5, 6)
@@ -22,14 +27,14 @@ _WEEKEND_MASK_STR_ = ('Sat', 'Sun')
 _WEEK_MASK_INT_ = (0, 1, 2, 3, 4)
 _WEEK_MASK_STR_ = ('Mon', 'Tue', 'Wen', 'Thu', 'Fri')
 
-_FREQ_LABELS = {'D': ('D', Day),
-                'B': ('B', BDay),
-                'W': ('W', Week),
-                'M': ('M', MonthBegin),
-                'Q': ('Q', QuarterEnd),
-                'BQ': ('BQ', BQuarterEnd),
-                'A': ('A', YearEnd),
-                'BA': ('BA', BYearEnd)}
+_FREQ_LABELS = {'D': ('D', off.Day),
+                'B': ('B', off.BDay),
+                'W': ('W', off.Week),
+                'M': ('M', off.MonthBegin),
+                'Q': ('Q', off.QuarterEnd),
+                'BQ': ('BQ', off.BQuarterEnd),
+                'A': ('A', off.YearEnd),
+                'BA': ('BA', off.BYearEnd)}
 
 
 # Calendar class
@@ -140,16 +145,22 @@ class Calendar(metaclass=Singleton):
 
         offset = max(0, self._end.weekday() - 4)
         # offset = min(2, max(0, (self.end.weekday() + 6) % 7 - 3))
-        self._t0 = self.end - Day(offset)
+        self._t0 = self.end - off.Day(offset)
 
         print(' * Calendar dates: {} -> {} : {}'.format(self._start.date(),
                                                         self._end.date(),
                                                         self._t0.date()))
         self._initialized = True
 
-    def get_offset(self, freq: str) -> Type[BusinessDay]:
+    @staticmethod
+    def get_offset(freq: str) -> off.BusinessDay:
         """ Get a DateOffset object dependent on the frequency """
         return _FREQ_LABELS[freq][1]
+
+    def run_len(self, start: pd.Timestamp, end: pd.Timestamp) -> int:
+        s_idx = self._calendar.get_loc(start, method='nearest')
+        e_idx = self._calendar.get_loc(end, method='nearest')
+        return e_idx - s_idx
 
     def shift(self, dt: pd.Timestamp, n: int, freq: str = None,
               method: str = 'nearest') -> pd.Timestamp:
@@ -173,7 +184,7 @@ class Calendar(metaclass=Singleton):
         target = self._calendar.get_loc(shifted, method=method)
         return self._calendar[target]
 
-    def is_in_calendar(self, dt: Union[str, pd.Timestamp]) -> bool:
+    def is_in_calendar(self, dt: TyDate) -> bool:
         """ Check whether the given date is part of the calendar """
         warnings.warn("Deprecated! Please use the 'in' keyword directly!",
                       DeprecationWarning)
@@ -181,7 +192,7 @@ class Calendar(metaclass=Singleton):
 
 
 def date_str_2_dt(dt: Union[Sequence[str], str], fmt: str = '%Y-%m-%d') \
-        -> Union[Sequence, datetime.datetime]:
+        -> Union[TyDate, TyDateSequence]:
     warnings.warn("Deprecated! use date_2_datetime()!", DeprecationWarning)
     if isinstance(dt, str):
         return datetime.datetime.strptime(dt, fmt)
@@ -189,9 +200,8 @@ def date_str_2_dt(dt: Union[Sequence[str], str], fmt: str = '%Y-%m-%d') \
         return [datetime.datetime.strptime(d, fmt) for d in dt]
 
 
-def date_2_datetime(dt: Union[str, datetime.datetime, pd.Timestamp, Sequence],
-                    fmt: str = '%Y-%m-%d') \
-        -> Union[datetime.datetime, Sequence[datetime.datetime]]:
+def date_2_datetime(dt: Union[TyDate, TyDateSequence],
+                    fmt: str = '%Y-%m-%d') -> Union[TyDate, TyDateSequence]:
     if isinstance(dt, (list, tuple)):
         if isinstance(dt[0], str):
             dt = [datetime.datetime.strptime(d, fmt) for d in dt]
@@ -225,7 +235,7 @@ def today_(string: bool = True, fmt: str = '%Y-%m-%d') \
 
 
 def today(mode: str = 'str', fmt: str = '%Y-%m-%d') \
-        -> Union[str, datetime.datetime, pd.Timestamp]:
+        -> TyDate:
     """ Return a string with today date """
     t = datetime.date.today()
     if mode == 'str':
@@ -240,19 +250,19 @@ def today(mode: str = 'str', fmt: str = '%Y-%m-%d') \
 
 
 def last_business_(offset: int = 1, string: bool = True, fmt: str = '%Y-%m-%d') \
-        -> Union[str, datetime.date, pd.Timestamp]:
+        -> TyDate:
     """ Return the previous business day. """
     warnings.warn("Deprecated! Please use last_business()!", DeprecationWarning)
-    lbd_ = (datetime.datetime.today() - BDay(offset)).date()
+    lbd_ = (datetime.datetime.today() - off.BDay(offset)).date()
     if string:
         lbd_ = lbd_.strftime(fmt)
     return lbd_
 
 
 def last_business(offset: int = 1, mode: str = 'str', fmt: str = '%Y-%m-%d') \
-        -> Union[str, datetime.date, pd.Timestamp]:
+        -> TyDate:
     """ Return the previous business day. """
-    lbd_ = (datetime.datetime.today() - BDay(offset)).date()
+    lbd_ = (datetime.datetime.today() - off.BDay(offset)).date()
     if mode == 'str':
         lbd_ = lbd_.strftime(fmt)
     elif mode == 'timestamp':
@@ -265,7 +275,7 @@ def last_business(offset: int = 1, mode: str = 'str', fmt: str = '%Y-%m-%d') \
 
 
 def now(string: bool = True, fmt: str = '%Y-%m-%d %H:%M') \
-        -> Union[str, datetime.datetime]:
+        -> TyDate:
     """ Return a string with today date """
     now_ = datetime.datetime.now()
     if string:
