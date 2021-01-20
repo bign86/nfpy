@@ -5,8 +5,6 @@
 
 from abc import abstractmethod
 import codecs
-from collections import defaultdict
-import copy
 from io import StringIO
 import json
 import numpy as np
@@ -146,32 +144,19 @@ class YahooFinancials(YahooBasePage):
             raise RuntimeError('Data group not found in Yahoo financials for {}'
                                .format(self.ticker))
 
-        # Aggregated columns and main data structure
-        # Due to stupid Pandas error:
-        # NotImplementedError: > 1 ndim Categorical are not supported at this time
-        # we have to build a dictionary where to store the data
-        all_cols = [c for l in self._COLUMNS[1:] for c in l]
-        data_dict = defaultdict(list)
-        empty_list = [None] * len(all_cols)
+        rows = []
 
-        # Helper functions
-        def _new_data_set(_key):
-            if _key not in data_dict:
-                data_dict[_key] = copy.deepcopy(empty_list)
-
-        def _add_element(_key, _col, _value):
-            data_dict[_key][all_cols.index(_col)] = _value
-
-        def _extract_(_yearly, _quarterly):
-            for f, p in zip(['A', 'Q'], [_yearly, _quarterly]):
-                for item in p:
-                    _key = (item['endDate']['fmt'], f)
-                    _new_data_set(_key)
-                    for k, entry in item.items():
-                        if k in ('endDate', 'maxAge'):
-                            continue
-                        if entry:
-                            _add_element(_key, k, entry.get('raw'))
+        # Helper function
+        def _extract_(_p, _map, _data):
+            for _item in _data:
+                _dt = _item['endDate']['fmt']
+                for _field, _entry in _item.items():
+                    if _field in ('endDate', 'maxAge'):
+                        continue
+                    if _entry:
+                        # _row = _p + (_dt, _map[_field], _entry.get('raw'))
+                        _row = _p + (_dt, _field, _entry.get('raw'))
+                        rows.append(_row)
 
         # ------------------------------
         #          EARNINGS
@@ -186,36 +171,41 @@ class YahooFinancials(YahooBasePage):
         #    _add_element(key, 'earningsEstimate', item['estimate'].get('raw'))
 
         # INCOME STATEMENT
+        hash_map = YahooFinancialsConf['INC']
+
         yearly = data['incomeStatementHistory']['incomeStatementHistory']
+        p = (self._ticker, 'A', self._curr, 'INC')
+        _extract_(p, hash_map, yearly)
+
         quarterly = data['incomeStatementHistoryQuarterly']['incomeStatementHistory']
-        _extract_(yearly, quarterly)
+        p = (self._ticker, 'Q', self._curr, 'INC')
+        _extract_(p, hash_map, quarterly)
 
         # BALANCE SHEET
+        hash_map = YahooFinancialsConf['BAL']
+
         yearly = data['balanceSheetHistory']['balanceSheetStatements']
+        p = (self._ticker, 'A', self._curr, 'BAL')
+        _extract_(p, hash_map, yearly)
+
         quarterly = data['balanceSheetHistoryQuarterly']['balanceSheetStatements']
-        _extract_(yearly, quarterly)
+        p = (self._ticker, 'Q', self._curr, 'BAL')
+        _extract_(p, hash_map, quarterly)
 
         # CASH FLOW
+        hash_map = YahooFinancialsConf['CAS']
+
         yearly = data['cashflowStatementHistory']['cashflowStatements']
+        p = (self._ticker, 'A', self._curr, 'CAS')
+        _extract_(p, hash_map, yearly)
+
         quarterly = data['cashflowStatementHistoryQuarterly']['cashflowStatements']
-        _extract_(yearly, quarterly)
+        p = (self._ticker, 'Q', self._curr, 'CAS')
+        _extract_(p, hash_map, quarterly)
 
-        # AGGREGATION
-        final_data = {}
-        i = 0
-        for key, value in data_dict.items():
-            d = [key[0], key[1]]
-            d.extend(value)
-            final_data[i] = d
-            i = i + 1
-
-        # Add first columns and replace second instance of 'netIncome'
-        final_cols = self._COLUMNS[0] + all_cols
-        occurrences = [i for i, n in enumerate(final_cols) if n == 'netIncome']
-        if len(occurrences) > 1:
-            final_cols[occurrences[1]] = 'CFnetIncome'
-        df = pd.DataFrame.from_dict(final_data, orient='index', columns=final_cols)
-        df.insert(0, 'ticker', self.ticker)
+        # Create dataframe
+        cols = ['ticker', 'freq', 'currency', 'statement', 'date', 'code', 'value']
+        df = pd.DataFrame.from_records(rows, columns=cols)
 
         # I want a cleaner version of the _robj for backup purposes
         self._robj = json_string
@@ -259,12 +249,12 @@ class YahooHistoricalBasePage(YahooBasePage):
                        'crumb': crumb, 'events': self.event}
 
     def _parse_csv(self) -> pd.DataFrame:
-        # TODO check that columns in the file are correct
         names = self._COLUMNS
         data = StringIO(self._robj.text)
         df = pd.read_csv(data, sep=',', header=None, names=names, skiprows=1)
 
-        # When downloading prices the oldest row is often made of nulls, this is to remove it
+        # When downloading prices the oldest row is often made of nulls,
+        # this is to remove it
         df.replace(to_replace='null', value=np.nan, inplace=True)
         df.dropna(subset=names[1:], inplace=True)
         df.insert(0, 'ticker', self.ticker)

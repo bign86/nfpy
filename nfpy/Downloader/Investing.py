@@ -10,6 +10,7 @@ from typing import Sequence
 from random import randint
 
 from nfpy.Calendar import today
+from nfpy.DatatypeFactory import get_dt_glob
 from nfpy.Tools import Exceptions as Ex
 
 from .BaseDownloader import BasePage
@@ -28,9 +29,9 @@ class InvestingProvider(BaseProvider):
                              'price',
                              'price'),
         'Dividends': ('InvestingDividends',
-                      None,
                       '',
-                      ''),
+                      'dividend',
+                      'dividend'),
         'IncomeStatement': ('InvestingIncomeStatement',
                             'InvestingFinancials',
                             'financials',
@@ -52,7 +53,9 @@ class InvestingProvider(BaseProvider):
 
     @staticmethod
     def create_input_dict(last_date: str) -> dict:
-        return {"st_date": last_date, "end_date": today(fmt='%Y-%m-%d')}
+        td = today(mode='datetime')
+        return {"st_date": last_date, "end_date": td.strftime('%Y-%m-%d'),
+                "last_timestamp": td.strftime('%s')}
 
     def get_import_data(self, data: dict) -> Sequence[Sequence]:
         statements = {'IncomeStatement': 'INC', 'BalanceSheet': 'BAL',
@@ -184,15 +187,15 @@ class InvestingHistoricalPrices(InvestingBasePage):
 class InvestingDividends(InvestingBasePage):
     _PAGE = 'Dividends'
     _COLUMNS = InvestingSeriesConf
-    _TABLE = ''
+    _TABLE = 'InvestingEvents'
     _URL_SUFFIX = '/equities/MoreDividendsHistory'
     _PARAMS = {'pairID': None, 'last_timestamp': None}
     _MANDATORY = ['pairID', 'last_timestamp']
 
     def _local_initializations(self):
         """ Local initializations for the single page. """
-
-        self.params = {'pairID': self.ticker, 'last_timestamp': '1286908800'}
+        tm = self.params['last_timestamp']
+        self.params = {'pairID': self.ticker, 'last_timestamp': tm}
 
     def _parse(self):
         if self._robj.text == '':
@@ -201,12 +204,16 @@ class InvestingDividends(InvestingBasePage):
         j = json.loads(self._robj.text)
         soup = BeautifulSoup(j['historyRows'], "html.parser")
         td_list = soup.select('tr > td')
-        td_dates = [pd.to_datetime(v['data-value'], unit='s').strftime('%Y-%m-%d')
-                    for v in td_list[::5]]
+        td_dates = [pd.to_datetime(v['data-value'], unit='s')
+                        .strftime('%Y-%m-%d') for v in td_list[::5]]
         td_values = [float(v.text) for v in td_list[1::5]]
         data = list(zip(td_dates, td_values))
+
         df = pd.DataFrame(data, columns=['date', 'value'])
         df.insert(0, 'ticker', self.ticker)
+
+        code = get_dt_glob().get('dividend')
+        df.insert(2, 'dtype', code)
         self._res = df
 
 
