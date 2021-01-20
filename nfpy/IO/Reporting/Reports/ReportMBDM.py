@@ -30,7 +30,7 @@ class ReportMBDM(ReportMADM):
             w = self._p['w_plot_fast']
         except KeyError:
             w = 120
-        start = get_calendar_glob().shift(res.date, w, 'D', fwd=False)
+        start = get_calendar_glob().shift(res.date, -w, 'D').asm8
         p = res.prices
         y = res.yields
 

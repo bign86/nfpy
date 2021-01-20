@@ -28,17 +28,16 @@ class ReportMEDM(ReportMADM):
         res.img_performance = fig_rel_name[2]
         res.img_beta = fig_rel_name[3]
 
-        p = res.prices
-
         # Slow plot
         start = get_calendar_glob().start.asm8
+        p = res.prices
 
         div_pl = IO.PlotTS()
         div_pl.add(p)
         div_pl.add(res.ma_slow, color='C2', linewidth=1.5,
                    linestyle='--', label='MA {}'.format(res.w_slow))
-        div_pl.line('h', res.sr_slow, (start, res.date.asm8), color='b',
-                    linewidth=.5, linestyles='-')
+        div_pl.line('h', res.sr_slow, (start, res.date.asm8),
+                    color='dimgray', linewidth=1.)
 
         div_pl.plot()
         div_pl.save(fig_full_name[0])
@@ -49,16 +48,22 @@ class ReportMEDM(ReportMADM):
             w = self._p['w_plot_fast']
         except KeyError:
             w = 120
-        start = get_calendar_glob().shift(res.date, w, 'D', fwd=False).asm8
+        start = get_calendar_glob().shift(res.date, -w, 'D').asm8
+        p = p.loc[start:]
 
         div_pl = IO.PlotTS()
-        div_pl.add(p.loc[start:])
+        div_pl.add(p)
         div_pl.add(res.ma_fast[start:], color='C1', linewidth=1.5,
                    linestyle='--', label='MA {}'.format(res.w_fast))
         div_pl.add(res.ma_slow[start:], color='C2', linewidth=1.5,
                    linestyle='--', label='MA {}'.format(res.w_slow))
-        div_pl.line('h', res.sr_fast, (start, res.date.asm8), color='k',
-                    linewidth=.5, linestyles='--')
+        div_pl.line('h', res.sr_fast, (start, res.date.asm8),
+                    color='sandybrown', linewidth=1.)
+
+        f_min, f_max = p.min() * .9, p.max() * 1.1
+        sr_slow = res.sr_slow[(res.sr_slow > f_min) & (res.sr_slow < f_max)]
+        div_pl.line('h', sr_slow, (start, res.date.asm8),
+                    color='dimgray', linewidth=1.)
 
         div_pl.plot()
         div_pl.save(fig_full_name[1])
@@ -72,7 +77,7 @@ class ReportMEDM(ReportMADM):
         div_pl.save(fig_full_name[2])
 
         # Beta plot
-        start = cal.shift(res.date, Cn.DAYS_IN_1Y, 'D', fwd=False)
+        start = cal.shift(res.date, -Cn.DAYS_IN_1Y, 'D')
         r = res.returns.loc[start:]
         ir = res.index_returns.loc[start:]
         beta = res.beta_params

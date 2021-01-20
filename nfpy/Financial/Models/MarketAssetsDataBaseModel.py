@@ -81,14 +81,26 @@ class MarketAssetsDataBaseModel(object):
         length = len(self._time_spans)
 
         stats = np.empty((3, length))
+
+        v, dt = asset.prices.values, asset.prices.index.values
+        last_price = self._dt['last_price']
+        last_price_date = self._dt['last_price_date']
+
         for i in range(length):
             n = self._time_spans[i]
-            start = self._cal.shift(t0, n, 'D', fwd=False)
+            start = self._cal.shift(t0, -n, 'D')
+            real_n = self._cal.run_len(start, last_price_date)
             stats[0, i] = asset.return_volatility(start, t0)
+
             mean_ret = asset.expct_return(start, t0)
-            stats[1, i] = Mat.compound(mean_ret, Cn.BDAYS_IN_1Y / n)
-            total_ret = asset.total_return(start, t0)
-            stats[2, i] = Mat.compound(total_ret, Cn.BDAYS_IN_1Y / n)
+            stats[1, i] = Mat.compound(mean_ret, Cn.BDAYS_IN_1Y / real_n)
+
+            # From timing results this solution (combined with obtaining p_t0
+            # above) is between 1.5 and 3.1 times faster than using
+            # Asset.total_return()
+            p_start = Mat.next_valid_value(v, dt, start.asm8)[0]
+            total_ret = last_price/p_start - 1.
+            stats[2, i] = Mat.compound(total_ret, Cn.BDAYS_IN_1Y / real_n)
 
         calc = ['volatility', 'mean return', 'tot. return']
         self._res_update(stats=pd.DataFrame(stats, index=calc,
