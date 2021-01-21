@@ -4,7 +4,6 @@
 # perform single downloads.
 #
 
-import datetime
 from requests import RequestException
 from typing import List
 
@@ -31,7 +30,6 @@ class DownloadFactory(metaclass=Singleton):
                   "Investing": InvestingProvider(),
                   "IB": IBProvider()
                   }
-    _Q_MAX_DATE = "select max(date) from {} where ticker = ?"
 
     def __init__(self):
         self._db = DB.get_db_glob()
@@ -41,10 +39,6 @@ class DownloadFactory(metaclass=Singleton):
     def providers(self) -> List:
         """ Return a list of _all_ available providers. """
         return list(self._PROVIDERS.keys())
-
-    # def pages(self, provider: str) -> List:
-    #     """ Return a list of _all_ available pages for the given provider. """
-    #     return list(self._PROVIDERS[provider].pages)
 
     @staticmethod
     def print_parameters(page_obj: BasePage) -> int:
@@ -109,43 +103,22 @@ class DownloadFactory(metaclass=Singleton):
         self._downloads_list = res
         return fields, res, len(res)
 
-    def _calc_default_input(self, prov: str, ticker: str, table: str) -> dict:
-        """ Calculates the default input for downloading for the given ticket
-            and the given table.
-
-            Input:
-                ticker [str]: ticker to be downloaded
-                table [str]: destination table
-
-            Output:
-                input [dict]: dictionary of the input
-        """
-        # search for the last available date in DB
-        q = self._Q_MAX_DATE.format(table)
-        last_date = self._db.execute(q, (ticker,)).fetchone()
-        last_date = last_date[0] if last_date[0] is not None else '1990-01-01'
-
-        # If last available data is yesterday skip downloading
-        last_dt = datetime.datetime.strptime(last_date, '%Y-%m-%d').date()
-        if last_dt >= Cal.last_business(mode='datetime'):
-            raise RuntimeError('Already updated')
-
-        return self._PROVIDERS[prov].create_input_dict(last_date)
-
-    def create_page_obj(self, provider: str, page: str) -> BasePage:
+    def create_page_obj(self, provider: str, page: str, ticker: str) -> BasePage:
         """ Return an un-initialized page object of the correct type.
 
             Input:
                 provider [str]: provider to download from
                 page [str]: data type searched
+                ticker [str]: ticker to download
 
             Output:
                 obj [BasePage]: page object to download with
         """
-        if provider not in self._PROVIDERS:
+        try:
+            prov = self._PROVIDERS[provider]
+        except KeyError as ex:
             raise ValueError("Provider {} not recognized".format(provider))
-
-        return self._PROVIDERS[provider].create_page_obj(page)
+        return prov.create_page_obj(page, ticker)
 
     def bulk_download(self, do_save: bool = True, override_date: bool = False,
                       uid: str = None, provider: str = None, page: str = None,
@@ -182,21 +155,15 @@ class DownloadFactory(metaclass=Singleton):
                 last_upd = Cal.date_2_datetime(last_upd_str)
                 delta_days = (today_dt - last_upd).days
                 if delta_days < int(upd_freq):
-                    print('[{}: {}] -> {} not updated since last update {} days ago'
+                    print('[{}: {}] -> {} updated {} days ago'
                           .format(provider, page_name, ticker, delta_days))
                     continue
 
             # If the last update check is passed go on with the update
             try:
                 print('{}: {} -> {}[{}]'.format(uid, ticker, provider, page_name))
-                page = self.create_page_obj(provider, page_name)
-                try:
-                    kwargs = self._calc_default_input(provider, ticker, page.table)
-                except RuntimeError as e:
-                    print(e)
-                    continue
-                page.initialize({'ticker': ticker, 'currency': currency},
-                                None, kwargs)
+                page = self.create_page_obj(provider, page_name, ticker)
+                page.initialize(currency=currency)
 
                 # Perform download and save results
                 try:

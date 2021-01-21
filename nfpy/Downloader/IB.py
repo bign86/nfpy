@@ -28,10 +28,6 @@ class IBProvider(BaseProvider):
     select distinct '{uid}', ib.code, ib.date, ib.freq, ib.value from {src} as ib
     where ib.ticker = ?;"""
 
-    @staticmethod
-    def create_input_dict(last_date: str) -> dict:
-        return {}
-
     def get_import_data(self, data: dict) -> Sequence[Sequence]:
         page = data['page']
         tck = data['ticker'].split('/')[0]
@@ -59,8 +55,8 @@ class IBBasePage(BasePage):
     _PROVIDER = 'IB'
     _SLEEP_TIME = 5
 
-    def __init__(self, p: Dict = None):
-        super().__init__(p)
+    def __init__(self, ticker: str):
+        super().__init__(ticker)
         self._conf = get_conf_glob()
         self._app = None
 
@@ -68,6 +64,9 @@ class IBBasePage(BasePage):
     def baseurl(self) -> str:
         """ Return the base url for the page. """
         return ''  # self._BASE_URL + self._URL_SUFFIX
+
+    def _set_default_params(self) -> None:
+        pass
 
     def _download(self):
         """ Run the app instead of downloading. """
@@ -84,7 +83,7 @@ class IBFundamentals(IBBasePage):
     _COLUMNS = IBFundamentalsConf
     _TABLE = 'IBFinancials'
 
-    def _local_initializations(self):
+    def _local_initializations(self, params: dict):
         """ Local initializations for the single page. """
         tck = self.ticker.split('/')
         self._app = IBAppFundamentals()

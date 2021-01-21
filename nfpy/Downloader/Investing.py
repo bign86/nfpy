@@ -51,12 +51,6 @@ class InvestingProvider(BaseProvider):
     select distinct '{uid}', if.code, if.date, if.freq, if.value from {src} as if
     where if.ticker = ? and if.statement = ?;"""
 
-    @staticmethod
-    def create_input_dict(last_date: str) -> dict:
-        td = today(mode='datetime')
-        return {"st_date": last_date, "end_date": td.strftime('%Y-%m-%d'),
-                "last_timestamp": td.strftime('%s')}
-
     def get_import_data(self, data: dict) -> Sequence[Sequence]:
         statements = {'IncomeStatement': 'INC', 'BalanceSheet': 'BAL',
                       'CashFlow': 'CAS'}
@@ -106,7 +100,7 @@ class InvestingBasePage(BasePage):
         """ Return the base url for the page. """
         return self._BASE_URL + self._URL_SUFFIX
 
-    def _local_initializations(self):
+    def _local_initializations(self, params: dict):
         """ Local initializations for the single page. """
         pass
 
@@ -125,29 +119,39 @@ class InvestingHistoricalPrices(InvestingBasePage):
     _COLUMNS = InvestingSeriesConf
     _TABLE = 'InvestingPrices'
     _URL_SUFFIX = '/instruments/HistoricalDataAjax'
-    _PARAMS = {"curr_id": None, "smlID": None, "interval_sec": "Daily",
-               "st_date": None, "end_date": None,
+    _PARAMS = {"curr_id": None,
+               "smlID": None,
+               "interval_sec": "Daily",
+               "st_date": None,
+               "end_date": None,
                "sort_col": "date",
-               "sort_ord": "ASC", "action": "historical_data"}
-    _MANDATORY = ["curr_id"]
+               "sort_ord": "ASC",
+               "action": "historical_data"}
+    _MANDATORY = ("curr_id",)
 
-    def _local_initializations(self):
+    def _set_default_params(self) -> None:
+        self._p = self._PARAMS
+        ld = self._fetch_last_data_point()
+        self._p.update({
+            'curr_id': self.ticker,
+            'smlID': str(randint(1000000, 99999999)),
+            'st_date': pd.to_datetime(ld).timestamp(),
+            'end_date': today(fmt='%s')
+        })
+
+    def _local_initializations(self, params: dict):
         """ Local initializations for the single page. """
-        s = self.params.get('st_date', None)
-        e = self.params.get('end_date', None)
-        try:
-            if s:
-                s = pd.to_datetime(s).strftime('%m/%d/%Y')
-            if e:
-                e = pd.to_datetime(e).strftime('%m/%d/%Y')
-        except Exception as ex:
-            print(ex)
-            raise RuntimeError(
-                "Error in handling time periods in Investing historical prices download")
-
-        rand_id = str(randint(1000000, 99999999))
-        self.params = {'curr_id': self.ticker, 'smlID': rand_id,
-                       'st_date': s, 'end_date': e}
+        for p in ['st_date', 'end_date']:
+            try:
+                d = params[p]
+                params[p] = pd.to_datetime(d).strftime('%m/%d/%Y')
+            except KeyError:
+                continue
+            except Exception as ex:
+                print(ex)
+                raise RuntimeError("Error in '{}' in Investing historical prices download"
+                                   .format(p))
+        self.params = params
 
     def _parse(self):
         """ Parse the fetched object. """
@@ -158,7 +162,6 @@ class InvestingHistoricalPrices(InvestingBasePage):
             raise RuntimeError('Results table not found in downloaded data')
 
         d = t.find('tbody')
-        # print(d)
         for tr in d.findAll('tr'):
             row = [None] * 6
             i = 0
@@ -190,12 +193,14 @@ class InvestingDividends(InvestingBasePage):
     _TABLE = 'InvestingEvents'
     _URL_SUFFIX = '/equities/MoreDividendsHistory'
     _PARAMS = {'pairID': None, 'last_timestamp': None}
-    _MANDATORY = ['pairID', 'last_timestamp']
+    _MANDATORY = ('pairID', 'last_timestamp')
 
-    def _local_initializations(self):
-        """ Local initializations for the single page. """
-        tm = self.params['last_timestamp']
-        self.params = {'pairID': self.ticker, 'last_timestamp': tm}
+    def _set_default_params(self) -> None:
+        self._p = self._PARAMS
+        self._p.update({
+            'pairID': self.ticker,
+            'last_timestamp': today(fmt='%s')
+        })
 
     def _parse(self):
         if self._robj.text == '':
@@ -219,18 +224,20 @@ class InvestingDividends(InvestingBasePage):
 
 class InvestingFinancialsBasePage(InvestingBasePage):
     _URL_SUFFIX = '/instruments/Financials/changereporttypeajax?'
-    _PARAMS = {"pair_ID": None, 'action': 'change_report_type',
+    _PARAMS = {'pair_ID': None, 'action': 'change_report_type',
                'report_type': None, 'period_type': None}
-    _MANDATORY = ["pair_ID", "period_type"]
+    _MANDATORY = ("pair_ID", "period_type")
     _TABLE = 'InvestingFinancials'
     _USE_UPSERT = True
     _REPORT_TYPE = ''
 
-    def _local_initializations(self):
-        """ Local initializations for the single page. """
-        p = self.ticker.split('/')
-        self.params = {'pair_ID': p[0], 'period_type': p[1],
-                       'report_type': self._REPORT_TYPE}
+    def _set_default_params(self) -> None:
+        self._p = self._PARAMS
+
+        tck = self.ticker.split('/')
+        self._p.update({'pair_ID': tck[0],
+                        'period_type': tck[1],
+                        'report_type': self._REPORT_TYPE})
 
     def _parse(self):
         """ Parse the fetched object. """

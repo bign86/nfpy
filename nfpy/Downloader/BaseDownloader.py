@@ -24,7 +24,7 @@ class BasePage(metaclass=ABCMeta):
     """
 
     _PARAMS = {}
-    _MANDATORY = []
+    _MANDATORY = ()
     _PROVIDER = ''
     _PAGE = ''
     _TABLE = ''
@@ -34,13 +34,15 @@ class BasePage(metaclass=ABCMeta):
     _REQ_METHOD = ''
     _USE_UPSERT = False
     _HEADER = {}
+    _Q_MAX_DATE = "select max(date) from {} where ticker = ?"
 
-    def __init__(self, p: Dict = None):
+    def __init__(self, ticker: str):
         self._db = IO.get_db_glob()
         self._qb = IO.get_qb_glob()
         self._dt = get_dt_glob()
-        self._p = self._PARAMS
-        self._ticker = None
+        self._ticker = ticker
+
+        self._p = None
         self._robj = None
         self._res = None
         self._jar = None
@@ -48,8 +50,7 @@ class BasePage(metaclass=ABCMeta):
         self._fname = None
         self._is_initialized = False
 
-        if p:
-            self.params = p
+        self._set_default_params()
 
     @property
     def ticker(self) -> str:
@@ -60,6 +61,17 @@ class BasePage(metaclass=ABCMeta):
     @property
     def params(self) -> Dict[str, Union[str, int]]:
         return self._p
+
+    @params.setter
+    def params(self, v: Dict[str, Union[str, int]]) -> None:
+        """ Filter out unwanted parameters, update the dictionary, downloaded
+            page is deleted to allow for a new download.
+        """
+        to_delete_ = set(v.keys()) - set(self._p.keys())
+        for k in to_delete_:
+            v.pop(k, None)
+        self._p.update(v)
+        self._robj = None
 
     @property
     def provider(self) -> str:
@@ -77,17 +89,6 @@ class BasePage(metaclass=ABCMeta):
     def user_agent(self) -> str:
         # return 'Mozilla/5.0 (X11; Linux x86_64; rv:61.0) Gecko/20100101 Firefox/61.0'
         return 'Mozilla/5.0 (X11; Linux x86_64; rv:67.0) Gecko/20100101 Firefox/67.0'
-
-    @params.setter
-    def params(self, v: Dict[str, Union[str, int]]):
-        """ Filter out unwanted parameters, update the dictionary, downloaded
-            page is deleted to allow for a new download.
-        """
-        to_delete_ = set(v.keys()) - set(self._p.keys())
-        for k in to_delete_:
-            v.pop(k, None)
-        self._p.update(v)
-        self._robj = None
 
     @property
     def req_method(self) -> str:
@@ -109,7 +110,7 @@ class BasePage(metaclass=ABCMeta):
     def use_upsert(self) -> bool:
         return self._USE_UPSERT
 
-    def _check_params(self):
+    def _check_params(self) -> None:
         _l = []
         for p in self._MANDATORY:
             if (p not in self._p) or (self._p[p] is None):
@@ -118,7 +119,7 @@ class BasePage(metaclass=ABCMeta):
         if _l:
             raise Ex.IsNoneError("The following parameters are required: {}".format(', '.join(_l)))
 
-    def save(self, backup: bool = False, fname: str = None):
+    def save(self, backup: bool = False, fname: str = None) -> None:
         """ Save the downloaded page in the DB and on a file.
 
             Input:
@@ -132,13 +133,13 @@ class BasePage(metaclass=ABCMeta):
             self._write_to_file(fname)
         self._write_to_db()
 
-    def initialize(self, asset: dict, fname: Union[str, Path] = None,
-                   params: dict = None):
+    def initialize(self, currency: str = None, fname: Union[str, Path] = None,
+                   params: dict = {}) -> None:
         """ Parameters are checked before download, encoding is set, parsed
             object is deleted if present.
 
             Input:
-                asset [dict]: asset data
+                currency [str]: currency of the download
                 fname [Union[str, Path]]: file name to load
                 params [dict]: dictionary of parameters to update
 
@@ -148,17 +149,15 @@ class BasePage(metaclass=ABCMeta):
         if self._is_initialized is True:
             return
 
-        if params:
-            self.params = params
-        self._ticker = asset['ticker']
-        self._curr = asset['currency']
+        self._curr = currency
         if fname is not None:
             self._fname = fname
         else:
-            self._local_initializations()
+            self._local_initializations(params)
+        
         self._is_initialized = True
 
-    def fetch(self):
+    def fetch(self) -> None:
         """ Either download from internet or from a local file the data.
 
             Errors:
@@ -174,7 +173,7 @@ class BasePage(metaclass=ABCMeta):
             self._download()
         self._res = None
 
-    def _load_file(self):
+    def _load_file(self) -> None:
         """ Load a file to be parsed. """
         if self._fname is None:
             raise ValueError("File to load not specified!")
@@ -183,7 +182,7 @@ class BasePage(metaclass=ABCMeta):
         r.encoding = self._ENCODING
         self._robj = r
 
-    def _download(self):
+    def _download(self) -> None:
         """ Fetch from the remote url the page data. The object must be initialized
             first. If not initialized a RuntimeError exception is thrown.
 
@@ -216,11 +215,11 @@ class BasePage(metaclass=ABCMeta):
             self._jar = r.cookies
             self._robj = r
         else:
-            raise RuntimeWarning("Error {} in downloading the page {} because of\n{}"
-                                 .format(r.status_code, self.__class__.__name__,
-                                         r.reason))
+            raise RuntimeWarning("Error in downloading the page {}: {} @ {}"
+                                 .format(self.__class__.__name__,
+                                         r.status_code, r.reason))
 
-    def _write_to_file(self, fname: str = None):
+    def _write_to_file(self, fname: str = None) -> None:
         """ Write to a text file. """
         if not fname:
             now_ = now(string=True, fmt='%Y%m%d_%H%M')
@@ -232,7 +231,7 @@ class BasePage(metaclass=ABCMeta):
         with fd.open(mode='w') as f:
             f.write(self._robj.text)
 
-    def _write_to_db(self):
+    def _write_to_db(self) -> None:
         """ Write to the database table. """
         # Get all fields and data
         fields_all = self._res.columns.values.tolist()
@@ -254,7 +253,7 @@ class BasePage(metaclass=ABCMeta):
             q_ins = self._qb.merge(self._TABLE, ins_fields=fields_all)
             self._db.executemany(q_ins, data_all, commit=True)
 
-    def printout(self):
+    def printout(self) -> None:
         """ Print out the results of the fetched object. """
         if not self.is_downloaded:
             raise RuntimeError("Nothing to save")
@@ -265,15 +264,27 @@ class BasePage(metaclass=ABCMeta):
                                'display.width', 10000):
             print(repr(self._res))
 
+    def _fetch_last_data_point(self) -> dict:
+        """ Calculates the last available data point in the database for
+            incremental downloads.
+        """
+        q = self._Q_MAX_DATE.format(self._TABLE)
+        last_date = self._db.execute(q, (self.ticker,)).fetchone()
+        return last_date[0] if last_date[0] else '1990-01-01'
+
+    @abstractmethod
+    def _set_default_params(self) -> None:
+        """ Set the starting default of the parameters for the page. """
+
     @property
     @abstractmethod
     def baseurl(self) -> str:
         """ Return the base url for the page. """
 
     @abstractmethod
-    def _local_initializations(self):
-        """ Local initializations for the single page. """
+    def _local_initializations(self, params: Dict) -> None:
+        """ Page-dependent initializations of parameters. """
 
     @abstractmethod
-    def _parse(self):
+    def _parse(self) -> None:
         """ Parse the fetched object. """

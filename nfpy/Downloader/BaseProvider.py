@@ -7,8 +7,8 @@ from abc import ABCMeta, abstractmethod
 from typing import Sequence
 
 from nfpy.Assets import get_af_glob
-from nfpy.DatatypeFactory import get_dt_glob
 import nfpy.DB as DB
+from nfpy.DatatypeFactory import get_dt_glob
 from nfpy.Tools import Utilities as Ut
 
 from .BaseDownloader import BasePage
@@ -39,14 +39,14 @@ class BaseProvider(metaclass=ABCMeta):
     def pages_spec(self, v: str) -> tuple:
         return self._PAGES[v]
 
-    def create_page_obj(self, page: str) -> BasePage:
+    def create_page_obj(self, page: str, ticker: str) -> BasePage:
         if page not in self._PAGES:
             raise ValueError("Page {} not available for {}"
                              .format(page, self._PROVIDER))
         symbol = '.'.join(['nfpy.Downloader', self._PROVIDER,
                            self._PAGES[page][0]])
         class_ = Ut.import_symbol(symbol)
-        return class_()
+        return class_(ticker)
 
     def do_import(self, data: dict):
         """ Generates the query for the import and execute the data transfer.
@@ -57,11 +57,6 @@ class BaseProvider(metaclass=ABCMeta):
         query, params = self.get_import_data(data)
         # TODO: break the query in two parts and run data cleaning routines
         self._db.execute(query, params, commit=True)
-
-    @staticmethod
-    @abstractmethod
-    def create_input_dict(last_date: str) -> dict:
-        """ Input creation specific for each provider. """
 
     @abstractmethod
     def get_import_data(self, data: dict) -> Sequence[Sequence]:

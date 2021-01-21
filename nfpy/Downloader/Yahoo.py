@@ -49,10 +49,6 @@ class YahooProvider(BaseProvider):
     select '{uid}', ye.dtype, ye.date, ye.value from {src} as ye
     where ye.ticker = ? and ye.dtype = ?;"""
 
-    @staticmethod
-    def create_input_dict(last_date: str) -> dict:
-        return {'period1': last_date, 'period2': today(fmt='%Y-%m-%d')}
-
     def get_import_data(self, data: dict) -> Sequence[Sequence]:
         page = data['page']
         tck = data['ticker']
@@ -86,8 +82,8 @@ class YahooBasePage(BasePage):
     _CRUMB_PATTERN = r'"CrumbStore"\s*:\s*\{\s*"crumb"\s*:\s*"(.*?)"\s*\}'
     _REQ_METHOD = 'get'
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, ticker: str):
+        super().__init__(ticker)
         self._crumb = None
 
     @property
@@ -104,7 +100,7 @@ class YahooBasePage(BasePage):
         """ Fetch the crumb from Yahoo. So far this is executed every time a
             new data page is requested.
         """
-        res = requests.get(self.crumburl)  # , params={'p': self.ticker})
+        res = requests.get(self.crumburl)
         if res.status_code != 200:
             raise requests.HTTPError("Error in downloading the Yahoo crumb cookie")
 
@@ -123,7 +119,10 @@ class YahooFinancials(YahooBasePage):
     _BASE_URL = u"https://finance.yahoo.com/quote/{}/financials?"
     _TABLE = "YahooFinancials"
 
-    def _local_initializations(self):
+    def _set_default_params(self) -> None:
+        pass
+
+    def _local_initializations(self, params: dict) -> None:
         """ Local initializations for the single page. """
         pass
 
@@ -170,38 +169,20 @@ class YahooFinancials(YahooBasePage):
         #    _add_element(key, 'earningsActual', item['actual'].get('raw'))
         #    _add_element(key, 'earningsEstimate', item['estimate'].get('raw'))
 
-        # INCOME STATEMENT
-        hash_map = YahooFinancialsConf['INC']
+        to_download = (
+            ('INC', 'incomeStatementHistory', 'incomeStatementHistory', 'A'),
+            ('INC', 'incomeStatementHistoryQuarterly', 'incomeStatementHistory', 'Q'),
+            ('BAL', 'balanceSheetHistory', 'balanceSheetStatements', 'A'),
+            ('BAL', 'balanceSheetHistoryQuarterly', 'balanceSheetStatements', 'Q'),
+            ('CAS', 'cashflowStatementHistory', 'cashflowStatements', 'A'),
+            ('CAS', 'cashflowStatementHistoryQuarterly', 'cashflowStatements', 'Q'),
+        )
 
-        yearly = data['incomeStatementHistory']['incomeStatementHistory']
-        p = (self._ticker, 'A', self._curr, 'INC')
-        _extract_(p, hash_map, yearly)
-
-        quarterly = data['incomeStatementHistoryQuarterly']['incomeStatementHistory']
-        p = (self._ticker, 'Q', self._curr, 'INC')
-        _extract_(p, hash_map, quarterly)
-
-        # BALANCE SHEET
-        hash_map = YahooFinancialsConf['BAL']
-
-        yearly = data['balanceSheetHistory']['balanceSheetStatements']
-        p = (self._ticker, 'A', self._curr, 'BAL')
-        _extract_(p, hash_map, yearly)
-
-        quarterly = data['balanceSheetHistoryQuarterly']['balanceSheetStatements']
-        p = (self._ticker, 'Q', self._curr, 'BAL')
-        _extract_(p, hash_map, quarterly)
-
-        # CASH FLOW
-        hash_map = YahooFinancialsConf['CAS']
-
-        yearly = data['cashflowStatementHistory']['cashflowStatements']
-        p = (self._ticker, 'A', self._curr, 'CAS')
-        _extract_(p, hash_map, yearly)
-
-        quarterly = data['cashflowStatementHistoryQuarterly']['cashflowStatements']
-        p = (self._ticker, 'Q', self._curr, 'CAS')
-        _extract_(p, hash_map, quarterly)
+        for td in to_download:
+            hash_map = YahooFinancialsConf[td[0]]
+            data_tab = data[td[1]][td[2]]
+            p = (self._ticker, td[3], self._curr, td[0])
+            _extract_(p, hash_map, data_tab)
 
         # Create dataframe
         cols = ['ticker', 'freq', 'currency', 'statement', 'date', 'code', 'value']
@@ -223,9 +204,12 @@ class YahooHistoricalBasePage(YahooBasePage):
         In case of new splits, the series has to be adjusted for them, unless
         the series is downloaded again from scratch.
     """
-    _PARAMS = {"period1": None, "period2": None, "interval": "1d",
-               "events": None, "crumb": None}
-    _MANDATORY = ["period1", "period2"]
+    _PARAMS = {"period1": None,
+               "period2": None,
+               "interval": "1d",
+               "events": None,
+               "crumb": None}
+    _MANDATORY = ("period1", "period2")
     _BASE_URL = u"https://query1.finance.yahoo.com/v7/finance/download/{}?"
     _SKIP = [1]
 
@@ -234,19 +218,31 @@ class YahooHistoricalBasePage(YahooBasePage):
     def event(self) -> str:
         """ Return the event to complete the request url. """
 
-    def _local_initializations(self):
+    def _set_default_params(self) -> None:
+        self._p = self._PARAMS
+        ld = self._fetch_last_data_point()
+        self._p.update({
+            'period1': pd.to_datetime(ld).timestamp(),
+            'period2': today(fmt='%s')}
+        )
+
+    def _local_initializations(self, params: dict):
         """ Local initializations for the single page. """
-        try:
-            d1 = pd.to_datetime(self.params['period1']).timestamp()
-            d2 = pd.to_datetime(self.params['period2']).timestamp()
-        except Exception as ex:
-            print(ex)
-            raise RuntimeError("Error in converting dates for Yahoo historical prices download")
+        for p in ['period1', 'period2']:
+            try:
+                d = params[p]
+                params[p] = int(pd.to_datetime(d).timestamp())
+            except KeyError as ke:
+                continue
+            except Exception as ex:
+                print(ex)
+                raise RuntimeError("Error in '{}' for Yahoo historical prices download"
+                                   .format(p))
+        self.params = params
 
         crumb = self._fetch_crumb()
         # print("CRUMB: {}".format(crumb))
-        self.params = {'period1': int(d1), 'period2': int(d2),
-                       'crumb': crumb, 'events': self.event}
+        self.params = {'crumb': crumb, 'events': self.event}
 
     def _parse_csv(self) -> pd.DataFrame:
         names = self._COLUMNS
@@ -310,7 +306,7 @@ class YahooSplits(YahooHistoricalBasePage):
 
         def _calc(x: str) -> float:
             """ Transform splits in adjustment factors """
-            factors = x.split('/')
+            factors = x.split(':')
             return float(factors[0]) / float(factors[1])
 
         df['value'] = df['value'].apply(_calc)

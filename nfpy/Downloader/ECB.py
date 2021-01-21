@@ -25,10 +25,6 @@ class ECBProvider(BaseProvider):
     _Q_IMPORT_PRICE = """insert or replace into {dst} (uid, dtype, date, value)
 select '{uid}', '1', ecb.date, ecb.value from {src} as ecb where ecb.ticker = ?;"""
 
-    @staticmethod
-    def create_input_dict(last_date: str) -> dict:
-        return {'start': last_date, 'end': today(fmt='%Y-%m-%d')}
-
     def get_import_data(self, data: dict) -> Sequence[Sequence]:
         page = data['page']
         uid = data['uid']
@@ -57,8 +53,8 @@ class ECBBasePage(BasePage):
     _CRUMB_URL = u'http://sdw.ecb.europa.eu/quickview.do'
     _CRUMB_PATTERN = r'<form name="quickViewForm" method="get" action="\/quickview\.do;jsessionid=(.*?)"'
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, ticker: str):
+        super().__init__(ticker)
         self._crumb = None
 
     @property
@@ -89,31 +85,38 @@ class ECBBasePage(BasePage):
 class ECBSeries(ECBBasePage):
     _PAGE = 'Series'
     _COLUMNS = ECBSeriesConf
-    _PARAMS = {"trans": "N", "start": None,
-               "end": None, "SERIES_KEY": None,
+    _PARAMS = {"trans": "N",
+               "start": None,
+               "end": None,
+               "SERIES_KEY": None,
                "type": "csv"
                }
-    _MANDATORY = ["SERIES_KEY"]
+    _MANDATORY = ("SERIES_KEY",)
     _TABLE = "ECBSeries"
     _BASE_URL = u"http://sdw.ecb.europa.eu/quickviewexport.do;jsessionid={}?"
 
-    def _local_initializations(self):
-        """ Local initializations for the single page. """
-        s = self.params.get('start', None)
-        e = self.params.get('end', None)
-        try:
-            if s:
-                s = pd.to_datetime(s).strftime('%d-%m-%Y')
-            if e:
-                e = pd.to_datetime(e).strftime('%d-%m-%Y')
-        except Exception as ex:
-            print(ex)
-            raise RuntimeError("Error in handling time periods for ECB series download")
+    def _set_default_params(self) -> None:
+        self._p = self._PARAMS
+        ld = self._fetch_last_data_point()
+        self._p.update({
+            'start': pd.to_datetime(ld).timestamp(),
+            'end': today(fmt='%s')
+        })
 
-        crumb = self._fetch_crumb()
-        print("JsessionId: {}".format(crumb))
-        self._crumb = crumb
-        self.params = {'start': s, 'end': e, 'SERIES_KEY': self.ticker}
+    def _local_initializations(self, params: dict):
+        """ Local initializations for the single page. """
+        for p in ['start', 'end']:
+            try:
+                d = params[p]
+                params[p] = pd.to_datetime(d).strftime('%d-%m-%Y')
+            except KeyError:
+                continue
+            except Exception as ex:
+                print(ex)
+                raise RuntimeError("Error in handling time periods for ECB series download")
+        self.params = params
+        self._crumb = self._fetch_crumb()
+        # print("JsessionId: {}".format(crumb))
 
     def _parse(self):
         """ Parse the fetched object. """
