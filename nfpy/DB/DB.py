@@ -25,7 +25,7 @@ SQLITE2PY_TYPES = {
     'BOOL': bool,
 }
 
-_MIN_DB_VERSION = 0.5
+_MIN_DB_VERSION = 0.6
 
 
 class DBHandler(metaclass=Singleton):
@@ -73,7 +73,8 @@ class DBHandler(metaclass=Singleton):
     def cursor(self) -> sqlite3.Cursor:
         return self.connection.cursor()
 
-    def execute(self, q: str, p: Iterable = None, commit: bool = False) -> sqlite3.Cursor:
+    def execute(self, q: str, p: Iterable = None, commit: bool = False)\
+            -> sqlite3.Cursor:
         # print('Exec: {}'.format(q))
         c = self.cursor
         try:
@@ -88,7 +89,8 @@ class DBHandler(metaclass=Singleton):
             raise
         return c
 
-    def executemany(self, q: str, p: Iterable, commit: bool = False) -> sqlite3.Cursor:
+    def executemany(self, q: str, p: Iterable, commit: bool = False)\
+            -> sqlite3.Cursor:
         c = self.cursor
         try:
             c.executemany(q, p)
