@@ -50,11 +50,14 @@ if __name__ == '__main__':
         print(tabulate(res, fields, showindex=True), end='\n\n')
 
         msg = "Choose the indices to modify (default None): "
-        idx = inh.input(msg, idesc='int', is_list=True, default=None, optional=True)
+        idx = inh.input(msg, idesc='int', is_list=True,
+                        default=None, optional=True)
 
         if not idx:
             continue
         filtered = itemgetter(*idx)(res)
+        if len(idx) == 1:
+            filtered = (filtered,)
 
         msg = "Choose activate (1) or deactivate (0): "
         op = inh.input(msg, idesc='bool', optional=False)
