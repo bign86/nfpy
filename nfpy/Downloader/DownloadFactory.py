@@ -25,11 +25,11 @@ class DownloadFactory(metaclass=Singleton):
 
     _TABLE = 'Downloads'
     _PROVIDERS = {
-                  "Yahoo": YahooProvider(),
-                  "ECB": ECBProvider(),
-                  "Investing": InvestingProvider(),
-                  "IB": IBProvider()
-                  }
+        "Yahoo": YahooProvider(),
+        "ECB": ECBProvider(),
+        "Investing": InvestingProvider(),
+        "IB": IBProvider()
+    }
 
     def __init__(self):
         self._db = DB.get_db_glob()
@@ -61,10 +61,9 @@ class DownloadFactory(metaclass=Singleton):
         """ Check if a page for the given provider is supported. """
         return page in self._PROVIDERS[provider].pages
 
-    def downloads_by_uid(self, provider: str = None, page: str = None,
-                         uid: str = None, ticker: str = None,
-                         active: bool = True) -> tuple:
-        """ Return all download entries by uid.
+    def filter_downloads(self, provider: str = None, page: str = None,
+                         ticker: str = None, active: bool = True) -> tuple:
+        """ Filter download entries.
 
             Input:
                 provider [str]: filter by provider
@@ -77,22 +76,18 @@ class DownloadFactory(metaclass=Singleton):
                 fields [list]: list of database column names
                 data [list]: list of tuples, each one a fetched row
         """
-        fields = ['uid', 'provider', 'page', 'ticker', 'currency',
-                  'update_frequency', 'last_update']
+        fields = list(self._qb.get_fields(self._TABLE))
         w_cond = 'active = 1' if active else ''
         k_cond, params = [], ()
-        if uid:
-            k_cond.append('uid')
-            params += (uid, )
         if provider:
             k_cond.append('provider')
-            params += (provider, )
+            params += (provider,)
         if page:
             k_cond.append('page')
-            params += (page, )
+            params += (page,)
         if ticker:
             k_cond.append('ticker')
-            params += (ticker, )
+            params += (ticker,)
 
         q_uid = self._qb.select(self._TABLE, fields=fields,
                                 keys=k_cond, where=w_cond)
@@ -116,12 +111,12 @@ class DownloadFactory(metaclass=Singleton):
         """
         try:
             prov = self._PROVIDERS[provider]
-        except KeyError as ex:
+        except KeyError:
             raise ValueError("Provider {} not recognized".format(provider))
         return prov.create_page_obj(page, ticker)
 
     def bulk_download(self, do_save: bool = True, override_date: bool = False,
-                      uid: str = None, provider: str = None, page: str = None,
+                      provider: str = None, page: str = None,
                       ticker: str = None, override_active: bool = False):
         """ Performs a bulk update of the system based on the 'auto' flag in the
             Downloads table. The entries are updated only in case the last
@@ -137,8 +132,8 @@ class DownloadFactory(metaclass=Singleton):
                 override_active [bool]: disregard 'active' (default False)
         """
         active = not override_active
-        _, upd_list, num = self.downloads_by_uid(provider=provider, page=page,
-                                                 uid=uid, ticker=ticker,
+        _, upd_list, num = self.filter_downloads(provider=provider, page=page,
+                                                 ticker=ticker,
                                                  active=active)
         print('We are about to download {} items'.format(num))
 
@@ -148,7 +143,7 @@ class DownloadFactory(metaclass=Singleton):
         q_upd = self._qb.update(self._TABLE, fields=('last_update',))
 
         for item in upd_list:
-            uid, provider, page_name, ticker, currency, upd_freq, last_upd_str = item
+            provider, page_name, ticker, currency, active, upd_freq, last_upd_str = item
 
             # Check the last update to avoid too frequent updates
             if last_upd_str and not override_date:
@@ -161,7 +156,7 @@ class DownloadFactory(metaclass=Singleton):
 
             # If the last update check is passed go on with the update
             try:
-                print('{}: {} -> {}[{}]'.format(uid, ticker, provider, page_name))
+                print('{} -> {}[{}]'.format(ticker, provider, page_name))
                 page = self.create_page_obj(provider, page_name, ticker)
                 page.initialize(currency=currency)
 
@@ -169,7 +164,7 @@ class DownloadFactory(metaclass=Singleton):
                 try:
                     page.fetch()
                 except RuntimeWarning as w:
-                    # DownloadFactory throws this error for server return codes != 200
+                    # DownloadFactory throws this error for codes != 200
                     print(w)
                     continue
                 if do_save is True:

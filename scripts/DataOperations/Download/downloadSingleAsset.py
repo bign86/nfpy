@@ -11,7 +11,7 @@ import nfpy.Downloader as Dwn
 import nfpy.IO as IO
 from nfpy.Tools import Utilities as Ut
 
-__version__ = '0.3'
+__version__ = '0.4'
 _TITLE_ = "<<< Download single asset script >>>"
 
 
@@ -23,10 +23,15 @@ if __name__ == '__main__':
     db = DB.get_db_glob()
     inh = IO.InputHandler()
 
-    uid = inh.input("Give a UID to download for: ", idesc='str', checker='uid')
-    fields, data = f.downloads_by_uid(uid=uid, active=False)
-    if not data:
-        raise ValueError('Supplied UID does not exist! Please give a valid one.')
+    is_ticker_valid = False
+    fields, data = (), ()
+    while not is_ticker_valid:
+        ticker = inh.input("Give a ticker to download for: ", idesc='str')
+        fields, data = f.filter_downloads(ticker=ticker, active=False)
+        if not data:
+            print('*** Supplied ticker does not exist! Please give a valid one.')
+        else:
+            is_ticker_valid = True
 
     tab = tabulate(data, headers=fields, showindex=True)
     print(tab, end='\n\n')
@@ -36,16 +41,16 @@ if __name__ == '__main__':
         choice = inh.input('Index: ', idesc='int')
 
     dwn = data[choice]
-    p = f.create_page_obj(dwn[1], dwn[2])
+    p = f.create_page_obj(dwn[1], dwn[2], dwn[3])
     num_params = f.print_parameters(p)
 
-    kwargs = {}
+    params = {}
     if num_params > 0:
         msg = "Type the additional parameters as a comma separated list of key, value pairs:\n"
         pin = inh.input(msg, idesc='str', is_list=True, default=[])
-        kwargs = Ut.list_to_dict(pin)
+        params = Ut.list_to_dict(pin)
 
-    p.initialize(dwn[3], dwn[4], kwargs)
+    p.initialize(dwn[4], params=params)
     p.fetch()
     p.printout()
 
@@ -54,7 +59,7 @@ if __name__ == '__main__':
         # TODO: write a logic inside the download factory to get rid of this
         #       external logic here. We don't want to deal with QueryBuilder and
         #       database directly but hand off to the DownloadFactory
-        data_upd = (today(), uid, dwn[1], dwn[2])
+        data_upd = (today(), dwn[1], dwn[2])
         q_upd = qb.merge('Downloads', fields=['last_update'])
         db.execute(q_upd, data_upd, commit=True)
 

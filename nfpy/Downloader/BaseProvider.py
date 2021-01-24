@@ -3,8 +3,7 @@
 # Base class to handle the single provider
 #
 
-from abc import ABCMeta, abstractmethod
-from typing import Sequence
+from abc import ABCMeta
 
 from nfpy.Assets import get_af_glob
 import nfpy.DB as DB
@@ -12,6 +11,37 @@ from nfpy.DatatypeFactory import get_dt_glob
 from nfpy.Tools import Utilities as Ut
 
 from .BaseDownloader import BasePage
+
+
+class BaseImportItem(object):
+    """ Base class for import items. """
+
+    _Q_READ = ''
+    _Q_WRITE = ''
+    _CLEAN_F = ()
+
+    def __init__(self, item: dict):
+        self._db = DB.get_db_glob()
+        self._dt = get_dt_glob()
+        self._d = item
+
+    def _get_params(self) -> tuple:
+        """ Return the correct parameters for the read query. """
+        return self._d['ticker'].split('/')[0],
+
+    def _clean_routines(self, data: list) -> None:
+        for cr in self._CLEAN_F:
+            cr(data)
+
+    def run(self) -> None:
+        qr = self._Q_READ.format(**self._d)
+        params = self._get_params()
+        data = self._db.execute(qr, params).fetchall()
+
+        self._clean_routines(data)
+
+        qw = self._Q_WRITE.format(**self._d)
+        self._db.executemany(qw, data, commit=True)
 
 
 class BaseProvider(metaclass=ABCMeta):
@@ -23,12 +53,10 @@ class BaseProvider(metaclass=ABCMeta):
 
     _PROVIDER = ''
     _PAGES = {}
+    _IMPORT_ITEMS = {}
     _FINANCIALS_MAP = []
 
     def __init__(self):
-        self._db = DB.get_db_glob()
-        self._qb = DB.get_qb_glob()
-        self._dt = get_dt_glob()
         # This is required just to get the asset elaboration table
         self._af = get_af_glob()
 
@@ -36,28 +64,18 @@ class BaseProvider(metaclass=ABCMeta):
     def pages(self):
         return self._PAGES.keys()
 
-    def pages_spec(self, v: str) -> tuple:
-        return self._PAGES[v]
-
     def create_page_obj(self, page: str, ticker: str) -> BasePage:
         if page not in self._PAGES:
             raise ValueError("Page {} not available for {}"
                              .format(page, self._PROVIDER))
-        symbol = '.'.join(['nfpy.Downloader', self._PROVIDER,
-                           self._PAGES[page][0]])
-        class_ = Ut.import_symbol(symbol)
+        symbol = '.' + '.'.join([self._PROVIDER, self._PAGES[page]])
+        class_ = Ut.import_symbol(symbol, pkg='nfpy.Downloader')
         return class_(ticker)
 
-    def do_import(self, data: dict):
-        """ Generates the query for the import and execute the data transfer.
-
-            Input:
-                data [dict]: data from the Imports table
-        """
-        query, params = self.get_import_data(data)
-        # TODO: break the query in two parts and run data cleaning routines
-        self._db.execute(query, params, commit=True)
-
-    @abstractmethod
-    def get_import_data(self, data: dict) -> Sequence[Sequence]:
-        """ Get information to perform importing. """
+    def get_import_item(self, data: dict) -> BaseImportItem:
+        asset = self._af.get(data['uid'])
+        if asset.type == 'Company':
+            data['dst_table'] = asset.constituents_table
+        else:
+            data['dst_table'] = asset.ts_table
+        return self._IMPORT_ITEMS[data['item']](data)

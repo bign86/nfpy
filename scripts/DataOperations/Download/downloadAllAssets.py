@@ -6,7 +6,7 @@
 import nfpy.Downloader as Dwn
 import nfpy.IO as IO
 
-__version__ = '0.3'
+__version__ = '0.4'
 _TITLE_ = "<<< Update database script >>>"
 
 if __name__ == '__main__':
@@ -16,7 +16,7 @@ if __name__ == '__main__':
     inh = IO.InputHandler()
 
     do_save, override_date, override_active = True, False, False
-    provider, page, uid = None, None, None
+    provider, page = None, None
 
     give_p = inh.input('Do you want to specify parameters (default: No)?: ',
                        idesc='bool', default=False, optional=True)
@@ -28,14 +28,11 @@ if __name__ == '__main__':
                              checker='provider')
         page = inh.input("Download for a specific page (default None)?: ",
                          idesc='str', default=None, optional=True)
-        uid = inh.input("Download for a specific uid (default None)?: ",
-                        idesc='str', default=None, optional=True,
-                        checker='uid')
         override_active = inh.input("Override automatic (default No)?: ",
                                     idesc='bool', default=False, optional=True)
 
     dwnf.bulk_download(do_save=do_save, override_date=override_date,
-                       provider=provider, page=page, uid=uid,
+                       provider=provider, page=page,
                        override_active=override_active)
 
     print("All done!")

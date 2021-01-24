@@ -45,9 +45,9 @@ TABLES_TO_CREATE = [
     ),
     (
         'CompanyFundamentals',
-        """create table CompanyFundamentals (uid TEXT, code TEXT,
-        date DATETIME, freq TEXT, value REAL, primary key (uid, code, date, freq),
-        foreign key (uid) references Company(uid)) without rowid;"""
+        """create table CompanyFundamentals (uid TEXT, code TEXT, date DATETIME,
+            freq TEXT, value REAL, primary key (uid, code, date, freq),
+            foreign key (uid) references Company(uid)) without rowid;"""
     ),
     (
         'Currency',
@@ -80,10 +80,9 @@ TABLES_TO_CREATE = [
     ),
     (
         'Downloads',
-        """create table Downloads (uid TEXT, provider TEXT, page TEXT,
-            ticker TEXT NOT NULL, currency TEXT, active BOOL NOT NULL,
-            update_frequency INTEGER NOT NULL, last_update DATETIME,
-            primary key (provider, page, ticker)) without rowid;"""
+        """create table Downloads (provider TEXT, page TEXT, ticker TEXT NOT NULL,
+            currency TEXT, active BOOL NOT NULL, update_frequency INTEGER NOT NULL,
+            last_update DATETIME, primary key (provider, page, ticker)) without rowid;"""
     ),
     (
         'ECBSeries',
@@ -100,9 +99,8 @@ TABLES_TO_CREATE = [
     (
         'EquityTS',
         """create table EquityTS (uid TEXT, dtype INTEGER NOT NULL,
-            date DATETIME NOT NULL, value REAL NOT NULL,
-            primary key (uid,dtype,date), foreign key (uid)
-            references Equity(uid)) without rowid;"""
+            date DATETIME NOT NULL, value REAL NOT NULL, primary key (uid,dtype,date),
+            foreign key (uid) references Equity(uid)) without rowid;"""
     ),
     (
         'IBFinancials',
@@ -112,10 +110,9 @@ TABLES_TO_CREATE = [
     ),
     (
         'Imports',
-        """create table Imports (uid TEXT NOT NULL, ticker TEXT, provider TEXT,
-            page TEXT, src_column TEXT, tgt_datatype TEXT NOT NULL,
-            active BOOL NOT NULL,
-            primary key (ticker, provider, page, src_column)) without rowid;"""
+        """create table Imports (uid TEXT, ticker TEXT, provider TEXT,
+            item TEXT, active BOOL NOT NULL,
+            primary key (uid, ticker, provider, item)) without rowid;"""
     ),
     (
         'Indices',
@@ -136,9 +133,8 @@ TABLES_TO_CREATE = [
     ),
     (
         'InvestingPrices',
-        """create table InvestingPrices (ticker TEXT, date DATETIME, price REAL,
-            open REAL, high REAL, low REAL, volume INTEGER,
-            primary key (ticker, date)) without rowid;"""
+        """create table InvestingPrices (ticker TEXT, date DATETIME, price REAL, open REAL,
+            high REAL, low REAL, volume INTEGER, primary key (ticker, date)) without rowid;"""
     ),
     (
         'MapFinancials',
@@ -153,22 +149,21 @@ TABLES_TO_CREATE = [
     ),
     (
         'PortfolioPositions',
-        """create table PortfolioPositions (ptf_uid TEXT, date DATETIME,
-            pos_uid TEXT, asset_uid TEXT NOT NULL, type TEXT NOT NULL,
-            currency TEXT NOT NULL, quantity REAL NOT NULL, alp REAL NOT NULL,
+        """create table PortfolioPositions (ptf_uid TEXT, date DATETIME, pos_uid TEXT,
+            asset_uid TEXT NOT NULL, type TEXT NOT NULL, currency TEXT NOT NULL,
+            quantity REAL NOT NULL, alp REAL NOT NULL,
             primary key (ptf_uid, date, pos_uid), foreign key (ptf_uid)
             references Portfolio(uid)) without rowid;"""
     ),
     (
         'Rate',
-        """create table Rate (uid TEXT, description TEXT, currency TEXT,
-            tenor REAL, is_rf BOOL NOT NULL, primary key (uid)) without rowid;"""
+        """create table Rate (uid TEXT, description TEXT, currency TEXT, tenor REAL,
+            is_rf BOOL NOT NULL, primary key (uid)) without rowid;"""
     ),
     (
         'RateTS',
-        """create table RateTS (uid TEXT, dtype INTEGER NOT NULL,
-            date DATETIME NOT NULL, value REAL NOT NULL,
-            primary key (uid, dtype, date), foreign key (uid)
+        """create table RateTS (uid TEXT, dtype INTEGER NOT NULL, date DATETIME NOT NULL,
+            value REAL NOT NULL, primary key (uid, dtype, date), foreign key (uid)
             references Rate(uid)) without rowid;"""
     ),
     (
@@ -191,9 +186,8 @@ TABLES_TO_CREATE = [
         'Trades',
         """create table Trades (ptf_uid TEXT, date DATETIME, pos_uid TEXT,
             buy_sell BOOL NOT NULL, currency TEXT NOT NULL, quantity REAL NOT NULL,
-            price REAL NOT NULL, costs REAL, market TEXT,
-            primary key (ptf_uid, date, pos_uid), foreign key (ptf_uid)
-            references Portfolio(uid)) without rowid;"""
+            price REAL NOT NULL, costs REAL, market TEXT, primary key (ptf_uid, date, pos_uid),
+            foreign key (ptf_uid) references Portfolio(uid)) without rowid;"""
     ),
     (
         'YahooEvents',
@@ -202,9 +196,9 @@ TABLES_TO_CREATE = [
     ),
     (
         'YahooFinancials',
-        """create table YahooFinancials ( ticker TEXT, freq TEXT, date DATETIME,
+        """create table YahooFinancials (ticker TEXT, freq TEXT, date DATETIME,
             currency TEXT, statement TEXT, code TEXT, value REAL,
-            primary key (ticker, freq, date, statement, code) ) without rowid;"""
+            primary key (ticker, freq, date, statement, code)) without rowid;"""
     ),
     (
         'YahooPrices',
@@ -290,16 +284,9 @@ def populate_database(db_):
     print("--- Setup completed! ---")
 
 
-def new_database():
-    """ Executes all steps for a new database. """
-    new_db = get_db_handler()
-    create_database(new_db)
-    populate_database(new_db)
-
-
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
-    new_database()
-
-    print('All done!')
+    db = get_db_handler()
+    create_database(db)
+    populate_database(db)

@@ -11,64 +11,65 @@ import numpy as np
 import pandas as pd
 import re
 import requests
-from typing import Sequence
 
 from nfpy.Calendar import today
 from nfpy.Tools import Exceptions as Ex
 
 from .BaseDownloader import BasePage
-from .BaseProvider import BaseProvider
+from .BaseProvider import (BaseProvider, BaseImportItem)
 from .DownloadsConf import (YahooFinancialsConf, YahooHistPricesConf,
                             YahooHistDividendsConf, YahooHistSplitsConf)
+
+
+class ClosePricesItem(BaseImportItem):
+    _Q_READ = """select '{uid}', '1', date, close from YahooPrices where ticker = ?;"""
+    _Q_WRITE = """insert or replace into {dst_table}
+    (uid, dtype, date, value) values (?, ?, ?, ?);"""
+
+
+class FinancialsItem(BaseImportItem):
+    _Q_READ = ''
+    _Q_WRITE = ''
+
+
+class DividendsItem(BaseImportItem):
+    _Q_READ = """select '{uid}', dtype, date, value from YahooEvents
+    where ticker = ? and dtype = ?;"""
+    _Q_WRITE = """insert or replace into {dst_table}
+    (uid, dtype, date, value) values (?, ?, ?, ?);"""
+
+    def _get_params(self) -> tuple:
+        dt = self._dt.get('dividend')
+        return self._d['ticker'], dt
+
+
+class SplitsItem(BaseImportItem):
+    _Q_READ = """select '{uid}', '1', date, value from YahooEvents
+    where ticker = ? and dtype = ?;"""
+    _Q_WRITE = """insert or replace into {dst_table}
+    (uid, dtype, date, value) values (?, ?, ?, ?);"""
+
+    def _get_params(self) -> tuple:
+        dt = self._dt.get('split')
+        return self._d['ticker'], dt
 
 
 class YahooProvider(BaseProvider):
     """ Class for the Yahoo Finance provider. """
 
     _PROVIDER = 'Yahoo'
-    _PAGES = {'HistoricalPrices': ('YahooPrices',
-                                   'YahooPrices',
-                                   'close',
-                                   'price'),
-              'Financials': ('YahooFinancials',
-                             None,
-                             'financials',
-                             'financials'),
-              'Dividends': ('YahooDividends',
-                            'YahooEvents',
-                            'value',
-                            'dividend'),
-              'Splits': ('YahooSplits',
-                         'YahooEvents',
-                         'value',
-                         'split')
-              }
-    _Q_IMPORT_PRICE = """insert or replace into {dst} (uid, dtype, date, value)
-    select '{uid}', '1', yp.date, yp.close from {src} as yp where yp.ticker = ?;"""
-    _Q_IMPORT_EVENT = """insert or replace into {dst} (uid, dtype, date, value)
-    select '{uid}', ye.dtype, ye.date, ye.value from {src} as ye
-    where ye.ticker = ? and ye.dtype = ?;"""
-
-    def get_import_data(self, data: dict) -> Sequence[Sequence]:
-        page = data['page']
-        tck = data['ticker']
-        uid = data['uid']
-
-        t_src = self._PAGES[page][1]
-        t_dst = self._af.get(uid).ts_table
-
-        if page == 'HistoricalPrices':
-            query = self._Q_IMPORT_PRICE
-            params = (tck,)
-        elif page in ('Splits', 'Dividends'):
-            code = self._dt.get(data['tgt_datatype'])
-            query = self._Q_IMPORT_EVENT
-            params = (tck, code)
-        else:
-            raise ValueError('Page {} for provider Yahoo unrecognized'.format(page))
-
-        query = query.format(**{'dst': t_dst, 'src': t_src, 'uid': uid})
-        return query, params
+    _PAGES = {
+        'HistoricalPrices': 'YahooPrices',
+        'Financials': 'YahooFinancials',
+        'Dividends': 'YahooDividends',
+        'Splits': 'YahooSplits',
+    }
+    _IMPORT_ITEMS = {
+        'ClosePrices': ClosePricesItem,
+        'Dividends': DividendsItem,
+        'Splits': SplitsItem,
+        'Financials': FinancialsItem,
+    }
 
 
 class YahooBasePage(BasePage):
@@ -222,7 +223,7 @@ class YahooHistoricalBasePage(YahooBasePage):
         self._p = self._PARAMS
         ld = self._fetch_last_data_point()
         self._p.update({
-            'period1': pd.to_datetime(ld).timestamp(),
+            'period1': str(int(pd.to_datetime(ld).timestamp())),
             'period2': today(fmt='%s')}
         )
 
@@ -231,9 +232,9 @@ class YahooHistoricalBasePage(YahooBasePage):
         for p in ['period1', 'period2']:
             try:
                 d = params[p]
-                params[p] = int(pd.to_datetime(d).timestamp())
-            except KeyError as ke:
-                continue
+                params[p] = str(int(pd.to_datetime(d).timestamp()))
+            except KeyError:
+                pass
             except Exception as ex:
                 print(ex)
                 raise RuntimeError("Error in '{}' for Yahoo historical prices download"

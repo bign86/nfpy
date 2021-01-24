@@ -6,7 +6,6 @@
 from bs4 import BeautifulSoup
 import json
 import pandas as pd
-from typing import Sequence
 from random import randint
 
 from nfpy.Calendar import today
@@ -14,9 +13,33 @@ from nfpy.DatatypeFactory import get_dt_glob
 from nfpy.Tools import Exceptions as Ex
 
 from .BaseDownloader import BasePage
-from .BaseProvider import BaseProvider
+from .BaseProvider import (BaseProvider, BaseImportItem)
 from .DownloadsConf import (InvestingSeriesConf, InvestingCashFlowConf,
                             InvestingBalanceSheetConf, InvestingIncomeStatementConf)
+
+
+class ClosePricesItem(BaseImportItem):
+    _Q_READ = """select '{uid}', '1', date, price from InvestingPrices where ticker = ?;"""
+    _Q_WRITE = """insert or replace into {dst_table}
+    (uid, dtype, date, value) values (?, ?, ?, ?);"""
+
+
+class FinancialsItem(BaseImportItem):
+    _Q_READ = """select distinct '{uid}', code, date, freq, value
+    from InvestingFinancials where ticker = ?;"""
+    _Q_WRITE = """insert or replace into {dst_table}
+    (uid, code, date, freq, value) values (?, ?, ?, ?, ?);"""
+
+
+class DividendsItem(BaseImportItem):
+    _Q_READ = """select '{uid}', dtype, date, value from InvestingEvents
+    where ticker = ? and dtype = ?;"""
+    _Q_WRITE = """insert or replace into {dst_table}
+    (uid, dtype, date, value) values (?, ?, ?, ?);"""
+
+    def _get_params(self) -> tuple:
+        dt = self._dt.get('dividend')
+        return self._d['ticker'], dt
 
 
 class InvestingProvider(BaseProvider):
@@ -24,57 +47,17 @@ class InvestingProvider(BaseProvider):
 
     _PROVIDER = 'Investing'
     _PAGES = {
-        'HistoricalPrices': ('InvestingHistoricalPrices',
-                             'InvestingPrices',
-                             'price',
-                             'price'),
-        'Dividends': ('InvestingDividends',
-                      '',
-                      'dividend',
-                      'dividend'),
-        'IncomeStatement': ('InvestingIncomeStatement',
-                            'InvestingFinancials',
-                            'financials',
-                            'financials'),
-        'BalanceSheet': ('InvestingBalanceSheet',
-                         'InvestingFinancials',
-                         'financials',
-                         'financials'),
-        'CashFlow': ('InvestingCashFlow',
-                     'InvestingFinancials',
-                     'financials',
-                     'financials'),
+        'HistoricalPrices': 'InvestingHistoricalPrices',
+        'Dividends': 'InvestingDividends',
+        'IncomeStatement': 'InvestingIncomeStatement',
+        'BalanceSheet': 'InvestingBalanceSheet',
+        'CashFlow': 'InvestingCashFlow',
     }
-    _Q_IMPORT_PRICE = """insert or replace into {dst} (uid, dtype, date, value)
-    select '{uid}', '1', ip.date, ip.price from {src} as ip where ip.ticker = ?;"""
-    _Q_IMPORT_FINAN = """insert or replace into {dst} (uid, code, date, freq, value)
-    select distinct '{uid}', if.code, if.date, if.freq, if.value from {src} as if
-    where if.ticker = ? and if.statement = ?;"""
-
-    def get_import_data(self, data: dict) -> Sequence[Sequence]:
-        statements = {'IncomeStatement': 'INC', 'BalanceSheet': 'BAL',
-                      'CashFlow': 'CAS'}
-        page = data['page']
-        tck = data['ticker'].split('/')[0]
-        uid = data['uid']
-        t_src = self._PAGES[page][1]
-
-        if page == 'HistoricalPrices':
-            t_dst = self._af.get(uid).ts_table
-            query = self._Q_IMPORT_PRICE.format(**{'dst': t_dst, 'src': t_src,
-                                                   'uid': uid})
-            params = (tck,)
-        elif page in ('IncomeStatement', 'BalanceSheet', 'CashFlow'):
-            t_dst = self._af.get(uid).constituents_table
-            st = statements[page]
-            query = self._Q_IMPORT_FINAN.format(**{'dst': t_dst, 'src': t_src,
-                                                   'uid': uid})
-            params = (tck, st)
-        else:
-            raise ValueError('Page {} for provider Investing unrecognized'
-                             .format(page))
-
-        return query, params
+    _IMPORT_ITEMS = {
+        'ClosePrices': ClosePricesItem,
+        'Dividends': DividendsItem,
+        'Financials': FinancialsItem,
+    }
 
 
 class InvestingBasePage(BasePage):
@@ -119,14 +102,16 @@ class InvestingHistoricalPrices(InvestingBasePage):
     _COLUMNS = InvestingSeriesConf
     _TABLE = 'InvestingPrices'
     _URL_SUFFIX = '/instruments/HistoricalDataAjax'
-    _PARAMS = {"curr_id": None,
-               "smlID": None,
-               "interval_sec": "Daily",
-               "st_date": None,
-               "end_date": None,
-               "sort_col": "date",
-               "sort_ord": "ASC",
-               "action": "historical_data"}
+    _PARAMS = {
+        "curr_id": None,
+        "smlID": None,
+        "interval_sec": "Daily",
+        "st_date": None,
+        "end_date": None,
+        "sort_col": "date",
+        "sort_ord": "ASC",
+        "action": "historical_data"
+    }
     _MANDATORY = ("curr_id",)
 
     def _set_default_params(self) -> None:
@@ -135,8 +120,8 @@ class InvestingHistoricalPrices(InvestingBasePage):
         self._p.update({
             'curr_id': self.ticker,
             'smlID': str(randint(1000000, 99999999)),
-            'st_date': pd.to_datetime(ld).timestamp(),
-            'end_date': today(fmt='%s')
+            'st_date': pd.to_datetime(ld).strftime('%m/%d/%Y'),
+            'end_date': today(fmt='%m/%d/%Y')
         })
 
     def _local_initializations(self, params: dict):
@@ -210,7 +195,7 @@ class InvestingDividends(InvestingBasePage):
         soup = BeautifulSoup(j['historyRows'], "html.parser")
         td_list = soup.select('tr > td')
         td_dates = [pd.to_datetime(v['data-value'], unit='s')
-                        .strftime('%Y-%m-%d') for v in td_list[::5]]
+                    .strftime('%Y-%m-%d') for v in td_list[::5]]
         td_values = [float(v.text) for v in td_list[1::5]]
         data = list(zip(td_dates, td_values))
 

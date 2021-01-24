@@ -15,30 +15,27 @@ from .Yahoo import YahooProvider
 
 
 class ImportFactory(metaclass=Singleton):
-
     _TABLE = 'Imports'
-    _PROVIDERS = {  # "Morningstar": MorningstarProvider(),
-                  "Yahoo": YahooProvider(),
-                  "ECB": ECBProvider(),
-                  "Investing": InvestingProvider(),
-                  "IB": IBProvider()
-                  }
+    _PROVIDERS = {
+        "Yahoo": YahooProvider(),
+        "ECB": ECBProvider(),
+        "Investing": InvestingProvider(),
+        "IB": IBProvider()
+    }
 
     def __init__(self):
         self._db = DB.get_db_glob()
         self._qb = DB.get_qb_glob()
         self._imports_list = None
 
-    def imports_by_uid(self, uid: str = None, provider: str = None,
-                       page: str = None, ticker: str = None,
-                       active: bool = True) -> tuple:
-        """ Return all import entries by uid.
+    def filter_imports(self, uid: str = None, provider: str = None,
+                       item: str = None, active: bool = True) -> tuple:
+        """ Filter imports entries.
 
             Input:
                 uid [str]: uid to import for (default None)
                 provider [str]: filter by provider (default None)
-                page [str]: filter by page (default None)
-                ticker [str]: filter by ticker (default None)
+                item [str]: filter by import item (default None)
                 active [bool]: consider only active imports (default True)
 
             Output:
@@ -50,16 +47,13 @@ class ImportFactory(metaclass=Singleton):
         k, params = [], ()
         if uid:
             k.append('uid')
-            params += (uid, )
+            params += (uid,)
         if provider:
             k.append('provider')
-            params += (provider, )
-        if page:
-            k.append('page')
-            params += (page, )
-        if ticker:
-            k.append('ticker')
-            params += (ticker, )
+            params += (provider,)
+        if item:
+            k.append('item')
+            params += (item,)
 
         q_uid = self._qb.select(self._TABLE, fields=fields, keys=k, where=w)
         res = self._db.execute(q_uid, params).fetchall()
@@ -69,37 +63,34 @@ class ImportFactory(metaclass=Singleton):
         self._imports_list = res
         return fields, res, len(res)
 
-    def do_import(self, data: dict):
-        """ Pass the call input to the underlying page. """
-        if data['provider'] not in self._PROVIDERS:
-            raise ValueError("Provider {} not recognized".format(data['provider']))
-        self._PROVIDERS[data['provider']].do_import(data)
+    def do_import(self, data: dict) -> None:
+        """ Take the importing object and runs the import. """
+        prov = data['provider']
+        imp_item = self._PROVIDERS[prov].get_import_item(data)
+        imp_item.run()
 
     def bulk_import(self, uid: str = None, provider: str = None,
-                    page: str = None, ticker: str = None,
-                    override_active: bool = False):
+                    item: str = None, override_active: bool = False):
         """ Performs a bulk import of the system based on the 'auto' flag in the
             Imports table.
 
             Input:
                 uid [str]: import for an uid (default None)
                 provider [str]: import for a provider (default None)
-                page [str]: import for a page (default None)
-                ticker [str]: import for a ticker (default None)
+                item [str]: import for the item (default None)
                 override_active [bool]: disregard 'active' (default False)
         """
         active = not override_active
-        fields, import_list, num = self.imports_by_uid(provider=provider,
-                                                       page=page,
+        fields, import_list, num = self.filter_imports(provider=provider,
+                                                       item=item,
                                                        uid=uid,
-                                                       ticker=ticker,
                                                        active=active)
         print('We are about to import {} items'.format(num))
 
-        for item in import_list:
-            import_data = dict(zip(fields, item))
+        for element in import_list:
+            import_data = dict(zip(fields, element))
+            print(import_data)
             try:
-                print(import_data)
                 self.do_import(import_data)
             except Ex.CalendarError as cal:
                 raise cal

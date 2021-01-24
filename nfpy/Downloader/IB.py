@@ -5,44 +5,29 @@
 
 import pandas as pd
 from time import sleep
-from typing import Dict, Sequence
 import xml.etree.ElementTree as ET
 
 from nfpy.Configuration import get_conf_glob
 
 from .BaseDownloader import BasePage
-from .BaseProvider import BaseProvider
+from .BaseProvider import (BaseProvider, BaseImportItem)
 from .DownloadsConf import IBFundamentalsConf
 from .IBApp import *
+
+
+class FinancialsItem(BaseImportItem):
+    _Q_READ = """select distinct '{uid}', code, date, freq, value
+    from IBFinancials where ticker = ?;"""
+    _Q_WRITE = """insert or replace into {dst_table}
+    (uid, code, date, freq, value) values (?, ?, ?, ?, ?);"""
 
 
 class IBProvider(BaseProvider):
     """ Class for the Interactive Brokers provider. """
 
     _PROVIDER = 'IB'
-    _PAGES = {'Financials': ('IBFundamentals',
-                             'IBFinancials',
-                             'financials',
-                             'financials')}
-    _Q_IMPORT_FINAN = """insert or replace into {dst} (uid, code, date, freq, value)
-    select distinct '{uid}', ib.code, ib.date, ib.freq, ib.value from {src} as ib
-    where ib.ticker = ?;"""
-
-    def get_import_data(self, data: dict) -> Sequence[Sequence]:
-        page = data['page']
-        tck = data['ticker'].split('/')[0]
-        uid = data['uid']
-        t_src = self._PAGES[page][1]
-
-        if page == 'Financials':
-            t_dst = self._af.get(data['uid']).constituents_table
-            query = self._Q_IMPORT_FINAN.format(**{'dst': t_dst, 'src': t_src,
-                                                   'uid': uid})
-            params = (tck,)
-        else:
-            raise ValueError('Page {} for provider IB unrecognized'.format(page))
-
-        return query, params
+    _PAGES = {'Financials': 'IBFundamentals'}
+    _IMPORT_ITEMS = {'Financials': FinancialsItem}
 
 
 class IBBasePage(BasePage):

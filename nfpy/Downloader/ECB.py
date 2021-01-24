@@ -7,38 +7,27 @@ from io import StringIO
 import pandas as pd
 import re
 import requests
-from typing import Sequence
 
 from nfpy.Calendar import today
 from nfpy.Tools import Exceptions as Ex
 
 from .BaseDownloader import BasePage
-from .BaseProvider import BaseProvider
+from .BaseProvider import (BaseProvider, BaseImportItem)
 from .DownloadsConf import ECBSeriesConf
+
+
+class ClosePricesItem(BaseImportItem):
+    _Q_READ = """select '{uid}', '1', date, value from ECBSeries where ticker = ?;"""
+    _Q_WRITE = """insert or replace into {dst_table}
+    (uid, dtype, date, value) values (?, ?, ?, ?);"""
 
 
 class ECBProvider(BaseProvider):
     """ Class for the European Central Bank provider. """
 
     _PROVIDER = 'ECB'
-    _PAGES = {'Series': ('ECBSeries', 'ECBSeries', 'value', 'price')}
-    _Q_IMPORT_PRICE = """insert or replace into {dst} (uid, dtype, date, value)
-select '{uid}', '1', ecb.date, ecb.value from {src} as ecb where ecb.ticker = ?;"""
-
-    def get_import_data(self, data: dict) -> Sequence[Sequence]:
-        page = data['page']
-        uid = data['uid']
-        tck = data['ticker']
-        t_src = self._PAGES[page][1]
-
-        if page == 'Series':
-            t_dst = self._af.get(uid).ts_table
-            query = self._Q_IMPORT_PRICE.format(**{'dst': t_dst, 'src': t_src, 'uid': uid})
-            params = (tck,)
-        else:
-            raise ValueError('Page {} for provider ECB unrecognized'.format(page))
-
-        return query, params
+    _PAGES = {'Series': 'ECBSeries'}  # ('ECBSeries', 'ECBSeries', 'value', 'price')}
+    _IMPORT_ITEMS = {'ClosePrices': ClosePricesItem}
 
 
 class ECBBasePage(BasePage):
@@ -85,12 +74,13 @@ class ECBBasePage(BasePage):
 class ECBSeries(ECBBasePage):
     _PAGE = 'Series'
     _COLUMNS = ECBSeriesConf
-    _PARAMS = {"trans": "N",
-               "start": None,
-               "end": None,
-               "SERIES_KEY": None,
-               "type": "csv"
-               }
+    _PARAMS = {
+        "trans": "N",
+        "start": None,
+        "end": None,
+        "SERIES_KEY": None,
+        "type": "csv"
+    }
     _MANDATORY = ("SERIES_KEY",)
     _TABLE = "ECBSeries"
     _BASE_URL = u"http://sdw.ecb.europa.eu/quickviewexport.do;jsessionid={}?"
@@ -99,6 +89,7 @@ class ECBSeries(ECBBasePage):
         self._p = self._PARAMS
         ld = self._fetch_last_data_point()
         self._p.update({
+            'SERIES_KEY': self._ticker,
             'start': pd.to_datetime(ld).timestamp(),
             'end': today(fmt='%s')
         })
