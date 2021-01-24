@@ -19,16 +19,21 @@ class AssetFactory(metaclass=Singleton):
         self._qb = DB.get_qb_glob()
         self._known_assets = {}
 
-    def _fetch_asset(self, uid: str):
-        """ Given the asset_type creates the correct asset object. """
+    def _fetch_type(self, uid: str) -> str:
+        """ Fetch the correct asset type. """
         q = self._qb.select(self._INFO_TABLE, fields=['uid', 'type'], keys=['uid'])
         res = self._db.execute(q, (uid,)).fetchone()
         if not res:
             raise Ex.MissingData('{} not found in the asset types list!'
                                  .format(uid))
+        return res[1]
 
-        atype = res[1]
-        symbol = '.'.join(['nfpy.Assets', atype, atype])
+    def _create_obj(self, uid: str) -> TyFI:
+        """ Given the asset_type creates the correct asset object. """
+        a_type = self._fetch_type(uid)
+
+        # atype = res[1]
+        symbol = '.'.join(['nfpy.Assets', a_type, a_type])
         class_ = Ut.import_symbol(symbol)
         obj = class_(uid)
         obj.load()
@@ -37,7 +42,7 @@ class AssetFactory(metaclass=Singleton):
 
     def exists(self, uid: str) -> bool:
         try:
-            _ = self.get(uid)
+            _ = self.get_type(uid)
         except Ex.MissingData:
             return False
         else:
@@ -48,8 +53,16 @@ class AssetFactory(metaclass=Singleton):
         try:
             asset = self._known_assets[uid]
         except KeyError:
-            asset = self._fetch_asset(uid)
+            asset = self._create_obj(uid)
         return asset
+
+    def get_type(self, uid: str) -> str:
+        """ Return the asset type for the given uid. """
+        try:
+            a_type = self._known_assets[uid].type
+        except KeyError:
+            a_type = self._fetch_type(uid)
+        return a_type
 
     def add(self, uid: str, asset_type: str):
         """ Add a new uid to the factory table. """
