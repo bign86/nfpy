@@ -67,10 +67,10 @@ class FileObject(AttributizedDict):
         return text
 
 
-def import_symbol(name: str):
+def import_symbol(name: str, pkg: str = None):
     """ Function to dynamically load a symbol inside a module. """
     mod, _, symbol = name.rpartition('.')
-    _mod = importlib.import_module(mod)
+    _mod = importlib.import_module(mod, package=pkg)
     return getattr(_mod, symbol)
 
 
