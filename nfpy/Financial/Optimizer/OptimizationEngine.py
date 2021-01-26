@@ -4,15 +4,15 @@
 #
 
 import numpy as np
-from typing import Union, Sequence
+from typing import (Union, Sequence)
 
 from nfpy.Assets import get_af_glob
 from nfpy.Calendar import get_calendar_glob
 import nfpy.Math as Mat
 from nfpy.Tools import (Constants as Cn, Utilities as Ut)
 
-from .CurrencyFactory import get_fx_glob
-from .RateFactory import get_rf_glob
+from ..CurrencyFactory import get_fx_glob
+from ..RateFactory import get_rf_glob
 
 
 class ResultOptimization(Ut.AttributizedDict):
