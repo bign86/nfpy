@@ -18,30 +18,27 @@ class BaseImportItem(object):
 
     _Q_READ = ''
     _Q_WRITE = ''
-    _CLEAN_F = ()
+    _Q_READWRITE = ''
+    _Q_INCR = ''
 
-    def __init__(self, item: dict):
+    def __init__(self, item: dict, incr: bool):
         self._db = DB.get_db_glob()
         self._dt = get_dt_glob()
         self._d = item
+        self._incr = incr
 
     def _get_params(self) -> tuple:
         """ Return the correct parameters for the read query. """
-        return self._d['ticker'].split('/')[0],
-
-    def _clean_routines(self, data: list) -> None:
-        for cr in self._CLEAN_F:
-            cr(data)
+        return self._d['ticker'],
 
     def run(self) -> None:
-        qr = self._Q_READ.format(**self._d)
         params = self._get_params()
-        data = self._db.execute(qr, params).fetchall()
 
-        self._clean_routines(data)
-
-        qw = self._Q_WRITE.format(**self._d)
-        self._db.executemany(qw, data, commit=True)
+        qrw = self._Q_READWRITE
+        if self._incr:
+            qrw += self._Q_INCR
+        qrw = qrw.format(**self._d) + ';'
+        self._db.execute(qrw, params, commit=True)
 
 
 class BaseProvider(metaclass=ABCMeta):
@@ -72,10 +69,10 @@ class BaseProvider(metaclass=ABCMeta):
         class_ = Ut.import_symbol(symbol, pkg='nfpy.Downloader')
         return class_(ticker)
 
-    def get_import_item(self, data: dict) -> BaseImportItem:
+    def get_import_item(self, data: dict, incremental: bool) -> BaseImportItem:
         asset = self._af.get(data['uid'])
         if asset.type == 'Company':
             data['dst_table'] = asset.constituents_table
         else:
             data['dst_table'] = asset.ts_table
-        return self._IMPORT_ITEMS[data['item']](data)
+        return self._IMPORT_ITEMS[data['item']](data, incremental)

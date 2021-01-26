@@ -17,23 +17,22 @@ from .DownloadsConf import ECBSeriesConf
 
 
 class ClosePricesItem(BaseImportItem):
-    _Q_READ = """select '{uid}', '1', date, value from ECBSeries where ticker = ?;"""
-    _Q_WRITE = """insert or replace into {dst_table}
-    (uid, dtype, date, value) values (?, ?, ?, ?);"""
+    _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
+    select '{uid}', '1', date, value from ECBSeries where ticker = ?"""
+    _Q_INCR = " and date > (select max(date) from {dst_table} where uid = '{uid}')"
 
 
 class ECBProvider(BaseProvider):
     """ Class for the European Central Bank provider. """
 
     _PROVIDER = 'ECB'
-    _PAGES = {'Series': 'ECBSeries'}  # ('ECBSeries', 'ECBSeries', 'value', 'price')}
+    _PAGES = {'Series': 'ECBSeries'}
     _IMPORT_ITEMS = {'ClosePrices': ClosePricesItem}
 
 
 class ECBBasePage(BasePage):
-    """ Base class for all ECB downloads. It cannot be used by itself
-        but the derived classes for single download instances should always be
-        used.
+    """ Base class for all ECB downloads. It cannot be used by itself but the
+        derived classes for single download instances should always be used.
     """
 
     _ENCODING = 'utf-8-sig'
@@ -90,8 +89,8 @@ class ECBSeries(ECBBasePage):
         ld = self._fetch_last_data_point()
         self._p.update({
             'SERIES_KEY': self._ticker,
-            'start': pd.to_datetime(ld).timestamp(),
-            'end': today(fmt='%s')
+            'start': pd.to_datetime(ld).timestamp().strftime('%d-%m-%Y'),
+            'end': today(fmt='%d-%m-%Y')
         })
 
     def _local_initializations(self, params: dict):
@@ -104,7 +103,8 @@ class ECBSeries(ECBBasePage):
                 continue
             except Exception as ex:
                 print(ex)
-                raise RuntimeError("Error in handling time periods for ECB series download")
+                msg = "Error in handling time periods for ECB series download"
+                raise RuntimeError(msg)
         self.params = params
         self._crumb = self._fetch_crumb()
         # print("JsessionId: {}".format(crumb))

@@ -22,36 +22,46 @@ from .DownloadsConf import (YahooFinancialsConf, YahooHistPricesConf,
 
 
 class ClosePricesItem(BaseImportItem):
-    _Q_READ = """select '{uid}', '1', date, close from YahooPrices where ticker = ?;"""
-    _Q_WRITE = """insert or replace into {dst_table}
-    (uid, dtype, date, value) values (?, ?, ?, ?);"""
+    _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
+    select '{uid}', '1', date, close from YahooPrices where ticker = ?"""
+    _Q_INCR = " and date > (select max(date) from {dst_table} where uid = '{uid}')"
 
 
 class FinancialsItem(BaseImportItem):
-    _Q_READ = ''
-    _Q_WRITE = ''
+    _Q_READWRITE = """insert or replace into {dst_table}
+    (uid, code, date, freq, value) select distinct '{uid}', code, date, freq, value
+    from YahooFinancials where ticker = ?"""
+    _Q_INCR = " and date > (select max(date) from {dst_table} where uid = '{uid}')"
 
 
 class DividendsItem(BaseImportItem):
-    _Q_READ = """select '{uid}', dtype, date, value from YahooEvents
-    where ticker = ? and dtype = ?;"""
-    _Q_WRITE = """insert or replace into {dst_table}
-    (uid, dtype, date, value) values (?, ?, ?, ?);"""
+    _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
+    select '{uid}', dtype, date, value from YahooEvents
+    where ticker = ? and dtype = ?"""
+    _Q_INCR = """ and date > (select max(date) from {dst_table} where uid = '{uid}'
+    and dtype = ?)"""
 
     def _get_params(self) -> tuple:
         dt = self._dt.get('dividend')
-        return self._d['ticker'], dt
+        if self._incr:
+            return self._d['ticker'], dt, dt
+        else:
+            return self._d['ticker'], dt
 
 
 class SplitsItem(BaseImportItem):
-    _Q_READ = """select '{uid}', '1', date, value from YahooEvents
-    where ticker = ? and dtype = ?;"""
-    _Q_WRITE = """insert or replace into {dst_table}
-    (uid, dtype, date, value) values (?, ?, ?, ?);"""
+    _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
+    select '{uid}', dtype, date, value from YahooEvents
+    where ticker = ? and dtype = ?"""
+    _Q_INCR = """ and date > (select max(date) from {dst_table} where uid = '{uid}'
+    and dtype = ?)"""
 
     def _get_params(self) -> tuple:
         dt = self._dt.get('split')
-        return self._d['ticker'], dt
+        if self._incr:
+            return self._d['ticker'], dt, dt
+        else:
+            return self._d['ticker'], dt
 
 
 class YahooProvider(BaseProvider):
@@ -186,7 +196,7 @@ class YahooFinancials(YahooBasePage):
             _extract_(p, hash_map, data_tab)
 
         # Create dataframe
-        cols = ['ticker', 'freq', 'currency', 'statement', 'date', 'code', 'value']
+        cols = self._qb.get_fields(self._TABLE)
         df = pd.DataFrame.from_records(rows, columns=cols)
 
         # I want a cleaner version of the _robj for backup purposes
@@ -205,11 +215,13 @@ class YahooHistoricalBasePage(YahooBasePage):
         In case of new splits, the series has to be adjusted for them, unless
         the series is downloaded again from scratch.
     """
-    _PARAMS = {"period1": None,
-               "period2": None,
-               "interval": "1d",
-               "events": None,
-               "crumb": None}
+    _PARAMS = {
+        "period1": None,
+        "period2": None,
+        "interval": "1d",
+        "events": None,
+        "crumb": None
+    }
     _MANDATORY = ("period1", "period2")
     _BASE_URL = u"https://query1.finance.yahoo.com/v7/finance/download/{}?"
     _SKIP = [1]
@@ -224,8 +236,8 @@ class YahooHistoricalBasePage(YahooBasePage):
         ld = self._fetch_last_data_point()
         self._p.update({
             'period1': str(int(pd.to_datetime(ld).timestamp())),
-            'period2': today(fmt='%s')}
-        )
+            'period2': today(fmt='%s')
+        })
 
     def _local_initializations(self, params: dict):
         """ Local initializations for the single page. """

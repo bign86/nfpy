@@ -5,6 +5,7 @@
 
 from requests import RequestException
 
+from nfpy.DatatypeFactory import get_dt_glob
 import nfpy.DB as DB
 from nfpy.Tools import (Singleton, Exceptions as Ex)
 
@@ -26,6 +27,7 @@ class ImportFactory(metaclass=Singleton):
     def __init__(self):
         self._db = DB.get_db_glob()
         self._qb = DB.get_qb_glob()
+        self._dt = get_dt_glob()
         self._imports_list = None
 
     def filter_imports(self, uid: str = None, provider: str = None,
@@ -63,14 +65,15 @@ class ImportFactory(metaclass=Singleton):
         self._imports_list = res
         return fields, res, len(res)
 
-    def do_import(self, data: dict) -> None:
+    def do_import(self, data: dict, incremental: bool) -> None:
         """ Take the importing object and runs the import. """
         prov = data['provider']
-        imp_item = self._PROVIDERS[prov].get_import_item(data)
+        imp_item = self._PROVIDERS[prov].get_import_item(data, incremental)
         imp_item.run()
 
     def bulk_import(self, uid: str = None, provider: str = None,
-                    item: str = None, override_active: bool = False):
+                    item: str = None, override_active: bool = False,
+                    incremental: bool = False) -> None:
         """ Performs a bulk import of the system based on the 'auto' flag in the
             Imports table.
 
@@ -79,6 +82,7 @@ class ImportFactory(metaclass=Singleton):
                 provider [str]: import for a provider (default None)
                 item [str]: import for the item (default None)
                 override_active [bool]: disregard 'active' (default False)
+                incremental [bool]: do an incremental import (default False)
         """
         active = not override_active
         fields, import_list, num = self.filter_imports(provider=provider,
@@ -91,12 +95,15 @@ class ImportFactory(metaclass=Singleton):
             import_data = dict(zip(fields, element))
             print(import_data)
             try:
-                self.do_import(import_data)
+                self.do_import(import_data, incremental)
             except Ex.CalendarError as cal:
                 raise cal
             except (Ex.MissingData, Ex.IsNoneError,
                     RuntimeError, RequestException) as e:
                 print(e)
+
+        # TODO: introduce post-import adjustments for special dividends
+        # print('Performing post-import adjustments')
 
 
 def get_impf_glob() -> ImportFactory:

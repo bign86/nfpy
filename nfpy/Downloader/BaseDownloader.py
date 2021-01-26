@@ -117,7 +117,8 @@ class BasePage(metaclass=ABCMeta):
                 _l.append(p)
 
         if _l:
-            raise Ex.IsNoneError("The following parameters are required: {}".format(', '.join(_l)))
+            raise Ex.IsNoneError("The following parameters are required: {}"
+                                 .format(', '.join(_l)))
 
     def save(self, backup: bool = False, fname: str = None) -> None:
         """ Save the downloaded page in the DB and on a file.

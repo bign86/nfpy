@@ -3,6 +3,7 @@
 # Downloads data from Interactive Brokers API
 #
 
+import datetime
 import pandas as pd
 from time import sleep
 import xml.etree.ElementTree as ET
@@ -17,9 +18,47 @@ from .IBApp import *
 
 class FinancialsItem(BaseImportItem):
     _Q_READ = """select distinct '{uid}', code, date, freq, value
-    from IBFinancials where ticker = ?;"""
+    from IBFinancials where ticker = ?"""
     _Q_WRITE = """insert or replace into {dst_table}
-    (uid, code, date, freq, value) values (?, ?, ?, ?, ?);"""
+    (uid, code, date, freq, value) values (?, ?, ?, ?, ?)"""
+    _Q_INCR = " and date > (select max(date) from {dst_table} where uid = '{uid}')"
+
+    def _get_params(self) -> tuple:
+        """ Return the correct parameters for the read query. """
+        return self._d['ticker'].split('/')[0],
+
+    def _clean_eoy_dates(self, data: list) -> None:
+        """ Moves EOY results to the actual end of the year. """
+        data_ins = []
+        for idx in range(len(data) - 1, -1, -1):
+            item = data[idx]
+            if item[3] == 'A':
+                old_date = datetime.datetime.strptime(item[2], '%Y-%m-%d')
+                if old_date.month != 12:
+                    new_date = datetime.date(old_date.year - 1, 12, 31)
+                else:
+                    new_date = old_date.date()
+                data_ins.append((item[0], item[1], new_date, item[3], item[4]))
+                del data[idx]
+        
+        for t in data_ins:
+            data.append(t)    
+
+    def run(self) -> None:
+        params = self._get_params()
+
+        qr = self._Q_READ
+        if self._incr:
+            qr += self._Q_INCR
+        qr = qr.format(**self._d) + ';'
+        data = self._db.execute(qr, params).fetchall()
+
+        print('!!! len pre-cleaning =  {}'.format(len(data)))
+        self._clean_eoy_dates(data)
+        print('!!! len post-cleaning = {}'.format(len(data)))
+
+        qw = self._Q_WRITE.format(**self._d)
+        self._db.executemany(qw, data, commit=True)
 
 
 class IBProvider(BaseProvider):
@@ -48,7 +87,7 @@ class IBBasePage(BasePage):
     @property
     def baseurl(self) -> str:
         """ Return the base url for the page. """
-        return ''  # self._BASE_URL + self._URL_SUFFIX
+        return ''
 
     def _set_default_params(self) -> None:
         pass
