@@ -24,10 +24,8 @@ class MarketEquityDataModel(MarketAssetsDataBaseModel):
     _RES_OBJ = MEDMResult
 
     def __init__(self, uid: str, date: Union[str, pd.Timestamp] = None,
-                 w_ma_slow: int = 120, w_ma_fast: int = 21, sr_mult: float = 5.,
-                 date_fmt: str = '%Y-%m-%d', **kwargs):
-        super().__init__(uid, date, w_ma_slow, w_ma_fast, sr_mult,
-                         date_fmt, **kwargs)
+                 **kwargs):
+        super().__init__(uid, date, **kwargs)
         self._index = self._af.get(self._asset.index)
 
     def _calculate(self):
@@ -107,9 +105,6 @@ class MarketEquityDataModel(MarketAssetsDataBaseModel):
         self._res_update(perf=perf, perf_idx=perf_idx)
 
 
-def MEDModel(uid: str, date: Union[str, pd.Timestamp] = None,
-             w_ma_slow: int = 120, w_ma_fast: int = 21, sr_mult: float = 5.,
-             date_fmt: str = '%Y-%m-%d') -> MEDMResult:
+def MEDModel(uid: str, date: Union[str, pd.Timestamp] = None) -> MEDMResult:
     """ Shortcut for the calculation. Intermediate results are lost. """
-    return MarketEquityDataModel(uid, date, w_ma_slow, w_ma_fast, sr_mult,
-                                 date_fmt).result()
+    return MarketEquityDataModel(uid, date).result()

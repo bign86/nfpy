@@ -29,9 +29,6 @@ class MarketPortfolioDataModel(MarketAssetsDataBaseModel):
         self._res_update(constituents=constituents)
 
 
-def MPDModel(uid: str, date: Union[str, pd.Timestamp] = None,
-             w_ma_slow: int = 120, w_ma_fast: int = 21, sr_mult: float = 5.,
-             date_fmt: str = '%Y-%m-%d') -> MPDMResult:
+def MPDModel(uid: str, date: Union[str, pd.Timestamp] = None) -> MPDMResult:
     """ Shortcut for the calculation. Intermediate results are lost. """
-    return MarketPortfolioDataModel(uid, date, w_ma_slow, w_ma_fast, sr_mult,
-                                    date_fmt).result()
+    return MarketPortfolioDataModel(uid, date).result()

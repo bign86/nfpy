@@ -11,8 +11,6 @@ from nfpy.Assets import get_af_glob
 from nfpy.Calendar import get_calendar_glob
 import nfpy.Math as Mat
 from nfpy.Tools import (Constants as Cn, Utilities as Ut)
-import nfpy.Trading.Signals as Sig
-import nfpy.Trading.Trends as Tr
 
 
 class BaseMADMResult(Ut.AttributizedDict):
@@ -25,8 +23,7 @@ class MarketAssetsDataBaseModel(object):
     _RES_OBJ = BaseMADMResult
 
     def __init__(self, uid: str, date: Union[str, pd.Timestamp] = None,
-                 w_ma_slow: int = 120, w_ma_fast: int = 21, sr_mult: float = 5.,
-                 date_fmt: str = '%Y-%m-%d', **kwargs):
+                 **kwargs):
         # Handlers
         self._cal = get_calendar_glob()
         self._af = get_af_glob()
@@ -37,10 +34,9 @@ class MarketAssetsDataBaseModel(object):
         if date is None:
             self._t0 = self._cal.t0
         elif isinstance(date, str):
-            self._t0 = pd.to_datetime(date, format=date_fmt)
-        self._w_ma_slow = w_ma_slow
-        self._w_ma_fast = w_ma_fast
-        self._sr_mult = sr_mult
+            self._t0 = pd.to_datetime(date, format='%Y-%m-%d')
+        else:
+            self._t0 = date
 
         # Working data
         self._dt = {}
@@ -48,8 +44,7 @@ class MarketAssetsDataBaseModel(object):
                             Cn.DAYS_IN_1Y, 3 * Cn.DAYS_IN_1Y)
         self._is_calculated = False
 
-        self._res_update(date=self._t0, uid=self._uid, w_slow=self._w_ma_slow,
-                         w_fast=self._w_ma_fast)
+        self._res_update(date=self._t0, uid=self._uid)
 
     def _res_update(self, **kwargs):
         self._dt.update(kwargs)
@@ -60,9 +55,6 @@ class MarketAssetsDataBaseModel(object):
 
         # Time-dependent statistics
         self._calc_statistics()
-
-        # Trading quantities
-        self._calc_trading()
 
     def _calc_price_res(self):
         asset, t0 = self._asset, self._t0
@@ -99,37 +91,12 @@ class MarketAssetsDataBaseModel(object):
             # above) is between 1.5 and 3.1 times faster than using
             # Asset.total_return()
             p_start = Mat.next_valid_value(v, dt, start.asm8)[0]
-            total_ret = last_price/p_start - 1.
+            total_ret = last_price / p_start - 1.
             stats[2, i] = Mat.compound(total_ret, Cn.BDAYS_IN_1Y / real_n)
 
         calc = ['volatility', 'mean return', 'tot. return']
         self._res_update(stats=pd.DataFrame(stats, index=calc,
                                             columns=self._time_spans))
-
-    def _calc_trading(self):
-        prices = self._asset.prices
-        w_fast, w_slow = self._w_ma_fast, self._w_ma_slow
-
-        # Moving averages
-        wma_fast = Sig.ewma(prices, w=w_fast)
-        wma_slow = Sig.ewma(prices, w=w_slow)
-
-        # Support/resistances
-        p_slow = prices.iloc[-int(w_slow * self._sr_mult):]
-        _, _, max_i, min_i = Tr.find_ts_extrema(p_slow, w=w_slow)
-        all_i = sorted(max_i + min_i)
-        pp = p_slow.iloc[all_i]
-        sr_slow = Tr.group_extrema(pp, dump=.75)[0]
-
-        p_fast = prices.iloc[-int(w_fast * self._sr_mult):]
-        _, _, max_i, min_i = Tr.find_ts_extrema(p_fast, w=w_fast)
-        all_i = sorted(max_i + min_i)
-        pp = p_fast.iloc[all_i]
-        sr_fast = Tr.group_extrema(pp, dump=.75)[0]
-
-        # Record results
-        self._res_update(w_fast=w_fast, ma_fast=wma_fast, sr_fast=sr_fast,
-                         w_slow=w_slow, ma_slow=wma_slow, sr_slow=sr_slow)
 
     def _create_output(self):
         res = self._RES_OBJ()
@@ -146,8 +113,6 @@ class MarketAssetsDataBaseModel(object):
 
 
 def MADModel(uid: str, date: Union[str, pd.Timestamp] = None,
-             w_ma_slow: int = 120, w_ma_fast: int = 21, sr_mult: float = 5.,
-             date_fmt: str = '%Y-%m-%d') -> BaseMADMResult:
+             ) -> BaseMADMResult:
     """ Shortcut for the calculation. Intermediate results are lost. """
-    return MarketAssetsDataBaseModel(uid, date, w_ma_slow, w_ma_fast, sr_mult,
-                                     date_fmt).result()
+    return MarketAssetsDataBaseModel(uid, date).result()

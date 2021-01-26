@@ -98,9 +98,6 @@ class MarketBondDataModel(MarketAssetsDataBaseModel):
                          duration=dur)
 
 
-def MBDModel(uid: str, date: Union[str, pd.Timestamp] = None,
-             w_ma_slow: int = 120, w_ma_fast: int = 21, sr_mult: float = 5.,
-             date_fmt: str = '%Y-%m-%d') -> MBDMResult:
+def MBDModel(uid: str, date: Union[str, pd.Timestamp] = None) -> MBDMResult:
     """ Shortcut for the calculation. Intermediate results are lost. """
-    return MarketBondDataModel(uid, date, w_ma_slow, w_ma_fast, sr_mult,
-                               date_fmt).result()
+    return MarketBondDataModel(uid, date).result()

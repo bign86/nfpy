@@ -1,31 +1,30 @@
 #
-# Market Assets Data Base Model
-# Base class for market models
+# Trading Model
+# Base class for trading
 #
 
-import numpy as np
 import pandas as pd
 from typing import Union
 
 from nfpy.Assets import get_af_glob
 from nfpy.Calendar import get_calendar_glob
-import nfpy.Math as Mat
 from nfpy.Tools import (Constants as Cn, Utilities as Ut)
+import nfpy.Trading.Signals as Sig
 import nfpy.Trading.Trends as Tr
 
 
-class BaseMADMResult(Ut.AttributizedDict):
-    """ Base object containing the results of the market asset models. """
+class TradingResult(Ut.AttributizedDict):
+    """ Base object containing the results of the trading models. """
 
 
-class MarketAssetsDataBaseModel(object):
-    """ Market Assets Data Base Model class """
+class TradingModel(object):
+    """ Trading Model class """
 
-    _RES_OBJ = BaseMADMResult
+    _RES_OBJ = TradingResult
 
     def __init__(self, uid: str, date: Union[str, pd.Timestamp] = None,
-                 w_ma_slow: int = 120, w_ma_fast: int = 21, sr_mult: float = 5.,
-                 date_fmt: str = '%Y-%m-%d', **kwargs):
+                 w_ma_slow: int = 120, w_ma_fast: int = 21,
+                 sr_mult: float = 5., **kwargs):
         # Handlers
         self._cal = get_calendar_glob()
         self._af = get_af_glob()
@@ -36,7 +35,9 @@ class MarketAssetsDataBaseModel(object):
         if date is None:
             self._t0 = self._cal.t0
         elif isinstance(date, str):
-            self._t0 = pd.to_datetime(date, format=date_fmt)
+            self._t0 = pd.to_datetime(date, format='%Y-%m-%d')
+        else:
+            self._t0 = date
         self._w_ma_slow = w_ma_slow
         self._w_ma_fast = w_ma_fast
         self._sr_mult = sr_mult
@@ -48,64 +49,19 @@ class MarketAssetsDataBaseModel(object):
         self._is_calculated = False
 
         self._res_update(date=self._t0, uid=self._uid, w_slow=self._w_ma_slow,
-                         w_fast=self._w_ma_fast)
+                         w_fast=self._w_ma_fast, prices=self._asset.prices)
 
     def _res_update(self, **kwargs):
         self._dt.update(kwargs)
 
     def _calculate(self):
-        # Price results
-        self._calc_price_res()
+        # Support/Resistances
+        self._calc_sr()
 
-        # Time-dependent statistics
-        self._calc_statistics()
+        # Moving averages
+        self._calc_wma()
 
-        # Trading quantities
-        self._calc_trading()
-
-    def _calc_price_res(self):
-        asset, t0 = self._asset, self._t0
-
-        prices = asset.prices
-        v = prices.values
-        dt = prices.index.values
-        last_price, idx = Mat.last_valid_value(v, dt, t0.asm8)
-        last_p_date = prices.index[idx]
-
-        self._res_update(prices=prices, last_price=last_price,
-                         last_price_date=last_p_date)
-
-    def _calc_statistics(self):
-        asset, t0 = self._asset, self._t0
-        length = len(self._time_spans)
-
-        stats = np.empty((3, length))
-
-        v, dt = asset.prices.values, asset.prices.index.values
-        last_price = self._dt['last_price']
-        last_price_date = self._dt['last_price_date']
-
-        for i in range(length):
-            n = self._time_spans[i]
-            start = self._cal.shift(t0, -n, 'D')
-            real_n = self._cal.run_len(start, last_price_date)
-            stats[0, i] = asset.return_volatility(start, t0)
-
-            mean_ret = asset.expct_return(start, t0)
-            stats[1, i] = Mat.compound(mean_ret, Cn.BDAYS_IN_1Y / real_n)
-
-            # From timing results this solution (combined with obtaining p_t0
-            # above) is between 1.5 and 3.1 times faster than using
-            # Asset.total_return()
-            p_start = Mat.next_valid_value(v, dt, start.asm8)[0]
-            total_ret = last_price / p_start - 1.
-            stats[2, i] = Mat.compound(total_ret, Cn.BDAYS_IN_1Y / real_n)
-
-        calc = ['volatility', 'mean return', 'tot. return']
-        self._res_update(stats=pd.DataFrame(stats, index=calc,
-                                            columns=self._time_spans))
-
-    def _calc_trading(self):
+    def _calc_sr(self):
         prices = self._asset.prices
         w_fast, w_slow = self._w_ma_fast, self._w_ma_slow
 
@@ -122,9 +78,17 @@ class MarketAssetsDataBaseModel(object):
         pp = p_fast.iloc[all_i]
         sr_fast = Tr.group_extrema(pp, dump=.75)[0]
 
-        # Record results
-        self._res_update(w_fast=w_fast, sr_fast=sr_fast,
-                         w_slow=w_slow, sr_slow=sr_slow)
+        self._res_update(sr_fast=sr_fast, sr_slow=sr_slow)
+
+    def _calc_wma(self):
+        prices = self._asset.prices
+        w_fast, w_slow = self._w_ma_fast, self._w_ma_slow
+
+        # Moving averages
+        wma_fast = Sig.ewma(prices, w=w_fast)
+        wma_slow = Sig.ewma(prices, w=w_slow)
+
+        self._res_update(ma_fast=wma_fast, ma_slow=wma_slow)
 
     def _create_output(self):
         res = self._RES_OBJ()
@@ -140,9 +104,8 @@ class MarketAssetsDataBaseModel(object):
         return self._create_output()
 
 
-def MADModel(uid: str, date: Union[str, pd.Timestamp] = None,
+def TRDModel(uid: str, date: Union[str, pd.Timestamp] = None,
              w_ma_slow: int = 120, w_ma_fast: int = 21, sr_mult: float = 5.,
-             date_fmt: str = '%Y-%m-%d') -> BaseMADMResult:
+             ) -> TradingResult:
     """ Shortcut for the calculation. Intermediate results are lost. """
-    return MarketAssetsDataBaseModel(uid, date, w_ma_slow, w_ma_fast, sr_mult,
-                                     date_fmt).result()
+    return TradingModel(uid, date, w_ma_slow, w_ma_fast, sr_mult).result()
