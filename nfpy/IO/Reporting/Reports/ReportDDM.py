@@ -5,14 +5,14 @@
 
 from copy import deepcopy
 
-from nfpy.Financial.Models import (DividendDiscountModel, DDMResult)
+import nfpy.Financial.Models as Mod
 import nfpy.IO as IO
 
 from .BaseReport import BaseReport
 
 
 class ReportDDM(BaseReport):
-    _M_OBJ = DividendDiscountModel
+    _M_OBJ = Mod.DividendDiscountModel
     _M_LABEL = 'DDM'
     _IMG_LABELS = ['div']
     INPUT_QUESTIONS = (
@@ -36,7 +36,7 @@ class ReportDDM(BaseReport):
         p.update({'company': self._uid})
         return p
 
-    def _create_output(self, res) -> DDMResult:
+    def _create_output(self, res) -> Mod.DDMResult:
         """ Create the final output. """
         # Create the image path
         fig_full_name, fig_rel_name = self._get_image_paths(res.uid)

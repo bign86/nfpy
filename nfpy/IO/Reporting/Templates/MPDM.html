@@ -1,6 +1,6 @@
 <h5>MPDM</h5>
 <img src="{{ current_model_res.prices_long }}" alt="Full history of prices">
-<img src="{{ current_model_res.prices_short }}" alt="Last 90 days of prices">
+<!-- <img src="{{ current_model_res.prices_short }}" alt="Last 90 days of prices"> -->
 
 <p>Last price: {{ '%.3f' | format(current_model_res.last_price|float) }} {{ current_asset_info["currency"] }} @ {{ current_model_res.last_price_date.strftime('%Y-%m-%d') }}</p>
 {{ current_model_res.stats.T.to_html(formatters=

@@ -5,13 +5,13 @@
 
 from copy import deepcopy
 
-from nfpy.Financial.Models import DiscountedCashFlowModel
+import nfpy.Financial.Models as Mod
 
 from .BaseReport import BaseReport
 
 
 class ReportDCF(BaseReport):
-    _M_OBJ = DiscountedCashFlowModel
+    _M_OBJ = Mod.DiscountedCashFlowModel
     INPUT_QUESTIONS = (
         ('date', 'Insert date of calculation (default None): ',
          {'idesc': 'datetime', 'optional': True}),

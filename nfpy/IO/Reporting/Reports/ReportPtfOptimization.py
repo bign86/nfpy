@@ -6,7 +6,7 @@
 import numpy as np
 import pandas as pd
 
-from nfpy.Assets import get_af_glob
+import nfpy.Assets as Ast
 from nfpy.Calendar import get_calendar_glob
 import nfpy.Financial as Fin
 import nfpy.IO as IO
@@ -33,7 +33,7 @@ class ReportPtfOptimization(BaseReport):
     def _init_input(self) -> dict:
         """ Prepare the input arguments for the model. """
         t0 = get_calendar_glob().t0
-        start = pd.Timestamp(year=(t0.year - 1), month=t0.month, day=t0.day)
+        start = pd.Timestamp(year=(t0.year - 2), month=t0.month, day=t0.day)
         params = {'iterations': 50, 'start': start.asm8,
                   't0': t0.asm8, 'gamma': None}
         params.update(self._p)
@@ -47,7 +47,7 @@ class ReportPtfOptimization(BaseReport):
         model_res = oe.result
 
         # Handlers
-        af, fx = get_af_glob(), Fin.get_fx_glob()
+        af, fx = Ast.get_af_glob(), Fin.get_fx_glob()
 
         # Calculate actual weights ex-cash positions
         ptf = af.get(self._uid)

@@ -10,9 +10,9 @@ import nfpy.IO as IO
 from .BaseReport import BaseReport
 
 
-class ReportMADM(BaseReport):
-    _M_OBJ = Mod.MarketAssetsDataBaseModel
-    _M_LABEL = 'MADM'
+class ReportTrading(BaseReport):
+    _M_OBJ = Mod.TradingModel
+    _M_LABEL = 'Trading'
     _IMG_LABELS = ['p_long', 'p_short']
     INPUT_QUESTIONS = ()
 
@@ -39,6 +39,8 @@ class ReportMADM(BaseReport):
         div_pl.add(p)
         div_pl.line('h', res.sr_slow, (start, res.date.asm8),
                     color='dimgray', linewidth=1.)
+        div_pl.add(res.ma_slow, color='C2', linewidth=1.5,
+                   linestyle='--', label='MA {}'.format(res.w_slow))
 
         div_pl.plot()
         div_pl.save(full_name_long)
@@ -56,6 +58,10 @@ class ReportMADM(BaseReport):
         div_pl.add(p)
         div_pl.line('h', res.sr_fast, (start, res.date.asm8),
                     color='sandybrown', linewidth=1.)
+        div_pl.add(res.ma_fast[start:], color='C1', linewidth=1.5,
+                   linestyle='--', label='MA {}'.format(res.w_fast))
+        div_pl.add(res.ma_slow[start:], color='C2', linewidth=1.5,
+                   linestyle='--', label='MA {}'.format(res.w_slow))
 
         f_min, f_max = p.min() * .9, p.max() * 1.1
         sr_slow = res.sr_slow[(res.sr_slow > f_min) & (res.sr_slow < f_max)]

@@ -14,3 +14,8 @@
   {% set current_model_res = current_asset_dict["MADM"] %}
   {%- include 'MADM.html' with context -%}
 {%- endif -%}
+
+{%- if "TRD" in current_asset_dict %}
+  {% set current_model_res = current_asset_dict["TRD"] %}
+  {%- include 'TRD.html' with context -%}
+{%- endif -%}

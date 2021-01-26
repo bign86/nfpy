@@ -26,9 +26,11 @@ class ReportingEngine(metaclass=Singleton):
     _TBL_ITEMS = 'ReportItems'
     _DT_FMT = '%Y%m%d'
     _IMG_DIR = 'img'
-    _REPORTS = {'DDM': ReportDDM, 'DCF': ReportDCF, 'MADM': ReportMADM,
-                'MEDM': ReportMEDM, 'MBDM': ReportMBDM, 'MPDM': ReportMPDM,
-                'PtfOptimization': ReportPtfOptimization}
+    _REPORTS = {
+        'DDM': ReportDDM, 'DCF': ReportDCF, 'MADM': ReportMADM,
+        'MEDM': ReportMEDM, 'MBDM': ReportMBDM, 'MPDM': ReportMPDM,
+        'PtfOptimization': ReportPtfOptimization, 'TRD': ReportTrading,
+    }
     _TMPL_PATH = join(NFPY_ROOT_DIR, 'IO/Reporting/Templates')
     _REP_EXT = '.html'
 

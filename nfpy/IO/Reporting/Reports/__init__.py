@@ -5,8 +5,9 @@ from .ReportMBDM import ReportMBDM
 from .ReportMEDM import ReportMEDM
 from .ReportMPDM import ReportMPDM
 from .ReportPtfOptimization import ReportPtfOptimization
+from .ReportTrading import ReportTrading
 
 __all__ = [
     'ReportDCF', 'ReportDDM', 'ReportMADM', 'ReportMBDM',
-    'ReportMEDM', 'ReportMPDM', 'ReportPtfOptimization'
+    'ReportMEDM', 'ReportMPDM', 'ReportPtfOptimization', 'ReportTrading'
 ]

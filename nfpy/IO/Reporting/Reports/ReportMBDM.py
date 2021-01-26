@@ -3,17 +3,16 @@
 # Report class for the Market Bond Data Model
 #
 
-from nfpy.Calendar import get_calendar_glob
-from nfpy.Financial.Models import MarketBondDataModel
+import nfpy.Financial.Models as Mod
 import nfpy.IO as IO
 
 from .ReportMADM import ReportMADM
 
 
 class ReportMBDM(ReportMADM):
-    _M_OBJ = MarketBondDataModel
+    _M_OBJ = Mod.MarketBondDataModel
     _M_LABEL = 'MBDM'
-    _IMG_LABELS = ['p_long', 'p_short', 'price_ytm']
+    _IMG_LABELS = ['p_price', 'price_ytm']
 
     def _create_output(self, res):
         """ Create the final output. """
@@ -21,31 +20,15 @@ class ReportMBDM(ReportMADM):
         fig_full_name, fig_rel_name = self._get_image_paths(res.uid)
 
         # Relative path in results object
-        res.prices_long = fig_rel_name[0]
-        res.prices_short = fig_rel_name[1]
-        res.prices_ytm = fig_rel_name[2]
+        res.prices_long, res.prices_ytm = fig_rel_name
 
-        # Save out figure
-        try:
-            w = self._p['w_plot_fast']
-        except KeyError:
-            w = 120
-        start = get_calendar_glob().shift(res.date, -w, 'D').asm8
-        p = res.prices
-        y = res.yields
+        p, y = res.prices, res.yields
 
         div_pl = IO.PlotTS()
         div_pl.add(p, label='Price')
         div_pl.add(y, color='C2', label='Yield', secondary_y=True)
         div_pl.plot()
         div_pl.save(fig_full_name[0])
-        div_pl.clf()
-
-        div_pl = IO.PlotTS()
-        div_pl.add(p.loc[start:], label='Price')
-        div_pl.add(y.loc[start:], color='C2', label='Yield', secondary_y=True)
-        div_pl.plot()
-        div_pl.save(fig_full_name[1])
         div_pl.clf()
 
         data = res.yields_array
@@ -64,7 +47,7 @@ class ReportMBDM(ReportMADM):
         div_pl.line('xh', bars[1, 3], linestyle='--', linewidth='.8',
                     color="C2")
         div_pl.plot()
-        div_pl.save(fig_full_name[2])
+        div_pl.save(fig_full_name[1])
 
         div_pl.close(True)
 
