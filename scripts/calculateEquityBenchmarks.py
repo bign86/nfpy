@@ -12,9 +12,8 @@ import nfpy.DB as DB
 import nfpy.IO as IO
 from nfpy.Tools import Exceptions as Ex
 
-__version__ = '0.3'
+__version__ = '0.4'
 _TITLE_ = "<<< Equity benchmark calculation script >>>"
-
 
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
@@ -33,13 +32,13 @@ if __name__ == '__main__':
     get_calendar_glob().initialize(end_date, start_date)
 
     q = "select * from Assets where type = 'Equity'"
-    res = db.execute(q).fetchall()
+    eqs = db.execute(q).fetchall()
 
     f = list(qb.get_fields('Assets'))
     print('\n\nAvailable equities:')
-    print(tabulate(res, headers=f, showindex=True))
-    uid = inh.input("\nGive an equity index: ", idesc='int')
-    eq = af.get(res[uid][0])
+    print(tabulate(eqs, headers=f, showindex=True), end='\n\n')
+    eq_idx = inh.input("Give an equity index: ", idesc='int')
+    eq = af.get(eqs[eq_idx][0])
 
     q = "select * from Assets where type = 'Indices'"
     idx = db.execute(q).fetchall()
@@ -61,6 +60,16 @@ if __name__ == '__main__':
     f = ['', 'Index', 'Correlation', 'Beta', 'Adj. Beta']
     print('\n--------------------------------------------\nResults:')
     print('--------------------------------------------')
-    print(tabulate(res, headers=f, showindex=True, floatfmt=".3f"))
+    print(tabulate(res, headers=f, showindex=True, floatfmt=".3f"), end='\n\n')
+
+    update = inh.input("Update default index (default No)? ",
+                       idesc='bool', default=False, optional=True)
+    if update:
+        new_idx = 9999
+        while new_idx >= len(res):
+            new_idx = inh.input("Choose a new index: ", idesc='int')
+
+        q_upd = qb.update('Equity', fields=('index',))
+        db.execute(q_upd, (res[new_idx][1], eqs[eq_idx][0]), commit=True)
 
     print('All done!')
