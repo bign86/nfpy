@@ -53,19 +53,19 @@ if __name__ == '__main__':
     uid = inh.input('Give a UID: ', idesc='str')
     if af.exists(uid):
         skip_elaboration = True
-        asset = af.get(uid)
-        print("UID has been found in the database:\n{} {} - {}"
-              .format(asset.type, uid, asset.description), end='\n\n')
+        a_type = af.get_type(uid)
+        print("UID has been found in the database:\n{} {}"
+              .format(a_type, uid), end='\n\n')
     else:
         a_type = inh.input("Insert asset_type: ", idesc='str')
         a_obj = Ut.import_symbol('.'.join(['nfpy.Assets', a_type, a_type]))
         table = a_obj._BASE_TABLE
-        queries[table] = (qb.insert(table), columns_data(table, {'uid': uid}))
+        asset_data = columns_data(table, {'uid': uid})
+        queries[table] = (qb.insert(table), (asset_data,))
 
     # DOWNLOADS
-    # TODO: remove the check on uid that is not key
     dwn_data = []
-    dwn_keys = ('uid', 'provider', 'page', 'ticker')
+    dwn_keys = ('provider', 'page', 'ticker')
     while inh.input("Add new download?: ", idesc='bool', default=False):
         provider = inh.input("Give the provider: ", idesc='str',
                              checker='provider')
@@ -76,10 +76,10 @@ if __name__ == '__main__':
             page = inh.input("Give the download page: ", idesc='str')
 
         ticker = inh.input("Give a downloading ticker to add: ", idesc='str')
+        params = (provider, page, ticker)
 
-        params = (uid, provider, page, ticker)
-        q = qb.select('Downloads', keys=dwn_keys[1:])
-        res = db.execute(q, params[1:]).fetchall()
+        q = qb.select('Downloads', keys=dwn_keys)
+        res = db.execute(q, params).fetchall()
         if res:
             print('This download is already present', end='\n\n')
         else:
@@ -91,16 +91,17 @@ if __name__ == '__main__':
 
     # IMPORTS
     import_data = []
-    imp_keys = ('uid', 'ticker', 'provider', 'page', 'src_column')
+    imp_keys = ('uid', 'ticker', 'provider', 'item')
     for d in dwn_data:
-        msg = "\nAdd the following download to imports?\n{} {} {} {}\n" \
-            .format(*d[:4])
+        imp_cols = (uid, d[2], d[0])
+        msg = "\nAdd a new import for the following download?\n{} {} {} {}\n" \
+            .format(*imp_cols, d[1])
         if inh.input(msg, idesc='bool', default=False):
-            p = {k: v for k, v in zip(dwn_keys, d[:4])}
+            p = {k: v for k, v in zip(imp_keys, imp_cols)}
             imp_cols = columns_data('Imports', p)
 
             q = qb.select('Imports', keys=imp_keys)
-            res = db.execute(q, imp_cols[:5]).fetchall()
+            res = db.execute(q, imp_cols[:4]).fetchall()
             if res:
                 print('This import is already present. Not added', end='\n\n')
             else:
@@ -120,7 +121,7 @@ if __name__ == '__main__':
     if inh.input('Do you want to proceed?: ', idesc='bool'):
         for t in queries.values():
             query, data = t
-            db.execute(query, data)
+            db.executemany(query, data)
         print('Insert done')
 
     print("All done!")
