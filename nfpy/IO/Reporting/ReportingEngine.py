@@ -8,6 +8,7 @@ from jinja2 import FileSystemLoader, Environment
 import json
 import os
 from os.path import join
+import shutil
 
 from nfpy import NFPY_ROOT_DIR
 from nfpy.Assets import get_af_glob
@@ -26,6 +27,14 @@ class ReportingEngine(metaclass=Singleton):
     _TBL_ITEMS = 'ReportItems'
     _DT_FMT = '%Y%m%d'
     _IMG_DIR = 'img'
+    _MODEL_PER_ASSET_CL = {
+        'Bond': ('MBDM', 'TRD'),
+        'Company': ('DCF', 'DDM'),
+        'Equity': ('MEDM', 'TRD'),
+        'Indices': ('MADM', 'TRD'),
+        'Portfolio': ('MPDM', 'PtfOptimization'),
+        'Rate': ('MADM', 'TRD'),
+    }
     _REPORTS = {
         'DDM': ReportDDM, 'DCF': ReportDCF, 'MADM': ReportMADM,
         'MEDM': ReportMEDM, 'MBDM': ReportMBDM, 'MPDM': ReportMPDM,
@@ -58,6 +67,10 @@ class ReportingEngine(metaclass=Singleton):
     def get_report_obj(self, r: str):
         """ Return the report object given the report name. """
         return self._REPORTS[r]
+
+    def get_models_per_asset_type(self, m: str) -> tuple:
+        """ Return the models available for the asset class in input. """
+        return self._MODEL_PER_ASSET_CL[m]
 
     def add(self, what: str, **kwargs):
         """ Add an item in the report items table. """
@@ -112,6 +125,9 @@ class ReportingEngine(metaclass=Singleton):
 
         try:
             os.makedirs(new_path)
+            src = os.path.join(self._TMPL_PATH, "style.css")
+            dst = os.path.join(self._curr_report_dir, "style.css")
+            shutil.copyfile(src, dst)
         except OSError as ex:
             print('Creation of the directory {} failed'.format(new_path))
             raise ex
@@ -156,7 +172,7 @@ class ReportingEngine(metaclass=Singleton):
                 continue
             else:
                 ret_dict[u][m] = r
-                a_type = self._af.get(u).type
+                a_type = self._af.get_type(u)
                 asset_dict[a_type].append(u)
 
         for k, v in asset_dict.items():
@@ -222,6 +238,8 @@ class ReportingEngine(metaclass=Singleton):
         for report in reports:
             tbg = self._fetch_report_items(report[0])
             ret_dict, asset_dict = self._calculate(tbg)
+            # TODO: this has to disappear inside something else. I don't want
+            #       infos to be hardcoded here in the engine.
             self._add_asset_info(ret_dict, asset_dict)
 
             # Generate reports

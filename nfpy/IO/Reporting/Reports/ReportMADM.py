@@ -13,7 +13,10 @@ class ReportMADM(BaseReport):
     _M_OBJ = Mod.MarketAssetsDataBaseModel
     _M_LABEL = 'MADM'
     _IMG_LABELS = ['p_price']
-    INPUT_QUESTIONS = ()
+    INPUT_QUESTIONS = (
+        ('date', 'Insert date of calculation (default None): ',
+         {'idesc': 'datetime', 'optional': True}),
+    )
 
     def _init_input(self) -> dict:
         """ Prepare the input arguments for the model. """

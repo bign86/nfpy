@@ -1,14 +1,14 @@
 {% set current_asset_info = current_asset_dict["info"] %}
 <table>
   <tr>
-    <td>Isin: {{ current_asset_info["isin"] }}</td>
-    <td>Currency: {{ current_asset_info["currency"] }}</td>
-    <td>Company: <a href="#{{ current_asset_info['company_uid'] }}">{{ current_asset_info["company_uid"] }}</a></td>
+    <td class='anag-prop'>Isin</td><td class='anag-value'>{{ current_asset_info["isin"] }}</td>
+    <td class='anag-prop'>Company</td><td class='anag-value'><a href="#{{ current_asset_info['company_uid'] }}">{{ current_asset_info["company_uid"] }}</a></td>
+    <td class='anag-prop'>Country</td><td class='anag-value'>{{ current_asset_info["country"] }}</td>
   </tr>
   <tr>
-    <td>Description: {{ current_asset_info["description"] }}</td>
-    <td>Country: {{ current_asset_info["country"] }}</td>
-    <td>Index: <a href="#{{ current_asset_info['index'] }}">{{ current_asset_info["index"] }}</a></td>
+    <td class='anag-prop'>Index</td><td class='anag-value'><a href="#{{ current_asset_info['index'] }}">{{ current_asset_info["index"] }}</a></td>
+    <td class='anag-prop'>Description</td><td class='anag-value'> {{ current_asset_info["description"] }}</td>
+    <td class='anag-prop'>Currency</td><td class='anag-value'>{{ current_asset_info["currency"] }}</td>
   </tr>
 </table>
 

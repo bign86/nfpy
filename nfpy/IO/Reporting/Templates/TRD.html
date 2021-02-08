@@ -1,3 +1,5 @@
 <h5>TRD</h5>
-<img src="{{ current_model_res.prices_long }}" alt="Full history of prices">
-<img src="{{ current_model_res.prices_short }}" alt="Last 90 days of prices">
+<img src="{{ current_model_res.prices_long }}" alt="S/R slow MA", class="SR-slow">
+<img src="{{ current_model_res.prices_short }}" alt="S/R FAST MA", class="SR-fast">
+
+{{ current_model_res.signals }}

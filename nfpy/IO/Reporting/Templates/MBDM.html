@@ -1,7 +1,7 @@
 <h5>MBDM</h5>
-<img src="{{ current_model_res.prices_long }}" alt="Full history of prices">
+<img src="{{ current_model_res.prices_long }}" alt="Full history of prices", class="price-full-h">
 <!-- <img src="{{ current_model_res.prices_short }}" alt="Last 90 days of prices"> -->
-<img src="{{ current_model_res.prices_ytm }}" alt="YTM vs price">
+<img src="{{ current_model_res.prices_ytm }}" alt="YTM vs price", class="price-ytm">
 
 <p>
     Main data @ {{ current_model_res.last_price_date.strftime('%Y-%m-%d') }}<br/>

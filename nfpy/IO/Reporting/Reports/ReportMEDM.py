@@ -10,6 +10,15 @@ from nfpy.Tools import (Constants as Cn)
 
 from .ReportMADM import ReportMADM
 
+# FIXME: terrible hack to be removed as soon as possible
+import pandas
+
+if int(pandas.__version__.split('.')[0]) < 1:
+    PD_STYLE_PROP = {}
+else:
+    PD_STYLE_PROP = {'na_rep': "-"}
+# FIXME: end of the shame
+
 
 class ReportMEDM(ReportMADM):
     _M_OBJ = Mod.MarketEquityDataModel
@@ -55,5 +64,21 @@ class ReportMEDM(ReportMADM):
         div_pl.save(fig_full_name[2])
 
         div_pl.close(True)
+
+        df = res.stats.T
+        res.stats = df.style.format(
+            formatter={
+                'volatility': '{:,.1%}'.format,
+                'mean return': '{:,.1%}'.format,
+                'tot. return': '{:,.1%}'.format,
+                'beta': '{:,.2f}'.format,
+                'adj. beta': '{:,.2f}'.format,
+                'correlation': '{:,.2f}'.format,
+                'SML ret': '{:,.1%}'.format,
+                'delta pricing': '{:,.1%}'.format
+            },
+            **PD_STYLE_PROP) \
+            .set_table_attributes('class="dataframe"') \
+            .render()
 
         return res

@@ -1,12 +1,12 @@
 {% set current_asset_info = current_asset_dict["info"] %}
 <table>
   <tr>
-    <td>Description: {{ current_asset_info["description"] }}</td>
-    <td>Currency: {{ current_asset_info["currency"] }}</td>
+    <td class='anag-prop'>Base country</td><td class='anag-value'>{{ current_asset_info["base_country"] }}</td>
+    <td class='anag-prop'>Base FX</td><td class='anag-value'>{{ current_asset_info["base_fx"] }}</td>
   </tr>
   <tr>
-    <td>Asset class: {{ current_asset_info["asset_class"] }}</td>
-    <td>Area: {{ current_asset_info["area"] }}</td>
+    <td class='anag-prop'>Target country</td><td class='anag-value'>{{ current_asset_info["tgt_country"] }}</td>
+    <td class='anag-prop'>Target FX</td><td class='anag-value'>{{ current_asset_info["tgt_fx"] }}</td>
   </tr>
 </table>
 
