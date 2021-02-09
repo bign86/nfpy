@@ -183,7 +183,8 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
     def _calculate(self):
         """ Perform main calculations. """
         f, y, yj = self.frequency, self._ph, self._fp
-        array = np.zeros((len(self._COLS), y + yj))
+        array = np.empty((len(self._COLS), y + yj))
+        array.fill(np.nan)
         index = self._get_index()
 
         # Get Free Cash Flow and Revenues
