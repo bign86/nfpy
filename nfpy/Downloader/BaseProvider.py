@@ -61,6 +61,10 @@ class BaseProvider(metaclass=ABCMeta):
     def pages(self):
         return self._PAGES.keys()
 
+    @property
+    def import_items(self):
+        return self._IMPORT_ITEMS.keys()
+
     def create_page_obj(self, page: str, ticker: str) -> BasePage:
         if page not in self._PAGES:
             raise ValueError("Page {} not available for {}"
