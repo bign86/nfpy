@@ -19,27 +19,35 @@ from .DownloadsConf import (InvestingSeriesConf, InvestingCashFlowConf,
 
 
 class ClosePricesItem(BaseImportItem):
-    _Q_READ = """select '{uid}', '1', date, price from InvestingPrices where ticker = ?;"""
-    _Q_WRITE = """insert or replace into {dst_table}
-    (uid, dtype, date, value) values (?, ?, ?, ?);"""
+    _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
+    select '{uid}', '1', date, price from InvestingPrices where ticker = ?"""
+    _Q_INCR = " and date > (select max(date) from {dst_table} where uid = '{uid}')"
 
 
 class FinancialsItem(BaseImportItem):
-    _Q_READ = """select distinct '{uid}', code, date, freq, value
-    from InvestingFinancials where ticker = ?;"""
-    _Q_WRITE = """insert or replace into {dst_table}
-    (uid, code, date, freq, value) values (?, ?, ?, ?, ?);"""
+    _Q_READWRITE = """insert or replace into {dst_table}
+    (uid, code, date, freq, value) select distinct '{uid}', code, date, freq, value
+    from InvestingFinancials where ticker = ?"""
+    _Q_INCR = " and date > (select max(date) from {dst_table} where uid = '{uid}')"
+
+    def _get_params(self) -> tuple:
+        """ Return the correct parameters for the read query. """
+        return self._d['ticker'].split('/')[0],
 
 
 class DividendsItem(BaseImportItem):
-    _Q_READ = """select '{uid}', dtype, date, value from InvestingEvents
-    where ticker = ? and dtype = ?;"""
-    _Q_WRITE = """insert or replace into {dst_table}
-    (uid, dtype, date, value) values (?, ?, ?, ?);"""
+    _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
+    select '{uid}', dtype, date, value from InvestingEvents
+    where ticker = ? and dtype = ?"""
+    _Q_INCR = """ and date > (select max(date) from {dst_table} where uid = '{uid}'
+    and dtype = ?)"""
 
     def _get_params(self) -> tuple:
         dt = self._dt.get('dividend')
-        return self._d['ticker'], dt
+        if self._incr:
+            return self._d['ticker'], dt, dt
+        else:
+            return self._d['ticker'], dt
 
 
 class InvestingProvider(BaseProvider):
@@ -236,13 +244,13 @@ class InvestingFinancialsBasePage(InvestingBasePage):
         h = t.find('tr', {'class': "alignBottom"})
         years = [i.text for i in h.select('th > span')][1:]
         if period_type == 'Interim':
-            months = [i.text for i in h.select('th > div')]  # [1:]
+            months = [i.text.split('/')[::-1] for i in h.select('th > div')]
         elif period_type == 'Annual':
-            months = ['31/12'] * 4
+            months = [('12', '31')] * 4
         else:
             raise ValueError('Parameter period_type = {} not recognized'
                              .format(self.params['period_type']))
-        dates = tuple('/'.join([j, i]) for i, j in zip(years, months))
+        dates = tuple('-'.join([i, *j]) for i, j in zip(years, months))
 
         # Get data
         b = soup.find('tbody')
@@ -252,7 +260,7 @@ class InvestingFinancialsBasePage(InvestingBasePage):
             if len(block) > 1:
                 continue
             try:
-                data.append(float(block[0]))  # * 1e6)
+                data.append(float(block[0]))
             except ValueError:
                 if block[0] == '-':
                     data.append(None)
@@ -272,7 +280,7 @@ class InvestingFinancialsBasePage(InvestingBasePage):
                     continue
                 data_final.append((tck, freq, d, ccy, st, code, v))
 
-        cols = ['ticker', 'freq', 'date', 'currency', 'statement', 'code', 'value']
+        cols = self._qb.get_fields(self._TABLE)
         df = pd.DataFrame(data_final, columns=cols)
         self._res = df
 
