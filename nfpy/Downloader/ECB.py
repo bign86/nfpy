@@ -89,7 +89,7 @@ class ECBSeries(ECBBasePage):
         ld = self._fetch_last_data_point()
         self._p.update({
             'SERIES_KEY': self._ticker,
-            'start': pd.to_datetime(ld).timestamp().strftime('%d-%m-%Y'),
+            'start': pd.to_datetime(ld).strftime('%d-%m-%Y'),
             'end': today(fmt='%d-%m-%Y')
         })
 
