@@ -9,7 +9,7 @@ from tabulate import tabulate
 import nfpy.DB as DB
 import nfpy.IO as IO
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< Activate/Deactivate financial instruments >>>"
 
 if __name__ == '__main__':
@@ -20,9 +20,6 @@ if __name__ == '__main__':
     inh = IO.InputHandler()
 
     params = {}
-
-    msg = "Give a uid (default None): "
-    params['uid'] = inh.input(msg, idesc='str', default=None, optional=True)
 
     msg = "Give a ticker (default None): "
     params['ticker'] = inh.input(msg, idesc='str', default=None, optional=True)
