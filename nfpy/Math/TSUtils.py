@@ -165,20 +165,23 @@ def last_valid_index(v: np.ndarray, start: int = None) -> int:
     return i
 
 
-def last_valid_value(v: np.ndarray, dt: np.ndarray, t0: np.datetime64) -> tuple:
+def last_valid_value(v: np.ndarray, dt: np.ndarray, t0: np.datetime64 = None
+                     ) -> tuple:
     """ Find the last valid value at a date <= t0.
 
         Input:
             v [np.ndarray]: series of prices
             dt [np.ndarray]: series of price dates
-            t0 [np.datetime64]: reference date
+            t0 [np.datetime64]: reference date (default None)
 
         Output:
             val [float]: value of the series at or before t0
             idx [int]: corresponding index
     """
-    pos = np.searchsorted(dt, t0, side='right')
-    idx = last_valid_index(v[:pos])
+    if t0:
+        pos = np.searchsorted(dt, t0, side='right')
+        v = v[:pos]
+    idx = last_valid_index(v)
     return float(v[idx]), idx
 
 
@@ -219,8 +222,7 @@ def next_valid_value(v: np.ndarray, dt: np.ndarray, t0: np.datetime64) -> tuple:
 
 
 def dropna(v: np.ndarray, axis: int = 0) -> tuple:
-    """ Drop NA from 2D input array.
-    """
+    """ Drop NA from 2D input array. """
     if len(v.shape) == 1:
         mask = ~np.isnan(v)
         _v = v[mask]
@@ -248,7 +250,20 @@ def fillna(v: np.ndarray, n: float) -> np.ndarray:
 
 
 def ffill_cols(v: np.ndarray, n: float = 0):
-    """ Forward fill nan with the last valid value column-wise. """
+    """ Forward fill nan with the last valid value column-wise.
+
+        Input:
+            v [np.ndarray]: input array either 1-D or 2-D
+            n [float]: fill up value for NaNs appearing at the beginning
+                       of the data series.
+
+        Output:
+            out [np.ndarray]: array with NaNs filled column-wise
+    """
+    flatten = False
+    if len(v.shape) == 1:
+        v = v[:, None]
+        flatten = True
     mask = np.isnan(v)
     tmp = v[0].copy()
     v[0][mask[0]] = n
@@ -256,6 +271,8 @@ def ffill_cols(v: np.ndarray, n: float = 0):
     idx = np.where(~mask, np.arange(mask.shape[0])[:, None], 0)
     out = np.take_along_axis(v, np.maximum.accumulate(idx, axis=0), axis=0)
     v[0] = tmp
+    if flatten:
+        out = out.flatten()
     return out
 
 
