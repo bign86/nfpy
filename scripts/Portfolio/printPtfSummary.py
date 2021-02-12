@@ -11,7 +11,7 @@ import nfpy.DB as DB
 import nfpy.IO as IO
 from nfpy.Tools import Constants as Cn
 
-__version__ = '0.3'
+__version__ = '0.4'
 _TITLE_ = "<<< Print portfolio summary script >>>"
 
 _FMT_ = '%Y-%m-%d'
@@ -27,7 +27,7 @@ if __name__ == '__main__':
 
     cal = get_calendar_glob()
     end = today(mode='timestamp')
-    start = cal.shift(end, 2*Cn.BDAYS_IN_1Y, fwd=False)
+    start = cal.shift(end, -2*Cn.DAYS_IN_1Y, 'D')
 
     msg = "Give an start date (default {}): "
     start = inh.input(msg.format(start.strftime(_FMT_)), idesc='timestamp',
