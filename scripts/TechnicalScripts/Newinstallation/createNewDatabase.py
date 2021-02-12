@@ -12,7 +12,7 @@ from nfpy import NFPY_ROOT_DIR
 from nfpy.Configuration import get_conf_glob
 import nfpy.DB as DB
 
-__version__ = '0.4'
+__version__ = '0.5'
 _TITLE_ = "<<< Database creation script >>>"
 
 Q_DEC = "insert into DecDatatype (datatype, encoding) values (?, ?);"
@@ -27,8 +27,9 @@ TABLES_TO_CREATE = [
         'Bond',
         """create table Bond (uid TEXT, isin TEXT NOT NULL, issuer TEXT NOT NULL,
             currency TEXT NOT NULL, description TEXT, asset_class TEXT,
-            inception_date DATETIME, maturity DATETIME NOT NULL, rate_type TEXT NOT NULL,
-            coupon REAL, c_per_year INTEGER, day_count INTEGER, callable BOOL NOT NULL,
+            inception_date DATETIME, maturity DATETIME NOT NULL,
+            rate_type TEXT NOT NULL, coupon REAL, c_per_year INTEGER,
+            day_count INTEGER, callable BOOL NOT NULL,
             primary key (uid)) without rowid;"""
     ),
     (
@@ -121,8 +122,9 @@ TABLES_TO_CREATE = [
     ),
     (
         'IndexTS',
-        """create table IndexTS (uid TEXT, dtype INTEGER NOT NULL, date DATETIME NOT NULL,
-            value REAL NOT NULL, primary key (uid,dtype,date), foreign key (uid)
+        """create table IndexTS (uid TEXT, dtype INTEGER NOT NULL,
+            date DATETIME NOT NULL, value REAL NOT NULL,
+            primary key (uid,dtype,date), foreign key (uid)
             references Indices(uid)) without rowid;"""
     ),
     (
@@ -133,8 +135,9 @@ TABLES_TO_CREATE = [
     ),
     (
         'InvestingPrices',
-        """create table InvestingPrices (ticker TEXT, date DATETIME, price REAL, open REAL,
-            high REAL, low REAL, volume INTEGER, primary key (ticker, date)) without rowid;"""
+        """create table InvestingPrices (ticker TEXT, date DATETIME, price REAL,
+            open REAL, high REAL, low REAL, volume INTEGER,
+            primary key (ticker, date)) without rowid;"""
     ),
     (
         'MapFinancials',
@@ -149,8 +152,8 @@ TABLES_TO_CREATE = [
     ),
     (
         'PortfolioPositions',
-        """create table PortfolioPositions (ptf_uid TEXT, date DATETIME, pos_uid TEXT,
-            asset_uid TEXT NOT NULL, type TEXT NOT NULL, currency TEXT NOT NULL,
+        """create table PortfolioPositions (ptf_uid TEXT, date DATETIME,
+            pos_uid TEXT, type TEXT NOT NULL, currency TEXT NOT NULL,
             quantity REAL NOT NULL, alp REAL NOT NULL,
             primary key (ptf_uid, date, pos_uid), foreign key (ptf_uid)
             references Portfolio(uid)) without rowid;"""
@@ -162,8 +165,9 @@ TABLES_TO_CREATE = [
     ),
     (
         'RateTS',
-        """create table RateTS (uid TEXT, dtype INTEGER NOT NULL, date DATETIME NOT NULL,
-            value REAL NOT NULL, primary key (uid, dtype, date), foreign key (uid)
+        """create table RateTS (uid TEXT, dtype INTEGER NOT NULL,
+            date DATETIME NOT NULL, value REAL NOT NULL,
+            primary key (uid, dtype, date), foreign key (uid)
             references Rate(uid)) without rowid;"""
     ),
     (
@@ -186,8 +190,9 @@ TABLES_TO_CREATE = [
         'Trades',
         """create table Trades (ptf_uid TEXT, date DATETIME, pos_uid TEXT,
             buy_sell BOOL NOT NULL, currency TEXT NOT NULL, quantity REAL NOT NULL,
-            price REAL NOT NULL, costs REAL, market TEXT, primary key (ptf_uid, date, pos_uid),
-            foreign key (ptf_uid) references Portfolio(uid)) without rowid;"""
+            price REAL NOT NULL, costs REAL, market TEXT,
+            primary key (ptf_uid, date, pos_uid), foreign key (ptf_uid)
+            references Portfolio(uid)) without rowid;"""
     ),
     (
         'YahooEvents',

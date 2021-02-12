@@ -111,8 +111,7 @@ Consider moving back the calendar start date."""
 
         # Fetch the portfolio snapshot from the DB if a snapshot is available
         if flag_snapshot:
-            fields = ('ptf_uid', 'date', 'pos_uid', 'type', 'currency', 'quantity', 'alp')
-            q = self._qb.select(self._CONSTITUENTS_TABLE, fields=fields,
+            q = self._qb.select(self._CONSTITUENTS_TABLE,
                                 keys=('ptf_uid', 'date'), order='pos_uid')
             res = self._db.execute(q, (self._uid, date.strftime('%Y-%m-%d'))).fetchall()
 
@@ -174,7 +173,6 @@ Consider moving back the calendar start date."""
         cash_pos = positions[ccy]
 
         # Cycle on trades grouping by date
-        # ptf_uid, date, pos_uid, buy_sell, currency, quantity, price, costs, market
         trades.sort(key=lambda f: f[1])
         for date, g in groupby(trades, key=lambda f: f[1]):
 
@@ -207,12 +205,15 @@ Consider moving back the calendar start date."""
                             atype = asset.type
                             alp = .0
                             currency = asset.currency
-                        v = Position(pos_uid=uid, date=dt, atype=atype,
-                                     currency=currency, alp=alp, quantity=0)
+
+                        v = Position(pos_uid=uid, date=dt,
+                                     atype=atype,
+                                     currency=currency,
+                                     alp=alp, quantity=0)
                         uid_list.append(uid)
 
-                    quantity = v.quantity
-                    alp = v.alp
+                    traded_q = t[5] if t[3] == 1 else -t[5]
+                    # print('DEBUG - traded {} of {}'.format(traded_q, uid))
 
                     # We convert the trade price into the position currency
                     # and we update the alp of the position accordingly.
@@ -228,28 +229,34 @@ Consider moving back the calendar start date."""
                         fx_obj_base = fx.get(v.currency, ccy)
                         fx_rate_base = fx_obj_base.get(dt)
 
-                    paid = t[6] * t[5] * fx_rate
+                    # Calculate traded money and new quantity
+                    traded_cash = t[6] * traded_q * fx_rate
+                    quantity = v.quantity + traded_q
 
-                    # BUY trade
-                    if t[3] == 1:
-                        tot_val = alp * quantity + paid
-                        quantity += t[5]
-                        cash_pos.quantity -= paid * fx_rate_base
-                        alp = tot_val / quantity
-
-                    # SELL trade
-                    elif t[3] == 2:
-                        quantity -= t[5]
-                        cash_pos.quantity += paid * fx_rate_base
-
+                    # Calculate the average cost of the instrument considering
+                    # whether we buy/sell/short sell/short cover and the
+                    # starting quantity.
+                    if quantity < 0:
+                        alp = .0
+                    elif v.quantity < 0:
+                        alp = t[6] * fx_rate
+                    elif traded_q < 0:
+                        alp = v.alp
                     else:
-                        raise ValueError('Buy/Sell flag {} not recognized'.format(t[3]))
+                        alp = (v.quantity * v.alp + traded_cash) / (quantity)
+                    # print('DEBUG - alp = {:.2f}'.format(alp))
+
+                    # Total COST value, not required
+                    # tot_cost_value = alp * quantity
+
+                    # Update the cash position
+                    cash_pos.quantity -= traded_cash * fx_rate_base
 
                     df.loc[dt, uid] = quantity
                     df.loc[dt, ccy] = cash_pos.quantity
 
-                    if quantity <= 0.:
-                        print('pos: {} | value: {:.2f} ==> deleted'.format(uid, quantity))
+                    if quantity == 0.:
+                        print('pos: {} | quantity: {:.2f} ==> deleted'.format(uid, quantity))
                         del positions[uid]
                         del uid_list[uid]
                     else:
@@ -294,10 +301,10 @@ Consider moving back the calendar start date."""
         if not self._cnsts_loaded:
             self._load_cnsts()
 
-        uids, ccy = self._cnsts_uids, self._currency
-        pos = self._cnsts_df.values
-        dt_df = self._cnsts_df.index.values
-        dt, wgt = Mat.weights(uids, ccy, dt_df, pos)
+        pos = self._cnsts_df
+        uids = self._cnsts_uids
+        dt, wgt = Mat.weights(uids, self._currency,
+                              pos.index.values, pos.values)
         self._weights = pd.DataFrame(wgt, index=dt, columns=uids)
 
     def _calc_total_value(self) -> pd.Series:
@@ -305,22 +312,20 @@ Consider moving back the calendar start date."""
         if not self._cnsts_loaded:
             self._load_cnsts()
 
-        uids, ccy = self._cnsts_uids, self._currency
-        pos = self._cnsts_df.values
-        dt_df = self._cnsts_df.index.values
-        dt, tot_val, _ = Mat.portfolio_value(uids, ccy, dt_df, pos)
+        pos = self._cnsts_df
+        dt, tot_val, _ = Mat.portfolio_value(self._cnsts_uids, self._currency,
+                                             pos.index.values, pos.values)
         return pd.Series(tot_val, index=dt)
 
     def calc_returns(self) -> pd.Series:
         if not self._cnsts_loaded:
             self._load_cnsts()
 
-        uids, ccy = self._cnsts_uids, self._currency
-        pos = self._cnsts_df.values
-        dt_pos = self._cnsts_df.index.values
-        wgt = self.weights.values
-        dt_wgt = self.weights.index.values
-        dt, ret = Mat.price_returns(uids, ccy, dt_pos, pos, dt_wgt, wgt)
+        pos = self._cnsts_df
+        wgt = self.weights
+        dt, ret = Mat.price_returns(self._cnsts_uids, self._currency,
+                                    pos.index.values, pos.values,
+                                    wgt.index.values, wgt.values)
         return pd.Series(ret, index=dt)
 
     def tev(self, benchmark: Asset, w: int = None) -> pd.Series:
@@ -334,10 +339,8 @@ Consider moving back the calendar start date."""
             ret = self._df["TEV"]
         except KeyError:
             r = self.returns
-            v = r.values
-            dt = r.index.values
-            bkr = benchmark.returns.values
-            ret = Mat.tev(dt, v, bkr, w=w)
+            ret = Mat.tev(r.index.values, r.values,
+                          benchmark.returns.values, w=w)
             self._df["TEV"] = ret
         return ret
 
@@ -347,10 +350,8 @@ Consider moving back the calendar start date."""
             ret = self._df["sharpe"]
         except KeyError:
             r = self.returns
-            xc = r.values
-            dt = r.index.values
-            br = rf.returns.values
-            ret = Mat.sharpe(dt, xc, br=br, w=w)
+            ret = Mat.sharpe(r.index.values, r.values,
+                             br=rf.returns.values, w=w)
             self._df["sharpe"] = ret
         return ret
 
