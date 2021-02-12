@@ -5,7 +5,6 @@
 #
 
 from requests import RequestException
-from typing import List
 
 import nfpy.Calendar as Cal
 import nfpy.DB as DB
@@ -25,10 +24,10 @@ class DownloadFactory(metaclass=Singleton):
 
     _TABLE = 'Downloads'
     _PROVIDERS = {
-        "Yahoo": YahooProvider(),
         "ECB": ECBProvider(),
+        "IB": IBProvider(),
         "Investing": InvestingProvider(),
-        "IB": IBProvider()
+        "Yahoo": YahooProvider(),
     }
 
     def __init__(self):
@@ -36,7 +35,11 @@ class DownloadFactory(metaclass=Singleton):
         self._qb = DB.get_qb_glob()
         self._downloads_list = None
 
-    def providers(self) -> List:
+    @property
+    def table(self) -> str:
+        return self._TABLE
+
+    def providers(self) -> list:
         """ Return a list of _all_ available providers. """
         return list(self._PROVIDERS.keys())
 
@@ -54,16 +57,16 @@ class DownloadFactory(metaclass=Singleton):
         return len(page_obj.params)
 
     def provider_exists(self, provider: str) -> bool:
-        """ Check if a provider is supported. """
+        """ Check if the provider is supported. """
         return provider in self._PROVIDERS
 
     def page_exists(self, provider: str, page: str) -> bool:
-        """ Check if a page for the given provider is supported. """
+        """ Check if the page is supported for the given provider. """
         return page in self._PROVIDERS[provider].pages
 
-    def filter_downloads(self, provider: str = None, page: str = None,
-                         ticker: str = None, active: bool = True) -> tuple:
-        """ Filter download entries.
+    def fetch_downloads(self, provider: str = None, page: str = None,
+                        ticker: str = None, active: bool = True) -> list:
+        """ Fetch and filter download entries.
 
             Input:
                 provider [str]: filter by provider
@@ -73,30 +76,27 @@ class DownloadFactory(metaclass=Singleton):
                 active [bool]: consider only automatic downloads
 
             Output:
-                fields [list]: list of database column names
                 data [list]: list of tuples, each one a fetched row
         """
         fields = list(self._qb.get_fields(self._TABLE))
         w_cond = 'active = 1' if active else ''
-        k_cond, params = [], ()
+        k_cond, params = [], []
         if provider:
             k_cond.append('provider')
-            params += (provider,)
+            params.append(provider)
         if page:
             k_cond.append('page')
-            params += (page,)
+            params.append(page)
         if ticker:
             k_cond.append('ticker')
-            params += (ticker,)
+            params.append(ticker)
 
         q_uid = self._qb.select(self._TABLE, fields=fields,
                                 keys=k_cond, where=w_cond)
         res = self._db.execute(q_uid, params).fetchall()
-        if not res:
-            return fields, None, 0
 
         self._downloads_list = res
-        return fields, res, len(res)
+        return res
 
     def create_page_obj(self, provider: str, page: str, ticker: str) -> BasePage:
         """ Return an un-initialized page object of the correct type.
@@ -115,9 +115,9 @@ class DownloadFactory(metaclass=Singleton):
             raise ValueError("Provider {} not recognized".format(provider))
         return prov.create_page_obj(page, ticker)
 
-    def bulk_download(self, do_save: bool = True, override_date: bool = False,
-                      provider: str = None, page: str = None,
-                      ticker: str = None, override_active: bool = False):
+    def run(self, do_save: bool = True, override_date: bool = False,
+            provider: str = None, page: str = None,
+            ticker: str = None, override_active: bool = False):
         """ Performs a bulk update of the system based on the 'auto' flag in the
             Downloads table. The entries are updated only in case the last
             last update has been done at least 'frequency' days ago.
@@ -132,10 +132,9 @@ class DownloadFactory(metaclass=Singleton):
                 override_active [bool]: disregard 'active' (default False)
         """
         active = not override_active
-        _, upd_list, num = self.filter_downloads(provider=provider, page=page,
-                                                 ticker=ticker,
-                                                 active=active)
-        print('We are about to download {} items'.format(num))
+        upd_list = self.fetch_downloads(provider=provider, page=page,
+                                        ticker=ticker, active=active)
+        print('We are about to download {} items'.format(len(upd_list)))
 
         # General variables
         today_string = Cal.today()
@@ -143,7 +142,7 @@ class DownloadFactory(metaclass=Singleton):
         q_upd = self._qb.update(self._TABLE, fields=('last_update',))
 
         for item in upd_list:
-            provider, page_name, ticker, currency, active, upd_freq, last_upd_str = item
+            provider, page_name, ticker, currency, _, upd_freq, last_upd_str = item
 
             # Check the last update to avoid too frequent updates
             if last_upd_str and not override_date:

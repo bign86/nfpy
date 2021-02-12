@@ -11,7 +11,7 @@ import nfpy.Downloader as Dwn
 import nfpy.IO as IO
 from nfpy.Tools import Utilities as Ut
 
-__version__ = '0.4'
+__version__ = '0.5'
 _TITLE_ = "<<< Download single asset script >>>"
 
 
@@ -24,15 +24,16 @@ if __name__ == '__main__':
     inh = IO.InputHandler()
 
     is_ticker_valid = False
-    fields, data = (), ()
+    data = ()
     while not is_ticker_valid:
         ticker = inh.input("Give a ticker to download for: ", idesc='str')
-        fields, data = f.filter_downloads(ticker=ticker, active=False)
+        data = f.fetch_downloads(ticker=ticker, active=False)
         if not data:
             print('*** Supplied ticker does not exist! Please give a valid one.')
         else:
             is_ticker_valid = True
 
+    fields = qb.get_fields(f.table)
     tab = tabulate(data, headers=fields, showindex=True)
     print(tab, end='\n\n')
     choice = inh.input('Index: ', idesc='int')
@@ -46,7 +47,7 @@ if __name__ == '__main__':
 
     params = {}
     if num_params > 0:
-        msg = "Type the additional parameters as a comma separated list of key, value pairs:\n"
+        msg = "Type the additional parameters as key1, value1, key2, value2, ...:\n"
         pin = inh.input(msg, idesc='str', is_list=True, default=[])
         params = Ut.list_to_dict(pin)
 
