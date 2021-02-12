@@ -3,10 +3,11 @@
 # Class that implements the basic optimizers routines to be used by other models
 #
 
-from abc import ABCMeta, abstractmethod
+from abc import (ABCMeta, abstractmethod)
 import numpy as np
 import numpy.random as rnd
 from scipy.optimize import (minimize, OptimizeResult)
+from typing import Type
 
 from nfpy.Tools import Utilities as Ut
 
@@ -150,3 +151,6 @@ class BaseOptimizer(metaclass=ABCMeta):
             and call the minimization routine. Last, the returned results object
             is created.
         """
+
+
+TyOptimizer = Type[BaseOptimizer]
