@@ -1,12 +1,9 @@
 <h5>Portfolio Optimization</h5>
-<img src="{{ current_model_res.var_ret_plot }}" alt="Portfolio optimization", class="ptf-opt">
+<div>
+    <img src="{{ current_model_res.var_ret_plot }}" alt="Portfolio optimization" class="ptf-opt">
+</div>
 
-<p>weights</p>
-<p>{{ current_model_res.weights.to_html(formatters=
-    {
-        'Actual': '{:,.1%}'.format,
-        'MaxSharpe': '{:,.1%}'.format,
-        'MinVariance': '{:,.1%}'.format,
-        'RiskParity': '{:,.1%}'.format,
-        'delta%': '{:,.1%}'.format,
-    }) }}</p>
+<div>
+    <p>weights</p>
+    <p>{{ current_model_res.weights }}</p>
+</div>
