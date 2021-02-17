@@ -8,6 +8,17 @@ import nfpy.IO as IO
 
 from .BaseReport import BaseReport
 
+# FIXME: terrible hack to be removed as soon as possible
+import pandas
+
+if int(pandas.__version__.split('.')[0]) < 1:
+    PD_STYLE_PROP = {}
+else:
+    PD_STYLE_PROP = {'na_rep': "-"}
+
+
+# FIXME: end of the shame
+
 
 class ReportMADM(BaseReport):
     _M_OBJ = Mod.MarketAssetsDataBaseModel
@@ -41,5 +52,17 @@ class ReportMADM(BaseReport):
         div_pl.clf()
 
         div_pl.close(True)
+
+        # Render dataframes
+        df = res.stats.T
+        res.stats = df.style.format(
+            formatter={
+                'volatility': '{:,.1%}'.format,
+                'mean return': '{:,.1%}'.format,
+                'tot. return': '{:,.1%}'.format,
+            },
+            **PD_STYLE_PROP) \
+            .set_table_attributes('class="dataframe"') \
+            .render()
 
         return res

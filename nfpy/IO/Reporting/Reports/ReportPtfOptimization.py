@@ -99,14 +99,18 @@ class ReportPtfOptimization(BaseReport):
             models.extend([model, 'delta%'])
             weights.extend([r.weights, r.weights / wgt - 1.])
 
-        wgt_table = np.vstack(weights)
-        res.weights = pd.DataFrame(wgt_table.T,
-                                   index=model_res.uids,
-                                   columns=models)
-
         # Save out figure
         div_pl.plot()
         div_pl.save(fig_full_name[0])
         div_pl.close(True)
+
+        # Create results table
+        wgt_table = np.vstack(weights)
+        wgt_df = pd.DataFrame(wgt_table.T,
+                              index=model_res.uids,
+                              columns=models)
+        res.weights = wgt_df.style.format('{:,.1%}') \
+            .set_table_attributes('class="dataframe"') \
+            .render()
 
         return res

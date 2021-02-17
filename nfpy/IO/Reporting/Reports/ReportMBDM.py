@@ -51,4 +51,22 @@ class ReportMBDM(ReportMADM):
 
         div_pl.close(True)
 
+        # Render dataframes
+        df = res.stats.T
+        res.stats = df.style.format(
+            formatter={
+                'volatility': '{:,.1%}'.format,
+                'mean return': '{:,.1%}'.format,
+                'tot. return': '{:,.1%}'.format,
+            }) \
+            .set_table_attributes('class="dataframe"') \
+            .render()
+
+        df = res.fair_values
+        df.index = df.index.map(lambda x: '{:,.2%}'.format(x))
+        res.fair_values = df.style.format("{:,.2f}".format) \
+            .format(formatter={'%diff': '{:,.1%}'.format}) \
+            .set_table_attributes('class="dataframe"') \
+            .render()
+
         return res
