@@ -10,13 +10,13 @@ import pandas as pd
 import nfpy.Math as Mat
 from nfpy.Tools import (Constants as Cn, Exceptions as Ex)
 
-from .BaseFundamentalModel import (BaseFundamentalModel,
-                                   BaseFundamentalResult)
+from .BaseFundamentalModel import BaseFundamentalModel
+from .BaseModel import BaseModelResult
 from ..Dividends import DividendFactory
 from ..RateFactory import get_rf_glob
 
 
-class DDMResult(BaseFundamentalResult):
+class DDMResult(BaseModelResult):
     """ Object containing the results of the Dividend Discount Model. """
 
 
@@ -25,19 +25,18 @@ class DividendDiscountModel(BaseFundamentalModel):
 
     _RES_OBJ = DDMResult
 
-    def __init__(self, company: str, date: Union[str, pd.Timestamp] = None,
+    def __init__(self, uid: str, date: Union[str, pd.Timestamp] = None,
                  past_horizon: int = 5, future_proj: int = 3,
-                 date_fmt: str = '%Y-%m-%d', div_conf: float = .1,
-                 susp_conf: float = 1., **kwargs):
-        super().__init__(company, date, past_horizon, future_proj, date_fmt)
+                 div_conf: float = .1, susp_conf: float = 1., **kwargs):
+        super().__init__(uid, date, past_horizon, future_proj)
         self._div_confidence = max(div_conf, .0)
         self._suspension = max(susp_conf, .0) + 1.
 
         self._df = DividendFactory(self._eq, self._start, self._t0, div_conf)
         self._check_applicability()
 
-        self._res_update(div_conf=self._div_confidence, ccy=self._cmp.currency,
-                         suspension=self._suspension, uid=self._cmp.uid,
+        self._res_update(div_conf=self._div_confidence, ccy=self._asset.currency,
+                         suspension=self._suspension, uid=self._uid,
                          equity=self._eq.uid, t0=self._t0, start=self._start,
                          past_horizon=self._ph, future_proj=self._fp)
 
@@ -60,13 +59,13 @@ class DividendDiscountModel(BaseFundamentalModel):
         except ValueError as ex:
             print(str(ex))
             raise ValueError('Dividend frequency error in {}'
-                             .format(self._cmp.uid))
+                             .format(self._uid))
 
         # If the last dividend was outside the tolerance for the inferred
         # frequency, assume the dividend has been suspended
         if div_gap > limit:
             raise Ex.MissingData('Dividends for {} [{}] appear to have been suspended'
-                                 .format(self._cmp.uid, self._eq.uid))
+                                 .format(self._uid, self._eq.uid))
 
     def _calc_freq(self):
         """ Calculates model frequency. """
@@ -140,7 +139,7 @@ class DividendDiscountModel(BaseFundamentalModel):
         try:
             d_rate = kwargs['d_rate']
         except KeyError:
-            rf = get_rf_glob().get_rf(self._cmp.currency)
+            rf = get_rf_glob().get_rf(self._asset.currency)
             d_rate = rf.last_price(self._t0)[0]
 
         # Obtain the period-rate from the annualized rate
@@ -159,9 +158,9 @@ class DividendDiscountModel(BaseFundamentalModel):
 
 
 def DDModel(company: str, d_rate: float, date: Union[str, pd.Timestamp] = None,
-            past_horizon: int = 5, future_proj: int = 3, date_fmt: str = '%Y-%m-%d',
+            past_horizon: int = 5, future_proj: int = 3,
             div_conf: float = .2) -> DDMResult:
     """ Shortcut for the calculation. Intermediate results are lost. """
     return DividendDiscountModel(company, date, past_horizon,
-                                 future_proj, date_fmt, div_conf) \
+                                 future_proj, div_conf) \
         .result(d_rate=d_rate)

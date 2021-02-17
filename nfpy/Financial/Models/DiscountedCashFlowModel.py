@@ -8,13 +8,14 @@ import pandas as pd
 from typing import Union
 
 import nfpy.Math as Mat
-from nfpy.Tools import (Constants as Cn, Utilities as Ut)
+from nfpy.Tools import Constants as Cn
 
+from .BaseModel import BaseModelResult
 from .BaseFundamentalModel import BaseFundamentalModel
 from ..FundamentalsFactory import FundamentalsFactory
 
 
-class DCFResult(Ut.AttributizedDict):
+class DCFResult(BaseModelResult):
     """ Object containing the results of the Discounted Cash Flow Model. """
 
     @property
@@ -81,18 +82,18 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
     _MIN_TAX_R = .10
     _MIN_DEPTH_DATA = 3
 
-    def __init__(self, company: str, date: Union[str, pd.Timestamp] = None,
+    def __init__(self, uid: str, date: Union[str, pd.Timestamp] = None,
                  past_horizon: int = 5, future_proj: int = 3,
-                 date_fmt: str = '%Y-%m-%d', perpetual_rate: float = 0.):
-        super().__init__(company, date, past_horizon, future_proj, date_fmt)
+                 perpetual_rate: float = 0.):
+        super().__init__(uid, date, past_horizon, future_proj)
         self._p_rate = max(perpetual_rate, .0)
         self._fcf = None
 
-        self._ff = FundamentalsFactory(self._cmp)
+        self._ff = FundamentalsFactory(self._asset)
         self._check_applicability()
 
-        self._res_update(ccy=self._cmp.currency, perpetual_growth=self._p_rate,
-                         uid=self._cmp.uid, equity=self._eq.uid, t0=self._t0,
+        self._res_update(ccy=self._asset.currency, perpetual_growth=self._p_rate,
+                         uid=self._uid, equity=self._eq.uid, t0=self._t0,
                          start=self._start, past_horizon=self._ph,
                          future_proj=self._fp)
 
@@ -103,14 +104,14 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
         y = min(actual_y, y)
         if y < self._MIN_DEPTH_DATA:
             raise ValueError('Not enough data found for {}'
-                             .format(self._cmp.uid))
+                             .format(self._uid))
 
         # If negative average FCF exit
         fcf = self._ff.fcf(f).values[-y:]
         # if np.nanmean(fcf) < 0.:
         if (fcf < 0.).any():
             raise ValueError('Negative average Free Cash Flow found for {}'
-                             .format(self._cmp.uid))
+                             .format(self._uid))
 
         self._ph = y
         self._fcf = fcf
@@ -257,6 +258,15 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
 
         # Accumulate
         self._res_update(df=pd.DataFrame(array.T, columns=self._COLS,
-                         index=index), fair_value=fair_value, shares=shares,
+                                         index=index), fair_value=fair_value, shares=shares,
                          mean_wacc=mean_wacc, mean_beta=mean_beta,
                          last_price=self.get_last_price())
+
+
+def DCFModel(uid: str, date: Union[str, pd.Timestamp] = None,
+             past_horizon: int = 5, future_proj: int = 3,
+             perpetual_rate: float = 0.) -> DCFResult:
+    """ Shortcut for the calculation. Intermediate results are lost. """
+    return DiscountedCashFlowModel(uid, date, past_horizon,
+                                   future_proj, perpetual_rate) \
+        .result()

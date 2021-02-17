@@ -9,12 +9,13 @@ from typing import Union
 import nfpy.Math as Mat
 from nfpy.Tools import Exceptions as Ex
 
-from .BaseFundamentalModel import (BaseFundamentalModel, BaseFundamentalResult)
+from .BaseModel import BaseModelResult
+from .BaseFundamentalModel import BaseFundamentalModel
 from ..Dividends import DividendFactory
 from ..RateFactory import get_rf_glob
 
 
-class GGMResult(BaseFundamentalResult):
+class GGMResult(BaseModelResult):
     """ Object containing the results of the Gordon Growth Model. """
 
 
@@ -23,16 +24,16 @@ class GordonGrowthModel(BaseFundamentalModel):
 
     _RES_OBJ = GGMResult
 
-    def __init__(self, company: str, date: Union[str, pd.Timestamp] = None,
+    def __init__(self, uid: str, date: Union[str, pd.Timestamp] = None,
                  **kwargs):
-        super().__init__(company, date)
+        super().__init__(uid, date)
 
         self._df = DividendFactory(self._eq, self._start, self._t0)
         self._check_applicability()
         self._record_inputs()
 
     def _record_inputs(self):
-        self._res_update(ccy=self._cmp.currency, uid=self._cmp.uid,
+        self._res_update(ccy=self._asset.currency, uid=self._uid,
                          equity=self._eq.uid, t0=self._t0, start=self._start)
 
     def _check_applicability(self):
@@ -78,21 +79,20 @@ class GordonGrowthModel(BaseFundamentalModel):
         try:
             d_rate = kwargs['d_rate']
         except KeyError:
-            rf = get_rf_glob().get_rf(self._cmp.currency)
+            rf = get_rf_glob().get_rf(self._asset.currency)
             d_rate = rf.last_price(self._t0)[0]
 
         # Check model consistency
         den = d_rate - self._calc_drift()
         if den <= 0.:
             raise ValueError('The discounting of {:.0f}% is negative for {}'
-                             .format(den*100., self._cmp.uid))
+                             .format(den*100., self._uid))
 
         fv = float(self._fut_div * Mat.cdf(den, 1))
 
         return {'d_rate': d_rate, 'fair_value': fv}
 
 
-def GGModel(company: str, d_rate: float, date: Union[str, pd.Timestamp] = None,
-            ) -> GGMResult:
+def GGModel(uid: str, date: Union[str, pd.Timestamp] = None) -> GGMResult:
     """ Shortcut for the calculation. Intermediate results are lost. """
-    return GordonGrowthModel(company, date).result()
+    return GordonGrowthModel(uid, date).result()

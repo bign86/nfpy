@@ -7,56 +7,36 @@ import pandas as pd
 import numpy as np
 from typing import Union
 
-from nfpy.Assets import get_af_glob
 from nfpy.Calendar import get_calendar_glob
 import nfpy.Math as Mat
-from nfpy.Tools import (Constants as Cn, Utilities as Ut)
-import nfpy.Trading.Signals as Sig
-import nfpy.Trading.Strategies as Str
-import nfpy.Trading.Trends as Tr
+from nfpy.Trading import (Signals as Sig, Strategies as Str, Trends as Tr)
+
+from .BaseModel import (BaseModel, BaseModelResult)
 
 
-class TradingResult(Ut.AttributizedDict):
+class TradingResult(BaseModelResult):
     """ Base object containing the results of the trading models. """
 
 
-class TradingModel(object):
-    """ Trading Model class """
+class TradingModel(BaseModel):
+    """ Trading Model class. """
 
     _RES_OBJ = TradingResult
 
     def __init__(self, uid: str, date: Union[str, pd.Timestamp] = None,
                  w_ma_slow: int = 120, w_ma_fast: int = 21,
                  sr_mult: float = 5., **kwargs):
-        # Handlers
-        self._cal = get_calendar_glob()
-        self._af = get_af_glob()
+        super().__init__(uid, date)
 
-        # Input data objects
-        self._uid = uid
-        self._asset = self._af.get(uid)
-        if date is None:
-            self._t0 = self._cal.t0
-        elif isinstance(date, str):
-            self._t0 = pd.to_datetime(date, format='%Y-%m-%d')
-        else:
-            self._t0 = date
+        self._cal = get_calendar_glob()
+
         self._w_ma_slow = w_ma_slow
         self._w_ma_fast = w_ma_fast
         self._sr_mult = sr_mult
 
-        # Working data
-        self._dt = {}
-        self._time_spans = (Cn.DAYS_IN_1M, 3 * Cn.DAYS_IN_1M, 6 * Cn.DAYS_IN_1M,
-                            Cn.DAYS_IN_1Y, 3 * Cn.DAYS_IN_1Y)
-        self._is_calculated = False
-
         self._res_update(date=self._t0, uid=self._uid, sr_mult=self._sr_mult,
                          w_slow=self._w_ma_slow, w_fast=self._w_ma_fast,
                          prices=self._asset.prices)
-
-    def _res_update(self, **kwargs):
-        self._dt.update(kwargs)
 
     def _calculate(self):
         # Support/Resistances
@@ -71,21 +51,26 @@ class TradingModel(object):
         sr_mult = self._sr_mult
 
         # Support/resistances
-        p_slow = prices.iloc[-int(w_slow * sr_mult):]
-        _, _, max_i, min_i = Tr.find_ts_extrema(p_slow, w=w_slow)
+        n_back_slow = -int(w_slow * sr_mult)
+        p_slow = prices.iloc[n_back_slow:]
+        max_i, min_i = Tr.find_ts_extrema(p_slow, w=w_slow)
         all_i = sorted(max_i + min_i)
         pp = p_slow.iloc[all_i]
         sr_slow = Tr.group_extrema(pp, dump=.75)[0]
 
-        p_fast = prices.iloc[-int(w_fast * sr_mult):]
-        _, _, max_i, min_i = Tr.find_ts_extrema(p_fast, w=w_fast)
+        n_back_fast = -int(w_fast * sr_mult)
+        p_fast = prices.iloc[n_back_fast:]
+        max_i, min_i = Tr.find_ts_extrema(p_fast, w=w_fast)
         all_i = sorted(max_i + min_i)
         pp = p_fast.iloc[all_i]
         sr_fast = Tr.group_extrema(pp, dump=.75)[0]
 
-        sr_slow, sr_fast = Tr.merge_rs(sr_slow, sr_fast)
+        start_date = prices.index[n_back_fast]
+        vola = self._asset.return_volatility(start=start_date)
+        v_sr_slow, v_sr_fast = Tr.merge_rs(abs(vola),
+                                           (sr_slow, sr_fast))
 
-        self._res_update(sr_fast=np.array(sr_fast), sr_slow=np.array(sr_slow))
+        self._res_update(sr_fast=v_sr_fast, sr_slow=v_sr_slow)
 
     def _calc_wma(self):
         prices, t0 = self._asset.prices, self._t0
@@ -121,18 +106,11 @@ class TradingModel(object):
 
         self._res_update(ma_fast=wma_fast, ma_slow=wma_slow, signals=df)
 
-    def _create_output(self):
-        res = self._RES_OBJ()
-        for k, v in self._dt.items():
-            setattr(res, k, v)
-        return res
+    def _otf_calculate(self, **kwargs) -> dict:
+        pass
 
-    def result(self, **kwargs):
-        if not self._is_calculated:
-            self._calculate()
-            self._is_calculated = True
-
-        return self._create_output()
+    def _check_applicability(self):
+        pass
 
 
 def TRDModel(uid: str, date: Union[str, pd.Timestamp] = None,

@@ -24,9 +24,16 @@ class MarketPortfolioDataModel(MarketAssetsDataBaseModel):
 
         uids = self._asset.constituents_uids
         weights = self._asset.weights.values[-1]
-        constituents = pd.DataFrame(weights, index=uids, columns=['Weights'])
+        wgt = pd.DataFrame(weights, index=uids, columns=['weights'])
 
-        self._res_update(constituents=constituents)
+        summary = self._asset.summary()
+        cnsts_data = summary['constituents_data']
+        merged = pd.merge(cnsts_data, wgt, left_on='uid', right_index=True)
+
+        self._res_update(last_trade=summary['date'],
+                         tot_value=summary['tot_value'],
+                         currency=summary['currency'],
+                         cnsts_data=merged)
 
 
 def MPDModel(uid: str, date: Union[str, pd.Timestamp] = None) -> MPDMResult:

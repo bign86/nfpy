@@ -7,47 +7,31 @@ import numpy as np
 import pandas as pd
 from typing import Union
 
-from nfpy.Assets import get_af_glob
 from nfpy.Calendar import get_calendar_glob
 import nfpy.Math as Mat
-from nfpy.Tools import (Constants as Cn, Utilities as Ut)
+from nfpy.Tools import Constants as Cn
+
+from .BaseModel import (BaseModel, BaseModelResult)
 
 
-class BaseMADMResult(Ut.AttributizedDict):
+class BaseMADMResult(BaseModelResult):
     """ Base object containing the results of the market asset models. """
 
 
-class MarketAssetsDataBaseModel(object):
+class MarketAssetsDataBaseModel(BaseModel):
     """ Market Assets Data Base Model class """
 
     _RES_OBJ = BaseMADMResult
 
     def __init__(self, uid: str, date: Union[str, pd.Timestamp] = None,
                  **kwargs):
-        # Handlers
+        super().__init__(uid, date)
+
         self._cal = get_calendar_glob()
-        self._af = get_af_glob()
-
-        # Input data objects
-        self._uid = uid
-        self._asset = self._af.get(uid)
-        if date is None:
-            self._t0 = self._cal.t0
-        elif isinstance(date, str):
-            self._t0 = pd.to_datetime(date, format='%Y-%m-%d')
-        else:
-            self._t0 = date
-
-        # Working data
-        self._dt = {}
         self._time_spans = (Cn.DAYS_IN_1M, 3 * Cn.DAYS_IN_1M, 6 * Cn.DAYS_IN_1M,
                             Cn.DAYS_IN_1Y, 3 * Cn.DAYS_IN_1Y)
-        self._is_calculated = False
 
         self._res_update(date=self._t0, uid=self._uid)
-
-    def _res_update(self, **kwargs):
-        self._dt.update(kwargs)
 
     def _calculate(self):
         # Price results
@@ -98,18 +82,11 @@ class MarketAssetsDataBaseModel(object):
         self._res_update(stats=pd.DataFrame(stats, index=calc,
                                             columns=self._time_spans))
 
-    def _create_output(self):
-        res = self._RES_OBJ()
-        for k, v in self._dt.items():
-            setattr(res, k, v)
-        return res
+    def _otf_calculate(self, **kwargs) -> dict:
+        return kwargs
 
-    def result(self, **kwargs):
-        if not self._is_calculated:
-            self._calculate()
-            self._is_calculated = True
-
-        return self._create_output()
+    def _check_applicability(self):
+        pass
 
 
 def MADModel(uid: str, date: Union[str, pd.Timestamp] = None,
