@@ -33,7 +33,7 @@ class ReportDDM(BaseReport):
     def _init_input(self) -> dict:
         """ Prepare the input arguments for the model. """
         p = deepcopy(self._p)
-        p.update({'company': self._uid})
+        p.update({'uid': self._uid})
         return p
 
     def _create_output(self, res) -> Mod.DDMResult:
