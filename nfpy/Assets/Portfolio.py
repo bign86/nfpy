@@ -3,7 +3,8 @@
 # Base class for a portfolio
 #
 
-from datetime import timedelta
+from bisect import bisect_left
+from datetime import (datetime, timedelta)
 from itertools import groupby
 import pandas as pd
 
@@ -79,7 +80,7 @@ class Portfolio(AggregationMixin, Asset):
     def _load_cnsts(self):
         """ Fetch from the database the portfolio constituents. """
 
-        # if inception_date > start load from inception_date
+        # If inception_date > start load from inception_date
         start_date = self._cal.start
         date = self._inception_date
         flag_snapshot = False
@@ -88,25 +89,29 @@ class Portfolio(AggregationMixin, Asset):
         # before the calendar start to be used for loading. If no snapshot
         # before start is available, the inception date will be used for loading
         if date < start_date:
-            q_date = 'select max(date) from ' + self._CONSTITUENTS_TABLE + \
-                     ' where ptf_uid = ? and date <= ?'
-            q_data = (self._uid, start_date.to_pydatetime())
-            dt = self._db.execute(q_date, q_data).fetchone()
-            if dt[0]:
-                date = pd.Timestamp(dt[0])
-                flag_snapshot = True
+            query_snap = 'select distinct date from ' + self._CONSTITUENTS_TABLE + \
+                         ' where ptf_uid = ? order by date'
+            dt = self._db.execute(query_snap, (self._uid,)).fetchall()
 
-        # If the loading date is before the start of the calendar we cannot
-        # apply the fx rate while loading the trades. Therefore we quit.
-        if date < start_date:
-            fmt = '%Y-%m-%d'
-            msg = """Calendar staring @ {} but loading required @ {}.
+            dt = [datetime.strptime(d[0], '%Y-%m-%d') for d in dt]
+            dt = [date.to_pydatetime()] + dt
+            idx = bisect_left(dt, start_date)
+
+            # If the required loading date is before the start of the calendar
+            # we cannot apply the fx rate while loading the trades thus we quit
+            if idx == len(dt):
+                fmt = '%Y-%m-%d'
+                msg = """Calendar starting @ {} but loading required @ {}.
 Consider moving back the calendar start date."""
-            raise Ex.CalendarError(msg.format(start_date.strftime(fmt),
-                                              date.strftime(fmt)))
+                raise Ex.CalendarError(msg.format(start_date.strftime(fmt),
+                                                  dt[-1].strftime(fmt)))
+
+            # If a snapshot in the future is available just use it
+            date = pd.Timestamp(dt[idx])
+            flag_snapshot = True
 
         # Initialize needed variables
-        uid_list, positions = [], {}
+        positions = {}
         df = pd.DataFrame(index=self._cal.calendar)
 
         # Fetch the portfolio snapshot from the DB if a snapshot is available
@@ -123,7 +128,6 @@ Consider moving back the calendar start date."""
                 pos = Position(pos_uid=pos_uid, date=dt, atype=r[3],
                                currency=r[4], alp=r[6], quantity=r[5])
 
-                uid_list.append(pos_uid)
                 positions[pos_uid] = pos
                 df.loc[date, pos_uid] = r[5]
 
@@ -133,26 +137,24 @@ Consider moving back the calendar start date."""
             pos_uid = self._currency
             pos = Position(pos_uid=pos_uid, date=date, atype='Cash',
                            currency=self._currency, alp=1., quantity=0)
-            uid_list.append(pos_uid)
             positions[pos_uid] = pos
             df.loc[date, pos_uid] = 0
 
         # Load the trades from the database and apply to positions
-        uid_list, positions, df = self._load_trades(date, uid_list,
-                                                    positions, df)
+        positions, df = self._load_trades(date, positions, df)
 
         df.fillna(method='ffill', inplace=True)
         df.fillna(0, inplace=True)
         self._cnsts_df = df
         self._date = self._cal.t0
-        self._cnsts_uids = uid_list
+        self._cnsts_uids = df.columns.tolist()
         self._dict_cnsts = positions
 
         # Signal constituents loaded
         self._cnsts_loaded = True
 
-    def _load_trades(self, start: pd.Timestamp, uid_list: list,
-                     positions: dict, df: pd.DataFrame) -> tuple:
+    def _load_trades(self, start: pd.Timestamp, positions: dict,
+                     df: pd.DataFrame) -> tuple:
         """ Updates the portfolio positions by adding the pending trades. """
         # This should catch also the trades in the same day
         t0 = self._cal.t0.to_pydatetime() + timedelta(hours=23, minutes=59, seconds=59)
@@ -164,13 +166,9 @@ Consider moving back the calendar start date."""
 
         # If there are no trades just exit
         if not trades:
-            return uid_list, positions, df
+            return positions, df
 
         af, fx = get_af_glob(), Fin.get_fx_glob()
-        ccy = self._currency
-
-        # Get the cash position
-        cash_pos = positions[ccy]
 
         # Cycle on trades grouping by date
         trades.sort(key=lambda f: f[1])
@@ -182,94 +180,87 @@ Consider moving back the calendar start date."""
             dt = dt.replace(hour=0, minute=0, second=0)
 
             for t in gt:
-                uid = t[2]
+                uid, trade_ccy = t[2], t[4]
+                traded_q = t[5] if t[3] == 1 else -t[5]
+                traded_cash = t[6] * traded_q
 
-                # Update cash positions
-                if uid == ccy:
-                    sign = 1. if t[3] == 1 else -1.
-                    cash_pos.quantity += sign * t[5]
-                    df.loc[dt, uid] = cash_pos.quantity
-
-                # Update non cash positions
-                else:
-                    # Get current values for the position
-                    try:
-                        v = positions[uid]
-                    except KeyError:
-                        if fx.is_ccy(uid):
-                            atype = 'Cash'
-                            alp = 1.
-                            currency = uid
-                        else:
-                            asset = af.get(uid)
-                            atype = asset.type
-                            alp = .0
-                            currency = asset.currency
-
+                # Get the asset position
+                try:
+                    v = positions[uid]
+                except KeyError:
+                    if fx.is_ccy(uid):
                         v = Position(pos_uid=uid, date=dt,
-                                     atype=atype,
-                                     currency=currency,
-                                     alp=alp, quantity=0)
-                        uid_list.append(uid)
+                                     atype='Cash', currency=uid,
+                                     alp=1., quantity=0)
+                    else:
+                        asset = af.get(uid)
+                        v = Position(pos_uid=uid, date=dt,
+                                     atype=asset.type,
+                                     currency=asset.currency,
+                                     alp=.0, quantity=0)
+                    positions[uid] = v
 
-                    traded_q = t[5] if t[3] == 1 else -t[5]
-                    # print('DEBUG - traded {} of {}'.format(traded_q, uid))
+                # Get the currency position
+                if (trade_ccy is not None) & (trade_ccy != uid):
+                    try:
+                        cash = positions[trade_ccy]
+                    except KeyError:
+                        cash = Position(pos_uid=trade_ccy, date=dt,
+                                        atype='Cash', currency=trade_ccy,
+                                        alp=1., quantity=0)
+                        positions[trade_ccy] = cash
+                else:
+                    cash = None
+
+                # Update any cash position
+                if fx.is_ccy(uid):
+                    v.quantity += traded_q
+                    v.date = dt
+                    df.loc[dt, uid] = v.quantity
+
+                # Update non-cash positions
+                else:
+                    # Calculate traded money and new quantity
+                    old_quantity = v.quantity
+                    v.quantity += traded_q
 
                     # We convert the trade price into the position currency
-                    # and we update the alp of the position accordingly.
-                    fx_rate = 1.
-                    if t[4] != v.currency and v.type != 'Cash':
-                        fx_obj = fx.get(t[4], v.currency)
-                        fx_rate = fx_obj.get(dt)
-
-                    # The rate from the position currency to the base currency
-                    # is used to update the base cash position
-                    fx_rate_base = 1.
-                    if v.currency != ccy:
-                        fx_obj_base = fx.get(v.currency, ccy)
-                        fx_rate_base = fx_obj_base.get(dt)
-
-                    # Calculate traded money and new quantity
-                    traded_cash = t[6] * traded_q * fx_rate
-                    quantity = v.quantity + traded_q
+                    # and we update the alp of the position accordingly.    
+                    pos_fx_rate = 1.
+                    if trade_ccy != v.currency:
+                        fx_obj = fx.get(trade_ccy, v.currency)
+                        pos_fx_rate = fx_obj.get(dt)
 
                     # Calculate the average cost of the instrument considering
                     # whether we buy/sell/short sell/short cover and the
                     # starting quantity.
-                    if quantity < 0:
-                        alp = .0
-                    elif v.quantity < 0:
-                        alp = t[6] * fx_rate
-                    elif traded_q < 0:
-                        alp = v.alp
-                    else:
-                        alp = (v.quantity * v.alp + traded_cash) / (quantity)
-                    # print('DEBUG - alp = {:.2f}'.format(alp))
+                    if v.quantity < 0:
+                        v.alp = .0
+                    elif old_quantity < 0:
+                        v.alp = t[6] * pos_fx_rate
+                    elif traded_q > 0:
+                        v.alp = (old_quantity * v.alp + traded_cash * pos_fx_rate) / v.quantity
+                    # else: traded_q < 0 => v.alp = old_alp. We skip this case
 
-                    # Total COST value, not required
-                    # tot_cost_value = alp * quantity
+                    # Update positions
+                    v.date = dt
+                    df.loc[dt, uid] = v.quantity
 
-                    # Update the cash position
-                    cash_pos.quantity -= traded_cash * fx_rate_base
-
-                    df.loc[dt, uid] = quantity
-                    df.loc[dt, ccy] = cash_pos.quantity
-
-                    if quantity == 0.:
-                        print('pos: {} | quantity: {:.2f} ==> deleted'.format(uid, quantity))
+                    if v.quantity == 0.:
+                        print('pos: {} | quantity: {:.2f} ==> deleted'
+                              .format(uid, v.quantity))
                         del positions[uid]
-                        del uid_list[uid]
-                    else:
-                        v.quantity = quantity
-                        v.alp = alp
-                        v.date = dt
-                        positions[uid] = v
 
-        cash_pos.date = self._cal.t0
-        positions[ccy] = cash_pos
+                # Update cash position
+                if cash is not None:
+                    cash.quantity -= traded_cash
+                    cash.date = dt
+                    df.loc[dt, trade_ccy] = cash.quantity
+
+        positions[self._currency].date = self._cal.t0
         df.sort_index(inplace=True)
 
-        return uid_list, positions, df
+        return positions, df
 
     def _write_cnsts(self):
         """ Writes to the database the constituents. """
@@ -316,6 +307,19 @@ Consider moving back the calendar start date."""
         dt, tot_val, _ = Mat.portfolio_value(self._cnsts_uids, self._currency,
                                              pos.index.values, pos.values)
         return pd.Series(tot_val, index=dt)
+
+    def positions_value(self) -> pd.DataFrame:
+        """ Calculates the times series of the value of each position in base
+            currency. The sum across positions at each date is the portfolio
+            total value at that date.
+        """
+        if not self._cnsts_loaded:
+            self._load_cnsts()
+
+        pos = self._cnsts_df
+        dt, _, pos_val = Mat.portfolio_value(self._cnsts_uids, self._currency,
+                                             pos.index.values, pos.values)
+        return pd.DataFrame(pos_val, columns=self._cnsts_uids, index=dt)
 
     def calc_returns(self) -> pd.Series:
         if not self._cnsts_loaded:
@@ -365,15 +369,28 @@ Consider moving back the calendar start date."""
         cov, uids = Mat.ptf_correlation(self._cnsts_uids, self._currency)
         return pd.DataFrame(cov, columns=uids, index=uids)
 
-    def summary(self) -> tuple:
+    def summary(self) -> dict:
         """ Show the portfolio summary in the portfolio base currency. """
         # Run through positions and collect data for the summary
-        data = [(p.uid, p.date.strftime('%Y-%m-%d'), p.type, p.alp,
-                 p.quantity, p.alp * p.quantity, p.currency)
-                for p in self._dict_cnsts.values()]
+        pos_value = self.positions_value().loc[self._date]
+        tot_value = pos_value.sum()
+
+        data = []
+        for k, p in self._dict_cnsts.items():
+            val = float(pos_value[k])
+            cost = p.alp * p.quantity
+            t = (p.type, p.uid, p.date.strftime('%Y-%m-%d'), p.currency,
+                 p.alp, p.quantity, cost, val)
+            data.append(t)
 
         # Sort accordingly to the key <type, uid>
-        data.sort(key=lambda t: (t[2], t[0]))
+        data.sort(key=lambda _t: (_t[0], _t[1]))
+        fields = ('type', 'uid', 'date', 'currency', 'alp', 'quantity',
+                  'cost (FX)', 'value ({})'.format(self._currency))
+        cnsts = pd.DataFrame(data, columns=fields)
 
-        fields = ('uid', 'date', 'type', 'alp', 'quantity', 'value', 'currency')
-        return fields, data
+        return {
+            'uid': self._uid, 'currency': self._currency, 'date': self._date,
+            'inception': self._inception_date, 'tot_value': tot_value,
+            'constituents_data': cnsts,
+        }

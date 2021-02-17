@@ -6,16 +6,15 @@
 from tabulate import tabulate
 
 from nfpy.Assets import get_af_glob
-from nfpy.Calendar import (get_calendar_glob, today)
+import nfpy.Calendar as Cal
 import nfpy.DB as DB
 import nfpy.IO as IO
 from nfpy.Tools import Constants as Cn
 
-__version__ = '0.4'
+__version__ = '0.5'
 _TITLE_ = "<<< Print portfolio summary script >>>"
 
 _FMT_ = '%Y-%m-%d'
-
 
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
@@ -25,17 +24,17 @@ if __name__ == '__main__':
     af = get_af_glob()
     inh = IO.InputHandler()
 
-    cal = get_calendar_glob()
-    end = today(mode='timestamp')
-    start = cal.shift(end, -2*Cn.DAYS_IN_1Y, 'D')
+    calendar = Cal.get_calendar_glob()
+    end = Cal.today(mode='timestamp')
+    start = Cal.shift(end, -2 * Cn.DAYS_IN_1Y, 'D')
 
     msg = "Give an start date (default {}): "
     start = inh.input(msg.format(start.strftime(_FMT_)), idesc='timestamp',
                       default=start, optional=True)
 
-    cal.initialize(end=end, start=start)
+    calendar.initialize(end=end, start=start)
 
-    # Get equity
+    # Get portfolio
     q = "select * from Assets where type = 'Portfolio'"
     f = list(qb.get_fields('Assets'))
     res = db.execute(q).fetchall()
@@ -46,15 +45,17 @@ if __name__ == '__main__':
     ptf_uid = res[idx][0]
 
     ptf = af.get(ptf_uid)
-    f, d = ptf.summary()
-    tot_value = ptf.total_value.at[cal.t0]
+    res = ptf.summary()
 
     print('\n *** Portfolio info ***\n------------------------\n')
     print('Uid:\t\t{}\nCurrency:\t{}\nDate:\t\t{}\nInception:\t{}\nTot. Value:\t{:.2f}'
-          .format(ptf_uid, ptf.currency, ptf.date.strftime(_FMT_),
-                  ptf.inception_date.strftime(_FMT_), tot_value))
+          .format(res['uid'], res['currency'], res['date'].strftime(_FMT_),
+                  res['inception'].strftime(_FMT_), res['tot_value']))
 
     print('\n\n *** Summary of positions ***\n------------------------------\n')
-    print(tabulate(d, headers=f), end='\n\n')
+    df = res['constituents_data']
+    print(df.to_string(index=False,
+                       float_format=lambda x: '{:.2f}'.format(x),
+                       formatters={'quantity': '{:,.0f}'.format}))
 
     print("All done!")
