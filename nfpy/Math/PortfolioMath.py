@@ -4,6 +4,7 @@
 #
 
 import numpy as np
+from typing import Sequence
 
 from nfpy.Assets import get_af_glob
 from nfpy.Calendar import get_calendar_glob
@@ -12,7 +13,8 @@ import nfpy.Financial as Fin
 from .TSUtils import (dropna, ffill_cols, trim_ts)
 
 
-def portfolio_value(uids: list, ccy: str, dt: np.ndarray, pos: np.ndarray) -> tuple:
+def portfolio_value(uids: list, ccy: str, dt: np.ndarray,
+                    pos: np.ndarray) -> tuple:
     """ Get the value in the portfolio base currency of each position.
 
         Input:
@@ -42,13 +44,11 @@ def portfolio_value(uids: list, ccy: str, dt: np.ndarray, pos: np.ndarray) -> tu
 
         else:
             asset = af.get(u)
-            p = asset.prices
+            value = asset.prices.values
             asset_ccy = asset.currency
-            rate = 1.
             if asset_ccy != ccy:
                 fx_obj = fx.get(asset_ccy, ccy)
-                rate = fx_obj.prices.values
-            value = p.values * rate
+                value *= fx_obj.prices.values
 
         pos[:, i] *= value
 
@@ -95,29 +95,16 @@ def price_returns(uids: list, ccy: str, dt_pos: np.ndarray = None,
             dt [np.ndarray]: array of return dates
             ret [np.ndarray]: returns series
     """
-    if (wgt is None) and (pos is None):
-        raise ValueError('Time series of positions required to calculate weights')
-    elif wgt is None:
+    if wgt is None:
+        if pos is None:
+            raise ValueError('Time series of positions required to calculate weights')
         dt_wgt, wgt = weights(uids, ccy, dt_pos, pos)
 
-    af, fx = get_af_glob(), Fin.get_fx_glob()
-    ret = np.empty((len(dt_wgt), len(uids)))
-    for i, u in enumerate(uids):
-        if u == ccy:
-            ret[:, i] = .0
-            continue
-
-        asset = af.get(u)
-        r = asset.returns.values
-        pos_ccy = asset.currency
-        rate = .0
-        if pos_ccy != ccy:
-            fx_obj = fx.get(pos_ccy, ccy)
-            rate = fx_obj.returns.values
-
-        ret[:, i] = r + rate + r * rate
-
+    m = len(dt_wgt)
+    n = len(uids)
+    ret = _ret_matrix((m, n), uids, ccy)
     ret *= wgt
+
     return dt_wgt, np.sum(ret, axis=1)
 
 
@@ -132,29 +119,17 @@ def covariance(uids: list, ccy: str) -> tuple:
             ret [np.ndarray]: returns series
             uids [Sequence]: ordered list of uids in the covariance matrix
     """
-    af, fx = get_af_glob(), Fin.get_fx_glob()
-
-    if ccy in uids:
-        uids = list(uids)
-        idx = uids.index(ccy)
-        del uids[idx]
+    uids = list(uids)
+    try:
+        uids.remove(ccy)
+    except ValueError:
+        pass
 
     n = len(get_calendar_glob())
     m = len(uids)
-    ret = np.empty((m, n))
-
-    for i, u in enumerate(uids):
-        asset = af.get(u)
-        r = asset.returns.values
-        pos_ccy = asset.currency
-        rate = .0
-        if pos_ccy != ccy:
-            fx_obj = fx.get(pos_ccy, ccy)
-            rate = fx_obj.returns.values
-
-        ret[i, :] = r + rate + r * rate
-
+    ret = _ret_matrix((m, n), uids, ccy)
     ret, _ = dropna(ret, axis=0)
+
     return np.cov(ret), uids
 
 
@@ -170,27 +145,41 @@ def ptf_correlation(uids: list, ccy: str) -> tuple:
             ret [np.array]: returns series
             uids [Sequence]: ordered list of uids in the correlation matrix
     """
-    af, fx = get_af_glob(), Fin.get_fx_glob()
-
-    if ccy in uids:
-        uids = list(uids)
-        idx = uids.index(ccy)
-        del uids[idx]
+    uids = list(uids)
+    try:
+        uids.remove(ccy)
+    except ValueError:
+        pass
 
     n = len(get_calendar_glob())
     m = len(uids)
-    ret = np.empty((m, n))
+    ret = _ret_matrix((m, n), uids, ccy)
+    ret, _ = dropna(ret, axis=0)
+
+    return np.corrcoef(ret), uids
+
+
+def _ret_matrix(shape: tuple, uids: Sequence, ccy: str) -> np.ndarray:
+    af, fx = get_af_glob(), Fin.get_fx_glob()
+    ret = np.empty(shape)
 
     for i, u in enumerate(uids):
-        asset = af.get(u)
-        r = asset.returns.values
-        pos_ccy = asset.currency
-        rate = .0
-        if pos_ccy != ccy:
-            fx_obj = fx.get(pos_ccy, ccy)
-            rate = fx_obj.returns.values
+        if u == ccy:
+            r = .0
 
-        ret[i, :] = r + rate + r * rate
+        elif fx.is_ccy(u):
+            asset = fx.get(u, ccy)
+            r = asset.returns.values
 
-    ret, _ = dropna(ret, axis=0)
-    return np.corrcoef(ret), uids
+        else:
+            asset = af.get(u)
+            r = asset.returns.values
+            pos_ccy = asset.currency
+            if pos_ccy != ccy:
+                fx_obj = fx.get(pos_ccy, ccy)
+                rate = fx_obj.returns.values
+                r += rate + r * rate
+
+        ret[i, :] = r
+
+    return ret
