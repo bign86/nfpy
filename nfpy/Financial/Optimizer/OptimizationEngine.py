@@ -64,31 +64,37 @@ class OptimizationEngine(object):
 
         # Get number of constituents ex-base cash position
         ccy = ptf.currency
-        self._uids = ptf.constituents_uids.copy()
-        self._uids.remove(ccy)
-        length = ptf.num_constituents - 1
+        uids = ptf.constituents_uids.copy()
+        uids.remove(ccy)
+        length = len(uids)
 
         # Build the returns matrix
         ret = np.zeros((len(cal), length))
-        for i, uid in enumerate(self._uids):
-            asset = self._af.get(uid)
-            r = asset.returns.values
-            pos_ccy = asset.currency
+        for i, uid in enumerate(uids):
+            if self._fx.is_ccy(uid):
+                asset = self._fx.get(uid, ccy)
+                r = asset.returns.values
 
-            if ccy != pos_ccy:
-                fx = self._fx.get(pos_ccy, ccy)
-                fx_ret = fx.returns.values
-                r = r + fx_ret + r * fx_ret
+            else:
+                asset = self._af.get(uid)
+                r = asset.returns.values
+                pos_ccy = asset.currency
+
+                if ccy != pos_ccy:
+                    fx = self._fx.get(pos_ccy, ccy)
+                    fx_ret = fx.returns.values
+                    r += fx_ret + r * fx_ret
 
             ret[:, i] = r
 
         # Cut the arrays to the right dates and clean
         ret, dt = Mat.trim_ts(ret, cal.values, self._start, self._t0)
-        ret, _ = Mat.dropna(ret, axis=1)
+        ret, _ = Mat.dropna(ret, axis=0)
 
         e_ret = Mat.expct_ret(ret, is_log=False)
         cov = np.cov(ret, rowvar=False)
 
+        self._uids = uids
         self._ret = Mat.compound(e_ret, Cn.BDAYS_IN_1Y)
         self._cov = cov * Cn.BDAYS_IN_1Y
 

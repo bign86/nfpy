@@ -168,8 +168,8 @@ class ReportingEngine(metaclass=Singleton):
             try:
                 r = report(u, pd, img_path=cid).result
             except (ValueError, Ex.MissingData, KeyError) as ex:
+                # traceback.print_exc()
                 print(str(ex))
-                continue
             else:
                 ret_dict[u][m] = r
                 a_type = self._af.get_type(u)

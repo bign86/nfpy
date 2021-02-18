@@ -42,20 +42,15 @@ class ReportPtfOptimization(BaseReport):
     def _run(self):
         kwargs = self._init_input()
 
+        # Calculate actual weights ex-cash positions
+        ptf = Ast.get_af_glob().get(self._uid)
+        idx = ptf.constituents_uids.index(ptf.currency)
+        wgt = np.delete(ptf.weights.values[-1], idx)
+        wgt /= np.sum(wgt)
+
         # Run optimizers
         oe = Fin.OptimizationEngine(self._uid, **kwargs)
         model_res = oe.result
-
-        # Handlers
-        af, fx = Ast.get_af_glob(), Fin.get_fx_glob()
-
-        # Calculate actual weights ex-cash positions
-        ptf = af.get(self._uid)
-        weights = ptf.weights
-        idx = [i for i, u in enumerate(weights.columns)
-               if not fx.is_ccy(u)]
-        wgt = weights.values[-1][idx]
-        wgt = wgt / np.sum(wgt)
 
         self._res = self._create_output(model_res, wgt)
 
@@ -86,18 +81,19 @@ class ReportPtfOptimization(BaseReport):
         models = ['Actual']
         weights = [wgt]
         for r in model_res.results:
-            model = r.model
             if r.success is False:
                 continue
 
+            model = r.model
             kw = self._PLT_STYLE[model]
             div_pl.add(r, **kw)
 
             if model == 'Markowitz':
                 continue
 
-            models.extend([model, 'delta%'])
-            weights.extend([r.weights, r.weights / wgt - 1.])
+            models.extend([model, model+'_delta'])
+            model_wgt = r.weights[0]
+            weights.extend([model_wgt, model_wgt / wgt - 1.])
 
         # Save out figure
         div_pl.plot()
@@ -105,8 +101,7 @@ class ReportPtfOptimization(BaseReport):
         div_pl.close(True)
 
         # Create results table
-        wgt_table = np.vstack(weights)
-        wgt_df = pd.DataFrame(wgt_table.T,
+        wgt_df = pd.DataFrame(np.vstack(weights).T,
                               index=model_res.uids,
                               columns=models)
         res.weights = wgt_df.style.format('{:,.1%}') \

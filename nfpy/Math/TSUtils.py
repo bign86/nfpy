@@ -227,10 +227,9 @@ def dropna(v: np.ndarray, axis: int = 0) -> tuple:
         mask = ~np.isnan(v)
         _v = v[mask]
     elif len(v.shape) == 2:
-        mask = ~np.any(np.isnan(v), axis=axis, keepdims=True)
+        mask = ~np.any(np.isnan(v), axis=axis, keepdims=False)
         tile_sh = (v.shape[axis], 1) if axis == 0 else (1, v.shape[axis])
-        mask = np.tile(mask, tile_sh)
-        _v = v[mask]
+        _v = v[np.tile(mask, tile_sh)]
         n = len(_v) // v.shape[axis]
         if axis == 0:
             _v = _v.reshape((v.shape[axis], n))
