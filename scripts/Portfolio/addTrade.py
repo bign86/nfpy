@@ -11,13 +11,12 @@ import nfpy.IO as IO
 __version__ = '0.2'
 _TITLE_ = "<<< Add trade script >>>"
 
-_COLS_ORDER = ['ptf_uid', 'date', 'pos_uid', 'buy_sell', 'currency',
+_COLS_ORDER = ['date', 'pos_uid', 'buy_sell', 'currency',
                'quantity', 'price', 'costs', 'market']
 _COLS_QUESTIONS = {
-    'ptf_uid': ('Insert a portfolio uid: ', 'str'),
-    'date': ('Insert date and time (%Y-%m-%d %H:%M:%S): ', 'timestamp'),
+    'date': ('Insert date and time (%Y-%m-%d %H:%M:%S): ', 'datetime'),
     'pos_uid': ('Insert position uid: ', 'str'),
-    'buy_sell': ('Is buy position?: ', 'bool'),
+    'buy_sell': ('Is it a buy position?: ', 'bool'),
     'currency': ('Insert currency uid: ', 'str'),
     'quantity': ('Insert quantity: ', 'float'),
     'price': ('Insert unitary price: ', 'float'),
@@ -28,21 +27,25 @@ _COLS_QUESTIONS = {
 
 def insert_trade_data():
     print('\n--- Insert trade data ---')
+    columns = qb.get_columns('Trades')
 
-    data = list()
+    data = [ptf]
     for col in _COLS_ORDER:
+        col_obj = columns[col]
         q, idesc = _COLS_QUESTIONS[col]
-        in_data = inh.input(q, idesc=idesc)
+        optional = False if col_obj.notnull else True
+
+        in_data = inh.input(q, idesc=idesc, optional=optional,
+                            fmt='%Y-%m-%d %H:%M:%S')
 
         if col == 'buy_sell':
             in_data = 1 if in_data else 2
-        elif col == 'date':
-            in_data = in_data.to_pydatetime()
 
         data.append(in_data)
 
     # Insert trade
-    pm.new_trade(*data)
+    q = qb.insert('Trades')
+    db.execute(q, data, commit=True)
 
 
 if __name__ == '__main__':
@@ -59,13 +62,14 @@ if __name__ == '__main__':
 
     print('\n\nAvailable portfolios:')
     print(tabulate(res, headers=fa, showindex=True))
+    idx = inh.input("\nGive a portfolio index: ", idesc='int')
+    ptf = res[idx][0]
 
     # User provides data
-    pm = PortfolioManager()
-    insert_trade_data()
-    v = inh.input('\n -> Insert another trade?: ', idesc='bool')
+    v = True
     while v:
         insert_trade_data()
-        v = inh.input('\n -> Insert another trade?: ', idesc='bool')
+        v = inh.input('\n -> Insert another trade?: ', idesc='bool',
+                      default=False)
 
     print("All done!")
