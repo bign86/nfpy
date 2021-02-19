@@ -90,3 +90,25 @@ img {
     min-width: 600px;
     height: auto;    
 }
+.matrix {
+    border-collapse: collapse;
+    border: 1px solid #808080;
+    margin: 25px 0;
+    font-size: 0.9em;
+    min-width: 400px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+}
+.matrix thead tr,
+.matrix tbody th {
+    background-color: #dcdada;
+    text-align: center;
+}
+.matrix th,
+.matrix td {
+    padding: 6px 8px;
+    border: 1px solid #808080;
+    text-align: center;
+}
+.matrix tbody tr:hover {
+    font-weight: bold;
+}

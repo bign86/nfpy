@@ -100,6 +100,14 @@ class ReportPtfOptimization(BaseReport):
         div_pl.save(fig_full_name[0])
         div_pl.close(True)
 
+        # Create correlation matrix
+        corr_df = pd.DataFrame(model_res.corr, index=model_res.uids,
+                               columns=model_res.uids)
+        res.corr = corr_df.style.format('{:,.0%}') \
+            .set_table_attributes('class="matrix"') \
+            .render()
+            # .background_gradient(cmap='RdYlGn', axis=None) \
+        
         # Create results table
         wgt_df = pd.DataFrame(np.vstack(weights).T,
                               index=model_res.uids,
