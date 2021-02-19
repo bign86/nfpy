@@ -44,7 +44,7 @@ def portfolio_value(uids: list, ccy: str, dt: np.ndarray,
 
         else:
             asset = af.get(u)
-            value = asset.prices.values
+            value = np.copy(asset.prices.values)
             asset_ccy = asset.currency
             if asset_ccy != ccy:
                 fx_obj = fx.get(asset_ccy, ccy)
@@ -100,12 +100,12 @@ def price_returns(uids: list, ccy: str, dt_pos: np.ndarray = None,
             raise ValueError('Time series of positions required to calculate weights')
         dt_wgt, wgt = weights(uids, ccy, dt_pos, pos)
 
-    m = len(dt_wgt)
-    n = len(uids)
+    m = len(uids)
+    n = len(dt_wgt)
     ret = _ret_matrix((m, n), uids, ccy)
-    ret *= wgt
+    ret *= wgt.T
 
-    return dt_wgt, np.sum(ret, axis=1)
+    return dt_wgt, np.sum(ret, axis=0)
 
 
 def covariance(uids: list, ccy: str) -> tuple:
@@ -125,8 +125,8 @@ def covariance(uids: list, ccy: str) -> tuple:
     except ValueError:
         pass
 
-    n = len(get_calendar_glob())
     m = len(uids)
+    n = len(get_calendar_glob())
     ret = _ret_matrix((m, n), uids, ccy)
     ret, _ = dropna(ret, axis=0)
 
@@ -151,8 +151,8 @@ def ptf_correlation(uids: list, ccy: str) -> tuple:
     except ValueError:
         pass
 
-    n = len(get_calendar_glob())
     m = len(uids)
+    n = len(get_calendar_glob())
     ret = _ret_matrix((m, n), uids, ccy)
     ret, _ = dropna(ret, axis=0)
 
@@ -169,16 +169,16 @@ def _ret_matrix(shape: tuple, uids: Sequence, ccy: str) -> np.ndarray:
 
         elif fx.is_ccy(u):
             asset = fx.get(u, ccy)
-            r = asset.returns.values
+            r = np.copy(asset.returns.values)
 
         else:
             asset = af.get(u)
-            r = asset.returns.values
+            r = np.copy(asset.returns.values)
             pos_ccy = asset.currency
             if pos_ccy != ccy:
                 fx_obj = fx.get(pos_ccy, ccy)
                 rate = fx_obj.returns.values
-                r += rate + r * rate
+                r += (1. + r) * rate
 
         ret[i, :] = r
 
