@@ -12,7 +12,7 @@ import nfpy.DB as DB
 import nfpy.IO as IO
 from nfpy.Tools import Exceptions as Ex
 
-__version__ = '0.4'
+__version__ = '0.5'
 _TITLE_ = "<<< Equity benchmark calculation script >>>"
 
 if __name__ == '__main__':
@@ -23,12 +23,10 @@ if __name__ == '__main__':
     db = DB.get_db_glob()
     inh = IO.InputHandler()
 
-    start_date = inh.input("Give starting date for time series: ", idesc='datetime')
-    if not start_date:
-        raise ValueError('You must give a starting date.')
-
+    start_date = inh.input("Give starting date for time series: ",
+                           idesc='timestamp', optional=False)
     end_date = inh.input("Give ending date for time series (default <today>): ",
-                         default=today(), idesc='timestamp')
+                         default=today(), idesc='timestamp', optional=True)
     get_calendar_glob().initialize(end_date, start_date)
 
     q = "select * from Assets where type = 'Equity'"
