@@ -93,11 +93,13 @@ class OptimizationEngine(object):
 
         e_ret = Mat.expct_ret(ret, is_log=False)
         cov = np.cov(ret, rowvar=False)
+        corr = np.corrcoef(ret, rowvar=False)
 
         self._uids = uids
         self._ret = Mat.compound(e_ret, Cn.BDAYS_IN_1Y)
         self._cov = cov * Cn.BDAYS_IN_1Y
-
+        self._corr = corr
+        
         if (self._rf_ret is None) and ('CALModel' in self._algo):
             rf = self._rf.get_rf(ccy)
             self._rf_ret = Mat.compound(rf.last_price()[0], Cn.BDAYS_IN_1Y)
@@ -122,4 +124,5 @@ class OptimizationEngine(object):
         obj.start = self._start
         obj.t0 = self._t0
         obj.gamma = self._gamma
+        obj.corr = self._corr
         self._res = obj
