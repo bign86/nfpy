@@ -339,25 +339,17 @@ Consider moving back the calendar start date."""
                 benchmark [Asset]: asset to be used as benchmark
                 w [int]: size of the rolling window
         """
-        try:
-            ret = self._df["TEV"]
-        except KeyError:
-            r = self.returns
-            ret = Mat.tev(r.index.values, r.values,
-                          benchmark.returns.values, w=w)
-            self._df["TEV"] = ret
-        return ret
+        r = self.returns
+        ret = Mat.tev(r.index.values, r.values,
+                      benchmark.returns.values, w=w)
+        return pd.Series(ret, index=r.index)
 
     def sharpe_ratio(self, rf: Asset, w: int = None) -> pd.Series:
         """ Calculates the Sharpe Ratio. """
-        try:
-            ret = self._df["sharpe"]
-        except KeyError:
-            r = self.returns
-            ret = Mat.sharpe(r.index.values, r.values,
-                             br=rf.returns.values, w=w)
-            self._df["sharpe"] = ret
-        return ret
+        r = self.returns
+        ret = Mat.sharpe(r.index.values, r.values,
+                         br=rf.returns.values, w=w)
+        return pd.Series(ret, index=r.index)
 
     def covariance(self) -> pd.DataFrame:
         """ Get the covariance matrix for the underlying constituents. """
