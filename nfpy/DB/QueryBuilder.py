@@ -127,17 +127,20 @@ class QueryBuilder(metaclass=Singleton):
         return t
 
     def select(self, table: str, fields: Sequence = None, rolling: Sequence = (),
-               keys: Sequence = None, where: str = "", order: str = None) -> str:
+               keys: Sequence = None, partial_keys: Sequence = (),
+               where: str = "", order: str = None) -> str:
         """ Builds a select query for input table:
 
             Input:
                 table [str]: for the from clause
                 fields [Sequence[str]]: if present select only these columns
-                rolling [Sequence[str]]: if present remove these from the list of keys
-                                used for the where condition
-                keys [Sequence[str]]: if present use only these keys to create the where
-                                condition, if given empty no keys will be used.
-                                If None is given use ALL primary keys to build the query
+                rolling [Sequence[str]]: if present remove these from the list
+                    of keys used for the where condition
+                keys [Sequence[str]]: if present use only these keys to create
+                    the where condition, if given empty no keys will be used.
+                    If None is given use ALL primary keys to build the query
+                partial_keys [Sequence[str]]: additional keys to be evaluated
+                    by a 'like' clause. If none are given, none are used
                 where [str]: additional where condition
                 order [str]: additional order condition
             
@@ -146,15 +149,20 @@ class QueryBuilder(metaclass=Singleton):
         """
         t = self._get_table(table)
 
-        # select {} from t
         if not fields:
-            fields = [f for f in t.get_fields()]
+            fields = t.get_fields()
         query = "select [" + "],[".join(fields) + "] from [" + table + "]"
 
         # where on keys
         if keys is None:
-            keys = [k for k in t.get_keys() if k not in rolling]
+            if not partial_keys:
+                keys = (k for k in t.get_keys() if k not in rolling)
+            else:
+                keys = ()
         qk = ["[" + k + "] = ? " for k in keys]
+
+        # like conditions
+        qk += ["[" + k + "] like ? " for k in partial_keys]
 
         # where on rolling
         for r in rolling:
@@ -202,7 +210,7 @@ class QueryBuilder(metaclass=Singleton):
     def _get_insert(self, ins_table: str, ins_fields: Sequence,
                     command: str, **kwargs) -> str:
         """ Creates an insert like query. """
-        keys = [f for f in self.get_keys(ins_table)]
+        keys = self.get_keys(ins_table)
         if not ins_fields:
             ins_fields = self.get_fields(ins_table)
 
@@ -240,7 +248,7 @@ class QueryBuilder(metaclass=Singleton):
         """
         # FIXME: add check on keys for safety
         if not keys:
-            keys = [f for f in self.get_keys(table)]
+            keys = self.get_keys(table)
 
         if not fields:
             fields = self.get_fields(table)
@@ -263,7 +271,7 @@ class QueryBuilder(metaclass=Singleton):
             Return:
                 query [str]: query ready to be used in an execute
         """
-        keys = [f for f in self.get_keys(table)]
+        keys = self.get_keys(table)
         if not fields:
             fields = self.get_fields(table)
 
@@ -271,7 +279,7 @@ class QueryBuilder(metaclass=Singleton):
         query += " ([" + "],[".join(fields) + "]) "
         query += " values (" + ",".join(['?'] * len(fields)) + ")"
         query += " on conflict ([" + "],[".join(keys) + "]) do update set "
-        query += ", ".join(["[" + f + "] = excluded.[" + f + "]" for f in fields])
+        query += ", ".join(("[" + f + "] = excluded.[" + f + "]" for f in fields))
         query += where
 
         return query + ';'
@@ -328,8 +336,8 @@ class QueryBuilder(metaclass=Singleton):
         query = "create table [" + struct.name + "] ("
 
         # Build columns query
-        cols = list()
-        pk = list()
+        cols = []
+        pk = []
         for k, v in struct.columns.items():
             nn = 'NOT NULL' if v.notnull else ''
             cols.append(' '.join(map(str, ['[' + k + ']', v.type, nn])))
