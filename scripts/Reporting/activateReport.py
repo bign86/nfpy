@@ -11,7 +11,7 @@ import nfpy.IO as IO
 
 _TABLE = 'ReportItems'
 
-__version__ = '0.2'
+__version__ = '0.3'
 _TITLE_ = "<<< Activate/Deactivate financial instruments >>>"
 
 
@@ -24,13 +24,13 @@ if __name__ == '__main__':
 
     params = {}
 
-    msg = "Give a report name (default None): "
+    msg = "Give a report name(%) (default None): "
     params['report'] = inh.input(msg, idesc='str', default=None, optional=True)
 
-    msg = "Give a uid (default None): "
+    msg = "Give a uid(%) (default None): "
     params['uid'] = inh.input(msg, idesc='str', default=None, optional=True)
 
-    msg = "Give a model (default None): "
+    msg = "Give a model(%) (default None): "
     params['model'] = inh.input(msg, idesc='str', default=None, optional=True)
 
     select_keys = tuple(k for k, v in params.items() if v is not None)
@@ -42,7 +42,7 @@ if __name__ == '__main__':
 
     print('\n-------------------------------------------------------------')
     print('          {}'.format(_TABLE), end='\n\n')
-    q = qb.select(_TABLE, keys=select_keys)
+    q = qb.select(_TABLE, partial_keys=select_keys)
     res = db.execute(q, select_data).fetchall()
 
     fields = tuple(qb.get_fields(_TABLE))
@@ -54,7 +54,10 @@ if __name__ == '__main__':
     if not idx:
         print('All done!')
         exit()
+
     filtered = itemgetter(*idx)(res)
+    if len(idx) == 1:
+        filtered = (filtered,)
 
     msg = "Choose activate (1) or deactivate (0): "
     op = inh.input(msg, idesc='bool', optional=False)
