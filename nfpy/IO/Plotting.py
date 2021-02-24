@@ -4,16 +4,13 @@
 #
 
 from abc import ABCMeta
-import matplotlib
+import matplotlib as mpl
 import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import AxesGrid
 import numpy as np
 import pandas as pd
 from typing import (Union, Sequence)
 
 from nfpy.Financial import OptimizerResult
-
-
 
 plt.style.use('seaborn')
 # print(plt.style.library['seaborn'])
@@ -25,6 +22,7 @@ class Plotting(metaclass=ABCMeta):
     _RC = {}
     _RC_TEXT = {}
     _RC_AXIS = {'c': 'k', 'linewidth': .5}
+    _PLT_FN = 'plot'
 
     def __init__(self, ncols: int = 1, nrows: int = 1, xl: str = '',
                  yl: str = '', x_zero: float = None, y_zero: float = None,
@@ -84,23 +82,19 @@ class Plotting(metaclass=ABCMeta):
         ax1, legend = self._ax, False
         ax2, lp = None, []
         for x, y, kw in self._plots:
-            try:
-                secondary = kw['secondary_y']
-                if secondary:
-                    if not ax2:
-                        ax2 = ax1.twinx()
-                    ax2.set_ylabel(kw['label'])
-                    ax2.legend(kw['label'])
-                    ax = ax2
-                else:
-                    ax = ax1
-                del kw['secondary_y']
-            except KeyError:
+            secondary = kw.pop('secondary_y', False)
+            if secondary:
+                if ax2 is None:
+                    ax2 = ax1.twinx()
+                ax2.set_ylabel(kw['label'])
+                ax2.legend(kw['label'])
+                ax = ax2
+            else:
                 ax = ax1
 
             rc = self._RC.copy()
             rc.update(kw)
-            leg = ax.plot(x, y, **rc)
+            leg = getattr(ax, self._PLT_FN)(x, y, **rc)
 
             if 'label' in rc:
                 legend = True
@@ -129,7 +123,7 @@ class Plotting(metaclass=ABCMeta):
         ax1.set_ylabel(self._yl)
 
         if legend:
-            ax1.legend(lp, [l.get_label() for l in lp])
+            ax1.legend(lp, (l.get_label() for l in lp))
 
     @staticmethod
     def show():
@@ -168,6 +162,12 @@ class PlotTS(Plotting):
                  yl: str = 'Price', x_zero: float = None, y_zero: float = None,
                  xlim: Sequence = None, ylim: Sequence = None):
         super().__init__(ncols, nrows, xl, yl, x_zero, y_zero, xlim, ylim)
+
+
+class PlotScatter(Plotting):
+    """ Creates a scatterplot. """
+
+    _PLT_FN = 'scatter'
 
 
 class PlotBeta(Plotting):
@@ -289,27 +289,26 @@ class PlotPortfolioOptimization(PlotVarRet):
 
 
 def shiftedColorMap(cmap, start=0, midpoint=0.5, stop=1.0, name='shiftedcmap'):
-    '''
-    Function to offset the "center" of a colormap. Useful for
-    data with a negative min and positive max and you want the
-    middle of the colormap's dynamic range to be at zero.
+    """ Function to offset the "center" of a colormap. Useful for data with a
+        negative min and positive max and you want the middle of the colormap's
+        dynamic range to be at zero.
 
-    Input
-    -----
-      cmap : The matplotlib colormap to be altered
-      start : Offset from lowest point in the colormap's range.
-          Defaults to 0.0 (no lower offset). Should be between
-          0.0 and `midpoint`.
-      midpoint : The new center of the colormap. Defaults to 
-          0.5 (no shift). Should be between 0.0 and 1.0. In
-          general, this should be  1 - vmax / (vmax + abs(vmin))
-          For example if your data range from -15.0 to +5.0 and
-          you want the center of the colormap at 0.0, `midpoint`
-          should be set to  1 - 5/(5 + 15)) or 0.75
-      stop : Offset from highest point in the colormap's range.
-          Defaults to 1.0 (no upper offset). Should be between
-          `midpoint` and 1.0.
-    '''
+        Input
+        -----
+          cmap : The matplotlib colormap to be altered
+          start : Offset from lowest point in the colormap's range.
+              Defaults to 0.0 (no lower offset). Should be between
+              0.0 and `midpoint`.
+          midpoint : The new center of the colormap. Defaults to
+              0.5 (no shift). Should be between 0.0 and 1.0. In
+              general, this should be  1 - vmax / (vmax + abs(vmin))
+              For example if your data range from -15.0 to +5.0 and
+              you want the center of the colormap at 0.0, `midpoint`
+              should be set to  1 - 5/(5 + 15)) or 0.75
+          stop : Offset from highest point in the colormap's range.
+              Defaults to 1.0 (no upper offset). Should be between
+              `midpoint` and 1.0.
+    """
     cdict = {
         'red': [],
         'green': [],
@@ -317,7 +316,7 @@ def shiftedColorMap(cmap, start=0, midpoint=0.5, stop=1.0, name='shiftedcmap'):
         'alpha': []
     }
 
-    cmap_obj = getattr(matplotlib.cm, cmap)
+    cmap_obj = getattr(mpl.cm, cmap)
 
     # regular index to compute the colors
     reg_index = np.linspace(start, stop, 257)
@@ -337,7 +336,7 @@ def shiftedColorMap(cmap, start=0, midpoint=0.5, stop=1.0, name='shiftedcmap'):
         cdict['blue'].append((si, b, b))
         cdict['alpha'].append((si, a, a))
 
-    newcmap = matplotlib.colors.LinearSegmentedColormap(name, cdict)
+    newcmap = mpl.colors.LinearSegmentedColormap(name, cdict)
     plt.register_cmap(cmap=newcmap)
 
     return newcmap
