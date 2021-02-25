@@ -6,7 +6,7 @@
 import nfpy.Downloader as Dwn
 import nfpy.IO as IO
 
-__version__ = '0.5'
+__version__ = '0.6'
 _TITLE_ = "<<< Update database script >>>"
 
 if __name__ == '__main__':
@@ -31,7 +31,8 @@ if __name__ == '__main__':
         override_active = inh.input("Override automatic (default No)?: ",
                                     idesc='bool', default=False, optional=True)
 
-    dwnf.run(do_save=do_save, override_date=override_date,
-             provider=provider, page=page, override_active=override_active)
+    dwnf.run_download(do_save=do_save, override_date=override_date,
+                      provider=provider, page=page,
+                      override_active=override_active)
 
     print("All done!")

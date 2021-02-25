@@ -11,7 +11,7 @@ import nfpy.Downloader as Dwn
 import nfpy.IO as IO
 from nfpy.Tools import Utilities as Ut
 
-__version__ = '0.5'
+__version__ = '0.6'
 _TITLE_ = "<<< Download single asset script >>>"
 
 
@@ -33,7 +33,7 @@ if __name__ == '__main__':
         else:
             is_ticker_valid = True
 
-    fields = qb.get_fields(f.table)
+    fields = qb.get_fields(f.download_table)
     tab = tabulate(data, headers=fields, showindex=True)
     print(tab, end='\n\n')
     choice = inh.input('Index: ', idesc='int')

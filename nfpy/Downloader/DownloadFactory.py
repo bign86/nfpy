@@ -22,7 +22,8 @@ class DownloadFactory(metaclass=Singleton):
         that depends on both provider and ticker downloaded.
     """
 
-    _TABLE = 'Downloads'
+    _DWN_TABLE = 'Downloads'
+    _IMP_TABLE = 'Imports'
     _PROVIDERS = {
         "ECB": ECBProvider(),
         "IB": IBProvider(),
@@ -34,10 +35,11 @@ class DownloadFactory(metaclass=Singleton):
         self._db = DB.get_db_glob()
         self._qb = DB.get_qb_glob()
         self._downloads_list = None
+        self._imports_list = None
 
     @property
-    def table(self) -> str:
-        return self._TABLE
+    def download_table(self) -> str:
+        return self._DWN_TABLE
 
     def providers(self) -> list:
         """ Return a list of _all_ available providers. """
@@ -65,38 +67,55 @@ class DownloadFactory(metaclass=Singleton):
         return page in self._PROVIDERS[provider].pages
 
     def fetch_downloads(self, provider: str = None, page: str = None,
-                        ticker: str = None, active: bool = True) -> list:
+                        ticker: str = None, active: bool = True) -> tuple:
         """ Fetch and filter download entries.
 
             Input:
                 provider [str]: filter by provider
                 page [str]: filter by page
-                uid [str]: uid to download. If none all uids are considered
                 ticker [str]: filter by ticker
                 active [bool]: consider only automatic downloads
 
             Output:
                 data [list]: list of tuples, each one a fetched row
+                fields [list]: list of database column names
         """
-        fields = list(self._qb.get_fields(self._TABLE))
-        w_cond = 'active = 1' if active else ''
-        k_cond, params = [], []
-        if provider:
-            k_cond.append('provider')
-            params.append(provider)
-        if page:
-            k_cond.append('page')
-            params.append(page)
-        if ticker:
-            k_cond.append('ticker')
-            params.append(ticker)
+        return self._filter(self._DWN_TABLE, active, **{'provider': provider,
+                                                        'page': page,
+                                                        'ticker': ticker})
 
-        q_uid = self._qb.select(self._TABLE, fields=fields,
-                                keys=k_cond, where=w_cond)
+    def fetch_imports(self, uid: str = None, provider: str = None,
+                      item: str = None, active: bool = True) -> tuple:
+        """ Filter imports entries.
+
+            Input:
+                uid [str]: uid to import for (default None)
+                provider [str]: filter by provider (default None)
+                item [str]: filter by import item (default None)
+                active [bool]: consider only active imports (default True)
+
+            Output:
+                data [list]: list of tuples, each one a fetched row
+                fields [list]: list of database column names
+        """
+        return self._filter(self._IMP_TABLE, active, **{'uid': uid,
+                                                        'provider': provider,
+                                                        'item': item})
+
+    def _filter(self, table: str, active: bool, **kwargs) -> tuple:
+        where = 'active = 1' if active else ''
+        keys = (k for k, v in kwargs.items() if v is not None)
+        params = (kwargs[k] for k in keys)
+
+        fields = self._qb.get_fields(table)
+        q_uid = self._qb.select(table, fields=fields,
+                                keys=keys, where=where)
         res = self._db.execute(q_uid, params).fetchall()
+        if not res:
+            return None, fields
 
         self._downloads_list = res
-        return res
+        return res, fields
 
     def create_page_obj(self, provider: str, page: str, ticker: str) -> BasePage:
         """ Return an un-initialized page object of the correct type.
@@ -115,9 +134,15 @@ class DownloadFactory(metaclass=Singleton):
             raise ValueError("Provider {} not recognized".format(provider))
         return prov.create_page_obj(page, ticker)
 
-    def run(self, do_save: bool = True, override_date: bool = False,
-            provider: str = None, page: str = None,
-            ticker: str = None, override_active: bool = False):
+    def do_import(self, data: dict, incremental: bool) -> None:
+        """ Take the importing object and runs the import. """
+        prov = data['provider']
+        imp_item = self._PROVIDERS[prov].get_import_item(data, incremental)
+        imp_item.run()
+
+    def run_download(self, do_save: bool = True, override_date: bool = False,
+                     provider: str = None, page: str = None,
+                     ticker: str = None, override_active: bool = False):
         """ Performs a bulk update of the system based on the 'auto' flag in the
             Downloads table. The entries are updated only in case the last
             last update has been done at least 'frequency' days ago.
@@ -132,14 +157,14 @@ class DownloadFactory(metaclass=Singleton):
                 override_active [bool]: disregard 'active' (default False)
         """
         active = not override_active
-        upd_list = self.fetch_downloads(provider=provider, page=page,
-                                        ticker=ticker, active=active)
+        upd_list, _ = self.fetch_downloads(provider=provider, page=page,
+                                           ticker=ticker, active=active)
         print('We are about to download {} items'.format(len(upd_list)))
 
         # General variables
         today_string = Cal.today()
         today_dt = Cal.today(mode='datetime')
-        q_upd = self._qb.update(self._TABLE, fields=('last_update',))
+        q_upd = self._qb.update(self._DWN_TABLE, fields=('last_update',))
 
         for item in upd_list:
             provider, page_name, ticker, currency, _, upd_freq, last_upd_str = item
@@ -178,6 +203,38 @@ class DownloadFactory(metaclass=Singleton):
                 if do_save is True:
                     data_upd = (today_string, provider, page_name, ticker)
                     self._db.execute(q_upd, data_upd, commit=True)
+
+    def run_import(self, uid: str = None, provider: str = None,
+                   item: str = None, override_active: bool = False,
+                   incremental: bool = False) -> None:
+        """ Performs a bulk import of the system based on the 'auto' flag in the
+            Imports table.
+
+            Input:
+                uid [str]: import for an uid (default None)
+                provider [str]: import for a provider (default None)
+                item [str]: import for the item (default None)
+                override_active [bool]: disregard 'active' (default False)
+                incremental [bool]: do an incremental import (default False)
+        """
+        active = not override_active
+        import_list, fields = self.fetch_imports(provider=provider, item=item,
+                                                 uid=uid, active=active)
+        print('We are about to import {} items'.format(len(import_list)))
+
+        for element in import_list:
+            import_data = dict(zip(fields, element))
+            # print(import_data)
+            try:
+                self.do_import(import_data, incremental)
+            except Ex.CalendarError as cal:
+                raise cal
+            except (Ex.MissingData, Ex.IsNoneError,
+                    RuntimeError, RequestException) as e:
+                print(e)
+
+        # TODO: introduce post-import adjustments for special dividends
+        # print('Performing post-import adjustments')
 
 
 def get_dwnf_glob() -> DownloadFactory:
