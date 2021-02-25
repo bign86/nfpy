@@ -5,7 +5,7 @@
 from collections import OrderedDict
 from copy import deepcopy
 from operator import itemgetter
-from typing import (Generator, List, Sequence)
+from typing import (Generator, List, Sequence, Iterable)
 
 from nfpy.Tools import (Singleton, Exceptions as Ex)
 
@@ -126,21 +126,22 @@ class QueryBuilder(metaclass=Singleton):
 
         return t
 
-    def select(self, table: str, fields: Sequence = None, rolling: Sequence = (),
-               keys: Sequence = None, partial_keys: Sequence = (),
-               where: str = "", order: str = None) -> str:
+    def select(self, table: str, fields: Iterable = None,
+               rolling: Iterable = (), keys: Iterable = None,
+               partial_keys: Iterable = (), where: str = "",
+               order: str = None) -> str:
         """ Builds a select query for input table:
 
             Input:
                 table [str]: for the from clause
-                fields [Sequence[str]]: if present select only these columns
-                rolling [Sequence[str]]: if present remove these from the list
-                    of keys used for the where condition
-                keys [Sequence[str]]: if present use only these keys to create
-                    the where condition, if given empty no keys will be used.
-                    If None is given use ALL primary keys to build the query
-                partial_keys [Sequence[str]]: additional keys to be evaluated
-                    by a 'like' clause. If none are given, none are used
+                fields [Iterable]: if present select only these columns
+                rolling [Iterable]: if present remove these from the list of
+                    keys used for the where condition
+                keys [Iterable]: if present use only these keys to create the
+                    where condition, if given empty no keys will be used. If
+                    None is given use ALL primary keys to build the query
+                partial_keys [Iterable]: additional keys to be evaluated by a
+                    'like' clause. If none are given, none are used
                 where [str]: additional where condition
                 order [str]: additional order condition
             

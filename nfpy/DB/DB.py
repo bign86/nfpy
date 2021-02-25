@@ -73,15 +73,11 @@ class DBHandler(metaclass=Singleton):
     def cursor(self) -> sqlite3.Cursor:
         return self.connection.cursor()
 
-    def execute(self, q: str, p: Iterable = None, commit: bool = False)\
+    def execute(self, q: str, p: Iterable = (), commit: bool = False)\
             -> sqlite3.Cursor:
-        # print('Exec: {}'.format(q))
         c = self.cursor
         try:
-            if p:
-                c.execute(q, p)
-            else:
-                c.execute(q)
+            c.execute(q, tuple(p))
             if commit:
                 self.connection.commit()
         except sqlite3.Error:
@@ -93,7 +89,7 @@ class DBHandler(metaclass=Singleton):
             -> sqlite3.Cursor:
         c = self.cursor
         try:
-            c.executemany(q, p)
+            c.executemany(q, tuple(p))
             if commit:
                 self.connection.commit()
         except sqlite3.Error:
