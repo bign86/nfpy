@@ -218,7 +218,7 @@ def next_valid_value(v: np.ndarray, dt: np.ndarray, t0: np.datetime64) -> tuple:
     """
     pos = np.searchsorted(dt, t0, side='left')
     idx = next_valid_index(v[pos:])
-    return float(v[pos+idx]), pos+idx
+    return float(v[pos + idx]), pos + idx
 
 
 def dropna(v: np.ndarray, axis: int = 0) -> tuple:
@@ -241,9 +241,11 @@ def dropna(v: np.ndarray, axis: int = 0) -> tuple:
     return _v, mask
 
 
-def fillna(v: np.ndarray, n: float) -> np.ndarray:
+def fillna(v: np.ndarray, n: float, inplace=False) -> np.ndarray:
     """ Fill nan in the input array with the supplied value. """
     mask = np.where(np.isnan(v))
+    if inplace:
+        v = v.copy()
     v[mask] = n
     return v
 
@@ -295,3 +297,25 @@ def ts_yield(dt: np.ndarray, ts: np.ndarray, base: np.ndarray,
     idx_ts = last_valid_index(ts)
     idx_base = last_valid_index(base)
     return ts[idx_ts] / base[idx_base]
+
+
+def drawdown(ts: np.ndarray, w: int) -> tuple:
+    """ Calculate the maximum drawdown in the given time window.
+
+        Input:
+            ts [np.ndarray]: time series
+            w [int]: window size
+
+        Output:
+            dd [np.ndarray]: drawdown
+            mdd [np.ndarray]: max drowdown in the window
+    """
+    w = abs(int(w))
+    r = rolling_window(ts, w)
+    idx_max = np.nanargmax(r, axis=1)
+    idx_max += np.arange(len(idx_max))
+    dd = np.take(ts, idx_max) / ts[w - 1:] - 1.
+    mdd = np.empty_like(dd)
+    mdd[:w] = np.maximum.accumulate(fillna(dd[:w], -1., inplace=True))
+    mdd[w-1:] = np.nanmax(rolling_window(dd, w), axis=1)
+    return dd, mdd
