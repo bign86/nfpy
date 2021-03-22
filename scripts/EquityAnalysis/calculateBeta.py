@@ -3,6 +3,7 @@
 # Script to calculate the Beta exposure of an instrument on an index
 #
 
+import numpy as np
 from tabulate import tabulate
 
 from nfpy.Assets import get_af_glob
@@ -10,7 +11,7 @@ from nfpy.Calendar import (get_calendar_glob, today)
 import nfpy.DB as DB
 import nfpy.IO as IO
 
-__version__ = '0.5'
+__version__ = '0.6'
 _TITLE_ = "<<< Beta calculation script >>>"
 
 
@@ -66,8 +67,15 @@ if __name__ == '__main__':
     print('Intercept  : {:2.3f}'.format(itc))
     print('Correlation: {:2.3f}\n'.format(rho))
 
-    plt = IO.PlotBeta()
-    plt.add(bmk.returns.values, eq.returns.values, (b, itc))
+    br = bmk.returns.values
+    er = eq.returns.values
+    xg = np.linspace(min(float(np.nanmin(br)), .0),
+                     float(np.nanmax(br)), 2)
+    yg = b * xg + itc
+
+    plt = IO.Plotter()
+    plt.scatter(0, br, er, color='C0', linewidth=.0, marker='o', alpha=.5)
+    plt.lplot(0, xg, yg, color='C0')
     plt.plot()
     plt.show()
 

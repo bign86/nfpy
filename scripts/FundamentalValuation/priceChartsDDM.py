@@ -16,7 +16,7 @@ import nfpy.IO as IO
 plt.interactive(False)
 np.set_printoptions(precision=3, suppress=True)
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< Price equity DDM charts script >>>"
 
 _TCOLS = ['year', 'rate %', 'no_growth', 'growth']
@@ -32,15 +32,15 @@ def print_results():
 
 
 def print_plots():
-    last_price = ddm.get_last_price()
-    pl1 = IO.PlotLine(xl='Year', yl='Fair value', x_zero=last_price)
-    pl1.add(v1[:, 0], v1[:, 2], color='k', linewidth=2., label='no_growth')
-    pl1.add(v1[:, 0], v1[:, 3], color='b', linewidth=2., label='growth')
+    lp = ddm.get_last_price()
+    pl1 = IO.Plotter(xl=('Year',), yl=('Fair value',), x_zero=(lp,))
+    pl1.lplot(0, v1[:, 0], v1[:, 2], color='k', linewidth=2., label='no_growth')
+    pl1.lplot(0, v1[:, 0], v1[:, 3], color='b', linewidth=2., label='growth')
     pl1.plot()
 
-    pl2 = IO.PlotLine(xl='Discount rate', yl='Fair value', x_zero=last_price)
-    pl2.add(v2[:, 1], v2[:, 2], color='k', linewidth=2., label='no_growth')
-    pl2.add(v2[:, 1], v2[:, 3], color='b', linewidth=2., label='growth')
+    pl2 = IO.Plotter(xl=('Discount rate',), yl=('Fair value',), x_zero=(lp,))
+    pl2.lplot(0, v2[:, 1], v2[:, 2], color='k', linewidth=2., label='no_growth')
+    pl2.lplot(0, v2[:, 1], v2[:, 3], color='b', linewidth=2., label='growth')
     pl2.plot()
     pl2.show()
 

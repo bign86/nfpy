@@ -48,16 +48,17 @@ if __name__ == '__main__':
     w = inh.input("\nChoose window size (Default 120 (~6m)): ", default=120,
                   idesc='int', optional=True, is_list=True)
 
-    plt = IO.PlotLine()
+    # plt = IO.PlotLine()
+    plt = IO.Plotter()
 
     if idx is None:
         dt, b, adj_b, itc = eq.beta(w=w)
-        plt.add(dt, b, label=eq.index)
+        plt.lplot(0, dt, b, label=eq.index)
     else:
         for i in idx:
             bmk = af.get(res[i][0])
             dt, b, adj_b, itc = eq.beta(bmk, w=w)
-            plt.add(dt, b, label=bmk.uid)
+            plt.lplot(0, dt, b, label=bmk.uid)
 
     plt.plot()
     plt.show()
