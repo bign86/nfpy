@@ -7,7 +7,7 @@ from nfpy.Calendar import (get_calendar_glob, today, last_business)
 import nfpy.Downloader as Dwn
 import nfpy.IO as IO
 
-__version__ = '0.6'
+__version__ = '0.7'
 _TITLE_ = "<<< Import into elaboration database script >>>"
 
 if __name__ == '__main__':
@@ -33,7 +33,7 @@ if __name__ == '__main__':
         override_active = inh.input("Override automatic (default No)?: ",
                                     idesc='bool', default=override_active,
                                     optional=True)
-        incremental = inh.input("Do incremental import (default False)?: ",
+        incremental = inh.input("Do incremental import (default True)?: ",
                                 idesc='bool', default=incremental, optional=True)
 
     dwnf.run_import(provider=provider, item=item, uid=uid,
