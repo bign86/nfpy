@@ -80,7 +80,10 @@ def rolling_mean(v: np.ndarray, w: int):
         Output:
             ret [np.ndarray]: rolling mean output array
     """
-    return rolling_sum(v, w) / w
+    v = v.copy()
+    d, idx = last_valid_value(v)
+    v[idx+1:] = d
+    return np.nanmean(rolling_window(v, w), axis=1)
 
 
 def trim_ts(v: Union[None, np.ndarray], dt: np.ndarray,
@@ -165,13 +168,13 @@ def last_valid_index(v: np.ndarray, start: int = None) -> int:
     return i
 
 
-def last_valid_value(v: np.ndarray, dt: np.ndarray, t0: np.datetime64 = None
-                     ) -> tuple:
+def last_valid_value(v: np.ndarray, dt: np.ndarray = None,
+                     t0: np.datetime64 = None ) -> tuple:
     """ Find the last valid value at a date <= t0.
 
         Input:
             v [np.ndarray]: series of prices
-            dt [np.ndarray]: series of price dates
+            dt [np.ndarray]: series of price dates (default None)
             t0 [np.datetime64]: reference date (default None)
 
         Output:
@@ -185,26 +188,41 @@ def last_valid_value(v: np.ndarray, dt: np.ndarray, t0: np.datetime64 = None
     return float(v[idx]), idx
 
 
-def next_valid_index(v: np.ndarray, start: int = None) -> int:
-    """ Find the index of the next non-nan value.
+def next_valid_index(v: np.ndarray, start: int = 0) -> int:
+    """ Find the index of the next non-nan value starting from the given index.
 
         Input:
             v [np.ndarray]: input series
-            start [int]: starting index
+            start [int]: starting index (default 0)
 
         Output:
             i [int]: next valid index
     """
-    i = start if start else 0
+    i = start
     n = len(v)
-    while np.isnan(v[i]) and (i < n):
+    while (i < n) and np.isnan(v[i]):
         i += 1
     if i == n:
         raise ValueError('The series is all nans')
     return i
 
 
-def next_valid_value(v: np.ndarray, dt: np.ndarray, t0: np.datetime64) -> tuple:
+def next_valid_value(v: np.ndarray, start: int = 0) -> tuple:
+    """ Find the next valid value starting from the given index.
+
+        Input:
+            v [np.ndarray]: series of prices
+            start [int]: starting index (default 0)
+
+        Output:
+            val [float]: value of the series at or after t0
+            idx [int]: corresponding index
+    """
+    idx = next_valid_index(v, start)
+    return float(v[idx]), idx
+
+
+def next_valid_value_date(v: np.ndarray, dt: np.ndarray, t0: np.datetime64) -> tuple:
     """ Find the next valid value at a date >= t0.
 
         Input:
@@ -227,7 +245,7 @@ def dropna(v: np.ndarray, axis: int = 0) -> tuple:
         mask = ~np.isnan(v)
         _v = v[mask]
     elif len(v.shape) == 2:
-        mask = ~np.any(np.isnan(v), axis=axis, keepdims=False)
+        mask = ~np.any(np.isnan(v), axis=axis, keepdims=True)
         tile_sh = (v.shape[axis], 1) if axis == 0 else (1, v.shape[axis])
         _v = v[np.tile(mask, tile_sh)]
         n = len(_v) // v.shape[axis]
@@ -244,7 +262,7 @@ def dropna(v: np.ndarray, axis: int = 0) -> tuple:
 def fillna(v: np.ndarray, n: float, inplace=False) -> np.ndarray:
     """ Fill nan in the input array with the supplied value. """
     mask = np.where(np.isnan(v))
-    if inplace:
+    if not inplace:
         v = v.copy()
     v[mask] = n
     return v
