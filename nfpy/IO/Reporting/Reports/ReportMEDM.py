@@ -3,6 +3,8 @@
 # Report class for the Market Equity Data Model
 #
 
+import numpy as np
+
 from nfpy.Calendar import get_calendar_glob
 import nfpy.Financial.Models as Mod
 import nfpy.IO as IO
@@ -17,6 +19,8 @@ if int(pandas.__version__.split('.')[0]) < 1:
     PD_STYLE_PROP = {}
 else:
     PD_STYLE_PROP = {'na_rep': "-"}
+
+
 # FIXME: end of the shame
 
 
@@ -37,32 +41,36 @@ class ReportMEDM(ReportMADM):
         res.img_beta = fig_rel_name[2]
 
         # Slow plot
-        div_pl = IO.PlotTS()
-        div_pl.add(res.prices)
+        div_pl = IO.TSPlot()
+        div_pl.lplot(0, res.prices)
         div_pl.plot()
         div_pl.save(fig_full_name[0])
-        div_pl.clf()
+        div_pl.close(True)
 
         # Performance plot
-        div_pl = IO.PlotTS()
-        div_pl.add(res.perf, color='C0', linewidth=1.5, label=res.uid)
-        div_pl.add(res.perf_idx, color='C2', linewidth=1.5, label='Index')
-
+        div_pl = IO.TSPlot()
+        div_pl.lplot(0, res.perf, color='C0', linewidth=1.5, label=res.uid)
+        div_pl.lplot(0, res.perf_idx, color='C2', linewidth=1.5, label='Index')
         div_pl.plot()
         div_pl.save(fig_full_name[1])
+        div_pl.close(True)
 
         # Beta plot
         start = cal.shift(res.date, -Cn.DAYS_IN_1Y, 'D')
         r = res.returns.loc[start:]
         ir = res.index_returns.loc[start:]
         beta = res.beta_params
+        xg = np.linspace(min(float(np.nanmin(ir.values)), .0),
+                         float(np.nanmax(ir.values)), 2)
+        yg = beta[0] * xg + beta[2]
 
-        div_pl = IO.PlotBeta(x_zero=.0, y_zero=.0, xlim=(-.15, .15),
-                             ylim=(-.15, .15))
-        div_pl.add(ir.values, r.values, (beta[0], beta[2]))
+        div_pl = IO.Plotter(x_zero=(.0,), y_zero=(.0,), xlim=((-.15, .15),),
+                            ylim=((-.15, .15),))
+        div_pl.scatter(0, ir.values, r.values, color='C0', linewidth=.0,
+                       marker='o', alpha=.5)
+        div_pl.lplot(0, xg, yg, color='C0')
         div_pl.plot()
         div_pl.save(fig_full_name[2])
-
         div_pl.close(True)
 
         df = res.stats.T

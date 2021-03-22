@@ -22,11 +22,9 @@ class ReportMBDM(ReportMADM):
         # Relative path in results object
         res.prices_long, res.prices_ytm = fig_rel_name
 
-        p, y = res.prices, res.yields
-
-        div_pl = IO.PlotTS()
-        div_pl.add(p, label='Price')
-        div_pl.add(y, color='C2', label='Yield', secondary_y=True)
+        div_pl = IO.TSPlot()
+        div_pl.lplot(0, res.prices, label='Price')
+        div_pl.lplot(0, res.yields, color='C2', label='Yield', secondary_y=True)
         div_pl.plot()
         div_pl.save(fig_full_name[0])
         div_pl.clf()

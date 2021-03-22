@@ -45,8 +45,8 @@ class ReportMADM(BaseReport):
         full_name_long = fig_full_name[0]
 
         # Slow plot
-        div_pl = IO.PlotTS()
-        div_pl.add(res.prices)
+        div_pl = IO.TSPlot()
+        div_pl.lplot(0, res.prices)
         div_pl.plot()
         div_pl.save(full_name_long)
         div_pl.clf()

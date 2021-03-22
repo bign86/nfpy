@@ -45,10 +45,12 @@ class ReportDDM(BaseReport):
         res.div_fig = fig_rel_name[0]
 
         # Save out figure
-        div_pl = IO.PlotTS(yl='Dividend')
-        div_pl.add(res.div_ts, marker='o', label='historical')
-        div_pl.add(res.div_zg[0, :], res.div_zg[1, :], marker='o', label='no growth')
-        div_pl.add(res.div_gwt[0, :], res.div_gwt[1, :], marker='o', label='w/ growth')
+        div_pl = IO.TSPlot(yl=('Dividend',))
+        div_pl.lplot(0, res.div_ts, marker='o', label='historical')
+        div_pl.lplot(0, res.div_zg[0, :], res.div_zg[1, :], marker='o',
+                     label='no growth')
+        div_pl.lplot(0, res.div_gwt[0, :], res.div_gwt[1, :], marker='o',
+                     label='w/ growth')
         div_pl.plot()
         div_pl.save(fig_full_name[0])
         div_pl.clf()

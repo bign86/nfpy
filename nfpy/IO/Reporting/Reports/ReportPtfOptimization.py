@@ -23,11 +23,23 @@ class ReportPtfOptimization(BaseReport):
     _IMG_LABELS = ['_ptf_optimization_res']
     _M_LABEL = 'PtfOptimization'
     _PLT_STYLE = {
-        'Markowitz': {'linestyle': '-', 'linewidth': 2., 'marker': '',
-                      'color': 'C0', 'label': 'EffFrontier'},
-        'MaxSharpe': {'marker': 'o', 'color': 'C1', 'label': 'MaxSharpe'},
-        'MinVariance': {'marker': 'o', 'color': 'C2', 'label': 'MinVariance'},
-        'RiskParity': {'marker': 'o', 'color': 'C4', 'label': 'RiskParity'}
+        'Markowitz': (
+            'plot',
+            {'linestyle': '-', 'linewidth': 2., 'marker': '',
+             'color': 'C0', 'label': 'EffFrontier'}
+        ),
+        'MaxSharpe': (
+            'scatter',
+            {'marker': 'o', 'color': 'C1', 'label': 'MaxSharpe'}
+        ),
+        'MinVariance': (
+            'scatter',
+            {'marker': 'o', 'color': 'C2', 'label': 'MinVariance'}
+        ),
+        'RiskParity': (
+            'scatter',
+            {'marker': 'o', 'color': 'C4', 'label': 'RiskParity'}
+        ),
     }
 
     def _init_input(self) -> dict:
@@ -75,7 +87,7 @@ class ReportPtfOptimization(BaseReport):
         res.uid = uid
 
         # Create plot
-        div_pl = IO.PlotPortfolioOptimization(y_zero=.0)
+        div_pl = IO.PtfOptimizationPlot(x_zero=(.0,), y_zero=(.0,))
 
         # Process data
         models = ['Actual']
@@ -85,13 +97,13 @@ class ReportPtfOptimization(BaseReport):
                 continue
 
             model = r.model
-            kw = self._PLT_STYLE[model]
-            div_pl.add(r, **kw)
+            call, kw = self._PLT_STYLE[model]
+            div_pl.add(0, call, r, **kw)
 
             if model == 'Markowitz':
                 continue
 
-            models.extend([model, model+'_delta'])
+            models.extend([model, model + '_delta'])
             model_wgt = r.weights[0]
             weights.extend([model_wgt, model_wgt / wgt - 1.])
 
@@ -106,8 +118,8 @@ class ReportPtfOptimization(BaseReport):
         res.corr = corr_df.style.format('{:,.0%}') \
             .set_table_attributes('class="matrix"') \
             .render()
-            # .background_gradient(cmap='RdYlGn', axis=None) \
-        
+        # .background_gradient(cmap='RdYlGn', axis=None) \
+
         # Create results table
         wgt_df = pd.DataFrame(np.vstack(weights).T,
                               index=model_res.uids,
