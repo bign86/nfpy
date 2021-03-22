@@ -89,7 +89,7 @@ class OptimizationEngine(object):
 
         # Cut the arrays to the right dates and clean
         ret, dt = Mat.trim_ts(ret, cal.values, self._start, self._t0)
-        ret, _ = Mat.dropna(ret, axis=0)
+        ret, _ = Mat.dropna(ret, axis=1)
 
         e_ret = Mat.expct_ret(ret, is_log=False)
         cov = np.cov(ret, rowvar=False)
