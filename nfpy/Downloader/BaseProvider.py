@@ -37,7 +37,7 @@ class BaseImportItem(object):
         qrw = self._Q_READWRITE
         if self._incr:
             qrw += self._Q_INCR
-        qrw = qrw.format(**self._d) + ';'
+        qrw = qrw.format(**self._d) + ";"
         self._db.execute(qrw, params, commit=True)
 
 

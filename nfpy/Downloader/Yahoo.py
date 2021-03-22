@@ -23,22 +23,22 @@ from .DownloadsConf import (YahooFinancialsConf, YahooHistPricesConf,
 
 class ClosePricesItem(BaseImportItem):
     _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
-    select '{uid}', '1', date, close from YahooPrices where ticker = ?"""
-    _Q_INCR = " and date > (select max(date) from {dst_table} where uid = '{uid}')"
+    select "{uid}", "1", date, close from YahooPrices where ticker = ?"""
+    _Q_INCR = ' and date > (select max(date) from {dst_table} where uid = "{uid}")'
 
 
 class FinancialsItem(BaseImportItem):
     _Q_READWRITE = """insert or replace into {dst_table}
-    (uid, code, date, freq, value) select distinct '{uid}', code, date, freq, value
+    (uid, code, date, freq, value) select distinct "{uid}", code, date, freq, value
     from YahooFinancials where ticker = ?"""
-    _Q_INCR = " and date > (select max(date) from {dst_table} where uid = '{uid}')"
+    _Q_INCR = ' and date > (select max(date) from {dst_table} where uid = "{uid}")'
 
 
 class DividendsItem(BaseImportItem):
     _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
-    select '{uid}', dtype, date, value from YahooEvents
+    select "{uid}", dtype, date, value from YahooEvents
     where ticker = ? and dtype = ?"""
-    _Q_INCR = """ and date > (select max(date) from {dst_table} where uid = '{uid}'
+    _Q_INCR = """ and date > (select max(date) from {dst_table} where uid = "{uid}"
     and dtype = ?)"""
 
     def _get_params(self) -> tuple:

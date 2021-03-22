@@ -18,8 +18,8 @@ from .DownloadsConf import ECBSeriesConf
 
 class ClosePricesItem(BaseImportItem):
     _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
-    select '{uid}', '1', date, value from ECBSeries where ticker = ?"""
-    _Q_INCR = " and date > (select max(date) from {dst_table} where uid = '{uid}')"
+    select "{uid}", "1", date, value from ECBSeries where ticker = ?"""
+    _Q_INCR = ' and date > (select max(date) from {dst_table} where uid = "{uid}")'
 
 
 class ECBProvider(BaseProvider):

@@ -34,8 +34,6 @@ class DownloadFactory(metaclass=Singleton):
     def __init__(self):
         self._db = DB.get_db_glob()
         self._qb = DB.get_qb_glob()
-        self._downloads_list = None
-        self._imports_list = None
 
     @property
     def download_table(self) -> str:
@@ -104,8 +102,8 @@ class DownloadFactory(metaclass=Singleton):
 
     def _filter(self, table: str, active: bool, **kwargs) -> tuple:
         where = 'active = 1' if active else ''
-        keys = (k for k, v in kwargs.items() if v is not None)
-        params = (kwargs[k] for k in keys)
+        keys = tuple(k for k, v in kwargs.items() if v is not None)
+        params = tuple(kwargs[k] for k in keys)
 
         fields = self._qb.get_fields(table)
         q_uid = self._qb.select(table, fields=fields,
@@ -114,7 +112,6 @@ class DownloadFactory(metaclass=Singleton):
         if not res:
             return None, fields
 
-        self._downloads_list = res
         return res, fields
 
     def create_page_obj(self, provider: str, page: str, ticker: str) -> BasePage:

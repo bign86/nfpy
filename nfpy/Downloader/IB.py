@@ -17,11 +17,11 @@ from .IBApp import *
 
 
 class FinancialsItem(BaseImportItem):
-    _Q_READ = """select distinct '{uid}', code, date, freq, value
+    _Q_READ = """select distinct "{uid}", code, date, freq, value
     from IBFinancials where ticker = ?"""
     _Q_WRITE = """insert or replace into {dst_table}
     (uid, code, date, freq, value) values (?, ?, ?, ?, ?)"""
-    _Q_INCR = " and date > (select max(date) from {dst_table} where uid = '{uid}')"
+    _Q_INCR = ' and date > (select max(date) from {dst_table} where uid = "{uid}")'
 
     def _get_params(self) -> tuple:
         """ Return the correct parameters for the read query. """
