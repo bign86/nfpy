@@ -10,7 +10,7 @@ from nfpy.Calendar import (get_calendar_glob, today)
 import nfpy.DB as DB
 import nfpy.IO as IO
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< Rolling Beta calculation script >>>"
 
 if __name__ == '__main__':
@@ -48,7 +48,6 @@ if __name__ == '__main__':
     w = inh.input("\nChoose window size (Default 120 (~6m)): ", default=120,
                   idesc='int', optional=True, is_list=True)
 
-    # plt = IO.PlotLine()
     plt = IO.Plotter()
 
     if idx is None:
