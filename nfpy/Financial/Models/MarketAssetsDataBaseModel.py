@@ -74,7 +74,7 @@ class MarketAssetsDataBaseModel(BaseModel):
             # From timing results this solution (combined with obtaining p_t0
             # above) is between 1.5 and 3.1 times faster than using
             # Asset.total_return()
-            p_start = Mat.next_valid_value(v, dt, start.asm8)[0]
+            p_start = Mat.next_valid_value_date(v, dt, start.asm8)[0]
             total_ret = last_price / p_start - 1.
             stats[2, i] = Mat.compound(total_ret, Cn.BDAYS_IN_1Y / real_n)
 
