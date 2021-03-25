@@ -7,15 +7,13 @@ from collections import defaultdict
 from jinja2 import FileSystemLoader, Environment
 import json
 import os
-from os.path import join
 import shutil
 
 from nfpy import NFPY_ROOT_DIR
 from nfpy.Assets import get_af_glob
 from nfpy.Calendar import get_calendar_glob
-from nfpy.Configuration import get_conf_glob
 import nfpy.DB as DB
-from nfpy.Tools import (Singleton, Exceptions as Ex)
+from nfpy.Tools import (Exceptions as Ex, get_conf_glob, Singleton)
 
 from .Reports import *
 
@@ -40,7 +38,7 @@ class ReportingEngine(metaclass=Singleton):
         'MEDM': ReportMEDM, 'MBDM': ReportMBDM, 'MPDM': ReportMPDM,
         'PtfOptimization': ReportPtfOptimization, 'TRD': ReportTrading,
     }
-    _TMPL_PATH = join(NFPY_ROOT_DIR, 'IO/Reporting/Templates')
+    _TMPL_PATH = os.path.join(NFPY_ROOT_DIR, 'IO/Reporting/Templates')
     _REP_EXT = '.html'
 
     def __init__(self):
@@ -61,8 +59,8 @@ class ReportingEngine(metaclass=Singleton):
     def _initialize(self):
         rep_path = self._conf.report_path
         new_folder = 'Report_' + self._cal.end.strftime(self._DT_FMT)
-        self._curr_report_dir = join(rep_path, new_folder)
-        self._curr_img_dir = join(rep_path, new_folder, self._IMG_DIR)
+        self._curr_report_dir = os.path.join(rep_path, new_folder)
+        self._curr_img_dir = os.path.join(rep_path, new_folder, self._IMG_DIR)
 
     def get_report_obj(self, r: str):
         """ Return the report object given the report name. """

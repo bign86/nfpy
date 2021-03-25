@@ -3,10 +3,10 @@ import numpy as np
 from os.path import join
 import pandas as pd
 
-from nfpy.Configuration import get_conf_glob
+from nfpy.Tools import get_conf_glob
 import nfpy.IO as IO
 
-__version__ = '0.2'
+__version__ = '0.3'
 _TITLE_ = "<<< Import into elaboration database script >>>"
 _COLS = ['ticker', 'date', 'price', 'open', 'high', 'low', 'volume']
 

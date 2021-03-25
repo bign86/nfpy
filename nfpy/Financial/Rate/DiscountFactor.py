@@ -29,7 +29,7 @@ def cdf(r: float, t: int, n: int = 1) -> float:
     return 1./(1. + compound(r, t, n))
 
 
-def ccdf(r: float, t: float, *args) -> float:
+def ccdf(r: float, t: float) -> float:
     """ Continuously compounded discount factor D for a zero-rate r over the
         time t in years
             $D = \exp{-r t}$

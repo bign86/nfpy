@@ -1,6 +1,6 @@
 
 
-__version__ = '0.10'
+__version__ = '0.20'
 __author__ = 'nero'
 
 import os

@@ -3,7 +3,7 @@
 # Script to import everything is in automatic import.
 #
 
-from nfpy.Calendar import (get_calendar_glob, today, last_business)
+import nfpy.Calendar as Cal
 import nfpy.Downloader as Dwn
 import nfpy.IO as IO
 
@@ -13,8 +13,8 @@ _TITLE_ = "<<< Import into elaboration database script >>>"
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
-    cal = get_calendar_glob()
-    cal.initialize(today(), last_business())
+    cal = Cal.get_calendar_glob()
+    cal.initialize(Cal.today(), Cal.last_business())
     dwnf = Dwn.get_dwnf_glob()
     inh = IO.InputHandler()
 

@@ -3,7 +3,7 @@
 # Report class for the Market Portfolio Data Model
 #
 
-import nfpy.Financial.Models as Mod
+import nfpy.Models as Mod
 
 from .ReportMADM import ReportMADM
 

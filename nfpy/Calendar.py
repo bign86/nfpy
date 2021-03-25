@@ -12,8 +12,7 @@ import pandas as pd
 import pandas.tseries.offsets as off
 from typing import (Union, Sequence, TypeVar)
 
-from nfpy.Configuration import get_conf_glob
-from nfpy.Tools import Singleton
+from nfpy.Tools import (get_conf_glob, Singleton)
 
 TyDate = TypeVar('TyDate',
                  bound=Union[str, pd.Timestamp,

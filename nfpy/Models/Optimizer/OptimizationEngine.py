@@ -8,11 +8,8 @@ from typing import (Union, Sequence)
 
 from nfpy.Assets import get_af_glob
 from nfpy.Calendar import get_calendar_glob
-import nfpy.Math as Mat
+import nfpy.Financial as Fin
 from nfpy.Tools import (Constants as Cn, Utilities as Ut)
-
-from ..CurrencyFactory import get_fx_glob
-from ..RateFactory import get_rf_glob
 
 
 class ResultOptimization(Ut.AttributizedDict):
@@ -36,8 +33,8 @@ class OptimizationEngine(object):
 
         # Work variables
         self._af = get_af_glob()
-        self._fx = get_fx_glob()
-        self._rf = get_rf_glob()
+        self._fx = Fin.get_fx_glob()
+        self._rf = Fin.get_rf_glob()
         self._cal = get_calendar_glob()
         self._uids = None
         self._ret = None
@@ -88,26 +85,26 @@ class OptimizationEngine(object):
             ret[:, i] = r
 
         # Cut the arrays to the right dates and clean
-        ret, dt = Mat.trim_ts(ret, cal.values, self._start, self._t0)
-        ret, _ = Mat.dropna(ret, axis=1)
+        ret, dt = Fin.trim_ts(ret, cal.values, self._start, self._t0)
+        ret, _ = Fin.dropna(ret, axis=1)
 
-        e_ret = Mat.expct_ret(ret, is_log=False)
+        e_ret = Fin.e_ret(ret, is_log=False)
         cov = np.cov(ret, rowvar=False)
         corr = np.corrcoef(ret, rowvar=False)
 
         self._uids = uids
-        self._ret = Mat.compound(e_ret, Cn.BDAYS_IN_1Y)
+        self._ret = Fin.compound(e_ret, Cn.BDAYS_IN_1Y)
         self._cov = cov * Cn.BDAYS_IN_1Y
         self._corr = corr
         
         if (self._rf_ret is None) and ('CALModel' in self._algo):
             rf = self._rf.get_rf(ccy)
-            self._rf_ret = Mat.compound(rf.last_price()[0], Cn.BDAYS_IN_1Y)
+            self._rf_ret = Fin.compound(rf.last_price()[0], Cn.BDAYS_IN_1Y)
 
     def run(self):
         res_list = []
         for k, p in self._algo.items():
-            symbol = '.'.join(['nfpy', 'Financial', 'Optimizer', k, k])
+            symbol = '.'.join(['nfpy', 'Models', 'Optimizer', k, k])
             class_ = Ut.import_symbol(symbol)
             obj = class_(self._ret, self._cov, **p)
             result = obj.result

@@ -12,9 +12,8 @@ import requests
 
 import nfpy.DB as IO
 from nfpy.Calendar import now
-from nfpy.Configuration import get_conf_glob
 from nfpy.DatatypeFactory import get_dt_glob
-from nfpy.Tools import (Exceptions as Ex, Utilities as Ut)
+from nfpy.Tools import (Exceptions as Ex, get_conf_glob, Utilities as Ut)
 
 
 class BasePage(metaclass=ABCMeta):
@@ -135,7 +134,7 @@ class BasePage(metaclass=ABCMeta):
         self._write_to_db()
 
     def initialize(self, currency: str = None, fname: Union[str, Path] = None,
-                   params: dict = {}) -> None:
+                   params: dict = None) -> None:
         """ Parameters are checked before download, encoding is set, parsed
             object is deleted if present.
 

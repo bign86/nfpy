@@ -8,8 +8,8 @@ import numpy as np
 from typing import Union
 
 from nfpy.Calendar import get_calendar_glob
-import nfpy.Math as Mat
-from nfpy.Trading import (Signals as Sig, Strategies as Str, Trends as Tr)
+import nfpy.Financial as Fin
+from nfpy.Trading import (Signals_pd as Sig, Strategies_pd as Str, Trends as Tr)
 
 from .BaseModel import (BaseModel, BaseModelResult)
 
@@ -27,7 +27,6 @@ class TradingModel(BaseModel):
                  w_ma_slow: int = 120, w_ma_fast: int = 21,
                  sr_mult: float = 5., **kwargs):
         super().__init__(uid, date)
-
         self._cal = get_calendar_glob()
 
         self._w_ma_slow = w_ma_slow
@@ -89,7 +88,7 @@ class TradingModel(BaseModel):
         df = pd.DataFrame(columns=['signal', 'price', 'return', 'delta days'])
         if len(signals) > 0:
             p, dt = p_fast.values, p_fast.index.values
-            last_price = Mat.last_valid_value(p, dt, t0.asm8)[0]
+            last_price = Fin.last_valid_value(p, dt, t0.asm8)[0]
 
             sig_price = p_fast.loc[signals.index]
             sig_price = sig_price.values

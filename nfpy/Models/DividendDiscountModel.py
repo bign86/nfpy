@@ -7,13 +7,13 @@ from typing import Union
 import numpy as np
 import pandas as pd
 
-import nfpy.Math as Mat
+import nfpy.Financial as Fin
 from nfpy.Tools import (Constants as Cn, Exceptions as Ex)
 
 from .BaseFundamentalModel import BaseFundamentalModel
 from .BaseModel import BaseModelResult
-from ..Dividends import DividendFactory
-from ..RateFactory import get_rf_glob
+from nfpy.Financial.Equity.Dividends import DividendFactory
+from nfpy.Financial.Rate.RateFactory import get_rf_glob
 
 
 class DDMResult(BaseModelResult):
@@ -75,7 +75,7 @@ class DividendDiscountModel(BaseFundamentalModel):
         """ Calculate annualized equity and dividend drifts. """
         # Get equity drift
         eq_drift = self._eq.expct_return(start=self._start, end=self._t0)
-        eq_drift = Mat.compound(eq_drift, Cn.BDAYS_IN_1Y)
+        eq_drift = Fin.compound(eq_drift, Cn.BDAYS_IN_1Y)
 
         # Get dividends drift
         try:
@@ -112,12 +112,12 @@ class DividendDiscountModel(BaseFundamentalModel):
 
         # Create cash flows sequence and calculate final price
         cf = div_ts.iat[-1] + np.zeros(len(t))
-        final_price = last_price * (Mat.compound(eq_drift, fp) + 1.)
+        final_price = last_price * (Fin.compound(eq_drift, fp) + 1.)
         self._cf_no_growth = np.array([t, cf])
         self._cf_no_growth[1, -1] += final_price
 
         # Calculate the DCF w/ growth
-        cf_compound = cf * (Mat.compound(div_drift, t, 1. / freq) + 1.)
+        cf_compound = cf * (Fin.compound(div_drift, t, 1. / freq) + 1.)
         self._cf_growth = np.array([t, cf_compound])
         self._cf_growth[1, -1] += final_price
 
@@ -145,8 +145,8 @@ class DividendDiscountModel(BaseFundamentalModel):
         # Obtain the period-rate from the annualized rate
         d_rate *= self.frequency
 
-        fv_zg = float(np.sum(Mat.dcf(self._cf_no_growth, d_rate)))
-        fv_gwt = float(np.sum(Mat.dcf(self._cf_growth, d_rate)))
+        fv_zg = float(np.sum(Fin.dcf(self._cf_no_growth, d_rate)))
+        fv_gwt = float(np.sum(Fin.dcf(self._cf_growth, d_rate)))
 
         last_price = self.get_last_price()
         ret_zg = fv_zg / last_price - 1.

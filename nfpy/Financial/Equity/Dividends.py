@@ -7,8 +7,10 @@ import numpy as np
 import pandas as pd
 from typing import Union
 
-import nfpy.Math as Mat
 from nfpy.Tools import (Constants as Cn)
+
+from ..Rate import compound
+from ..TSUtils import (trim_ts, ts_yield)
 
 
 class DividendFactory(object):
@@ -94,7 +96,7 @@ class DividendFactory(object):
     def _initialize(self, c: float):
         """ Initialize the factory. """
         div = self._eq.dividends
-        ts, dt = Mat.trim_ts(div.values, div.index.values, self._start, self._t0)
+        ts, dt = trim_ts(div.values, div.index.values, self._start, self._t0)
         self._num = ts.shape[0]
         self._div = ts
         self._dt = dt
@@ -108,7 +110,7 @@ class DividendFactory(object):
             standard initialization. Special dividends are evaluated lazyLY.
         """
         div = self._eq.dividends_special
-        ts, dt = Mat.trim_ts(div.values, div.index.values, self._start, self._t0)
+        ts, dt = trim_ts(div.values, div.index.values, self._start, self._t0)
         self._div_special = ts
         self._dt_special = dt
 
@@ -121,7 +123,7 @@ class DividendFactory(object):
             Output:
                 yield [float]: dividend yield
         """
-        return Mat.ts_yield(self._dt, self._div, self._eq.prices.values, date.asm8)
+        return ts_yield(self._dt, self._div, self._eq.prices.values, date.asm8)
 
     def _calc_freq(self):
         """ Determine the frequency of dividends. The frequency is determined if
@@ -162,8 +164,8 @@ class DividendFactory(object):
                              .format(self._eq.uid))
 
         returns, distance = self.returns, self.distance
-        daily_ret = Mat.compound(returns, 1. / distance)
-        annualized_ret = Mat.compound(returns, Cn.BDAYS_IN_1Y / distance)
+        daily_ret = compound(returns, 1. / distance)
+        annualized_ret = compound(returns, Cn.BDAYS_IN_1Y / distance)
         self._daily_drift = np.mean(daily_ret)
         self._ann_drift = np.mean(annualized_ret)
 

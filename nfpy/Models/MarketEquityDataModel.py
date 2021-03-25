@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from typing import Union
 
-import nfpy.Math as Mat
+import nfpy.Financial as Fin
 from nfpy.Tools import (Constants as Cn)
 
 from .MarketAssetsDataBaseModel import (BaseMADMResult,
@@ -42,7 +42,7 @@ class MarketEquityDataModel(MarketAssetsDataBaseModel):
         returns = asset.returns
         v = prices.values
         dt = prices.index.values
-        last_price, idx = Mat.last_valid_value(v, dt, t0.asm8)
+        last_price, idx = Fin.last_valid_value(v, dt, t0.asm8)
         last_p_date = prices.index[idx]
 
         self._res_update(prices=prices, last_price=last_price,
@@ -68,14 +68,14 @@ class MarketEquityDataModel(MarketAssetsDataBaseModel):
             stats[0, i] = asset.return_volatility(start, t0)
 
             mean_ret = asset.expct_return(start, t0)
-            stats[1, i] = Mat.compound(mean_ret, Cn.BDAYS_IN_1Y / real_n)
+            stats[1, i] = Fin.compound(mean_ret, Cn.BDAYS_IN_1Y / real_n)
 
             # From timing results this solution (combined with obtaining p_t0
             # above) is between 1.5 and 3.1 times faster than using
             # Asset.total_return()
-            p_start = Mat.next_valid_value_date(v, dt, start.asm8)[0]
+            p_start = Fin.next_valid_value_date(v, dt, start.asm8)[0]
             total_ret = last_price/p_start - 1.
-            stats[2, i] = Mat.compound(total_ret, Cn.BDAYS_IN_1Y / real_n)
+            stats[2, i] = Fin.compound(total_ret, Cn.BDAYS_IN_1Y / real_n)
 
             beta_results = asset.beta(start=start, end=t0)
             betas.append(beta_results[1:])
@@ -84,9 +84,9 @@ class MarketEquityDataModel(MarketAssetsDataBaseModel):
             stats[5, i] = asset.correlation(start=start, end=t0)[1][0, 1]
 
             mean_index_ret = index.expct_return(start, t0)
-            rt, delta = Mat.sml(mean_ret, beta_results[1], .0, mean_index_ret)
-            stats[6, i] = Mat.compound(rt, Cn.BDAYS_IN_1Y / real_n)
-            stats[7, i] = Mat.compound(delta, Cn.BDAYS_IN_1Y / real_n)
+            rt, delta = Fin.sml(mean_ret, beta_results[1], .0, mean_index_ret)
+            stats[6, i] = Fin.compound(rt, Cn.BDAYS_IN_1Y / real_n)
+            stats[7, i] = Fin.compound(delta, Cn.BDAYS_IN_1Y / real_n)
 
         calc = ['volatility', 'mean return', 'tot. return', 'beta',
                 'adj. beta', 'correlation', 'SML ret', 'delta pricing']

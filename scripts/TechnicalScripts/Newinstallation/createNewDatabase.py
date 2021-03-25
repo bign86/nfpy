@@ -9,8 +9,8 @@ import pickle
 from pathlib import Path
 
 from nfpy import NFPY_ROOT_DIR
-from nfpy.Configuration import get_conf_glob
 import nfpy.DB as DB
+from nfpy.Tools import get_conf_glob
 
 __version__ = '0.5'
 _TITLE_ = "<<< Database creation script >>>"
@@ -289,9 +289,13 @@ def populate_database(db_):
     print("--- Setup completed! ---")
 
 
-if __name__ == '__main__':
-    print(_TITLE_, end='\n\n')
-
+def new_database():
     db = get_db_handler()
     create_database(db)
     populate_database(db)
+
+
+if __name__ == '__main__':
+    print(_TITLE_, end='\n\n')
+
+    new_database()

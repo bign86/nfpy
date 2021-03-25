@@ -9,8 +9,7 @@ from typing import Iterable
 
 import pandas as pd
 
-from nfpy.Configuration import get_conf_glob
-from nfpy.Tools import (Singleton, Exceptions as Ex)
+from nfpy.Tools import (Singleton, Exceptions as Ex, get_conf_glob)
 
 # Conversion between db types and python types
 SQLITE2PY_TYPES = {

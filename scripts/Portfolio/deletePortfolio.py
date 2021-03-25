@@ -3,7 +3,7 @@
 # Script to delete a portfolio.
 #
 
-from nfpy.Assets import Portfolio
+from nfpy.Assets.Portfolio import Portfolio
 import nfpy.DB as DB
 import nfpy.IO as IO
 

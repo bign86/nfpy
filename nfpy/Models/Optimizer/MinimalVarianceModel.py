@@ -3,6 +3,7 @@
 #
 
 import numpy as np
+
 from .BaseOptimizer import (BaseOptimizer, OptimizerConf, OptimizerResult)
 
 

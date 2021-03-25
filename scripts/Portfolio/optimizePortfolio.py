@@ -7,8 +7,8 @@ from tabulate import tabulate
 
 from nfpy.Calendar import (get_calendar_glob, today)
 import nfpy.DB as DB
-import nfpy.Financial as Fin
 import nfpy.IO as IO
+import nfpy.Models as Mod
 
 __version__ = '0.4'
 _TITLE_ = "<<< Optimize a portfolio script >>>"
@@ -70,7 +70,7 @@ if __name__ == '__main__':
     for idx in idx_l:
         algos[_OPTIMIZERS[idx][2]] = {}
 
-    oe = Fin.OptimizationEngine(uid, algorithms=algos)
+    oe = Mod.OptimizationEngine(uid, algorithms=algos)
     res = oe.result
 
     pl = IO.PtfOptimizationPlot(x_zero=(.0,), y_zero=(.0,))

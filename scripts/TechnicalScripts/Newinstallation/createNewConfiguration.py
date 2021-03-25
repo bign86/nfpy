@@ -3,7 +3,7 @@
 # Creates a new configuration file from scratch
 #
 
-from nfpy.Configuration import (PARAMS_DICT__, create_new)
+from nfpy.Tools.Configuration import (PARAMS_DICT__, create_new)
 
 __version__ = '0.2'
 _TITLE_ = "<<< Configuration file creation script >>>"

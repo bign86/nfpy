@@ -5,7 +5,7 @@
 
 from copy import deepcopy
 
-import nfpy.Financial.Models as Mod
+import nfpy.Models as Mod
 
 from .BaseReport import BaseReport
 

@@ -8,8 +8,8 @@ import pandas as pd
 
 import nfpy.Assets as Ast
 from nfpy.Calendar import get_calendar_glob
-import nfpy.Financial as Fin
 import nfpy.IO as IO
+import nfpy.Models as Mod
 from nfpy.Tools import Utilities as Ut
 
 from .BaseReport import BaseReport
@@ -61,12 +61,12 @@ class ReportPtfOptimization(BaseReport):
         wgt /= np.sum(wgt)
 
         # Run optimizers
-        oe = Fin.OptimizationEngine(self._uid, **kwargs)
+        oe = Mod.OptimizationEngine(self._uid, **kwargs)
         model_res = oe.result
 
         self._res = self._create_output(model_res, wgt)
 
-    def _create_output(self, model_res: Fin.ResultOptimization,
+    def _create_output(self, model_res: Mod.ResultOptimization,
                        wgt: np.ndarray):
         """ Create the final output.
 

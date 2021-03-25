@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from typing import Union
 
-import nfpy.Math as Mat
+import nfpy.Financial as Fin
 from nfpy.Tools import (Constants as Cn)
 
 from .MarketAssetsDataBaseModel import (BaseMADMResult,
@@ -41,7 +41,7 @@ class MarketBondDataModel(MarketAssetsDataBaseModel):
         # Yield across time
         dt = self._cal.calendar
         ytm = asset.ytm(dt)
-        last_ytm, _ = Mat.last_valid_value(ytm.values, dt.values, last_p_date)
+        last_ytm, _ = Fin.last_valid_value(ytm.values, dt.values, last_p_date)
 
         # Yield vs Price plot
         dates = np.array([last_p_date] * 11)
@@ -51,7 +51,7 @@ class MarketBondDataModel(MarketAssetsDataBaseModel):
         prices[8] -= p_vola_1m
         prices[9] += p_vola_6m
         prices[10] -= p_vola_6m
-        arr_ytm, _ = Mat.calc_ytm(dates, asset.inception_date.asm8,
+        arr_ytm, _ = Fin.calc_ytm(dates, asset.inception_date.asm8,
                                   asset.maturity.asm8, prices,
                                   asset.cf['value'].values,
                                   asset.cf.index.values,
@@ -63,7 +63,7 @@ class MarketBondDataModel(MarketAssetsDataBaseModel):
         rates = np.zeros(4)
         rates[1:] = np.arange(-.01, .011, .01) + last_ytm
 
-        arr_fv, _ = Mat.calc_fv(t0.asm8, asset.inception_date.asm8,
+        arr_fv, _ = Fin.calc_fv(t0.asm8, asset.inception_date.asm8,
                                 asset.maturity.asm8, .0,
                                 asset.cf['value'].values, asset.cf.index.values,
                                 asset.cf['dtype'].values, rates)
@@ -71,7 +71,7 @@ class MarketBondDataModel(MarketAssetsDataBaseModel):
         arr_fv = np.vstack((arr_fv, arr_fv_delta))
 
         # Fair values and discounted cash flows
-        arr_dcf, cf_dt = Mat.calc_dcf(t0.asm8, asset.inception_date.asm8,
+        arr_dcf, cf_dt = Fin.calc_dcf(t0.asm8, asset.inception_date.asm8,
                                       asset.maturity.asm8,
                                       asset.cf['value'].values,
                                       asset.cf.index.values,
@@ -79,7 +79,7 @@ class MarketBondDataModel(MarketAssetsDataBaseModel):
                                       rates)
 
         # Group cash flows
-        arr_sum, cf_dt_unique = Mat.aggregate_cf(arr_dcf, cf_dt)
+        arr_sum, cf_dt_unique = Fin.aggregate_cf(arr_dcf, cf_dt)
         cf_dt_unique = [pd.to_datetime(t).strftime('%Y-%m-%d')
                         for t in cf_dt_unique]
 

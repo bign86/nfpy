@@ -7,12 +7,12 @@ import numpy as np
 import pandas as pd
 from typing import Union
 
-import nfpy.Math as Mat
+import nfpy.Financial as Fin
 from nfpy.Tools import Constants as Cn
 
 from .BaseModel import BaseModelResult
 from .BaseFundamentalModel import BaseFundamentalModel
-from ..FundamentalsFactory import FundamentalsFactory
+from nfpy.Financial.Company.FundamentalsFactory import FundamentalsFactory
 
 
 class DCFResult(BaseModelResult):
@@ -228,7 +228,7 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
         array[9, :y] = beta
 
         # Get Market and RF returns for Cost of Equity
-        array[10, :y] = np.array([Mat.compound(self._idx.expct_return(
+        array[10, :y] = np.array([Fin.compound(self._idx.expct_return(
             start=pd.Timestamp(dt.year, 1, 1), end=dt),
             Cn.BDAYS_IN_1Y) for dt in index[:y]])
 
@@ -254,7 +254,7 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
 
         # Calculate Fair Value
         shares = float(self._ff.total_shares(f).values[-1])
-        fair_value = float(np.sum(Mat.dcf(cf, mean_wacc))) / shares
+        fair_value = float(np.sum(Fin.dcf(cf, mean_wacc))) / shares
 
         # Accumulate
         self._res_update(df=pd.DataFrame(array.T, columns=self._COLS,

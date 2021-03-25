@@ -11,7 +11,7 @@ import pandas as pd
 from typing import (Union, Sequence)
 import warnings
 
-from nfpy.Financial import OptimizerResult
+# from nfpy.Financial import OptimizerResult
 
 plt.style.use('seaborn')
 
@@ -272,7 +272,8 @@ class PlotVarRet(Plotting):
 class PlotPortfolioOptimization(PlotVarRet):
     """ Creates a variance/return plot from a OptimizerResult object. """
 
-    def add(self, res: OptimizerResult, **kwargs):
+    # def add(self, res: OptimizerResult, **kwargs):
+    def add(self, res, **kwargs):
         """ Add more plots to be plotted. """
         self._plots.append((res, kwargs))
 
@@ -491,7 +492,8 @@ class TSPlot(Plotter):
 class PtfOptimizationPlot(Plotter):
     """ Creates a variance/return plot from a OptimizerResult object. """
 
-    def add(self, axid: int, call: str, res: OptimizerResult, **kwargs):
+    # def add(self, axid: int, call: str, res: OptimizerResult, **kwargs):
+    def add(self, axid: int, call: str, res, **kwargs):
         """ Add more plots to be plotted. """
         x = np.array(res.ptf_variance)
         y = np.array(res.ptf_return)

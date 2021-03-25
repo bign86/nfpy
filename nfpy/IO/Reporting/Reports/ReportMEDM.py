@@ -6,8 +6,8 @@
 import numpy as np
 
 from nfpy.Calendar import get_calendar_glob
-import nfpy.Financial.Models as Mod
 import nfpy.IO as IO
+import nfpy.Models as Mod
 from nfpy.Tools import (Constants as Cn)
 
 from .ReportMADM import ReportMADM

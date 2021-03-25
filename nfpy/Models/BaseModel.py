@@ -11,7 +11,7 @@ from nfpy.Assets import get_af_glob
 from nfpy.Calendar import get_calendar_glob
 from nfpy.Tools import Utilities as Ut
 
-from ..CurrencyFactory import get_fx_glob
+from nfpy.Financial.Currency.CurrencyFactory import get_fx_glob
 
 
 class BaseModelResult(Ut.AttributizedDict):

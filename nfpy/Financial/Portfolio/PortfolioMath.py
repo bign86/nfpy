@@ -8,12 +8,12 @@ from typing import Sequence
 
 from nfpy.Assets import get_af_glob
 from nfpy.Calendar import get_calendar_glob
-import nfpy.Financial as Fin
 
-from .TSUtils import (dropna, ffill_cols, trim_ts)
+from ..Currency import get_fx_glob
+from ..TSUtils import (dropna, ffill_cols, trim_ts)
 
 
-def portfolio_value(uids: list, ccy: str, dt: np.ndarray,
+def ptf_value(uids: list, ccy: str, dt: np.ndarray,
                     pos: np.ndarray) -> tuple:
     """ Get the value in the portfolio base currency of each position.
 
@@ -28,7 +28,7 @@ def portfolio_value(uids: list, ccy: str, dt: np.ndarray,
             tot_value [np.ndarray]: series of portfolio total values
             pos_value [np.ndarray]: series of position values
     """
-    af, fx = get_af_glob(), Fin.get_fx_glob()
+    af, fx = get_af_glob(), get_fx_glob()
     cal = get_calendar_glob()
 
     # The -1 takes into account the presence of the base currency
@@ -72,7 +72,7 @@ def weights(uids: list, ccy: str, dt: np.ndarray, pos: np.ndarray) -> tuple:
             dt [np.ndarray]: array of weight dates
             wgt [np.ndarray]: weights array
     """
-    dt, tot_val, pos_val = portfolio_value(uids, ccy, dt, pos)
+    dt, tot_val, pos_val = ptf_value(uids, ccy, dt, pos)
     wgt = pos_val / tot_val[:, None]
     return dt, wgt
 
@@ -108,7 +108,7 @@ def price_returns(uids: list, ccy: str, dt_pos: np.ndarray = None,
     return dt_wgt, np.sum(ret, axis=0)
 
 
-def covariance(uids: list, ccy: str) -> tuple:
+def ptf_cov(uids: list, ccy: str) -> tuple:
     """ Get the portfolio covariance.
 
         Input:
@@ -134,7 +134,7 @@ def covariance(uids: list, ccy: str) -> tuple:
 
 
 # Correlation exists also in EquityMath for two series.
-def ptf_correlation(uids: list, ccy: str) -> tuple:
+def ptf_corr(uids: list, ccy: str) -> tuple:
     """ Get the portfolio correlation.
 
         Input:
@@ -160,7 +160,7 @@ def ptf_correlation(uids: list, ccy: str) -> tuple:
 
 
 def _ret_matrix(shape: tuple, uids: Sequence, ccy: str) -> np.ndarray:
-    af, fx = get_af_glob(), Fin.get_fx_glob()
+    af, fx = get_af_glob(), get_fx_glob()
     ret = np.empty(shape)
 
     for i, u in enumerate(uids):

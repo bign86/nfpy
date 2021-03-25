@@ -8,7 +8,7 @@ import pandas as pd
 from typing import TypeVar
 
 from nfpy.Calendar import get_calendar_glob
-import nfpy.Math as Mat
+import nfpy.Financial as Fin
 from nfpy.Tools import (Exceptions as Ex)
 
 from .FinancialItem import FinancialItem
@@ -106,7 +106,7 @@ class Asset(FinancialItem):
         ts, date = p.values, p.index.values
 
         pos = np.searchsorted(date, [dt.asm8])
-        idx = Mat.last_valid_index(ts, pos)
+        idx = Fin.last_valid_index(ts, pos)
 
         return ts[idx], date[idx], idx
 
@@ -162,11 +162,11 @@ class Asset(FinancialItem):
 
     def calc_returns(self) -> pd.Series:
         """ Calculates the returns from the series of the prices. """
-        return Mat.ret(self.prices)
+        return Fin.ret(self.prices)
 
     def calc_log_returns(self) -> pd.Series:
         """ Calculates the log returns from the series of the prices. """
-        return Mat.logret(self.prices)
+        return Fin.logret(self.prices)
 
     def write_dtype(self, dt: str):
         """ Writes a time series to the DB. The content of the column 'datatype'
@@ -211,7 +211,7 @@ class Asset(FinancialItem):
         if end:
             end = end.asm8
         ts, dt = _ret.values, _ret.index.values
-        return Mat.expct_ret(ts, dt, start=start, end=end, is_log=is_log)
+        return Fin.e_ret(ts, dt, start=start, end=end, is_log=is_log)
 
     def return_volatility(self, start: pd.Timestamp = None,
                           end: pd.Timestamp = None,
@@ -231,7 +231,7 @@ class Asset(FinancialItem):
             start = start.asm8
         if end:
             end = end.asm8
-        _ts, _ = Mat.trim_ts(_ret.values, _ret.index.values, start=start, end=end)
+        _ts, _ = Fin.trim_ts(_ret.values, _ret.index.values, start=start, end=end)
         return float(np.nanstd(_ts))
 
     def total_return(self, start: pd.Timestamp = None, end: pd.Timestamp = None,
@@ -252,7 +252,7 @@ class Asset(FinancialItem):
         if end:
             end = end.asm8
         ts, dt = _ret.values, _ret.index.values
-        return Mat.tot_ret(ts, dt, start=start, end=end, is_log=is_log)
+        return Fin.tot_ret(ts, dt, start=start, end=end, is_log=is_log)
 
     def performance(self, start: pd.Timestamp = None, end: pd.Timestamp = None,
                     is_log: bool = False, base: float = 1.) -> pd.Series:
@@ -272,7 +272,7 @@ class Asset(FinancialItem):
             start = start.asm8
         if end:
             end = end.asm8
-        p, dt = Mat.comp_ret(r.values, r.index.values, start=start,
+        p, dt = Fin.comp_ret(r.values, r.index.values, start=start,
                              end=end, base=base, is_log=is_log)
         return pd.Series(p, index=dt)
 

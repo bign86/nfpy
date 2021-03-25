@@ -10,7 +10,7 @@ import pandas as pd
 from tabulate import tabulate
 
 from nfpy.Calendar import (get_calendar_glob, today)
-from nfpy.Financial.Models import DividendDiscountModel
+from nfpy.Models import DividendDiscountModel
 import nfpy.IO as IO
 
 plt.interactive(False)

@@ -3,8 +3,8 @@
 # Report class for the Market Asset Data Model
 #
 
-import nfpy.Financial.Models as Mod
 import nfpy.IO as IO
+import nfpy.Models as Mod
 
 from .BaseReport import BaseReport
 

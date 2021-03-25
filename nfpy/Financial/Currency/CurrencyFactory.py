@@ -5,9 +5,8 @@
 import pandas as pd
 
 from nfpy.Assets import get_af_glob
-from nfpy.Configuration import get_conf_glob
 import nfpy.DB as DB
-from nfpy.Tools import (Singleton, Exceptions as Ex)
+from nfpy.Tools import (Singleton, Exceptions as Ex, get_conf_glob)
 
 
 # TODO: This makes the inversion every time, we could store two different

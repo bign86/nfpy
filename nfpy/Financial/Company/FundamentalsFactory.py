@@ -6,13 +6,12 @@
 from typing import Callable
 import pandas as pd
 
-from nfpy.Assets import Company
 from nfpy.Tools import Exceptions as Ex
 
 
 class FundamentalsFactory(object):
 
-    def __init__(self, company: Company):
+    def __init__(self, company):
         self._comp = company
         self._cnst = company.constituents
 

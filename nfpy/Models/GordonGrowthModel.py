@@ -6,13 +6,13 @@
 import pandas as pd
 from typing import Union
 
-import nfpy.Math as Mat
+import nfpy.Financial as Fin
 from nfpy.Tools import Exceptions as Ex
 
 from .BaseModel import BaseModelResult
 from .BaseFundamentalModel import BaseFundamentalModel
-from ..Dividends import DividendFactory
-from ..RateFactory import get_rf_glob
+from nfpy.Financial.Equity.Dividends import DividendFactory
+from nfpy.Financial.Rate.RateFactory import get_rf_glob
 
 
 class GGMResult(BaseModelResult):
@@ -88,7 +88,7 @@ class GordonGrowthModel(BaseFundamentalModel):
             raise ValueError('The discounting of {:.0f}% is negative for {}'
                              .format(den*100., self._uid))
 
-        fv = float(self._fut_div * Mat.cdf(den, 1))
+        fv = float(self._fut_div * Fin.cdf(den, 1))
 
         return {'d_rate': d_rate, 'fair_value': fv}
 

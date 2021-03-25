@@ -1,13 +1,15 @@
 #
-# Tools
+# Equity Math
+# Mathematical functions for equities
 #
 
 import numpy as np
-from typing import Union
 from scipy import stats
+from typing import Union
 
-from .DiscountFactor import dcf
-from .TSUtils import (dropna, rolling_sum, rolling_window, trim_ts, last_valid_index)
+from ..Rate import dcf
+from ..TSUtils import (dropna, last_valid_index, rolling_sum,
+                       rolling_window, trim_ts)
 
 
 def adj_factors(ts: np.ndarray, dt: np.ndarray, div: np.ndarray,
@@ -85,6 +87,7 @@ def beta(dt: np.ndarray, ts: np.ndarray, proxy: np.ndarray,
     prx, _ = trim_ts(proxy, dt, start=start, end=end)
 
     v, mask = dropna(np.vstack((tsa, prx)))
+    mask = mask.flatten()
 
     if not w:
         slope, intercept, _, _, std_err = stats.linregress(v[1, :], v[0, :])

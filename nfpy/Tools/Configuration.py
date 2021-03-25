@@ -9,7 +9,8 @@ from os.path import dirname, abspath
 from typing import Any
 
 from nfpy import NFPY_ROOT_DIR
-from nfpy.Tools import Singleton
+
+from .Singleton import Singleton
 
 # Dictionary of parameters in the current configuration file
 PARAMS_DICT__ = {
@@ -30,6 +31,9 @@ PARAMS_DICT__ = {
         'plot_short_win': (int, 120),
         'ewma_fast': (int, 21),
         'ewma_slow': (int, 120),
+    },
+    'BACKTESTING': {
+        'backtest_path': (str, 'Path to backtest results directory'),
     },
     'IBAPI': {
 

@@ -8,7 +8,7 @@ import csv
 import os
 from operator import itemgetter
 
-from nfpy.Configuration import get_conf_glob
+from nfpy.Tools import get_conf_glob
 import nfpy.DB as DB
 import nfpy.IO as IO
 

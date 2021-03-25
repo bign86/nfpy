@@ -15,7 +15,7 @@ if __name__ == '__main__':
     dwnf = Dwn.get_dwnf_glob()
     inh = IO.InputHandler()
 
-    do_save, override_date, override_active = False, False, False
+    do_save, override_date, override_active = True, False, False
     provider, page, ticker = None, None, None
 
     give_p = inh.input('Do you want to specify parameters (default: No)?: ',
@@ -32,6 +32,8 @@ if __name__ == '__main__':
                            idesc='str', default=None, optional=True)
         override_active = inh.input("Override automatic (default No)?: ",
                                     idesc='bool', default=False, optional=True)
+        do_save = inh.input("Save to database (default Yes)?: ",
+                            idesc='bool', default=True, optional=True)
 
     dwnf.run_download(do_save=do_save, override_date=override_date,
                       provider=provider, page=page, ticker=ticker,

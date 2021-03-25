@@ -7,8 +7,12 @@ from .MarketEquityDataModel import MarketEquityDataModel
 from .MarketPortfolioDataModel import MarketPortfolioDataModel
 from .TradingModel import TradingModel
 
+from .Optimizer import *
+
 __all__ = [
     'DiscountedCashFlowModel', 'DividendDiscountModel', 'GordonGrowthModel',
     'MarketAssetsDataBaseModel', 'MarketBondDataModel', 'MarketEquityDataModel',
-    'MarketPortfolioDataModel', 'DDMResult', 'TradingModel'
+    'MarketPortfolioDataModel', 'DDMResult', 'TradingModel',
+
+    'Optimizer',
 ]

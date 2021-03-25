@@ -11,7 +11,7 @@ from tabulate import tabulate
 
 from nfpy.Assets import get_af_glob
 from nfpy.Calendar import (get_calendar_glob, today)
-from nfpy.Financial.Models import DiscountedCashFlowModel
+from nfpy.Models import DiscountedCashFlowModel
 import nfpy.IO as IO
 
 plt.interactive(False)

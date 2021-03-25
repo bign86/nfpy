@@ -8,7 +8,7 @@ import pandas as pd
 from time import sleep
 import xml.etree.ElementTree as ET
 
-from nfpy.Configuration import get_conf_glob
+from nfpy.Tools.Configuration import get_conf_glob
 
 from .BaseDownloader import BasePage
 from .BaseProvider import (BaseProvider, BaseImportItem)

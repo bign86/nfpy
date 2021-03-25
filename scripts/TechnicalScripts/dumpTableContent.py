@@ -7,9 +7,9 @@ import csv
 from os.path import join
 
 from nfpy.Calendar import now
-from nfpy.Configuration import get_conf_glob
 import nfpy.DB as DB
 import nfpy.IO as IO
+from nfpy.Tools import get_conf_glob
 
 __version__ = '0.2'
 _TITLE_ = "<<< Dump Table script >>>"

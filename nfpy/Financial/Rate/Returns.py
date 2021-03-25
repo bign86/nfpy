@@ -8,7 +8,7 @@ from typing import Union
 import numpy as np
 import pandas as pd
 
-from .TSUtils import trim_ts
+from ..TSUtils import trim_ts
 
 
 def ret(v: pd.Series, fillna: str = 'pad', w: int = 1) -> pd.Series:
@@ -43,7 +43,8 @@ def logret(v: pd.Series, fillna: str = 'pad', w: int = 1) -> pd.Series:
 
 def tot_ret(ts: np.ndarray, dt: np.ndarray = None, start: np.datetime64 = None,
             end: np.datetime64 = None, is_log: bool = False) -> float:
-    """ Calculates the total return from a series.
+    """ Calculates the total return from a series by compounding the returns.
+        Useful to save memory if only the last value is needed.
 
         Input:
             ts [np.ndarray]: return series
@@ -69,7 +70,9 @@ def tot_ret(ts: np.ndarray, dt: np.ndarray = None, start: np.datetime64 = None,
 def comp_ret(ts: np.ndarray, dt: np.ndarray = None, start: np.datetime64 = None,
              end: np.datetime64 = None, base: float = 1., is_log: bool = False
              ) -> tuple:
-    """ Calculates the series obtained by compounding the returns
+    """ Calculates the series of total returns by compounding. Identical to
+        tot_ret() but returns the compounded series instead of the last value
+        only.
 
         Input:
             ts [np.ndarray]: return series
@@ -94,9 +97,8 @@ def comp_ret(ts: np.ndarray, dt: np.ndarray = None, start: np.datetime64 = None,
     return res, dt
 
 
-def expct_ret(ts: np.ndarray, dt: np.ndarray = None,
-              start: np.datetime64 = None, end: np.datetime64 = None,
-              is_log: bool = False) -> float:
+def e_ret(ts: np.ndarray, dt: np.ndarray = None, start: np.datetime64 = None,
+          end: np.datetime64 = None, is_log: bool = False) -> float:
     """ Expected return for the series in input. It corresponds to the geometric
         mean for standard returns, and to the simple mean for log returns.
 

@@ -4,5 +4,5 @@ from .OptimizationEngine import (OptimizationEngine,
 
 
 __all__ = [
-    'OptimizationEngine', 'ResultOptimization', 'OptimizerResult', 'TyOptimizer'
+    'OptimizationEngine', 'OptimizerResult', 'ResultOptimization', 'TyOptimizer'
 ]

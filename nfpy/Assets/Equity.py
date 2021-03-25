@@ -5,7 +5,7 @@
 
 import pandas as pd
 
-import nfpy.Math as Mat
+import nfpy.Financial as Fin
 from nfpy.Tools import (Exceptions as Ex)
 
 from .Asset import Asset
@@ -116,7 +116,7 @@ class Equity(Asset):
 
         # If the equity does pay dividends calculate adj_factors
         if div is not None:
-            adj_f = Mat.adj_factors(rp.values, rp.index.values,
+            adj_f = Fin.adj_factors(rp.values, rp.index.values,
                                     div.values, div.index.values)
             adj_p = adj_f * rp
 
@@ -153,7 +153,7 @@ class Equity(Asset):
         idx = benchmark.log_returns if log else benchmark.returns
         start_dt = start.asm8 if start else None
         end_dt = end.asm8 if end else None
-        return Mat.beta(eq.index.values, eq.values, idx.values,
+        return Fin.beta(eq.index.values, eq.values, idx.values,
                         start_dt, end_dt, w)
 
     def correlation(self, benchmark: Asset = None, start: pd.Timestamp = None,
@@ -186,5 +186,5 @@ class Equity(Asset):
         idx = benchmark.log_returns if log else benchmark.returns
         start_dt = start.asm8 if start else None
         end_dt = end.asm8 if end else None
-        return Mat.correlation(eq.index.values, eq.values, idx.values,
+        return Fin.correlation(eq.index.values, eq.values, idx.values,
                                start_dt, end_dt, w)
