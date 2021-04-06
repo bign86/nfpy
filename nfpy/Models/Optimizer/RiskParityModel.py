@@ -47,7 +47,7 @@ class RiskParityModel(BaseOptimizer):
         opt = self._minimizer(c)
 
         r = self._create_result_obj()
-        if opt.success:
+        if (opt is not None) and opt.success:
             r.success = True
             r.len = 1
             r.weights = [opt.x]

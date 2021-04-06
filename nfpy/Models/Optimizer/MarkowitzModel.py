@@ -65,7 +65,7 @@ class MarkowitzModel(BaseOptimizer):
 
             opt = self._minimizer(c)
 
-            if opt.success:
+            if (opt is not None) and opt.success:
                 r.success = True
                 r.len = r.len + 1
                 r.weights.append(opt.x)
