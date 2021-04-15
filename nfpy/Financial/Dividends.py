@@ -9,8 +9,7 @@ from typing import Union
 
 from nfpy.Tools import (Constants as Cn)
 
-from ..Rate import compound
-from ..TSUtils import (trim_ts, ts_yield)
+from .Math import (compound, trim_ts, ts_yield)
 
 
 class DividendFactory(object):

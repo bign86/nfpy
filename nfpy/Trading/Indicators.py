@@ -6,7 +6,7 @@
 
 import numpy as np
 
-import nfpy.Financial as Fin
+import nfpy.Financial.Math as Math
 
 
 def sma(v: np.ndarray, w: int) -> np.ndarray:
@@ -21,7 +21,7 @@ def sma(v: np.ndarray, w: int) -> np.ndarray:
 
     ret = np.empty_like(v)
     ret[:w - 1] = np.nan
-    ret[w - 1:] = Fin.rolling_mean(v, w)
+    ret[w - 1:] = Math.rolling_mean(v, w)
 
     return ret
 
@@ -38,7 +38,7 @@ def sma_approx(v: np.ndarray, w: int) -> np.ndarray:
         raise RuntimeError('Series provided is too short {} < {}'.format(len(v), w))
 
     ret = v.copy()
-    curr, idx = Fin.next_valid_value(v)
+    curr, idx = Math.next_valid_value(v)
 
     for i in range(idx + 1, n):
         _v = ret[i]
@@ -62,7 +62,7 @@ def smstd(v: np.ndarray, w: int, ddof: int = 1) -> np.ndarray:
 
     ret = np.empty_like(v)
     ret[:w - 1] = np.nan
-    ret[w - 1:] = np.nanstd(Fin.rolling_window(v, w), axis=1, ddof=ddof)
+    ret[w - 1:] = np.nanstd(Math.rolling_window(v, w), axis=1, ddof=ddof)
 
     return ret
 
@@ -97,7 +97,7 @@ def wma(v: np.ndarray, w: int) -> np.ndarray:
     if len(v) < w:
         raise RuntimeError('Series provided is too short {} < {}'.format(len(v), w))
 
-    roll = Fin.rolling_window(v, w)
+    roll = Math.rolling_window(v, w)
     nans = np.isnan(roll)
     wgt = np.tile(np.arange(1., roll.shape[1] + 1.), (roll.shape[0], 1))
     wgt[nans] = .0
@@ -154,7 +154,7 @@ def ewma(v: np.ndarray, w: int, span: int = None) -> np.ndarray:
     n = len(v)
     coeff = 1. - alpha
 
-    fv = Fin.next_valid_index(v)
+    fv = Math.next_valid_index(v)
     curr = v[fv]
 
     ret = np.empty(n)
@@ -194,7 +194,7 @@ def smd(v: np.ndarray, w: int) -> np.ndarray:
 
     ret = np.empty_like(v)
     ret[:w - 1] = np.nan
-    ret[w - 1:] = np.nanmedian(Fin.rolling_window(v, w), axis=1)
+    ret[w - 1:] = np.nanmedian(Math.rolling_window(v, w), axis=1)
     return ret
 
 
@@ -326,7 +326,7 @@ def stochastic_oscillator(v: np.ndarray, w_price: int = 14, w_k: int = 3,
     if w_k > w_d:
         w_k, w_d = w_d, w_k
 
-    roll = Fin.rolling_window(v, w_price)
+    roll = Math.rolling_window(v, w_price)
     high = np.nanmax(roll, axis=1)
     low = np.nanmin(roll, axis=1)
     p_k = (v[w_price - 1:] - low) / (high - low)
@@ -339,8 +339,9 @@ def stochastic_oscillator(v: np.ndarray, w_price: int = 14, w_k: int = 3,
     d_p[:n_dp] = np.nan
     dp_slow[:n_dp_slow] = np.nan
 
-    d_p[n_dp:] = np.nanmean(Fin.rolling_window(p_k, w_k), axis=1)
-    dp_slow[n_dp_slow:] = np.nanmean(Fin.rolling_window(d_p[n_dp:], w_d), axis=1)
+    d_p[n_dp:] = np.nanmean(Math.rolling_window(p_k, w_k), axis=1)
+    dp_slow[n_dp_slow:] = np.nanmean(
+        Math.rolling_window(d_p[n_dp:], w_d), axis=1)
 
     return d_p, dp_slow
 
@@ -391,7 +392,7 @@ def atr_win(ts: np.ndarray, w: int) -> np.ndarray:
     """
     ret = np.zeros_like(ts)
     ret[:w] = np.nan
-    ret[w:] = Fin.rolling_mean(tr(ts), w)
+    ret[w:] = Math.rolling_mean(tr(ts), w)
     return ret
 
 
@@ -408,7 +409,7 @@ def atr(ts: np.ndarray, w: int) -> np.ndarray:
         Output:
             tr [np.ndarray]: average true range
     """
-    t = Fin.ffill_cols(tr(ts))
+    t = Math.ffill_cols(tr(ts))
     ret = np.empty(ts.shape[0])
 
     curr = np.nanmean(t)

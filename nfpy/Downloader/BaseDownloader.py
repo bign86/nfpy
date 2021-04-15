@@ -10,7 +10,7 @@ from typing import (Dict, Union)
 import pandas as pd
 import requests
 
-import nfpy.DB as IO
+import nfpy.IO.DB as DB
 from nfpy.Calendar import now
 from nfpy.DatatypeFactory import get_dt_glob
 from nfpy.Tools import (Exceptions as Ex, get_conf_glob, Utilities as Ut)
@@ -36,8 +36,8 @@ class BasePage(metaclass=ABCMeta):
     _Q_MAX_DATE = "select max(date) from {} where ticker = ?"
 
     def __init__(self, ticker: str):
-        self._db = IO.get_db_glob()
-        self._qb = IO.get_qb_glob()
+        self._db = DB.get_db_glob()
+        self._qb = DB.get_qb_glob()
         self._dt = get_dt_glob()
         self._ticker = ticker
 
@@ -264,7 +264,7 @@ class BasePage(metaclass=ABCMeta):
                                'display.width', 10000):
             print(repr(self._res))
 
-    def _fetch_last_data_point(self) -> dict:
+    def _fetch_last_data_point(self) -> str:
         """ Calculates the last available data point in the database for
             incremental downloads.
         """

@@ -18,8 +18,9 @@ from .DownloadsConf import ECBSeriesConf
 
 class ClosePricesItem(BaseImportItem):
     _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
-    select "{uid}", "1", date, value from ECBSeries where ticker = ?"""
-    _Q_INCR = ' and date > (select max(date) from {dst_table} where uid = "{uid}")'
+    select '{uid}', '1', date, value from ECBSeries where ticker = ?"""
+    _Q_INCR = """ and date > ifnull((select max(date) from {dst_table}
+    where uid = '{uid}'), '1900-01-01')"""
 
 
 class ECBProvider(BaseProvider):
@@ -95,17 +96,12 @@ class ECBSeries(ECBBasePage):
 
     def _local_initializations(self, params: dict):
         """ Local initializations for the single page. """
-        for p in ['start', 'end']:
-            try:
-                d = params[p]
-                params[p] = pd.to_datetime(d).strftime('%d-%m-%Y')
-            except KeyError:
-                continue
-            except Exception as ex:
-                print(ex)
-                msg = "Error in handling time periods for ECB series download"
-                raise RuntimeError(msg)
-        self.params = params
+        if params:
+            for p in ['start', 'end']:
+                if p in params:
+                    d = params[p]
+                    params[p] = pd.to_datetime(d).strftime('%d-%m-%Y')
+            self.params = params
         self._crumb = self._fetch_crumb()
         # print("JsessionId: {}".format(crumb))
 

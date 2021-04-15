@@ -9,6 +9,7 @@ from itertools import groupby
 import pandas as pd
 
 import nfpy.Financial as Fin
+import nfpy.Financial.Math as Math
 from nfpy.Tools import Exceptions as Ex
 
 from .AggregationMixin import AggregationMixin
@@ -294,8 +295,8 @@ Consider moving back the calendar start date."""
 
         pos = self._cnsts_df
         uids = self._cnsts_uids
-        dt, wgt = Fin.weights(uids, self._currency,
-                              pos.index.values, pos.values)
+        dt, wgt = Math.weights(uids, self._currency,
+                               pos.index.values, pos.values)
         self._weights = pd.DataFrame(wgt, index=dt, columns=uids)
 
     def _calc_total_value(self) -> pd.Series:
@@ -304,8 +305,8 @@ Consider moving back the calendar start date."""
             self._load_cnsts()
 
         pos = self._cnsts_df
-        dt, tot_val, _ = Fin.ptf_value(self._cnsts_uids, self._currency,
-                                       pos.index.values, pos.values)
+        dt, tot_val, _ = Math.ptf_value(self._cnsts_uids, self._currency,
+                                        pos.index.values, pos.values)
         return pd.Series(tot_val, index=dt)
 
     def positions_value(self) -> pd.DataFrame:
@@ -317,8 +318,8 @@ Consider moving back the calendar start date."""
             self._load_cnsts()
 
         pos = self._cnsts_df
-        dt, _, pos_val = Fin.ptf_value(self._cnsts_uids, self._currency,
-                                       pos.index.values, pos.values)
+        dt, _, pos_val = Math.ptf_value(self._cnsts_uids, self._currency,
+                                        pos.index.values, pos.values)
         return pd.DataFrame(pos_val, columns=self._cnsts_uids, index=dt)
 
     def calc_returns(self) -> pd.Series:
@@ -327,9 +328,9 @@ Consider moving back the calendar start date."""
 
         pos = self._cnsts_df
         wgt = self.weights
-        dt, ret = Fin.price_returns(self._cnsts_uids, self._currency,
-                                    pos.index.values, pos.values,
-                                    wgt.index.values, wgt.values)
+        dt, ret = Math.price_returns(self._cnsts_uids, self._currency,
+                                     pos.index.values, pos.values,
+                                     wgt.index.values, wgt.values)
         return pd.Series(ret, index=dt)
 
     def tev(self, benchmark: Asset, w: int = None) -> pd.Series:
@@ -340,25 +341,25 @@ Consider moving back the calendar start date."""
                 w [int]: size of the rolling window
         """
         r = self.returns
-        ret = Fin.tev(r.index.values, r.values,
-                      benchmark.returns.values, w=w)
+        ret = Math.tev(r.index.values, r.values,
+                       benchmark.returns.values, w=w)
         return pd.Series(ret, index=r.index)
 
     def sharpe_ratio(self, rf: Asset, w: int = None) -> pd.Series:
         """ Calculates the Sharpe Ratio. """
         r = self.returns
-        ret = Fin.sharpe(r.index.values, r.values,
-                         br=rf.returns.values, w=w)
+        ret = Math.sharpe(r.index.values, r.values,
+                          br=rf.returns.values, w=w)
         return pd.Series(ret, index=r.index)
 
     def covariance(self) -> pd.DataFrame:
         """ Get the covariance matrix for the underlying constituents. """
-        cov, uids = Fin.ptf_cov(self._cnsts_uids, self._currency)
+        cov, uids = Math.ptf_cov(self._cnsts_uids, self._currency)
         return pd.DataFrame(cov, columns=uids, index=uids)
 
     def correlation(self) -> pd.DataFrame:
         """ Get the correlation matrix for the underlying constituents. """
-        cov, uids = Fin.ptf_corr(self._cnsts_uids, self._currency)
+        cov, uids = Math.ptf_corr(self._cnsts_uids, self._currency)
         return pd.DataFrame(cov, columns=uids, index=uids)
 
     def summary(self) -> dict:

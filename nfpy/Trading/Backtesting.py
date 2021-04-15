@@ -11,7 +11,7 @@ from typing import (Sequence, Iterable)
 
 import nfpy.Assets as Ast
 import nfpy.Calendar as Cal
-import nfpy.Financial as Fin
+import nfpy.Financial.Math as Math
 from nfpy.Tools import (get_conf_glob, Utilities as Ut)
 
 from .BaseStrategy import (TyStrategy, StrategyResult)
@@ -229,7 +229,7 @@ class Backtesting(object):
             Output:
                 ptf [Portfolio]: backtested hypothetical portfolio
         """
-        prices = Fin.ffill_cols(prices)
+        prices = Math.ffill_cols(prices)
 
         ptf = Portfolio(initial=initial)
         j = 0

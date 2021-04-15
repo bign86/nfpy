@@ -6,7 +6,6 @@
 from tabulate import tabulate
 
 from nfpy.Calendar import today
-import nfpy.DB as DB
 import nfpy.Downloader as Dwn
 import nfpy.IO as IO
 from nfpy.Tools import Utilities as Ut
@@ -19,8 +18,8 @@ if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
     f = Dwn.get_dwnf_glob()
-    qb = DB.get_qb_glob()
-    db = DB.get_db_glob()
+    qb = IO.get_qb_glob()
+    db = IO.get_db_glob()
     inh = IO.InputHandler()
 
     is_ticker_valid = False

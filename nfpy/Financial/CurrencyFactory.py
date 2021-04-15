@@ -5,7 +5,7 @@
 import pandas as pd
 
 from nfpy.Assets import get_af_glob
-import nfpy.DB as DB
+import nfpy.IO as IO
 from nfpy.Tools import (Singleton, Exceptions as Ex, get_conf_glob)
 
 
@@ -81,8 +81,8 @@ class CurrencyFactory(metaclass=Singleton):
 
     def __init__(self):
         self._af = get_af_glob()
-        self._qb = DB.get_qb_glob()
-        self._db = DB.get_db_glob()
+        self._qb = IO.get_qb_glob()
+        self._db = IO.get_db_glob()
 
         self._dict_ccy = {}
 

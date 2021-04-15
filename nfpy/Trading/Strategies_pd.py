@@ -7,7 +7,7 @@
 import pandas as pd
 import numpy as np
 
-import nfpy.Trading.Signals_pd as Sig
+from . import Signals_pd as Sig
 
 
 def _align_series_(v, w):
@@ -75,7 +75,7 @@ def two_ema_cross(v: pd.Series, fast: int = 9, slow: int = 21,
         fast_ma = Sig.ewma(v, fast)
     if slow_ma is None:
         slow_ma = Sig.ewma(v, slow)
-    
+
     f_ema, s_ema = _align_series_(fast_ma, slow_ma)
 
     cross = pd.Series(np.where(f_ema > s_ema, 1, 0), index=f_ema.index)
@@ -146,4 +146,3 @@ def macd_swing(v: pd.Series, fast: int = 50, slow: int = 200,
     signals.drop(idxdrop, inplace=True)
 
     return signals, macd_line, signal_line, histogram
-

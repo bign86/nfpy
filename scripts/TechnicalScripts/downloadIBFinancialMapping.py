@@ -5,8 +5,8 @@
 
 import xml.etree.ElementTree as ET
 
-import nfpy.DB as DB
 from nfpy.Downloader.IBApp import IBAppFundamentals
+import nfpy.IO as IO
 from nfpy.Tools import get_conf_glob
 
 __version__ = '0.2'
@@ -46,8 +46,8 @@ def fetchfromdb(db_, qb_) -> tuple:
 
 
 if __name__ == '__main__':
-    qb = DB.get_qb_glob()
-    db = DB.get_db_glob()
+    qb = IO.get_qb_glob()
+    db = IO.get_db_glob()
     conf = get_conf_glob()
 
     ticker = ['KO', '']

@@ -20,15 +20,17 @@ from .DownloadsConf import (InvestingSeriesConf, InvestingCashFlowConf,
 
 class ClosePricesItem(BaseImportItem):
     _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
-    select "{uid}", "1", date, price from InvestingPrices where ticker = ?"""
-    _Q_INCR = ' and date > (select max(date) from {dst_table} where uid = "{uid}")'
+    select '{uid}', '1', date, price from InvestingPrices where ticker = ?"""
+    _Q_INCR = """ and date > ifnull((select max(date) from {dst_table}
+    where uid = '{uid}'), '1900-01-01')"""
 
 
 class FinancialsItem(BaseImportItem):
     _Q_READWRITE = """insert or replace into {dst_table}
     (uid, code, date, freq, value) select distinct "{uid}", code, date, freq, value
     from InvestingFinancials where ticker = ?"""
-    _Q_INCR = ' and date > (select max(date) from {dst_table} where uid = "{uid}")'
+    _Q_INCR = """ and date > ifnull((select max(date) from {dst_table}
+    where uid = '{uid}'), '1900-01-01')"""
 
     def _get_params(self) -> tuple:
         """ Return the correct parameters for the read query. """
@@ -37,10 +39,10 @@ class FinancialsItem(BaseImportItem):
 
 class DividendsItem(BaseImportItem):
     _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
-    select "{uid}", dtype, date, value from InvestingEvents
+    select '{uid}', dtype, date, value from InvestingEvents
     where ticker = ? and dtype = ?"""
-    _Q_INCR = """ and date > (select max(date) from {dst_table} where uid = "{uid}"
-    and dtype = ?)"""
+    _Q_INCR = """ and date > ifnull((select max(date) from {dst_table}
+    where uid = '{uid}' and dtype = ?), '1900-01-01')"""
 
     def _get_params(self) -> tuple:
         dt = self._dt.get('dividend')
@@ -80,10 +82,11 @@ class InvestingBasePage(BasePage):
     _URL_SUFFIX = ''
     _REQ_METHOD = 'post'
     _HEADER = {
-        'X-Requested-With': 'XMLHttpRequest',
         'Accept': 'text/html',
-        'Accept-Encoding': 'gzip, deflate, br',
+        # 'Accept-Encoding': 'gzip, deflate, br',
+        'Accept-Encoding': 'gzip, deflate',
         'Connection': 'keep-alive',
+        'X-Requested-With': 'XMLHttpRequest',
     }
 
     @property
@@ -118,7 +121,7 @@ class InvestingHistoricalPrices(InvestingBasePage):
         "end_date": None,
         "sort_col": "date",
         "sort_ord": "ASC",
-        "action": "historical_data"
+        "action": "historical_data",
     }
     _MANDATORY = ("curr_id",)
 
@@ -128,23 +131,19 @@ class InvestingHistoricalPrices(InvestingBasePage):
         self._p.update({
             'curr_id': self.ticker,
             'smlID': str(randint(1000000, 99999999)),
-            'st_date': pd.to_datetime(ld).strftime('%m/%d/%Y'),
+            # 'st_date': pd.to_datetime(ld).strftime('%m/%d/%Y'),
+            'st_date': '01/01/2018',
             'end_date': today(fmt='%m/%d/%Y')
         })
 
     def _local_initializations(self, params: dict):
         """ Local initializations for the single page. """
-        for p in ['st_date', 'end_date']:
-            try:
-                d = params[p]
-                params[p] = pd.to_datetime(d).strftime('%m/%d/%Y')
-            except KeyError:
-                continue
-            except Exception as ex:
-                print(ex)
-                raise RuntimeError("Error in '{}' in Investing historical prices download"
-                                   .format(p))
-        self.params = params
+        if params:
+            for p in ['st_date', 'end_date']:
+                if p in params:
+                    d = params[p]
+                    params[p] = pd.to_datetime(d).strftime('%m/%d/%Y')
+            self.params = params
 
     def _parse(self):
         """ Parse the fetched object. """

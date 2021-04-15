@@ -60,8 +60,8 @@ class FileObject(AttributizedDict):
     def _read(self) -> str:
         """ Read the entire file from disk into memory. Batch mode NOT supported. """
         if self.status_code != 200:
-            raise RuntimeError(
-                'Cannot open file {} with status code {}'.format(self.path, self.status_code))
+            raise RuntimeError('Cannot open file {} with status code {}'
+                               .format(self.path, self.status_code))
         with self.path.open(mode='r') as fd:
             text = ''.join(fd.readlines())
         return text

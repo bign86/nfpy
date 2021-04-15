@@ -5,7 +5,7 @@
 
 import pandas as pd
 
-import nfpy.Financial as Fin
+import nfpy.Financial.Math as Math
 from nfpy.Tools import (Exceptions as Ex)
 
 from .Asset import Asset
@@ -46,8 +46,7 @@ class Equity(Asset):
                 res = self.load_dtype('dividend')['dividend']
             except Ex.MissingData:
                 res = pd.Series()
-            finally:
-                self._div = res
+            self._div = res
         return self._div
 
     @property
@@ -61,8 +60,7 @@ class Equity(Asset):
                 res = self.load_dtype('dividendSpecial')
             except Ex.MissingData:
                 res = pd.Series()
-            finally:
-                self._div_special = res
+            self._div_special = res
         return self._div_special
 
     @property
@@ -73,8 +71,7 @@ class Equity(Asset):
                 res = self.load_dtype('split')
             except Ex.MissingData:
                 res = pd.Series()
-            finally:
-                self._split = res
+            self._split = res
         return self._split
 
     @property
@@ -116,8 +113,8 @@ class Equity(Asset):
 
         # If the equity does pay dividends calculate adj_factors
         if div is not None:
-            adj_f = Fin.adj_factors(rp.values, rp.index.values,
-                                    div.values, div.index.values)
+            adj_f = Math.adj_factors(rp.values, rp.index.values,
+                                     div.values, div.index.values)
             adj_p = adj_f * rp
 
         self._df['adj_price'] = adj_p
@@ -153,8 +150,8 @@ class Equity(Asset):
         idx = benchmark.log_returns if log else benchmark.returns
         start_dt = start.asm8 if start else None
         end_dt = end.asm8 if end else None
-        return Fin.beta(eq.index.values, eq.values, idx.values,
-                        start_dt, end_dt, w)
+        return Math.beta(eq.index.values, eq.values, idx.values,
+                         start_dt, end_dt, w)
 
     def correlation(self, benchmark: Asset = None, start: pd.Timestamp = None,
                     end: pd.Timestamp = None, w: int = None, log: bool = False) \
@@ -186,5 +183,5 @@ class Equity(Asset):
         idx = benchmark.log_returns if log else benchmark.returns
         start_dt = start.asm8 if start else None
         end_dt = end.asm8 if end else None
-        return Fin.correlation(eq.index.values, eq.values, idx.values,
-                               start_dt, end_dt, w)
+        return Math.correlation(eq.index.values, eq.values, idx.values,
+                                start_dt, end_dt, w)

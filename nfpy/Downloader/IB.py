@@ -17,17 +17,19 @@ from .IBApp import *
 
 
 class FinancialsItem(BaseImportItem):
-    _Q_READ = """select distinct "{uid}", code, date, freq, value
+    _Q_READ = """select distinct '{uid}', code, date, freq, value
     from IBFinancials where ticker = ?"""
     _Q_WRITE = """insert or replace into {dst_table}
     (uid, code, date, freq, value) values (?, ?, ?, ?, ?)"""
-    _Q_INCR = ' and date > (select max(date) from {dst_table} where uid = "{uid}")'
+    _Q_INCR = """ and date > ifnull((select max(date) from {dst_table}
+    where uid = '{uid}'), '1900-01-01')"""
 
     def _get_params(self) -> tuple:
         """ Return the correct parameters for the read query. """
         return self._d['ticker'].split('/')[0],
 
-    def _clean_eoy_dates(self, data: list) -> None:
+    @staticmethod
+    def _clean_eoy_dates(data: list) -> None:
         """ Moves EOY results to the actual end of the year. """
         data_ins = []
         for idx in range(len(data) - 1, -1, -1):
@@ -53,9 +55,7 @@ class FinancialsItem(BaseImportItem):
         qr = qr.format(**self._d) + ';'
         data = self._db.execute(qr, params).fetchall()
 
-        print('!!! len pre-cleaning =  {}'.format(len(data)))
         self._clean_eoy_dates(data)
-        print('!!! len post-cleaning = {}'.format(len(data)))
 
         qw = self._Q_WRITE.format(**self._d)
         self._db.executemany(qw, data, commit=True)

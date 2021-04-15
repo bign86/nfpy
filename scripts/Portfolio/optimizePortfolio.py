@@ -6,7 +6,6 @@
 from tabulate import tabulate
 
 from nfpy.Calendar import (get_calendar_glob, today)
-import nfpy.DB as DB
 import nfpy.IO as IO
 import nfpy.Models as Mod
 
@@ -42,9 +41,9 @@ _PLT_STYLE = {
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
-    db = DB.get_db_glob()
-    qb = DB.get_qb_glob()
     cal = get_calendar_glob()
+    db = IO.get_db_glob()
+    qb = IO.get_qb_glob()
     inh = IO.InputHandler()
 
     start = inh.input("Give a start date: ", idesc='timestamp')

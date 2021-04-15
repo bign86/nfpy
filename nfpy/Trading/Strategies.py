@@ -6,9 +6,7 @@
 
 import numpy as np
 
-# import nfpy.IO as IO
-import nfpy.Trading.Indicators as Sig
-
+from . import Indicators as Sig
 from .BaseStrategy import (BaseStrategy, StrategyResult)
 
 

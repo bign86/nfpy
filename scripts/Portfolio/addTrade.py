@@ -5,10 +5,9 @@
 
 from tabulate import tabulate
 
-import nfpy.DB as DB
 import nfpy.IO as IO
 
-__version__ = '0.2'
+__version__ = '0.3'
 _TITLE_ = "<<< Add trade script >>>"
 
 _COLS_ORDER = ['date', 'pos_uid', 'buy_sell', 'currency',
@@ -51,8 +50,8 @@ def insert_trade_data():
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
-    db = DB.get_db_glob()
-    qb = DB.get_qb_glob()
+    db = IO.get_db_glob()
+    qb = IO.get_qb_glob()
     inh = IO.InputHandler()
 
     # List available portfolios

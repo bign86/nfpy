@@ -20,7 +20,7 @@ TyDate = TypeVar('TyDate',
 TyDateSequence = TypeVar('TyDateSequence',
                          bound=Union[pd.DatetimeIndex, Sequence])
 
-_HOLYDAYS_MASK_ = ((1, 1), (5, 1), (6, 2), (8, 15), (12, 24), (12, 25), (12, 26))
+_HOLIDAYS_MASK_ = ((1, 1), (5, 1), (6, 2), (8, 15), (12, 24), (12, 25), (12, 26))
 _WEEKEND_MASK_INT_ = (5, 6)
 _WEEKEND_MASK_STR_ = ('Sat', 'Sun')
 _WEEK_MASK_INT_ = (0, 1, 2, 3, 4)
@@ -285,13 +285,13 @@ def now(string: bool = True, fmt: str = '%Y-%m-%d %H:%M') \
 def calc_holidays(start: pd.Timestamp, end: pd.Timestamp) -> np.array:
     """ Calculates an array of holidays """
     years = [y for y in range(start.year, end.year + 1)]
-    length = len(_HOLYDAYS_MASK_) * len(years)
+    length = len(_HOLIDAYS_MASK_) * len(years)
     holidays = np.empty(length, dtype=pd.Timestamp)
 
     def strpad(x):
         return str(x).zfill(2)
 
-    for i, e in enumerate(itertools.product(years, _HOLYDAYS_MASK_)):
+    for i, e in enumerate(itertools.product(years, _HOLIDAYS_MASK_)):
         dt = '-'.join(map(strpad, [e[0], e[1][0], e[1][1]]))
         holidays[i] = pd.to_datetime(dt, format='%Y-%m-%d')
 

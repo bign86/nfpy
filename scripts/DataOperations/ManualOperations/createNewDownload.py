@@ -4,12 +4,11 @@
 #
 
 import nfpy.Assets as As
-import nfpy.DB as DB
 import nfpy.Downloader as Dwn
 import nfpy.IO as IO
 from nfpy.Tools import Utilities as Ut
 
-__version__ = '0.4'
+__version__ = '0.5'
 _TITLE_ = "<<< Create new download script >>>"
 
 
@@ -40,8 +39,8 @@ if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
     af = As.get_af_glob()
-    db = DB.get_db_glob()
-    qb = DB.get_qb_glob()
+    db = IO.get_db_glob()
+    qb = IO.get_qb_glob()
     dwn = Dwn.get_dwnf_glob()
     inh = IO.InputHandler()
 

@@ -6,10 +6,7 @@
 from abc import ABCMeta, abstractmethod
 from enum import Enum
 import numpy as np
-import os
 from typing import (Dict, TypeVar, Tuple, Union)
-
-import nfpy.IO as IO
 
 
 class Signal(Enum):
@@ -79,29 +76,29 @@ class BaseStrategy(metaclass=ABCMeta):
     def __init__(self, full_out: bool = False):
         self._full_out = full_out
 
-    def plot(self, label: str, f_dir: str = '', fmt: str = 'png'):
-        sig = self._res['sig']
-
-        buy = sig.signals > 0
-        dt_buy = sig.dates[buy]
-        dt_sell = sig.dates[~buy]
-        idx_buy = sig.indices[buy]
-        idx_sell = sig.indices[~buy]
-        str_buy = 1000 * np.abs(sig.strength[buy])
-        str_sell = 1000 * np.abs(sig.strength[~buy])
-
-        plt = IO.Plotter()
-        plt.lplot(0, self._dt, self._p, color='C0', linewidth=1.)
-        plt.scatter(0, dt_buy, self._p[idx_buy], s=str_buy, color='C1', marker='o')
-        plt.scatter(0, dt_sell, self._p[idx_sell], s=str_sell, color='C2', marker='o')
-        plt.plot()
-
-        if f_dir:
-            img = '.'.join([label, self._LABEL, fmt])
-            f_name = os.path.join(f_dir, img)
-            plt.save(f_name, fmt)
-        else:
-            plt.show()
+    # def plot(self, label: str, f_dir: str = '', fmt: str = 'png'):
+    #     sig = self._res['sig']
+    #
+    #     buy = sig.signals > 0
+    #     dt_buy = sig.dates[buy]
+    #     dt_sell = sig.dates[~buy]
+    #     idx_buy = sig.indices[buy]
+    #     idx_sell = sig.indices[~buy]
+    #     str_buy = 1000 * np.abs(sig.strength[buy])
+    #     str_sell = 1000 * np.abs(sig.strength[~buy])
+    #
+    #     plt = IO.Plotter()
+    #     plt.lplot(0, self._dt, self._p, color='C0', linewidth=1.)
+    #     plt.scatter(0, dt_buy, self._p[idx_buy], s=str_buy, color='C1', marker='o')
+    #     plt.scatter(0, dt_sell, self._p[idx_sell], s=str_sell, color='C2', marker='o')
+    #     plt.plot()
+    #
+    #     if f_dir:
+    #         img = '.'.join([label, self._LABEL, fmt])
+    #         f_name = os.path.join(f_dir, img)
+    #         plt.save(f_name, fmt)
+    #     else:
+    #         plt.show()
 
     def f(self, dt: np.ndarray, p: np.ndarray) \
             -> Union[StrategyResult, Tuple[StrategyResult, Dict]]:

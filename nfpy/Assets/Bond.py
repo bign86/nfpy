@@ -10,7 +10,7 @@ from typing import Union
 import warnings
 
 from nfpy.Calendar import get_calendar_glob
-import nfpy.Financial as Fin
+import nfpy.Financial.Math as Math
 from nfpy.Tools import (Constants as Cn, Exceptions as Ex)
 
 from .Asset import Asset
@@ -135,9 +135,9 @@ class Bond(Asset):
         except AttributeError:
             date = np.array([date.asm8])
 
-        v, date = Fin.calc_ytm(date, self._inception_date.asm8,
-                               self._maturity.asm8, p0, self.cf['value'].values,
-                               self.cf.index.values, self.cf['dtype'].values, .0)
+        v, date = Math.calc_ytm(date, self._inception_date.asm8,
+                                self._maturity.asm8, p0, self.cf['value'].values,
+                                self.cf.index.values, self.cf['dtype'].values, .0)
         return pd.Series(data=v, index=date)
 
     def fv(self, rate: Union[float, Curve],
@@ -163,10 +163,10 @@ class Bond(Asset):
         else:
             raise TypeError('Wrong date type supplied to bond.fv()')
 
-        v, dates = Fin.calc_fv(dates, self._inception_date.asm8,
-                               self._maturity.asm8, .0, self.cf['value'].values,
-                               self.cf.index.values, self.cf['dtype'].values,
-                               rate)
+        v, dates = Math.calc_fv(dates, self._inception_date.asm8,
+                                self._maturity.asm8, .0, self.cf['value'].values,
+                                self.cf.index.values, self.cf['dtype'].values,
+                                rate)
         return pd.Series(data=v, index=dates)
 
     def duration(self, date: Union[pd.Timestamp, pd.DatetimeIndex] = None) \
@@ -206,7 +206,7 @@ class Bond(Asset):
             if np.isnan(p):
                 v = self.prices.values
                 dt = self.prices.index.values
-                p, _ = Fin.last_valid_value(v, dt, date.asm8)
+                p, _ = Math.last_valid_value(v, dt, date.asm8)
             p0 = p
 
         # Transform to the right format prices and dates
@@ -217,11 +217,11 @@ class Bond(Asset):
         else:
             raise TypeError('Wrong date type supplied to bond.fv()')
 
-        v, dates = Fin.calc_duration(dates, self._inception_date.asm8,
-                                     self._maturity.asm8, p0,
-                                     self.cf['value'].values,
-                                     self.cf.index.values,
-                                     self.cf['dtype'].values, .0)
+        v, dates = Math.calc_duration(dates, self._inception_date.asm8,
+                                      self._maturity.asm8, p0,
+                                      self.cf['value'].values,
+                                      self.cf.index.values,
+                                      self.cf['dtype'].values, .0)
         return pd.Series(data=v, index=dates)
 
     def convexity(self, date: Union[pd.Timestamp, pd.DatetimeIndex] = None) \
@@ -257,7 +257,7 @@ class Bond(Asset):
             if np.isnan(p):
                 v = self.prices.values
                 dt = self.prices.index.values
-                p, _ = Fin.last_valid_value(v, dt, date.asm8)
+                p, _ = Math.last_valid_value(v, dt, date.asm8)
             p0 = p
 
         if isinstance(date, pd.Timestamp):
@@ -267,9 +267,9 @@ class Bond(Asset):
         else:
             raise TypeError('Wrong date type supplied to bond.fv()')
 
-        v, dates = Fin.calc_convexity(dates, self._inception_date.asm8,
-                                      self._maturity.asm8, p0,
-                                      self.cf['value'].values,
-                                      self.cf.index.values,
-                                      self.cf['dtype'].values, .0)
+        v, dates = Math.calc_convexity(dates, self._inception_date.asm8,
+                                       self._maturity.asm8, p0,
+                                       self.cf['value'].values,
+                                       self.cf.index.values,
+                                       self.cf['dtype'].values, .0)
         return pd.Series(data=v, index=dates)

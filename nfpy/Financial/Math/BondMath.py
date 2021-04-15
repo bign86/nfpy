@@ -10,9 +10,9 @@ from typing import Union
 from nfpy.DatatypeFactory import get_dt_glob
 from nfpy.Tools import (Constants as Cn, Exceptions as Ex)
 
-from ..Equity import fv
-from ..Rate import dcf
-from ..TSUtils import trim_ts
+from .DiscountFactor import dcf
+from .EquityMath import fv
+from .TSUtils import trim_ts
 
 
 def ytm(cf: np.ndarray, p0: float, acc: float = .0) -> float:

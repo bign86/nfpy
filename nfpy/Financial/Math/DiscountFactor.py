@@ -51,8 +51,8 @@ def dcf(cf: np.ndarray, r: Union[float, np.ndarray], t: np.ndarray = None,
         Output:
             dcf [np.ndarray]: Discounted cash flows
     """
-    # FIXME: adjust the handling of input parameters. We can pass the term structure
-    #        as an 2D-array as for cf and avoid the use of 't'
+    # FIXME: adjust the handling of input parameters. We can pass the term
+    #        structure as an 2D-array as for cf and avoid the use of 't'
     if isinstance(r, np.ndarray):
         # FIXME: a ndarray is returned, we need only rates not tenors
         r = rate_interpolate(r, t, cf[0, :])

@@ -10,8 +10,8 @@ import pandas as pd
 from tabulate import tabulate
 
 from nfpy.Calendar import (get_calendar_glob, today)
-from nfpy.Models import DividendDiscountModel
 import nfpy.IO as IO
+from nfpy.Models import DividendDiscountModel
 
 plt.interactive(False)
 np.set_printoptions(precision=3, suppress=True)

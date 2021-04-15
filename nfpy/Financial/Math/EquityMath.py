@@ -7,9 +7,9 @@ import numpy as np
 from scipy import stats
 from typing import Union
 
-from ..Rate import dcf
-from ..TSUtils import (dropna, last_valid_index, rolling_sum,
-                       rolling_window, trim_ts)
+from .DiscountFactor import dcf
+from .TSUtils import (dropna, last_valid_index, rolling_sum,
+                      rolling_window, trim_ts)
 
 
 def adj_factors(ts: np.ndarray, dt: np.ndarray, div: np.ndarray,

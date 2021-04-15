@@ -5,7 +5,7 @@
 
 import warnings
 
-import nfpy.DB as DB
+import nfpy.IO as IO
 
 from nfpy.Tools import Singleton
 
@@ -16,8 +16,8 @@ class DatatypeFactory(metaclass=Singleton):
     _DT_TABLE = 'DecDatatype'
 
     def __init__(self):
-        self._db = DB.get_db_glob()
-        self._qb = DB.get_qb_glob()
+        self._db = IO.get_db_glob()
+        self._qb = IO.get_qb_glob()
         self._dec_datatypes = {}
         self._mapping = {}
         self._codes_in_use = []

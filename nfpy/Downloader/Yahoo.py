@@ -23,23 +23,25 @@ from .DownloadsConf import (YahooFinancialsConf, YahooHistPricesConf,
 
 class ClosePricesItem(BaseImportItem):
     _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
-    select "{uid}", "1", date, close from YahooPrices where ticker = ?"""
-    _Q_INCR = ' and date > (select max(date) from {dst_table} where uid = "{uid}")'
+    select '{uid}', '1', date, close from YahooPrices where ticker = ?"""
+    _Q_INCR = """ and date > ifnull((select max(date) from {dst_table}
+    where uid = '{uid}'), '1900-01-01')"""
 
 
 class FinancialsItem(BaseImportItem):
     _Q_READWRITE = """insert or replace into {dst_table}
-    (uid, code, date, freq, value) select distinct "{uid}", code, date, freq, value
+    (uid, code, date, freq, value) select distinct '{uid}', code, date, freq, value
     from YahooFinancials where ticker = ?"""
-    _Q_INCR = ' and date > (select max(date) from {dst_table} where uid = "{uid}")'
+    _Q_INCR = """ and date > ifnull((select max(date) from {dst_table}
+    where uid = '{uid}'), '1900-01-01')"""
 
 
 class DividendsItem(BaseImportItem):
     _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
-    select "{uid}", dtype, date, value from YahooEvents
+    select '{uid}', dtype, date, value from YahooEvents
     where ticker = ? and dtype = ?"""
-    _Q_INCR = """ and date > (select max(date) from {dst_table} where uid = "{uid}"
-    and dtype = ?)"""
+    _Q_INCR = """ and date > ifnull((select max(date) from {dst_table}
+    where uid = '{uid}' and dtype = ?), '1900-01-01')"""
 
     def _get_params(self) -> tuple:
         dt = self._dt.get('dividend')
@@ -53,8 +55,8 @@ class SplitsItem(BaseImportItem):
     _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
     select '{uid}', dtype, date, value from YahooEvents
     where ticker = ? and dtype = ?"""
-    _Q_INCR = """ and date > (select max(date) from {dst_table} where uid = '{uid}'
-    and dtype = ?)"""
+    _Q_INCR = """ and date > ifnull((select max(date) from {dst_table}
+    where uid = '{uid}' and dtype = ?), '1900-01-01')"""
 
     def _get_params(self) -> tuple:
         dt = self._dt.get('split')
@@ -241,17 +243,12 @@ class YahooHistoricalBasePage(YahooBasePage):
 
     def _local_initializations(self, params: dict):
         """ Local initializations for the single page. """
-        for p in ['period1', 'period2']:
-            try:
-                d = params[p]
-                params[p] = str(int(pd.to_datetime(d).timestamp()))
-            except KeyError:
-                pass
-            except Exception as ex:
-                print(ex)
-                raise RuntimeError("Error in '{}' for Yahoo historical prices download"
-                                   .format(p))
-        self.params = params
+        if params:
+            for p in ['period1', 'period2']:
+                if p in params:
+                    d = params[p]
+                    params[p] = str(int(pd.to_datetime(d).timestamp()))
+            self.params = params
 
         crumb = self._fetch_crumb()
         # print("CRUMB: {}".format(crumb))

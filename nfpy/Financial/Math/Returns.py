@@ -8,7 +8,7 @@ from typing import Union
 import numpy as np
 import pandas as pd
 
-from ..TSUtils import trim_ts
+from .TSUtils import trim_ts
 
 
 def ret(v: pd.Series, fillna: str = 'pad', w: int = 1) -> pd.Series:

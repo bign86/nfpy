@@ -6,7 +6,7 @@
 from typing import (Sequence, TypeVar)
 
 from nfpy.DatatypeFactory import get_dt_glob
-import nfpy.DB as DB
+import nfpy.IO.DB as DB
 from nfpy.Tools import Exceptions as Ex
 
 

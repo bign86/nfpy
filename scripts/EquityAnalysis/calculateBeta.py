@@ -8,10 +8,9 @@ from tabulate import tabulate
 
 from nfpy.Assets import get_af_glob
 from nfpy.Calendar import (get_calendar_glob, today)
-import nfpy.DB as DB
 import nfpy.IO as IO
 
-__version__ = '0.6'
+__version__ = '0.7'
 _TITLE_ = "<<< Beta calculation script >>>"
 
 
@@ -19,13 +18,14 @@ if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
     af = get_af_glob()
-    qb = DB.get_qb_glob()
-    db = DB.get_db_glob()
+    qb = IO.get_qb_glob()
+    db = IO.get_db_glob()
     inh = IO.InputHandler()
 
-    start_date = inh.input("Give starting date for time series: ", idesc='datetime')
-    if not start_date:
-        raise ValueError('You must give a starting date.')
+    start_date = inh.input("Give starting date for time series: ",
+                           idesc='datetime', optional=False)
+    # if not start_date:
+    #     raise ValueError('You must give a starting date.')
 
     end_date = inh.input("Give ending date for time series (default <today>): ",
                          default=today(), idesc='timestamp')

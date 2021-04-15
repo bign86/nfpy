@@ -7,7 +7,7 @@
 from requests import RequestException
 
 import nfpy.Calendar as Cal
-import nfpy.DB as DB
+import nfpy.IO.DB as DB
 from nfpy.Tools import (Singleton, Exceptions as Ex)
 
 from .BaseDownloader import BasePage
