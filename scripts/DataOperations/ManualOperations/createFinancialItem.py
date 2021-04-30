@@ -3,6 +3,7 @@
 # Create a new financial item in the database.
 #
 
+import nfpy.DB as DB
 import nfpy.IO as IO
 from nfpy.Tools import Utilities as Ut
 
@@ -13,8 +14,8 @@ _TITLE_ = "<<< Financial item creation script >>>"
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
-    db = IO.get_db_glob()
-    qb = IO.get_qb_glob()
+    db = DB.get_db_glob()
+    qb = DB.get_qb_glob()
     inh = IO.InputHandler()
 
     # Register in the AssetInfo table

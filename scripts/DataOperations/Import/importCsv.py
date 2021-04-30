@@ -9,6 +9,7 @@ import os
 from operator import itemgetter
 
 from nfpy.Tools import get_conf_glob
+import nfpy.DB as DB
 import nfpy.IO as IO
 
 __version__ = '0.3'
@@ -19,8 +20,8 @@ if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
     conf = get_conf_glob()
-    db = IO.get_db_glob()
-    qb = IO.get_qb_glob()
+    db = DB.get_db_glob()
+    qb = DB.get_qb_glob()
     inh = IO.InputHandler()
 
     # get and validate inputs

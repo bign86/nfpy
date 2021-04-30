@@ -2,6 +2,7 @@
 # Dump table structure script
 #
 
+import nfpy.DB as DB
 import nfpy.IO as IO
 
 __version__ = '0.2'
@@ -10,7 +11,7 @@ _TITLE_ = "<<< Dump table structure script >>>"
 
 if __name__ == '__main__':
 
-    qb = IO.get_qb_glob()
+    qb = DB.get_qb_glob()
     inh = IO.InputHandler()
 
     table = inh.input("Give me a table to dump: ")

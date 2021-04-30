@@ -1,8 +1,8 @@
-from .BaseOptimizer import (OptimizerResult, TyOptimizer)
+from .BaseOptimizer import TyOptimizer
 from .OptimizationEngine import (OptimizationEngine,
-                                 ResultOptimization)
+                                 OptimizationEngineResult)
 
 
 __all__ = [
-    'OptimizationEngine', 'OptimizerResult', 'ResultOptimization', 'TyOptimizer'
+    'OptimizationEngine', 'OptimizationEngineResult', 'TyOptimizer'
 ]

@@ -4,12 +4,11 @@
 # support/resistance lines, trendlines, wedges.
 #
 
-from typing import Sequence
-
 import numpy as np
 import pandas as pd
+from typing import Sequence
 
-import nfpy.Financial as Fin
+import nfpy.Financial.Math as Math
 
 
 def smooth(ts: np.ndarray, w: int = 15) -> np.ndarray:
@@ -22,7 +21,7 @@ def smooth(ts: np.ndarray, w: int = 15) -> np.ndarray:
         Output:
             smooth [np.ndarray]: smoothed time series
     """
-    x = Fin.ffill_cols(ts)
+    x = Math.ffill_cols(ts)
 
     if w < 3:
         return x

@@ -6,7 +6,7 @@
 from pandas import DateOffset
 
 from nfpy.Calendar import (get_calendar_glob, today)
-from nfpy.IO import get_re_glob
+from nfpy.Reporting import get_re_glob
 
 __version__ = '0.2'
 _TITLE_ = "<<< Report generation script >>>"

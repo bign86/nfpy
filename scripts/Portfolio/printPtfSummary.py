@@ -7,6 +7,7 @@ from tabulate import tabulate
 
 from nfpy.Assets import get_af_glob
 import nfpy.Calendar as Cal
+import nfpy.DB as DB
 import nfpy.IO as IO
 from nfpy.Tools import Constants as Cn
 
@@ -18,8 +19,8 @@ _FMT_ = '%Y-%m-%d'
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
-    db = IO.get_db_glob()
-    qb = IO.get_qb_glob()
+    db = DB.get_db_glob()
+    qb = DB.get_qb_glob()
     af = get_af_glob()
     inh = IO.InputHandler()
 

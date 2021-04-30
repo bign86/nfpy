@@ -10,8 +10,8 @@ from typing import (Dict, Union)
 import pandas as pd
 import requests
 
-import nfpy.IO.DB as DB
 from nfpy.Calendar import now
+import nfpy.DB as DB
 from nfpy.DatatypeFactory import get_dt_glob
 from nfpy.Tools import (Exceptions as Ex, get_conf_glob, Utilities as Ut)
 

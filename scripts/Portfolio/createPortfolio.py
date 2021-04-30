@@ -6,6 +6,7 @@
 #  - the datetime conversion in input inserts a datetime (not a date) in the DB
 
 from nfpy.Assets.Portfolio import Portfolio
+import nfpy.DB as DB
 import nfpy.IO as IO
 
 __version__ = '0.3'
@@ -15,8 +16,8 @@ _TITLE_ = "<<< Create portfolio script >>>"
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
-    db = IO.get_db_glob()
-    qb = IO.get_qb_glob()
+    db = DB.get_db_glob()
+    qb = DB.get_qb_glob()
     inh = IO.InputHandler()
 
     # Variable

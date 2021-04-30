@@ -8,6 +8,7 @@ from tabulate import tabulate
 
 from nfpy.Assets import get_af_glob
 from nfpy.Calendar import (get_calendar_glob, today)
+import nfpy.DB as DB
 import nfpy.IO as IO
 from nfpy.Models import DividendDiscountModel
 from nfpy.Tools import Constants as Cn
@@ -19,8 +20,8 @@ _TITLE_ = "<<< Price equity script >>>"
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
-    qb = IO.get_qb_glob()
-    db = IO.get_db_glob()
+    qb = DB.get_qb_glob()
+    db = DB.get_db_glob()
     af = get_af_glob()
     cal = get_calendar_glob()
     inh = IO.InputHandler()

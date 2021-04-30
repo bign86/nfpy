@@ -10,6 +10,7 @@ from tabulate import tabulate
 
 from nfpy.Assets import get_af_glob
 from nfpy.Calendar import (get_calendar_glob, today)
+import nfpy.DB as DB
 import nfpy.IO as IO
 
 plt.interactive(False)
@@ -77,8 +78,8 @@ if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
     af = get_af_glob()
-    qb = IO.get_qb_glob()
-    db = IO.get_db_glob()
+    qb = DB.get_qb_glob()
+    db = DB.get_db_glob()
     inh = IO.InputHandler()
 
     start_date = inh.input("Give starting date for time series: ", idesc='datetime')

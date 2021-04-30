@@ -7,12 +7,11 @@ import pandas as pd
 from typing import Union
 
 import nfpy.Financial as Fin
+import nfpy.Financial.Math as Math
 from nfpy.Tools import Exceptions as Ex
 
-from .BaseModel import BaseModelResult
 from .BaseFundamentalModel import BaseFundamentalModel
-from nfpy.Financial.Equity.Dividends import DividendFactory
-from nfpy.Financial.Rate.RateFactory import get_rf_glob
+from .BaseModel import BaseModelResult
 
 
 class GGMResult(BaseModelResult):
@@ -28,7 +27,7 @@ class GordonGrowthModel(BaseFundamentalModel):
                  **kwargs):
         super().__init__(uid, date)
 
-        self._df = DividendFactory(self._eq, self._start, self._t0)
+        self._df = Fin.DividendFactory(self._eq, self._start, self._t0)
         self._check_applicability()
         self._record_inputs()
 
@@ -79,7 +78,7 @@ class GordonGrowthModel(BaseFundamentalModel):
         try:
             d_rate = kwargs['d_rate']
         except KeyError:
-            rf = get_rf_glob().get_rf(self._asset.currency)
+            rf = Fin.get_rf_glob().get_rf(self._asset.currency)
             d_rate = rf.last_price(self._t0)[0]
 
         # Check model consistency
@@ -88,7 +87,7 @@ class GordonGrowthModel(BaseFundamentalModel):
             raise ValueError('The discounting of {:.0f}% is negative for {}'
                              .format(den*100., self._uid))
 
-        fv = float(self._fut_div * Fin.cdf(den, 1))
+        fv = float(self._fut_div * Math.cdf(den, 1))
 
         return {'d_rate': d_rate, 'fair_value': fv}
 

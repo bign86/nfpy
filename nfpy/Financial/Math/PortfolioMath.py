@@ -10,7 +10,7 @@ from nfpy.Assets import get_af_glob
 from nfpy.Calendar import get_calendar_glob
 
 from .TSUtils import (dropna, ffill_cols, trim_ts)
-from ..Currency import get_fx_glob
+from ..CurrencyFactory import get_fx_glob
 
 
 def ptf_value(uids: list, ccy: str, dt: np.ndarray, pos: np.ndarray) -> tuple:

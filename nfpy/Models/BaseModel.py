@@ -11,7 +11,7 @@ from nfpy.Assets import get_af_glob
 from nfpy.Calendar import get_calendar_glob
 from nfpy.Tools import Utilities as Ut
 
-from nfpy.Financial.Currency.CurrencyFactory import get_fx_glob
+import nfpy.Financial as Fin
 
 
 class BaseModelResult(Ut.AttributizedDict):
@@ -27,7 +27,7 @@ class BaseModel(metaclass=ABCMeta):
                  **kwargs):
         # Handlers
         self._af = get_af_glob()
-        self._fx = get_fx_glob()
+        self._fx = Fin.get_fx_glob()
 
         # Input data objects
         self._uid = uid

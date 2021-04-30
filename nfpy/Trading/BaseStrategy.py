@@ -4,15 +4,8 @@
 #
 
 from abc import ABCMeta, abstractmethod
-from enum import Enum
 import numpy as np
 from typing import (Dict, TypeVar, Tuple, Union)
-
-
-class Signal(Enum):
-    NONE = 0
-    BUY = 1
-    SELL = 2
 
 
 class StrategyResult(object):
@@ -100,9 +93,9 @@ class BaseStrategy(metaclass=ABCMeta):
     #     else:
     #         plt.show()
 
-    def f(self, dt: np.ndarray, p: np.ndarray) \
+    def __call__(self, dt: np.ndarray, p: np.ndarray) \
             -> Union[StrategyResult, Tuple[StrategyResult, Dict]]:
-        """ Strategy calculation function. """
+        """ Apply the strategy """
         res = self._f(dt, p)
         if self._full_out:
             return res

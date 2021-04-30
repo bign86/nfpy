@@ -24,6 +24,10 @@ class CalendarError(RuntimeError):
     """ This exception should be thrown when something is wrong with the calendar. """
 
 
+class ShortSeriesError(RuntimeError):
+    """ This exception should be thrown when a series is too short. """
+
+
 class AssetTypeError(RuntimeError):
     """ This exception should be thrown when the asset type is wrong. """
 
@@ -40,4 +44,3 @@ class ToBeImplementedWarning(Warning):
     """ This warning should be thrown when a feature is planned to be
         supported in the future.
     """
-

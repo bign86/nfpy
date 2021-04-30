@@ -8,8 +8,8 @@ import numpy as np
 from typing import Union
 
 from nfpy.Calendar import get_calendar_glob
-import nfpy.Financial as Fin
-from nfpy.Trading import (Signals_pd as Sig, Strategies_pd as Str, Trends as Tr)
+import nfpy.Financial.Math as Math
+from nfpy.Trading import (Indicators as Ind, Strategies as Str, Trends as Tr)
 
 from .BaseModel import (BaseModel, BaseModelResult)
 
@@ -78,32 +78,42 @@ class TradingModel(BaseModel):
 
         # Moving averages
         p_slow = prices.iloc[-int(w_slow * (sr_mult + 1)):]
-        wma_slow = Sig.ewma(p_slow, w=w_slow)
+        ma_slow = Ind.ewma(p_slow.values, w=w_slow)
+        wma_slow = pd.Series(ma_slow, p_slow.index.values)
 
         fast_length = int(w_fast * (sr_mult + 1))
         p_fast = prices.iloc[-fast_length:]
-        signals, wma_fast, _ = Str.two_ema_cross(p_fast, w_fast, w_slow,
-                                                 slow_ma=wma_slow)
+        ema_cr = Str.TwoEMACross(w_fast, w_slow, True)
+        signals, ma = ema_cr.f(p_fast.index.values, p_fast.values)
+        wma_fast = pd.Series(ma[w_fast], p_fast.index.values)
+        # signals, wma_fast, _ = Str.two_ema_cross(p_fast, w_fast, w_slow,
+        #                                          slow_ma=wma_slow)
 
-        df = pd.DataFrame(columns=['signal', 'price', 'return', 'delta days'])
-        if len(signals) > 0:
+        if len(signals.signals) > 0:
             p, dt = p_fast.values, p_fast.index.values
-            last_price = Fin.last_valid_value(p, dt, t0.asm8)[0]
+            last_price = Math.last_valid_value(p, dt, t0.asm8)[0]
 
-            sig_price = p_fast.loc[signals.index]
+            df = pd.DataFrame(index=signals.dates,
+                              columns=['signal', 'price', 'return', 'delta days'])
+
+            sig_price = p_fast.iloc[signals.indices]
             sig_price = sig_price.values
             res = np.empty(sig_price.shape)
             res[:-1] = sig_price[1:] / sig_price[:-1] - 1.
             res[-1] = last_price / sig_price[-1] - 1.
 
-            df['signal'] = signals
+            df['signal'] = signals.signals
             df['price'] = sig_price
             df['return'] = res
             df['delta days'] = (t0 - df.index).days
 
+        else:
+            df = pd.DataFrame(columns=['signal', 'price', 'return', 'delta days'])
+
         df.replace(to_replace={'signal': {1: 'buy', -1: 'sell'}}, inplace=True)
 
         self._res_update(ma_fast=wma_fast, ma_slow=wma_slow, signals=df)
+        # self._res_update(ma_fast=ma[w_fast], ma_slow=ma[w_slow], signals=df)
 
     def _otf_calculate(self, **kwargs) -> dict:
         pass

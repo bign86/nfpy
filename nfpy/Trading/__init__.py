@@ -1,8 +1,23 @@
-from . import Strategies
 from .Backtesting import Backtesting
-from .Trends import find_ts_extrema, group_extrema
+from .BaseSizer import TySizer
+from .BaseStrategy import TyStrategy
+from .Enums import (Order, Signal)
+from .Trends import (find_ts_extrema, group_extrema)
 
 
 __all__ = [
-    'Strategies', 'Backtesting', 'find_ts_extrema', 'group_extrema',
+    # Backtesting
+    'Backtesting',
+
+    # BaseSizer
+    'TySizer',
+
+    # BaseStrategy
+    'TyStrategy',
+
+    # Enum
+    'Order', 'Signal',
+
+    # Trends
+    'find_ts_extrema', 'group_extrema',
 ]

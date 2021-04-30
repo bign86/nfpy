@@ -8,6 +8,7 @@ from tabulate import tabulate
 
 from nfpy.Assets import get_af_glob
 from nfpy.Calendar import (get_calendar_glob, today)
+import nfpy.DB as DB
 import nfpy.IO as IO
 from nfpy.Trading.BaseStrategy import (BaseStrategy, StrategyResult)
 
@@ -17,9 +18,8 @@ _TITLE_ = "<<< Run trading model script >>>"
 
 class StrategyToBeTested(BaseStrategy):
 
-    def __init__(self, _p, _full_out: bool = False):
+    def __init__(self, *args, _full_out: bool = False):
         super().__init__(_full_out)
-        self._p = _p
 
     def _f(self, _dt: np.ndarray, _p: np.ndarray) -> tuple:
         # START CODE
@@ -35,8 +35,8 @@ if __name__ == '__main__':
 
     af = get_af_glob()
     cal = get_calendar_glob()
-    qb = IO.get_qb_glob()
-    db = IO.get_db_glob()
+    qb = DB.get_qb_glob()
+    db = DB.get_db_glob()
     inh = IO.InputHandler()
 
     start_date = inh.input("Give starting date for time series: ",
@@ -55,14 +55,14 @@ if __name__ == '__main__':
     uid = inh.input("\nGive an equity index: ", idesc='int')
     eq = af.get(res[uid][0])
 
-    args = inh.input("Insert parameters comma separated (default None): ",
-                     default=[], is_list=True)
+    _args = inh.input("Insert parameters comma separated (default None): ",
+                      default=[], is_list=True)
 
     p = eq.prices.values
     dt = cal.calendar.values
     try:
-        strat = StrategyToBeTested(args, True)
-        signals = strat.f(dt, p)
+        strat = StrategyToBeTested(_args, True)
+        signals = strat(dt, p)
     except (IndexError, TypeError) as ex:
         print('Signal generation failed for {}\n{}'.format(eq.uid, ex))
     else:

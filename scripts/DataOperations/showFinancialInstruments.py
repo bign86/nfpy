@@ -5,6 +5,7 @@
 
 from tabulate import tabulate
 
+import nfpy.DB as DB
 import nfpy.IO as IO
 
 __version__ = '0.3'
@@ -14,8 +15,8 @@ _TITLE_ = "<<< Show financial instruments script >>>"
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
-    db = IO.get_db_glob()
-    qb = IO.get_qb_glob()
+    db = DB.get_db_glob()
+    qb = DB.get_qb_glob()
     inh = IO.InputHandler()
 
     q = 'select * from Assets'

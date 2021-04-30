@@ -9,7 +9,7 @@ import pickle
 from pathlib import Path
 
 from nfpy import NFPY_ROOT_DIR
-import nfpy.IO as IO
+import nfpy.DB as DB
 from nfpy.Tools import get_conf_glob
 
 __version__ = '0.5'
@@ -238,7 +238,7 @@ def get_db_handler():
 
     # database creation
     print('Creating the new database...')
-    db_ = IO.get_db_glob()
+    db_ = DB.get_db_glob()
 
     if not db_:
         raise RuntimeError('I can not connect to the database... Sorry, but I got to stop here :(')

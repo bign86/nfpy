@@ -3,7 +3,7 @@
 # Base class for a single asset
 #
 
-import nfpy.IO.DB as DB
+import nfpy.DB as DB
 from nfpy.Tools import (Singleton, Exceptions as Ex, Utilities as Ut)
 
 from .FinancialItem import TyFI

@@ -6,8 +6,8 @@
 from abc import ABCMeta
 
 from nfpy.Assets import get_af_glob
-import nfpy.IO.DB as DB
 from nfpy.DatatypeFactory import get_dt_glob
+import nfpy.DB as DB
 from nfpy.Tools import Utilities as Ut
 
 from .BaseDownloader import BasePage

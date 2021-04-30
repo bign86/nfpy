@@ -7,6 +7,7 @@ import csv
 from os.path import join
 
 from nfpy.Calendar import now
+import nfpy.DB as DB
 import nfpy.IO as IO
 from nfpy.Tools import get_conf_glob
 
@@ -17,8 +18,8 @@ _TITLE_ = "<<< Dump Table script >>>"
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
-    db = IO.get_db_glob()
-    qb = IO.get_qb_glob()
+    db = DB.get_db_glob()
+    qb = DB.get_qb_glob()
     conf = get_conf_glob()
     inh = IO.InputHandler()
 

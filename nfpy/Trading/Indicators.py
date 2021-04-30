@@ -7,6 +7,14 @@
 import numpy as np
 
 import nfpy.Financial.Math as Math
+from nfpy.Tools import Exceptions as Ex
+
+
+def _check_len(v, w) -> None:
+    l = len(v)
+    if l < w:
+        raise Ex.ShortSeriesError('Series provided is too short {} < {}'
+                                  .format(l, w))
 
 
 def sma(v: np.ndarray, w: int) -> np.ndarray:
@@ -16,8 +24,7 @@ def sma(v: np.ndarray, w: int) -> np.ndarray:
             v [np.ndarray]: data series
             w [int]: averaging window
     """
-    if len(v) < w:
-        raise RuntimeError('Series provided is too short {} < {}'.format(len(v), w))
+    _check_len(v, w)
 
     ret = np.empty_like(v)
     ret[:w - 1] = np.nan
@@ -33,14 +40,12 @@ def sma_approx(v: np.ndarray, w: int) -> np.ndarray:
             v [np.ndarray]: data series
             w [int]: averaging window
     """
-    n = len(v)
-    if n < w:
-        raise RuntimeError('Series provided is too short {} < {}'.format(len(v), w))
+    _check_len(v, w)
 
     ret = v.copy()
     curr, idx = Math.next_valid_value(v)
 
-    for i in range(idx + 1, n):
+    for i in range(idx + 1, len(v)):
         _v = ret[i]
         if _v == _v:
             curr += (_v - curr) / w
@@ -57,8 +62,7 @@ def smstd(v: np.ndarray, w: int, ddof: int = 1) -> np.ndarray:
             w [int]: averaging window
             ddof [int]: degrees of freedom (default: 1 to emulate pandas)
     """
-    if len(v) < w:
-        raise RuntimeError('Series provided is too short {} < {}'.format(len(v), w))
+    _check_len(v, w)
 
     ret = np.empty_like(v)
     ret[:w - 1] = np.nan
@@ -74,8 +78,7 @@ def csma(v: np.ndarray, w: int) -> np.ndarray:
             v [np.ndarray]: data series
             w [int]: averaging window
     """
-    if len(v) < w:
-        raise RuntimeError('Series provided is too short {} < {}'.format(len(v), w))
+    _check_len(v, w)
 
     # ret = np.empty_like(div)
     # ret[0] = v[0]
@@ -94,8 +97,7 @@ def wma(v: np.ndarray, w: int) -> np.ndarray:
             v [np.ndarray]: data series
             w [int]: averaging window
     """
-    if len(v) < w:
-        raise RuntimeError('Series provided is too short {} < {}'.format(len(v), w))
+    _check_len(v, w)
 
     roll = Math.rolling_window(v, w)
     nans = np.isnan(roll)
@@ -117,8 +119,7 @@ def ewma_other_version(v: np.ndarray, w: int) -> np.ndarray:
             v [pd.Series]: data series
             w [int]: averaging window
     """
-    if len(v) < w:
-        raise RuntimeError('Series provided is too short {} < {}'.format(len(v), w))
+    _check_len(v, w)
 
     alpha = 2. / (w + 1)
     alpha_rev = 1. - alpha
@@ -189,8 +190,7 @@ def smd(v: np.ndarray, w: int) -> np.ndarray:
             v [np.ndarray]: data series
             w [int]: averaging window
     """
-    if len(v) < w:
-        raise RuntimeError('Series provided is too short {} < {}'.format(len(v), w))
+    _check_len(v, w)
 
     ret = np.empty_like(v)
     ret[:w - 1] = np.nan
@@ -213,8 +213,7 @@ def bollinger(v: np.ndarray, w: int, rho: float) -> tuple:
             b_pct [np.ndarray]: the %b bandwidth band
             b_width [np.ndarray]: the Bandwidth band
     """
-    if len(v) < w:
-        raise RuntimeError('Series provided is too short {} < {}'.format(len(v), w))
+    _check_len(v, w)
 
     mean = sma(v, w)
     band_dev = rho * smstd(v, w)
@@ -251,8 +250,7 @@ def macd(v: np.ndarray, w_macd: int, w_fast: int, w_slow: int) -> tuple:
     if w_macd >= w_fast:
         raise ValueError('MACD window should be smaller than fast EMA window')
 
-    if len(v) < w_slow:
-        raise RuntimeError('Series provided is too short {} < {}'.format(len(v), w_slow))
+    _check_len(v, w_slow)
 
     fast_ema = ewma(v, w_fast)
     slow_ema = ewma(v, w_slow)

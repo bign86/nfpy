@@ -6,6 +6,7 @@
 import nfpy.Assets as As
 from nfpy.Calendar import (get_calendar_glob, today, last_business)
 import nfpy.IO as IO
+import nfpy.Reporting as Re
 
 __version__ = '0.3'
 _TITLE_ = "<<< New report add script >>>"
@@ -19,7 +20,7 @@ if __name__ == '__main__':
     cal.initialize(today(), last_business())
 
     inh = IO.InputHandler()
-    re = IO.get_re_glob()
+    re = Re.get_re_glob()
 
     # Get a UID and check viable models
     uid = inh.input("Insert UID: ", idesc='str', checker='uid')

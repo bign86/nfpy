@@ -8,11 +8,11 @@ import pandas as pd
 from typing import Union
 
 import nfpy.Financial as Fin
+import nfpy.Financial.Math as Math
 from nfpy.Tools import Constants as Cn
 
-from .BaseModel import BaseModelResult
 from .BaseFundamentalModel import BaseFundamentalModel
-from nfpy.Financial.Company.FundamentalsFactory import FundamentalsFactory
+from .BaseModel import BaseModelResult
 
 
 class DCFResult(BaseModelResult):
@@ -89,7 +89,7 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
         self._p_rate = max(perpetual_rate, .0)
         self._fcf = None
 
-        self._ff = FundamentalsFactory(self._asset)
+        self._ff = Fin.FundamentalsFactory(self._asset)
         self._check_applicability()
 
         self._res_update(ccy=self._asset.currency, perpetual_growth=self._p_rate,
@@ -228,7 +228,7 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
         array[9, :y] = beta
 
         # Get Market and RF returns for Cost of Equity
-        array[10, :y] = np.array([Fin.compound(self._idx.expct_return(
+        array[10, :y] = np.array([Math.compound(self._idx.expct_return(
             start=pd.Timestamp(dt.year, 1, 1), end=dt),
             Cn.BDAYS_IN_1Y) for dt in index[:y]])
 
@@ -254,7 +254,7 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
 
         # Calculate Fair Value
         shares = float(self._ff.total_shares(f).values[-1])
-        fair_value = float(np.sum(Fin.dcf(cf, mean_wacc))) / shares
+        fair_value = float(np.sum(Math.dcf(cf, mean_wacc))) / shares
 
         # Accumulate
         self._res_update(df=pd.DataFrame(array.T, columns=self._COLS,

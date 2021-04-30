@@ -9,10 +9,11 @@ from typing import (Union, Sequence)
 from nfpy.Assets import get_af_glob
 from nfpy.Calendar import get_calendar_glob
 import nfpy.Financial as Fin
+import nfpy.Financial.Math as Math
 from nfpy.Tools import (Constants as Cn, Utilities as Ut)
 
 
-class ResultOptimization(Ut.AttributizedDict):
+class OptimizationEngineResult(Ut.AttributizedDict):
     """ Report data for Jinja generated from single optimization results. """
 
 
@@ -85,26 +86,26 @@ class OptimizationEngine(object):
             ret[:, i] = r
 
         # Cut the arrays to the right dates and clean
-        ret, dt = Fin.trim_ts(ret, cal.values, self._start, self._t0)
-        ret, _ = Fin.dropna(ret, axis=1)
+        ret, dt = Math.trim_ts(ret, cal.values, self._start, self._t0)
+        ret, _ = Math.dropna(ret, axis=1)
 
-        e_ret = Fin.e_ret(ret, is_log=False)
+        e_ret = Math.e_ret(ret, is_log=False)
         cov = np.cov(ret, rowvar=False)
         corr = np.corrcoef(ret, rowvar=False)
 
         self._uids = uids
-        self._ret = Fin.compound(e_ret, Cn.BDAYS_IN_1Y)
+        self._ret = Math.compound(e_ret, Cn.BDAYS_IN_1Y)
         self._cov = cov * Cn.BDAYS_IN_1Y
         self._corr = corr
         
         if (self._rf_ret is None) and ('CALModel' in self._algo):
             rf = self._rf.get_rf(ccy)
-            self._rf_ret = Fin.compound(rf.last_price()[0], Cn.BDAYS_IN_1Y)
+            self._rf_ret = Math.compound(rf.last_price()[0], Cn.BDAYS_IN_1Y)
 
     def run(self):
         res_list = []
         for k, p in self._algo.items():
-            symbol = '.'.join(['nfpy', 'Models', 'Optimizer', k, k])
+            symbol = '.'.join(['nfpy.Financial.Portfolio.Optimizer', k, k])
             class_ = Ut.import_symbol(symbol)
             obj = class_(self._ret, self._cov, **p)
             result = obj.result
@@ -114,7 +115,7 @@ class OptimizationEngine(object):
         self._consolidate_results(res_list)
 
     def _consolidate_results(self, res_list: list):
-        obj = ResultOptimization()
+        obj = OptimizationEngineResult()
         obj.results = res_list
         obj.uid = self._uid
         obj.uids = self._uids

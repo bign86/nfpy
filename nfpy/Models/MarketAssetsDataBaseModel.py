@@ -8,7 +8,7 @@ import pandas as pd
 from typing import Union
 
 from nfpy.Calendar import get_calendar_glob
-import nfpy.Financial as Fin
+import nfpy.Financial.Math as Math
 from nfpy.Tools import Constants as Cn
 
 from .BaseModel import (BaseModel, BaseModelResult)
@@ -46,7 +46,7 @@ class MarketAssetsDataBaseModel(BaseModel):
         prices = asset.prices
         v = prices.values
         dt = prices.index.values
-        last_price, idx = Fin.last_valid_value(v, dt, t0.asm8)
+        last_price, idx = Math.last_valid_value(v, dt, t0.asm8)
         last_p_date = prices.index[idx]
 
         self._res_update(prices=prices, last_price=last_price,
@@ -69,14 +69,14 @@ class MarketAssetsDataBaseModel(BaseModel):
             stats[0, i] = asset.return_volatility(start, t0)
 
             mean_ret = asset.expct_return(start, t0)
-            stats[1, i] = Fin.compound(mean_ret, Cn.BDAYS_IN_1Y / real_n)
+            stats[1, i] = Math.compound(mean_ret, Cn.BDAYS_IN_1Y / real_n)
 
             # From timing results this solution (combined with obtaining p_t0
             # above) is between 1.5 and 3.1 times faster than using
             # Asset.total_return()
-            p_start = Fin.next_valid_value_date(v, dt, start.asm8)[0]
+            p_start = Math.next_valid_value_date(v, dt, start.asm8)[0]
             total_ret = last_price / p_start - 1.
-            stats[2, i] = Fin.compound(total_ret, Cn.BDAYS_IN_1Y / real_n)
+            stats[2, i] = Math.compound(total_ret, Cn.BDAYS_IN_1Y / real_n)
 
         calc = ['volatility', 'mean return', 'tot. return']
         self._res_update(stats=pd.DataFrame(stats, index=calc,
