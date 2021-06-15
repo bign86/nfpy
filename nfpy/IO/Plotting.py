@@ -6,6 +6,7 @@
 from abc import ABCMeta
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 import numpy as np
 import pandas as pd
 from typing import (Union, Sequence)
@@ -21,8 +22,8 @@ class Plotter(metaclass=ABCMeta):
     _RC_TEXT = {'fontsize': 8, 'fontvariant': 'small-caps'}
 
     def __init__(self, ncols: int = 1, nrows: int = 1, xl: Sequence = (),
-                 yl: Sequence = (), x_zero: Sequence = (), y_zero: Sequence = (),
-                 xlim: Sequence = (), ylim: Sequence = ()):
+                 yl: Sequence = (), x_zero: Sequence = (),
+                 y_zero: Sequence = ()):
         # Inputs variables
         self._ncols = int(ncols)
         self._nrows = int(nrows)
@@ -30,14 +31,15 @@ class Plotter(metaclass=ABCMeta):
         self._yl = tuple(yl)
         self._x_zero = x_zero
         self._y_zero = y_zero
-        self._xlim = xlim
-        self._ylim = ylim
 
         # Working variables
         self._length = ncols * nrows
         self._annotations = []
         self._plots = []
         self._lines = []
+        self._fills = []
+        self._xlim = {}
+        self._ylim = {}
         self._fig = None
         self._ax = None
         self._ax2 = None
@@ -57,10 +59,6 @@ class Plotter(metaclass=ABCMeta):
             self._xl = (None,) * self._length
         if not self._yl:
             self._yl = (None,) * self._length
-        if not self._xlim:
-            self._xlim = (None,) * self._length
-        if not self._ylim:
-            self._ylim = (None,) * self._length
 
     def __del__(self):
         self.close()
@@ -79,6 +77,15 @@ class Plotter(metaclass=ABCMeta):
         else:
             ax = self._ax[axid]
         return ax
+
+    def set_limits(self, axid: int, axis: str, bottom: float, top: float):
+        if axis == 'x':
+            self._xlim[axid] = (bottom, top)
+        elif axis == 'y':
+            self._ylim[axid] = (bottom, top)
+        else:
+            raise ValueError("Axis {} not recognized. Use 'x' or 'y'."
+                             .format(axis))
 
     @staticmethod
     def show():
@@ -134,6 +141,9 @@ class Plotter(metaclass=ABCMeta):
              range_: tuple = (), **kwargs):
         self._lines.append((axid, type_, v, range_, kwargs))
 
+    def fill(self, axid: int, type_: str, v: Sequence, **kwargs):
+        self._fills.append((axid, type_, v, kwargs))
+
     def plot(self):
         """ Creates the figure. """
         add_legend = [False] * self._length
@@ -173,11 +183,27 @@ class Plotter(metaclass=ABCMeta):
                 leg = ax.axvline(val, **kw)
             elif mode == 'h':
                 leg = ax.hlines(val, *rng, **kw)
+            elif mode == 'v':
+                leg = ax.vlines(val, *rng, **kw)
             else:
                 leg = ax.vlines(val, *rng, **kw)
             if 'label' in kw:
                 add_legend[axid] = True
                 label_legend[axid].append(leg)
+
+        # Run over optional fills
+        for axid, mode, val, kw in self._fills:
+            ax = self._get_axes(axid, False)
+            if mode == 'hs':
+                ax.axhspan(*val, **kw)
+            elif mode == 'vs':
+                ax.axvspan(*val, **kw)
+            elif mode == 'r':
+                h, w = val[3] - val[1], val[2] - val[0]
+                rect = patches.Rectangle(val[:2], w, h, **kw)
+                ax.add_patch(rect)
+            else:
+                ax.fill(*val)
 
         # Run over axis lines
         for ax, xz in zip(self._ax, self._x_zero):
@@ -185,6 +211,7 @@ class Plotter(metaclass=ABCMeta):
         for ax, yz in zip(self._ax, self._y_zero):
             ax.axhline(yz, **self._RC_AXIS)
 
+        # Run over annotations
         for axid, x, y, l, kw in self._annotations:
             ax = self._get_axes(axid, False)
             rc = self._RC.copy()
@@ -199,15 +226,22 @@ class Plotter(metaclass=ABCMeta):
             if flag:
                 self._ax[n].legend(leg, (l.get_label() for l in leg))
 
+        # Adjust limits
+        for k, v in self._xlim.items():
+            ax = self._get_axes(k, False)
+            ax.set_xlim(*v)
+        for k, v in self._ylim.items():
+            ax = self._get_axes(k, False)
+            ax.set_ylim(*v)
+
 
 class TSPlot(Plotter):
     """ Creates a time series plot. """
 
     def __init__(self, ncols: int = 1, nrows: int = 1, xl: Sequence = ('Date',),
                  yl: Sequence = ('Price',), x_zero: Sequence = (),
-                 y_zero: Sequence = (), xlim: Sequence = (),
-                 ylim: Sequence = ()):
-        super().__init__(ncols, nrows, xl, yl, x_zero, y_zero, xlim, ylim)
+                 y_zero: Sequence = ()):
+        super().__init__(ncols, nrows, xl, yl, x_zero, y_zero)
 
 
 class PtfOptimizationPlot(Plotter):
