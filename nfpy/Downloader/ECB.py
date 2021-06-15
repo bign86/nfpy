@@ -109,6 +109,7 @@ class ECBSeries(ECBBasePage):
         """ Parse the fetched object. """
         names = self._COLUMNS
         data = StringIO(self._robj.text)
-        df = pd.read_csv(data, sep=',', header=None, names=names, skiprows=5)
+        df = pd.read_csv(data, sep=',', header=None, names=names, skiprows=6,
+                         index_col=False)
         df.insert(0, 'ticker', self.ticker)
         self._res = df
