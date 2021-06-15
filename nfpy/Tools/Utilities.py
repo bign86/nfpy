@@ -75,12 +75,31 @@ def import_symbol(name: str, pkg: str = None):
 
 
 def list_to_dict(v: Sequence) -> dict:
-    """ Transforms a sequence of tuples [(key,value),...] into a dictionary. """
+    """ Transforms a sequence into a dictionary. Passing either a flat sequence
+        structured as [key1, value1, key2, value2, ...], or a nested sequence
+        structured as [(key1, x1, y1, z1), (key2, x2, y2, z2), ...].
+        In the first case the flat sequence must have an even length.
+    """
     if not v:
-        return dict()
-    elif len(v) % 2 != 0:
-        raise ValueError("An odd list can not be transformed into a dictionary.")
-    return dict(zip(v[::2], v[1::2]))
+        return {}
+
+    elif isinstance(v[0], (set, list, tuple)):
+        return {key: (*d,) for key, *d in v}
+
+    else:
+        if len(v) % 2 != 0:
+            raise ValueError("Cannot make an odd flat list into a dictionary.")
+        return dict(zip(v[::2], v[1::2]))
+
+
+def print_sequence(seq: Sequence, showindex: bool = False):
+    """ A super simple poor man's tabulate. """
+    if showindex:
+        for i, v in enumerate(seq):
+            print('{}\t{}'.format(i, v))
+    else:
+        for v in seq:
+            print('{}'.format(v))
 
 
 def ordered_unique(v: Sequence) -> Sequence:
