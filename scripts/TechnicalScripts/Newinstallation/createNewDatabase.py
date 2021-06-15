@@ -12,7 +12,7 @@ from nfpy import NFPY_ROOT_DIR
 import nfpy.DB as DB
 from nfpy.Tools import get_conf_glob
 
-__version__ = '0.5'
+__version__ = '0.6'
 _TITLE_ = "<<< Database creation script >>>"
 
 Q_DEC = "insert into DecDatatype (datatype, encoding) values (?, ?);"
@@ -23,6 +23,11 @@ PKL_FILE = 'db_static_data.p'
 JSN_FILE = 'db_static_data.json'
 
 TABLES_TO_CREATE = [
+    (
+        'Alerts',
+        """create table Alerts (uid TEXT, date DATETIME, cond TEXT, value REAL,
+            primary key (uid, date, cond, value)) without rowid;"""
+    ),
     (
         'Bond',
         """create table Bond (uid TEXT, isin TEXT NOT NULL, issuer TEXT NOT NULL,
@@ -52,8 +57,8 @@ TABLES_TO_CREATE = [
     ),
     (
         'Currency',
-        """create table Currency (uid TEXT, description TEXT, base_country TEXT,
-            tgt_country TEXT, base_fx TEXT NOT NULL, tgt_ccy TEXT NOT NULL,
+        """create table Currency (uid TEXT, description TEXT, price_country TEXT,
+            base_country TEXT, price_ccy TEXT NOT NULL, base_ccy TEXT NOT NULL,
             primary key (uid)) without rowid;"""
     ),
     (
@@ -92,10 +97,11 @@ TABLES_TO_CREATE = [
     ),
     (
         'Equity',
-        """create table Equity (uid TEXT, isin TEXT NOT NULL, description TEXT,
-            country TEXT, currency TEXT NOT NULL, company_uid TEXT,
-            preferred BOOL, [index] TEXT, primary key (uid),
-            foreign key (company_uid) references Company(uid)) without rowid;"""
+        """create table Equity (uid TEXT, ticker TEXT NOT NULL,
+            isin TEXT NOT NULL, description TEXT, country TEXT,
+            currency TEXT NOT NULL, company TEXT, preferred BOOL,
+            [index] TEXT, primary key (uid), foreign key (company)
+            references Company(uid)) without rowid;"""
     ),
     (
         'EquityTS',
@@ -117,8 +123,9 @@ TABLES_TO_CREATE = [
     ),
     (
         'Indices',
-        """create table Indices (uid TEXT, area TEXT, currency TEXT NOT NULL,
-            description TEXT, asset_class TEXT, primary key (uid)) without rowid;"""
+        """create table Indices (uid TEXT, ticker TEXT NOT NULL, area TEXT,
+            currency TEXT NOT NULL, description TEXT, ac TEXT,
+            primary key (uid)) without rowid;"""
     ),
     (
         'IndexTS',
@@ -160,8 +167,8 @@ TABLES_TO_CREATE = [
     ),
     (
         'Rate',
-        """create table Rate (uid TEXT, description TEXT, currency TEXT, tenor REAL,
-            is_rf BOOL NOT NULL, primary key (uid)) without rowid;"""
+        """create table Rate (uid TEXT, description TEXT, currency TEXT,
+            tenor REAL, is_rf BOOL NOT NULL, primary key (uid)) without rowid;"""
     ),
     (
         'RateTS',
@@ -189,8 +196,8 @@ TABLES_TO_CREATE = [
     (
         'Trades',
         """create table Trades (ptf_uid TEXT, date DATETIME, pos_uid TEXT,
-            buy_sell BOOL NOT NULL, currency TEXT NOT NULL, quantity REAL NOT NULL,
-            price REAL NOT NULL, costs REAL, market TEXT,
+            buy_sell BOOL NOT NULL, currency TEXT NOT NULL,
+            quantity REAL NOT NULL, price REAL NOT NULL, costs REAL, market TEXT,
             primary key (ptf_uid, date, pos_uid), foreign key (ptf_uid)
             references Portfolio(uid)) without rowid;"""
     ),
@@ -241,7 +248,8 @@ def get_db_handler():
     db_ = DB.get_db_glob()
 
     if not db_:
-        raise RuntimeError('I can not connect to the database... Sorry, but I got to stop here :(')
+        msg = 'I can not connect to the database... Sorry, but I got to stop here :('
+        raise RuntimeError(msg)
     print("New database created in {}".format(db_.db_path))
 
     return db_

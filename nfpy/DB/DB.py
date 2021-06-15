@@ -24,7 +24,7 @@ SQLITE2PY_TYPES = {
     'BOOL': bool,
 }
 
-_MIN_DB_VERSION = 0.7
+_MIN_DB_VERSION = 0.8
 
 
 class DBHandler(metaclass=Singleton):
