@@ -206,7 +206,8 @@ class QueryBuilder(metaclass=Singleton):
             Return:
                 query [str]: query ready to be used in an execute
         """
-        return self._get_insert(ins_table, ins_fields, 'insert or replace', **kwargs)
+        return self._get_insert(ins_table, ins_fields,
+                                'insert or replace', **kwargs)
 
     def _get_insert(self, ins_table: str, ins_fields: Sequence,
                     command: str, **kwargs) -> str:
@@ -286,16 +287,20 @@ class QueryBuilder(metaclass=Singleton):
         return query + ';'
 
     @staticmethod
-    def selectall(table: str) -> str:
+    def selectall(table: str, fields: Iterable = None) -> str:
         """ Builds a select query for input table. """
-        return 'select * from ' + table + ';'
+        f_str = '*'
+        if fields:
+            f_str = "[" + "],[".join(fields) + "]"
+
+        return 'select ' + f_str + ' from ' + table + ';'
 
     @staticmethod
-    def delete(table: str, fields: Sequence = ()) -> str:
+    def delete(table: str, fields: Sequence = None) -> str:
         """ Builds a delete query for input table:
             Input:
                 table [str]: for the from clause
-                fields [List[str]]: used for the where condition
+                fields [Sequence[str]]: used for the where condition
 
             Return:
                 query [str]: query ready to be used in an execute
