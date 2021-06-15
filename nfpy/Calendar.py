@@ -5,7 +5,6 @@
 
 import datetime
 import itertools
-import warnings
 
 import numpy as np
 import pandas as pd
@@ -146,9 +145,9 @@ class Calendar(metaclass=Singleton):
         # offset = min(2, max(0, (self.end.weekday() + 6) % 7 - 3))
         self._t0 = self.end - off.Day(offset)
 
-        print(' * Calendar dates: {} -> {} : {}'.format(self._start.date(),
-                                                        self._end.date(),
-                                                        self._t0.date()))
+        print(' * Calendar dates: {} -> {} : {}'
+              .format(self._start.date(), self._end.date(), self._t0.date()),
+              end='\n\n')
         self._initialized = True
 
     @staticmethod
@@ -183,21 +182,6 @@ class Calendar(metaclass=Singleton):
         target = self._calendar.get_loc(shifted, method=method)
         return self._calendar[target]
 
-    def is_in_calendar(self, dt: TyDate) -> bool:
-        """ Check whether the given date is part of the calendar """
-        warnings.warn("Deprecated! Please use the 'in' keyword directly!",
-                      DeprecationWarning)
-        return self.__contains__(dt)
-
-
-def date_str_2_dt(dt: Union[Sequence[str], str], fmt: str = '%Y-%m-%d') \
-        -> Union[TyDate, TyDateSequence]:
-    warnings.warn("Deprecated! use date_2_datetime()!", DeprecationWarning)
-    if isinstance(dt, str):
-        return datetime.datetime.strptime(dt, fmt)
-    elif isinstance(dt, Sequence):
-        return [datetime.datetime.strptime(d, fmt) for d in dt]
-
 
 def date_2_datetime(dt: Union[TyDate, TyDateSequence],
                     fmt: str = '%Y-%m-%d') -> Union[TyDate, TyDateSequence]:
@@ -223,16 +207,6 @@ def date_2_datetime(dt: Union[TyDate, TyDateSequence],
         return dt
 
 
-def today_(string: bool = True, fmt: str = '%Y-%m-%d') \
-        -> Union[str, datetime.date, pd.Timestamp]:
-    """ Return a string with today date """
-    warnings.warn("Deprecated! Please use today()!", DeprecationWarning)
-    today__ = datetime.date.today()
-    if string:
-        today__ = today__.strftime(fmt)
-    return today__
-
-
 def today(mode: str = 'str', fmt: str = '%Y-%m-%d') \
         -> TyDate:
     """ Return a string with today date """
@@ -246,16 +220,6 @@ def today(mode: str = 'str', fmt: str = '%Y-%m-%d') \
     else:
         raise ValueError('Mode {} not recognized!'.format(mode))
     return today__
-
-
-def last_business_(offset: int = 1, string: bool = True, fmt: str = '%Y-%m-%d') \
-        -> TyDate:
-    """ Return the previous business day. """
-    warnings.warn("Deprecated! Please use last_business()!", DeprecationWarning)
-    lbd_ = (datetime.datetime.today() - off.BDay(offset)).date()
-    if string:
-        lbd_ = lbd_.strftime(fmt)
-    return lbd_
 
 
 def last_business(offset: int = 1, mode: str = 'str', fmt: str = '%Y-%m-%d') \
@@ -312,6 +276,11 @@ def shift(dt: pd.Timestamp, n: int, freq: str) -> pd.Timestamp:
     """
     offset = _FREQ_LABELS[freq][1]
     return dt + offset(int(n))
+
+
+def pd_2_np64(dt: Union[np.datetime64, pd.Timestamp]) \
+        -> Union[None, np.datetime64]:
+    return dt.asm8 if isinstance(dt, pd.Timestamp) else dt
 
 
 def get_calendar_glob() -> Calendar:
