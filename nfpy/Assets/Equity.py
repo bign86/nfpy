@@ -3,8 +3,11 @@
 # Base class for simple equity stock
 #
 
+import numpy as np
 import pandas as pd
+from typing import Union
 
+import nfpy.Calendar as Cal
 import nfpy.Financial.Math as Math
 from nfpy.Tools import (Exceptions as Ex)
 
@@ -80,7 +83,6 @@ class Equity(Asset):
         try:
             adj_f = self._df['adj_factors']
         except KeyError:
-            # FIXME: splits are not present since Yahoo does the adjustment for splits
             self._adjust_prices()
             adj_f = self._df['adj_factors']
         return adj_f
@@ -120,17 +122,21 @@ class Equity(Asset):
         self._df['adj_price'] = adj_p
         self._df['adj_factors'] = adj_f
 
-    def beta(self, benchmark: Asset = None, start: pd.Timestamp = None,
-             end: pd.Timestamp = None, w: int = None, log: bool = False) -> tuple:
-        """ Returns the beta between the equity and the benchmark index given as
-            input. If dates are specified, the beta is calculated on the resulting
-            interval (end date excluded). If a window is given, beta is calculated
-            rolling.
+    def beta(self, benchmark: Asset = None,
+             start: Union[np.datetime64, pd.Timestamp] = None,
+             end: Union[np.datetime64, pd.Timestamp] = None,
+             w: int = None, log: bool = False) -> tuple:
+        """ Returns the beta between the equity and the benchmark index given
+            as input. If dates are specified, the beta is calculated on the
+            resulting interval (end date excluded). If a window is given, beta
+            is calculated rolling.
 
             Input:
                 benchmark [Asset]: usually an index (default: reference index)
-                start [pd.Timestamp]: start date of the series (default: None)
-                end [pd.Timestamp]: end date of the series excluded (default: None)
+                start [Union[np.datetime64, pd.Timestamp]]:
+                    start date of the series (default: None)
+                end [Union[np.datetime64, pd.Timestamp]]:
+                    end date of the series (default: None)
                 w [int]: window size for rolling calculation (default: None)
                 is_log [bool]: it set to True use is_log returns (default: False)
 
@@ -148,23 +154,27 @@ class Equity(Asset):
 
         eq = self.log_returns if log else self.returns
         idx = benchmark.log_returns if log else benchmark.returns
-        start_dt = start.asm8 if start else None
-        end_dt = end.asm8 if end else None
+        start = Cal.pd_2_np64(start)
+        end = Cal.pd_2_np64(end)
         return Math.beta(eq.index.values, eq.values, idx.values,
-                         start_dt, end_dt, w)
+                         start, end, w)
 
-    def correlation(self, benchmark: Asset = None, start: pd.Timestamp = None,
-                    end: pd.Timestamp = None, w: int = None, log: bool = False) \
+    def correlation(self, benchmark: Asset = None,
+                    start: Union[np.datetime64, pd.Timestamp] = None,
+                    end: Union[np.datetime64, pd.Timestamp] = None,
+                    w: int = None, log: bool = False) \
             -> tuple:
-        """ Returns the beta between the equity and the benchmark index given as
-            input. If dates are specified, the beta is calculated on the resulting
-            interval (end date excluded). If a window is given, beta is calculated
-            rolling.
+        """ Returns the beta between the equity and the benchmark index given
+            as input. If dates are specified, the beta is calculated on the
+            resulting interval (end date excluded). If a window is given, beta
+            is calculated rolling.
 
             Input:
                 benchmark [Asset]: usually an index (default: reference index)
-                start [pd.Timestamp]: start date of the series (default: None)
-                end [pd.Timestamp]: end date of the series excluded (default: None)
+                start [Union[np.datetime64, pd.Timestamp]]:
+                    start date of the series (default: None)
+                end [Union[np.datetime64, pd.Timestamp]]:
+                    end date of the series excluded (default: None)
                 w [int]: window size for rolling calculation (default: None)
                 is_log [bool]: it set to True use is_log returns (default: False)
 
@@ -181,7 +191,7 @@ class Equity(Asset):
 
         eq = self.log_returns if log else self.returns
         idx = benchmark.log_returns if log else benchmark.returns
-        start_dt = start.asm8 if start else None
-        end_dt = end.asm8 if end else None
+        start = Cal.pd_2_np64(start)
+        end = Cal.pd_2_np64(end)
         return Math.correlation(eq.index.values, eq.values, idx.values,
-                                start_dt, end_dt, w)
+                                start, end, w)

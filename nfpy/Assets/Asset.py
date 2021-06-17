@@ -5,10 +5,10 @@
 
 import numpy as np
 import pandas as pd
-from typing import TypeVar
+from typing import (TypeVar, Union)
 
-from nfpy.Calendar import get_calendar_glob
-import nfpy.Financial as Fin
+import nfpy.Calendar as Cal
+import nfpy.Financial.Math as Math
 from nfpy.Tools import (Exceptions as Ex)
 
 from .FinancialItem import FinancialItem
@@ -18,7 +18,7 @@ class Asset(FinancialItem):
     """ Base class to hold information on a single asset """
 
     _TS_TABLE = ''
-    _TS_ROLL_KEY_LIST = []
+    _TS_ROLL_KEY_LIST = ()
 
     def __init__(self, uid: str):
         super().__init__(uid)
@@ -26,7 +26,7 @@ class Asset(FinancialItem):
         self.dtype = -1
 
         # takes the current calendar. It must have been initialized before!
-        c = get_calendar_glob()
+        c = Cal.get_calendar_glob()
         if c:
             self._df = pd.DataFrame(index=c.calendar)
         else:
@@ -38,7 +38,7 @@ class Asset(FinancialItem):
         return self._TS_TABLE
 
     @property
-    def ts_roll_key_list(self) -> list:
+    def ts_roll_key_list(self) -> tuple:
         return self._TS_ROLL_KEY_LIST
 
     @property
@@ -88,25 +88,25 @@ class Asset(FinancialItem):
         """ Returns the full DataFrame for the asset. """
         return self._df
 
-    def last_price(self, dt: pd.Timestamp = None) -> tuple:
+    def last_price(self, dt: Union[np.datetime64, pd.Timestamp] = None) \
+            -> tuple:
         """ Returns the last valid price at date.
 
             Input:
-                dt [pd.Timestamp]: reference date (default: None)
+                dt Union[np.datetime64, pd.Timestamp]: reference date (default: None)
 
             Output:
                 v [flaot]: last valid price
                 date [pd.Timestamp]: date of the last valid price
                 idx [int]: index of the last valid price
         """
-        if not dt:
-            dt = self._cal.t0
+        dt = Cal.pd_2_np64(dt) if dt else self._cal.t0.asm8
 
         p = self.prices
         ts, date = p.values, p.index.values
 
-        pos = np.searchsorted(date, [dt.asm8])
-        idx = Fin.last_valid_index(ts, pos)
+        pos = np.searchsorted(date, [dt])[0]
+        idx = Math.last_valid_index(ts, pos)
 
         return ts[idx], date[idx], idx
 
@@ -136,13 +136,13 @@ class Asset(FinancialItem):
         self.dtype = self._dt.get(dt)
 
         # Take results and append to the unique dataframe indexed on the calendar
-        q = self._qb.select(self.ts_table, fields=['date', 'value'],
+        q = self._qb.select(self.ts_table, fields=('date', 'value'),
                             rolling=self.ts_roll_key_list)
         data = self._get_dati_for_query(self.ts_table,
                                         rolling=self.ts_roll_key_list)
         self.dtype = -1
 
-        cal = get_calendar_glob()
+        cal = Cal.get_calendar_glob()
         data += (cal.start.to_pydatetime(), cal.end.to_pydatetime())
 
         conn = self._db.connection
@@ -162,11 +162,11 @@ class Asset(FinancialItem):
 
     def calc_returns(self) -> pd.Series:
         """ Calculates the returns from the series of the prices. """
-        return Fin.ret(self.prices)
+        return Math.ret(self.prices)
 
     def calc_log_returns(self) -> pd.Series:
         """ Calculates the log returns from the series of the prices. """
-        return Fin.logret(self.prices)
+        return Math.logret(self.prices)
 
     def write_dtype(self, dt: str):
         """ Writes a time series to the DB. The content of the column 'datatype'
@@ -179,7 +179,7 @@ class Asset(FinancialItem):
                 KeyError: if datatype is not recognized in the decoding table
         """
         self.dtype = self._dt.get(dt)
-        q_del = self._qb.delete(self.ts_table, fields=["uid", "dtype"])
+        q_del = self._qb.delete(self.ts_table, fields=("uid", "dtype"))
         self._db.execute(q_del, (self.uid, self.dtype))
 
         # iterate over the index and extracting the dtype value
@@ -192,75 +192,81 @@ class Asset(FinancialItem):
         self._db.executemany(q_ins, iter_df__)
         del self.dtype
 
-    def expct_return(self, start: pd.Timestamp = None, end: pd.Timestamp = None,
+    def expct_return(self, start: Union[np.datetime64, pd.Timestamp] = None,
+                     end: Union[np.datetime64, pd.Timestamp] = None,
                      is_log: bool = False) -> float:
         """ Expected return for the asset. It corresponds to the geometric mean
             for standard returns, and to the simple mean for log returns.
 
             Input:
-                start [pd.Timestamp]: start date of the series (default: None)
-                end [pd.Timestamp]: end date of the series excluded (default: None)
+                start [Union[np.datetime64, pd.Timestamp]]:
+                    start date of the series (default: None)
+                end [Union[np.datetime64, pd.Timestamp]]:
+                    end date of the series excluded (default: None)
                 is_log [bool]: it set to True use is_log returns (default: False)
 
             Output:
                 mean_ret [float]: expected value for returns
         """
         _ret = self.log_returns if is_log else self.returns
-        if start:
-            start = start.asm8
-        if end:
-            end = end.asm8
+        start = Cal.pd_2_np64(start)
+        end = Cal.pd_2_np64(end)
         ts, dt = _ret.values, _ret.index.values
-        return Fin.e_ret(ts, dt, start=start, end=end, is_log=is_log)
+        return Math.e_ret(ts, dt, start=start, end=end, is_log=is_log)
 
-    def return_volatility(self, start: pd.Timestamp = None,
-                          end: pd.Timestamp = None,
+    def return_volatility(self, start: Union[np.datetime64, pd.Timestamp] = None,
+                          end: Union[np.datetime64, pd.Timestamp] = None,
                           is_log: bool = False) -> float:
         """ Volatility of asset returns.
 
             Input:
-                start [pd.Timestamp]: start date of the series (default: None)
-                end [pd.Timestamp]: end date of the series excluded (default: None)
+                start [Union[np.datetime64, pd.Timestamp]]:
+                    start date of the series (default: None)
+                end [Union[np.datetime64, pd.Timestamp]]:
+                    end date of the series excluded (default: None)
                 is_log [bool]: it set to True use is_log returns (default: False)
 
             Output:
                 vola_ret [float]: expected value for returns
         """
         _ret = self.log_returns if is_log else self.returns
-        if start:
-            start = start.asm8
-        if end:
-            end = end.asm8
-        _ts, _ = Fin.trim_ts(_ret.values, _ret.index.values, start=start, end=end)
+        start = Cal.pd_2_np64(start)
+        end = Cal.pd_2_np64(end)
+        _ts, _ = Math.trim_ts(_ret.values, _ret.index.values,
+                              start=start, end=end)
         return float(np.nanstd(_ts))
 
-    def total_return(self, start: pd.Timestamp = None, end: pd.Timestamp = None,
+    def total_return(self, start: Union[np.datetime64, pd.Timestamp] = None,
+                     end: Union[np.datetime64, pd.Timestamp] = None,
                      is_log: bool = False) -> float:
         """ Total return over the period for the asset.
 
             Input:
-                start [pd.Timestamp]: start date of the series (default: None)
-                end [pd.Timestamp]: end date of the series excluded (default: None)
+                start [Union[np.datetime64, pd.Timestamp]]:
+                    start date of the series (default: None)
+                end [Union[np.datetime64, pd.Timestamp]]:
+                    end date of the series excluded (default: None)
                 is_log [bool]: it set to True use is_log returns (default: False)
 
             Output:
                 tot_ret [float]: expected value for returns
         """
         _ret = self.log_returns if is_log else self.returns
-        if start:
-            start = start.asm8
-        if end:
-            end = end.asm8
+        start = Cal.pd_2_np64(start)
+        end = Cal.pd_2_np64(end)
         ts, dt = _ret.values, _ret.index.values
-        return Fin.tot_ret(ts, dt, start=start, end=end, is_log=is_log)
+        return Math.tot_ret(ts, dt, start=start, end=end, is_log=is_log)
 
-    def performance(self, start: pd.Timestamp = None, end: pd.Timestamp = None,
+    def performance(self, start: Union[np.datetime64, pd.Timestamp] = None,
+                    end: Union[np.datetime64, pd.Timestamp] = None,
                     is_log: bool = False, base: float = 1.) -> pd.Series:
         """ Compounded returns of the asset from a base value.
 
             Input:
-                start [pd.Timestamp]: start date of the series (default: None)
-                end [pd.Timestamp]: end date of the series excluded (default: None)
+                start [Union[np.datetime64, pd.Timestamp]]:
+                    start date of the series (default: None)
+                end [Union[np.datetime64, pd.Timestamp]]:
+                    end date of the series excluded (default: None)
                 is_log [bool]: it set to True use is_log returns (default: False)
                 base [float]: base value (default: 1.)
 
@@ -268,12 +274,10 @@ class Asset(FinancialItem):
                 perf [pd.Series]: Compounded returns series
         """
         r = self.returns
-        if start:
-            start = start.asm8
-        if end:
-            end = end.asm8
-        p, dt = Fin.comp_ret(r.values, r.index.values, start=start,
-                             end=end, base=base, is_log=is_log)
+        start = Cal.pd_2_np64(start)
+        end = Cal.pd_2_np64(end)
+        p, dt = Math.comp_ret(r.values, r.index.values, start=start,
+                              end=end, base=base, is_log=is_log)
         return pd.Series(p, index=dt)
 
 
