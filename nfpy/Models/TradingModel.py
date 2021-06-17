@@ -9,7 +9,8 @@ from typing import Union
 
 from nfpy.Calendar import get_calendar_glob
 import nfpy.Financial.Math as Math
-from nfpy.Trading import (Indicators as Ind, Strategies as Str, Trends as Tr)
+from nfpy.Trading import (Indicators as Ind, Strategies as Str)
+import nfpy.Trading as Trd
 
 from .BaseModel import (BaseModel, BaseModelResult)
 
@@ -39,37 +40,15 @@ class TradingModel(BaseModel):
 
     def _calculate(self):
         # Support/Resistances
-        self._calc_sr()
+        self._calc_alerts()
 
         # Moving averages
         self._calc_wma()
 
-    def _calc_sr(self):
-        prices = self._asset.prices
-        w_fast, w_slow = self._w_ma_fast, self._w_ma_slow
-        sr_mult = self._sr_mult
-
-        # Support/resistances
-        n_back_slow = -int(w_slow * sr_mult)
-        p_slow = prices.iloc[n_back_slow:]
-        max_i, min_i = Tr.find_ts_extrema(p_slow, w=w_slow)
-        all_i = sorted(max_i + min_i)
-        pp = p_slow.iloc[all_i]
-        sr_slow = Tr.group_extrema(pp, dump=.75)[0]
-
-        n_back_fast = -int(w_fast * sr_mult)
-        p_fast = prices.iloc[n_back_fast:]
-        max_i, min_i = Tr.find_ts_extrema(p_fast, w=w_fast)
-        all_i = sorted(max_i + min_i)
-        pp = p_fast.iloc[all_i]
-        sr_fast = Tr.group_extrema(pp, dump=.75)[0]
-
-        start_date = prices.index[n_back_fast]
-        vola = self._asset.return_volatility(start=start_date)
-        v_sr_slow, v_sr_fast = Tr.merge_rs(abs(vola),
-                                           (sr_slow, sr_fast))
-
-        self._res_update(sr_fast=v_sr_fast, sr_slow=v_sr_slow)
+    def _calc_alerts(self):
+        ae = Trd.AlertEngine()
+        alerts = ae.raise_breaches(self._uid, sr=True, alerts=True)
+        self._res_update(alerts=alerts)
 
     def _calc_wma(self):
         prices, t0 = self._asset.prices, self._t0
@@ -84,10 +63,8 @@ class TradingModel(BaseModel):
         fast_length = int(w_fast * (sr_mult + 1))
         p_fast = prices.iloc[-fast_length:]
         ema_cr = Str.TwoEMACross(w_fast, w_slow, True)
-        signals, ma = ema_cr.f(p_fast.index.values, p_fast.values)
+        signals, ma = ema_cr(p_fast.index.values, p_fast.values)
         wma_fast = pd.Series(ma[w_fast], p_fast.index.values)
-        # signals, wma_fast, _ = Str.two_ema_cross(p_fast, w_fast, w_slow,
-        #                                          slow_ma=wma_slow)
 
         if len(signals.signals) > 0:
             p, dt = p_fast.values, p_fast.index.values
@@ -111,9 +88,7 @@ class TradingModel(BaseModel):
             df = pd.DataFrame(columns=['signal', 'price', 'return', 'delta days'])
 
         df.replace(to_replace={'signal': {1: 'buy', -1: 'sell'}}, inplace=True)
-
         self._res_update(ma_fast=wma_fast, ma_slow=wma_slow, signals=df)
-        # self._res_update(ma_fast=ma[w_fast], ma_slow=ma[w_slow], signals=df)
 
     def _otf_calculate(self, **kwargs) -> dict:
         pass

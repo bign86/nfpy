@@ -5,25 +5,24 @@
 #
 
 import numpy as np
-import pandas as pd
 from typing import Sequence
 
 import nfpy.Financial.Math as Math
 
 
-def smooth(ts: np.ndarray, w: int = 15) -> np.ndarray:
+def _smooth(ts: np.ndarray, w: int) -> np.ndarray:
     """ Smooth a time series.
 
         Input:
             ts [np.ndarray]: time series to smooth
-            w [int]: smoothing window (default: 15)
+            w [int]: smoothing window
 
         Output:
             smooth [np.ndarray]: smoothed time series
     """
     x = Math.ffill_cols(ts)
 
-    if w < 3:
+    if w < 2:
         return x
     elif x.shape[0] < w:
         raise ValueError("Input vector needs to be bigger than window size.")
@@ -39,98 +38,104 @@ def smooth(ts: np.ndarray, w: int = 15) -> np.ndarray:
     return c[h:-h]
 
 
-def find_minima(ts: pd.Series) -> tuple:
+def _find_minima(dt: np.ndarray, v: np.ndarray) -> tuple:
     """ Find the minima of a series.
 
         Input:
-            ts [pd.Series]: Input series
+            dt [np.ndarray]: Input dates series
+            v [np.ndarray]: Input values series
 
         Output:
-            res [pd.Series]: output series of minima
+            dt_res [np.ndarray]: output dates series of maxima
+            v_res [np.ndarray]: output values series of maxima
             idx [list]: list of numeric indices found
     """
-    ts_diff = (ts < ts.shift(1)) & (ts < ts.shift(-1))
-    res = ts.loc[ts_diff]
-    idx = [ts.index.get_loc(i) for i in res.index]
-    return res, idx
+    dt_res, v_res = dt[1:-1], v[1:-1]
+    v_diff = ((v_res - v[:-2]) < .0) & ((v_res - v[2:]) < .0)
+    dt_res, v_res = dt_res[v_diff], v_res[v_diff]
+    idx = np.where(v_diff)[0] + 1
+    return dt_res, v_res, idx
 
 
-def is_minima(ts: pd.Series, idx_list: Sequence) -> Sequence:
-    """ Check whether a sequence of indices corresponds to minima.
+# def is_minima(ts: pd.Series, idx_list: Sequence) -> Sequence:
+#     """ Check whether a sequence of indices corresponds to minima.
+#
+#         Input:
+#             ts [pd.Series]: Input series
+#             idx_list [Sequence]: list of locations to verify
+#
+#         Output:
+#             res [Sequence]: output series of truth values
+#     """
+#     ts_diff = [False] * len(idx_list)
+#     for i, idx in enumerate(idx_list):
+#         loc = ts.index.get_loc(idx)
+#         try:
+#             if (ts.iat[loc] < ts.iat[loc - 1]) & (ts.iat[loc] < ts.iat[loc + 1]):
+#                 ts_diff[i] = True
+#         except IndexError:
+#             pass
+#     return ts_diff
 
-        Input:
-            ts [pd.Series]: Input series
-            idx_list [Sequence]: list of locations to verify
 
-        Output:
-            res [Sequence]: output series of truth values
-    """
-    ts_diff = [False] * len(idx_list)
-    for i, idx in enumerate(idx_list):
-        loc = ts.index.get_loc(idx)
-        try:
-            if (ts.iat[loc] < ts.iat[loc - 1]) & (ts.iat[loc] < ts.iat[loc + 1]):
-                ts_diff[i] = True
-        except IndexError:
-            pass
-    return ts_diff
-
-
-def find_maxima(ts: pd.Series) -> tuple:
+def _find_maxima(dt: np.ndarray, v: np.ndarray) -> tuple:
     """ Find the maxima of a series.
 
         Input:
-            ts [pd.Series]: Input series
+            dt [np.ndarray]: Input dates series
+            v [np.ndarray]: Input values series
 
         Output:
-            res [pd.Series]: output series of maxima
+            dt_res [np.ndarray]: output dates series of maxima
+            v_res [np.ndarray]: output values series of maxima
             idx [list]: list of numeric indices found
     """
-    ts_diff = (ts > ts.shift(1)) & (ts > ts.shift(-1))
-    res = ts.loc[ts_diff]
-    idx = [ts.index.get_loc(i) for i in res.index]
-    return res, idx
+    dt_res, v_res = dt[1:-1], v[1:-1]
+    v_diff = ((v_res - v[:-2]) > .0) & ((v_res - v[2:]) > .0)
+    dt_res, v_res = dt_res[v_diff], v_res[v_diff]
+    idx = np.where(v_diff)[0] + 1
+    return dt_res, v_res, idx
 
 
-def is_maxima(ts: pd.Series, idx_list: Sequence) -> Sequence:
-    """ Check whether a sequence of indices corresponds to maxima.
+# def is_maxima(ts: pd.Series, idx_list: Sequence) -> Sequence:
+#     """ Check whether a sequence of indices corresponds to maxima.
+#
+#         Input:
+#             ts [pd.Series]: Input series
+#             idx_list [Sequence]: list of locations to verify
+#
+#         Output:
+#             res [Sequence]: output series of truth values
+#     """
+#     ts_diff = [False] * len(idx_list)
+#     for i, idx in enumerate(idx_list):
+#         loc = ts.index.get_loc(idx)
+#         try:
+#             if (ts.iat[loc] > ts.iat[loc - 1]) & (ts.iat[loc] > ts.iat[loc + 1]):
+#                 ts_diff[i] = True
+#         except IndexError:
+#             pass
+#     return ts_diff
 
-        Input:
-            ts [pd.Series]: Input series
-            idx_list [Sequence]: list of locations to verify
 
-        Output:
-            res [Sequence]: output series of truth values
-    """
-    ts_diff = [False] * len(idx_list)
-    for i, idx in enumerate(idx_list):
-        loc = ts.index.get_loc(idx)
-        try:
-            if (ts.iat[loc] > ts.iat[loc - 1]) & (ts.iat[loc] > ts.iat[loc + 1]):
-                ts_diff[i] = True
-        except IndexError:
-            pass
-    return ts_diff
-
-
-def find_ts_extrema(ts: pd.Series, w: int = 15):
+def _find_ts_extrema(dt: np.ndarray, val: np.ndarray, w: int = 15) -> tuple:
     """ Find the signal points corresponding to maxima/minima of a underlying
         smoothed series. Return the unsorted maxima/minima and relative indexes.
 
         Input:
-            ts [pd.Series]: Input series
+            dt [np.ndarray]: Input dates series
+            val [np.ndarray]: Input values series
             w [int]: list of locations to verify (Default: 15)
 
         Output:
             max_i [tuple]: unsorted list of maxima numeric indices found
             min_i [tuple]: unsorted list of minima numeric indices found
     """
-    smoo = pd.Series(smooth(ts.values, w=w), index=ts.index)
-    _, i_max = find_maxima(smoo)
-    _, i_min = find_minima(smoo)
+    s = _smooth(val, w=w)
+    i_max = _find_maxima(dt, s)[2]
+    i_min = _find_minima(dt, s)[2]
 
     # Search maxima/minima
-    val = ts.values
     length = val.shape[0]
     # w_2 = (w + 1) // 2
     w_2 = w // 4  # This is somewhat arbitrary, let's see whether it works
@@ -158,10 +163,10 @@ def find_ts_extrema(ts: pd.Series, w: int = 15):
     return tuple(max_i), tuple(min_i)
 
 
-def group_extrema(extrema, tolerance=.05, min_delta=.0025, dump=.75,
-                  max_iter=50) -> tuple:
-    pp = extrema.values
-    mean_p = np.nanmean(pp)
+def _group_extrema(extrema: np.ndarray, tolerance: float = .05,
+                   min_delta: float = .0025, dump: float = .75,
+                   max_iter: int = 50) -> tuple:
+    mean_p = np.nanmean(extrema)
     delta = tolerance * mean_p
     min_delta = min_delta * mean_p
     converged = False
@@ -171,9 +176,9 @@ def group_extrema(extrema, tolerance=.05, min_delta=.0025, dump=.75,
         it += 1
         grp_list = []
         # TODO: substitute loop with initial distance calculation
-        for i, p_i in enumerate(pp):
+        for i, p_i in enumerate(extrema):
             high, low = p_i + delta, p_i - delta
-            indexes = np.where(np.logical_and(pp > low, pp < high))[0]
+            indexes = np.where(np.logical_and(extrema > low, extrema < high))[0]
             grp_list.append(indexes)
 
         converged = True
@@ -182,7 +187,7 @@ def group_extrema(extrema, tolerance=.05, min_delta=.0025, dump=.75,
             for g in grp_list:
                 if len(g) < 3:
                     continue
-                v = np.tile(pp[g], (len(g), 1))
+                v = np.tile(extrema[g], (len(g), 1))
                 error = np.abs(v - v.T) - delta * .5
                 if np.any(error > .0):
                     delta = max(min_delta, delta * dump)
@@ -195,7 +200,7 @@ def group_extrema(extrema, tolerance=.05, min_delta=.0025, dump=.75,
         if (len(g) == 1) or (i in eliminated):
             continue
         eliminated.extend([v for v in g if v != i])
-    groups = [extrema.iloc[g] for i, g in enumerate(grp_list)
+    groups = [extrema[g] for i, g in enumerate(grp_list)
               if i not in eliminated]
     centers = np.array([g.mean() for g in groups])
     centers = np.unique(centers)
@@ -203,15 +208,15 @@ def group_extrema(extrema, tolerance=.05, min_delta=.0025, dump=.75,
     return centers, converged, it, delta
 
 
-def merge_rs(ret_vola: float, groups: Sequence) -> Sequence:
+def merge_sr(vola: float, groups: Sequence) -> Sequence:
     """ Remove redundant S/R lines from S/R groups. The groups must be supplied
         in order of priority. The first group is retained intact, the S/R lines
         in following groups are compared to the ones in previous groups. If a
         line falls in the confidence band of another S/R line generated using
-        the daily return volatility, the line is eliminated.
+        the daily return volatility, the line is deleted.
 
         Input:
-            ret_vola [float]: returns volatility
+            vola [float]: returns volatility
             groups [Sequence]: sequence of S/R groups in order of priority
 
         Output:
@@ -224,15 +229,14 @@ def merge_rs(ret_vola: float, groups: Sequence) -> Sequence:
 
     v = np.concatenate(groups[:-1])
     v = np.tile(v, (2, 1))
-    v[0, :] *= (1. + ret_vola)
-    v[1, :] *= (1. - ret_vola)
+    v[0, :] *= (1. + vola)
+    v[1, :] *= (1. - vola)
 
     count = groups[0].shape[0]
     for g in groups[1:]:
         to_add = []
         for i in g:
-            mask = (i < v[0, :count]) & \
-                   (i > v[1, :count])
+            mask = (i < v[0, :count]) & (i > v[1, :count])
             if not np.any(mask):
                 to_add.append(i)
 
@@ -240,3 +244,20 @@ def merge_rs(ret_vola: float, groups: Sequence) -> Sequence:
         count += len(g)
 
     return tuple(result)
+
+
+def search_sr(dt: np.ndarray, v: np.ndarray, w: int,
+              **kwargs) -> np.ndarray:
+    """ Search Support/Resistance lines.
+
+        Input:
+            dt [np.ndarray]: Input dates series
+            val [np.ndarray]: Input values series
+            w [int]: list of locations to verify
+
+        Output:
+            centers [np.ndarray]: array with group centers
+    """
+    max_i, min_i = _find_ts_extrema(dt, v, w=w)
+    all_i = sorted(max_i + min_i)
+    return _group_extrema(v[all_i], **kwargs)[0]

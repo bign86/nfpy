@@ -3,7 +3,6 @@
 # Functions to backtest simple strategies
 #
 
-# from math import floor
 from collections import deque
 import numpy as np
 import os
@@ -14,7 +13,6 @@ import nfpy.Calendar as Cal
 import nfpy.Financial.Math as Math
 from nfpy.Tools import (get_conf_glob, Utilities as Ut)
 
-# from .BasePricer import TyPricer
 from .BaseStrategy import (TyStrategy, StrategyResult)
 from .BaseSizer import TySizer
 from .Enums import *
@@ -191,7 +189,10 @@ class Backtesting(object):
 
         # Backtest strategy
         for eq in self._gen_sample():
-            self._backtest(eq)
+            try:
+                self._backtest(eq)
+            except RuntimeError as ex:
+                print(ex)
 
         # Consolidate results
         self._consolidate()
@@ -212,12 +213,6 @@ class Backtesting(object):
             ptf = self._apply(p, signals, self._initial)
             ptf.statistics()
             self._res[eq.uid] = ptf
-
-        print('{} [{}]\t{:.0f}\t{:.1%}'.format(eq.uid, len(ptf.trades), ptf.cash,
-                                               ptf.cash / 10000 - 1))
-        for t in ptf.trades:
-            print('{} {}\t{:.2f}\t{}\t{:.2f}\t{:.2f}\t{:.2f}'
-                  .format(str(t[0])[:10], *t[1:]))
 
     def _apply(self, prices: np.ndarray, signals: StrategyResult,
                initial: float) -> Portfolio:
@@ -307,6 +302,19 @@ class Backtesting(object):
             csd.sell_number.append(bt.num_sell)
 
         self._res['consolidated'] = csd
+
+    def print(self):
+        c0 = self._initial
+        for uid in self._uids:
+            ptf = self._res[uid]
+            print('{} [{}]\t{:.0f}\t{:.1%}'
+                  .format(uid, len(ptf.trades), ptf.cash, ptf.cash / c0 - 1.))
+            for t in ptf.trades:
+                print('{} {}\t{:.2f}\t{}\t{:.2f}\t{:.2f}\t{:.2f}'
+                      .format(str(t[0])[:10], *t[1:]))
+
+        ptf = self._res['consolidated']
+        print(ptf)
 
     # @@@ RESULTS TO SAVE/SHOW @@@
     # + ptf final value and total return

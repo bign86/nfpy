@@ -1,11 +1,15 @@
+from .AlertEngine import AlertEngine
 from .Backtesting import Backtesting
 from .BaseSizer import TySizer
 from .BaseStrategy import TyStrategy
 from .Enums import (Order, Signal)
-from .Trends import (find_ts_extrema, group_extrema)
+from .Trends import (merge_sr, search_sr)
 
 
 __all__ = [
+    # AlertEngine
+    'AlertEngine',
+
     # Backtesting
     'Backtesting',
 
@@ -19,5 +23,5 @@ __all__ = [
     'Order', 'Signal',
 
     # Trends
-    'find_ts_extrema', 'group_extrema',
+    'merge_sr', 'search_sr',
 ]
