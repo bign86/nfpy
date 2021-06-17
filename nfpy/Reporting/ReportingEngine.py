@@ -38,7 +38,7 @@ class ReportingEngine(metaclass=Singleton):
         'MEDM': ReportMEDM, 'MBDM': ReportMBDM, 'MPDM': ReportMPDM,
         'PtfOptimization': ReportPtfOptimization, 'TRD': ReportTrading,
     }
-    _TMPL_PATH = os.path.join(NFPY_ROOT_DIR, 'IO/Reporting/Templates')
+    _TMPL_PATH = os.path.join(NFPY_ROOT_DIR, 'Reporting/Templates')
     _REP_EXT = '.html'
 
     def __init__(self):
@@ -193,11 +193,11 @@ class ReportingEngine(metaclass=Singleton):
         elif a_type == 'Company':
             f = f + ['name', 'sector', 'industry', 'equity', 'currency', 'country']
         elif a_type == 'Currency':
-            f = f + ['base_country', 'tgt_country', 'base_fx', 'tgt_fx']
+            f = f + ['price_country', 'base_country', 'price_ccy', 'base_ccy']
         elif a_type == 'Equity':
-            f = f + ['isin', 'country', 'currency', 'company_uid', 'index']
+            f = f + ['ticker', 'isin', 'country', 'currency', 'company', 'index']
         elif a_type == 'Indices':
-            f = f + ['area', 'currency', 'asset_class']
+            f = f + ['ticker', 'area', 'currency', 'ac']
         elif a_type == 'Portfolio':
             f = f + ['name', 'currency', 'inception_date', 'benchmark',
                      'num_constituents']

@@ -5,7 +5,7 @@
 import pandas as pd
 
 from nfpy.Assets import get_af_glob
-import nfpy.IO as IO
+import nfpy.DB as DB
 from nfpy.Tools import (Singleton, Exceptions as Ex, get_conf_glob)
 
 
@@ -81,11 +81,13 @@ class CurrencyFactory(metaclass=Singleton):
 
     def __init__(self):
         self._af = get_af_glob()
-        self._qb = IO.get_qb_glob()
-        self._db = IO.get_db_glob()
+        self._qb = DB.get_qb_glob()
+        self._db = DB.get_db_glob()
 
         self._dict_ccy = {}
 
+        self._q_fetch = self._qb.select(self._TABLE, fields=('uid',),
+                                        keys=('price_ccy', 'base_ccy'))
         base_ccy = get_conf_glob().base_ccy
         self._base_ccy = self._validate_ccy(base_ccy)
 
@@ -144,18 +146,16 @@ class CurrencyFactory(metaclass=Singleton):
 
     def _fetch_obj_fx(self, src_ccy: str, tgt_ccy: str):
         """ Fetch the exchange object for the given currencies. """
-        q = self._qb.select(self._TABLE, fields=['uid'], keys=['base_fx', 'tgt_fx'])
-
         # Search for the currency direct
         invert = False
-        res = self._db.execute(q, (src_ccy, tgt_ccy)).fetchall()
+        res = self._db.execute(self._q_fetch, (src_ccy, tgt_ccy)).fetchall()
         if len(res) > 1:
             raise ValueError('Too many currencies fetched, check database!')
 
         elif not res:
             # No results, search for the currency inverted
             invert = True
-            res = self._db.execute(q, (tgt_ccy, src_ccy)).fetchall()
+            res = self._db.execute(self._q_fetch, (tgt_ccy, src_ccy)).fetchall()
             if len(res) > 1:
                 raise ValueError('Too many currencies fetched, check database!')
 

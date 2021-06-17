@@ -13,11 +13,17 @@ class AssetFactory(metaclass=Singleton):
     """ Factory to create asset objects from their types """
 
     _INFO_TABLE = 'Assets'
+    _ASSET_TYPES = ('Bond', 'Company', 'Currency', 'Curve', 'Equity',
+                    'Indices', 'Portfolio', 'Rate')
 
     def __init__(self):
         self._db = DB.get_db_glob()
         self._qb = DB.get_qb_glob()
         self._known_assets = {}
+
+    @property
+    def asset_types(self) -> tuple:
+        return self._ASSET_TYPES
 
     def _fetch_type(self, uid: str) -> str:
         """ Fetch the correct asset type. """
@@ -66,7 +72,7 @@ class AssetFactory(metaclass=Singleton):
 
     def add(self, uid: str, asset_type: str):
         """ Add a new uid to the factory table. """
-        q = self._qb.select(self._INFO_TABLE, fields=['uid'], keys=['uid'])
+        q = self._qb.select(self._INFO_TABLE, fields=('uid',), keys=('uid',))
         r = self._db.execute(q, (uid,)).fetchall()
         if r:
             raise ValueError("'uid' = {} already present!".format(uid))
@@ -78,7 +84,7 @@ class AssetFactory(metaclass=Singleton):
         """ Remove an uid from the factory table. """
         if not isinstance(uid, str):
             raise TypeError("Only string accepted as inputs!")
-        q = self._qb.delete(self._INFO_TABLE, fields=['uid'])
+        q = self._qb.delete(self._INFO_TABLE, fields=('uid',))
         self._db.execute(q, (uid,), commit=True)
 
 

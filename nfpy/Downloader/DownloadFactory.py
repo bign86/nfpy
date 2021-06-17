@@ -5,12 +5,14 @@
 #
 
 from requests import RequestException
+from typing import KeysView
 
 import nfpy.Calendar as Cal
 import nfpy.DB as DB
 from nfpy.Tools import (Singleton, Exceptions as Ex)
 
 from .BaseDownloader import BasePage
+from .BaseProvider import BaseProvider
 from .ECB import ECBProvider
 from .IB import IBProvider
 from .Investing import InvestingProvider
@@ -34,14 +36,23 @@ class DownloadFactory(metaclass=Singleton):
     def __init__(self):
         self._db = DB.get_db_glob()
         self._qb = DB.get_qb_glob()
+        self._splits = []
 
     @property
     def download_table(self) -> str:
         return self._DWN_TABLE
 
-    def providers(self) -> list:
-        """ Return a list of _all_ available providers. """
-        return list(self._PROVIDERS.keys())
+    @property
+    def providers(self) -> KeysView[str]:
+        return self._PROVIDERS.keys()
+
+    @property
+    def splits(self) -> list:
+        return self._splits
+
+    @splits.setter
+    def splits(self, v: tuple):
+        self._splits.append(v)
 
     @staticmethod
     def print_parameters(page_obj: BasePage) -> int:
@@ -63,6 +74,9 @@ class DownloadFactory(metaclass=Singleton):
     def page_exists(self, provider: str, page: str) -> bool:
         """ Check if the page is supported for the given provider. """
         return page in self._PROVIDERS[provider].pages
+
+    def get_provider(self, v: str) -> BaseProvider:
+        return self._PROVIDERS[v]
 
     def fetch_downloads(self, provider: str = None, page: str = None,
                         ticker: str = None, active: bool = True) -> tuple:
@@ -96,9 +110,8 @@ class DownloadFactory(metaclass=Singleton):
                 data [list]: list of tuples, each one a fetched row
                 fields [list]: list of database column names
         """
-        return self._filter(self._IMP_TABLE, active, **{'uid': uid,
-                                                        'provider': provider,
-                                                        'item': item})
+        return self._filter(self._IMP_TABLE, active,
+                            **{'uid': uid, 'provider': provider, 'item': item})
 
     def _filter(self, table: str, active: bool, **kwargs) -> tuple:
         where = 'active = 1' if active else ''

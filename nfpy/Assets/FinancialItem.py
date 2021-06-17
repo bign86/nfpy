@@ -40,7 +40,7 @@ class FinancialItem(object):
     def base_table(self) -> str:
         return self._BASE_TABLE
 
-    def _get_dati_for_query(self, table: str, rolling: list = ()) -> tuple:
+    def _get_dati_for_query(self, table: str, rolling: tuple = ()) -> tuple:
         """ Return a tuple with the data necessary for querying the database
             EXCLUDING the rolling keys
         """

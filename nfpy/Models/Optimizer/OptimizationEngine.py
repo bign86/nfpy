@@ -105,7 +105,7 @@ class OptimizationEngine(object):
     def run(self):
         res_list = []
         for k, p in self._algo.items():
-            symbol = '.'.join(['nfpy.Financial.Portfolio.Optimizer', k, k])
+            symbol = '.'.join(['nfpy.Models.Optimizer', k, k])
             class_ = Ut.import_symbol(symbol)
             obj = class_(self._ret, self._cov, **p)
             result = obj.result

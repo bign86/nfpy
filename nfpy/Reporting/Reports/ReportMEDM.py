@@ -19,8 +19,6 @@ if int(pandas.__version__.split('.')[0]) < 1:
     PD_STYLE_PROP = {}
 else:
     PD_STYLE_PROP = {'na_rep': "-"}
-
-
 # FIXME: end of the shame
 
 
@@ -64,8 +62,7 @@ class ReportMEDM(ReportMADM):
                          float(np.nanmax(ir.values)), 2)
         yg = beta[0] * xg + beta[2]
 
-        div_pl = IO.Plotter(x_zero=(.0,), y_zero=(.0,), xlim=((-.15, .15),),
-                            ylim=((-.15, .15),))
+        div_pl = IO.Plotter(x_zero=(.0,), y_zero=(.0,))
         div_pl.scatter(0, ir.values, r.values, color='C0', linewidth=.0,
                        marker='o', alpha=.5)
         div_pl.lplot(0, xg, yg, color='C0')

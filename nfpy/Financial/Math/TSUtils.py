@@ -160,7 +160,11 @@ def last_valid_index(v: np.ndarray, start: int = None) -> int:
         Output:
             i [int]: last valid index
     """
-    i = start if start else len(v) - 1
+    if start is None:
+        i = v.size - 1
+    else:
+        i = min(start, v.size - 1)
+
     while np.isnan(v[i]) and (i >= 0):
         i -= 1
     if i < 0:

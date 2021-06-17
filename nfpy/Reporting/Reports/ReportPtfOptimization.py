@@ -66,7 +66,7 @@ class ReportPtfOptimization(BaseReport):
 
         self._res = self._create_output(model_res, wgt)
 
-    def _create_output(self, model_res: Mod.ResultOptimization,
+    def _create_output(self, model_res: Mod.OptimizationEngineResult,
                        wgt: np.ndarray):
         """ Create the final output.
 

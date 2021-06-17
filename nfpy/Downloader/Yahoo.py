@@ -2,6 +2,15 @@
 # Yahoo Downloader
 # Downloads data from Yahoo
 #
+# NOTES:
+# 1. The raw closing price IS NOT adjusted for dividends
+# 2. The raw closing price IS adjusted for splits
+# 3. The adjusted closing prices ARE adjusted for both dividends and splits
+# 4. The dividends ARE adjusted for splits
+#
+# To be sure to have consistency across raw closing prices and across dividends,
+# they must be downloaded again after each split.
+#
 
 from abc import abstractmethod
 import codecs
@@ -207,16 +216,7 @@ class YahooFinancials(YahooBasePage):
 
 
 class YahooHistoricalBasePage(YahooBasePage):
-    """ Base page for historical downloads.
-
-        NOTE:
-        The close price is adjusted for splits *NOT* for dividends. The adjusted
-        close is corrected also for dividends. We download the delta time series
-        with respect to what we have in the database, therefore the adjusted
-        series cannot be relied upon.
-        In case of new splits, the series has to be adjusted for them, unless
-        the series is downloaded again from scratch.
-    """
+    """ Base page for historical downloads. """
     _PARAMS = {
         "period1": None,
         "period2": None,
@@ -313,6 +313,9 @@ class YahooSplits(YahooHistoricalBasePage):
         """ Parse the fetched object. """
         df = self._parse_csv()
         df.insert(2, 'dtype', self._dt.get('split'))
+
+        if not df.empty:
+            print(' !!! New split found !!!')
 
         def _calc(x: str) -> float:
             """ Transform splits in adjustment factors """

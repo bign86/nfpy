@@ -14,5 +14,5 @@ __all__ = [
     'MarketAssetsDataBaseModel', 'MarketBondDataModel', 'MarketEquityDataModel',
     'MarketPortfolioDataModel', 'DDMResult', 'TradingModel',
 
-    'Optimizer',
+    'Optimizer', 'OptimizationEngine', 'OptimizationEngineResult', 'TyOptimizer'
 ]

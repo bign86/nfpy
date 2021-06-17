@@ -7,7 +7,7 @@ import warnings
 from itertools import groupby
 
 from nfpy.Assets import get_af_glob
-import nfpy.IO as IO
+import nfpy.DB as DB
 from nfpy.Tools import (Singleton, Exceptions as Ex)
 
 
@@ -21,8 +21,8 @@ on r.uid = cc.bucket join Curve as c on c.uid = cc.uid where r.is_rf = True;"""
     _Q_SET_RF = """update Rate set is_rf = ? where uid = ?;"""
 
     def __init__(self):
-        self._db = IO.get_db_glob()
-        self._qb = IO.get_qb_glob()
+        self._db = DB.get_db_glob()
+        self._qb = DB.get_qb_glob()
         self._af = get_af_glob()
         self._rf = {}
         

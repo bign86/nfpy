@@ -46,7 +46,7 @@ class DatatypeFactory(metaclass=Singleton):
     def remove(self, dtype: str):
         """ Remove a datatype from the table. """
         if dtype in self._dec_datatypes:
-            q_del = self._qb.delete(self._DT_TABLE, ['datatype'])
+            q_del = self._qb.delete(self._DT_TABLE, fields=('datatype',))
             self._db.execute(q_del, (dtype,), commit=True)
             code = self._dec_datatypes[dtype]
             del self._dec_datatypes[dtype]
