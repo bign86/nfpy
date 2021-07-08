@@ -22,12 +22,12 @@ class Rate(Asset):
         try:
             res = self._df["price"]
         except KeyError:
-            self.load_dtype("price")
+            self.load_dtype_in_df("price")
             res = self._df["price"]
         return res
 
-    def load_dtype(self, dt: str):
-        super().load_dtype(dt)
+    def load_dtype_in_df(self, dt: str):
+        super().load_dtype_in_df(dt)
 
         if dt == 'price':
             # The value from the database is in annual percentage points

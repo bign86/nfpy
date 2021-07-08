@@ -4,6 +4,7 @@
 
 import re
 from datetime import datetime
+import json
 from typing import Union, List, Any
 import pandas as pd
 
@@ -11,7 +12,6 @@ from nfpy.Assets import get_af_glob
 from nfpy.Calendar import date_2_datetime
 import nfpy.Downloader as Dwn
 import nfpy.Financial as Fin
-
 from nfpy.Tools import Constants as Cn
 
 SQLITE2PY_CONVERSION = {
@@ -43,7 +43,7 @@ class InputHandler(object):
             'int': self._to_int, 'bool': self._to_bool,
             'uid': self._to_string, 'datetime': self._to_datetime,
             'currency': self._to_string, 'timestamp': self._to_timestamp,
-            'country': self._to_string
+            'country': self._to_string, 'dict': self._to_dict,
         }
         self._validators = {
             'uid': self._check_uid, 'currency': self._check_ccy,
@@ -70,6 +70,37 @@ class InputHandler(object):
     def _to_string(v: str, **kwargs) -> str:
         _ = kwargs
         return re.sub('[!@#$?*;,:+]', '', v)
+
+    @staticmethod
+    def _to_dict(v: str, **kwargs) -> dict:
+        _ = kwargs
+        return json.loads(v)
+
+    @staticmethod
+    def _to_timestamp(v: str, **kwargs) -> pd.Timestamp:
+        """ Transforms a date from string to pandas timestamp.
+
+            Input:
+                v [str]: date in string format
+                kwargs [dict]: 'fmt' argument to specify the date format
+
+            Output:
+                date [pd.Timestamp]: formatted date
+        """
+        return pd.to_datetime(v, format=kwargs['fmt'])
+
+    @staticmethod
+    def _to_datetime(v: str, **kwargs) -> datetime.date:
+        """ Transforms a date from string to datetime.
+
+            Input:
+                v [str]: date in string format
+                kwargs [dict]: 'fmt' argument to specify the date format
+
+            Output:
+                date [datetime.date]: formatted date
+        """
+        return date_2_datetime(v, fmt=kwargs['fmt'])
 
     def _check_uid(self, uid: str) -> tuple:
         """ Validate a candidate uid checking existence. """
@@ -103,32 +134,6 @@ class InputHandler(object):
         if not pattern.match(v):
             return False, 'ISIN malformed'
         return True, 'Ok'
-
-    @staticmethod
-    def _to_timestamp(v: str, **kwargs) -> pd.Timestamp:
-        """ Transforms a date from string to pandas timestamp.
-
-            Input:
-                v [str]: date in string format
-                kwargs [dict]: 'fmt' argument to specify the date format
-
-            Output:
-                date [pd.Timestamp]: formatted date
-        """
-        return pd.to_datetime(v, format=kwargs['fmt'])
-
-    @staticmethod
-    def _to_datetime(v: str, **kwargs) -> datetime.date:
-        """ Transforms a date from string to datetime.
-
-            Input:
-                v [str]: date in string format
-                kwargs [dict]: 'fmt' argument to specify the date format
-
-            Output:
-                date [datetime.date]: formatted date
-        """
-        return date_2_datetime(v, fmt=kwargs['fmt'])
 
     def _convert(self, vin: str, idesc: str, **kwargs) \
             -> Union[List, str, int, float, bool, pd.Timestamp, datetime.date]:

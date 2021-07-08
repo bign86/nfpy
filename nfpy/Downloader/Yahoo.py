@@ -116,7 +116,7 @@ class YahooBasePage(BasePage):
     @property
     def crumburl(self) -> str:
         """ Return the crumb url for the page. """
-        return self._CRUMB_URL.format(self.ticker)
+        return self._CRUMB_URL.format(self.ticker)  # .replace('.', '&#46;'))
 
     def _fetch_crumb(self) -> str:
         """ Fetch the crumb from Yahoo. So far this is executed every time a
@@ -124,7 +124,8 @@ class YahooBasePage(BasePage):
         """
         res = requests.get(self.crumburl)
         if res.status_code != 200:
-            raise requests.HTTPError("Error in downloading the Yahoo crumb cookie")
+            msg = "Error {} in downloading the Yahoo crumb cookie.\n\t{}"
+            raise requests.HTTPError(msg.format(res.status_code, self.crumburl))
 
         crumb = re.search(self._CRUMB_PATTERN, res.text)
         if crumb is None:
@@ -250,9 +251,9 @@ class YahooHistoricalBasePage(YahooBasePage):
                     params[p] = str(int(pd.to_datetime(d).timestamp()))
             self.params = params
 
-        crumb = self._fetch_crumb()
+        # self.params = {'crumb': self._fetch_crumb()}
         # print("CRUMB: {}".format(crumb))
-        self.params = {'crumb': crumb, 'events': self.event}
+        self.params = {'events': self.event}
 
     def _parse_csv(self) -> pd.DataFrame:
         names = self._COLUMNS
