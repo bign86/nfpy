@@ -3,9 +3,8 @@
 #
 
 from collections import OrderedDict
-from copy import deepcopy
 from operator import itemgetter
-from typing import (Generator, List, Sequence, Iterable)
+from typing import (Sequence, Iterable, KeysView)
 
 from nfpy.Tools import (Singleton, Exceptions as Ex)
 
@@ -28,9 +27,9 @@ class QueryBuilder(metaclass=Singleton):
         res = self._db.execute("PRAGMA TABLE_INFO([{}]);".format(table)).fetchall()
         if not res:
             raise Ex.MissingData('Table {} not found in the database'.format(table))
-        res = sorted(res, key=itemgetter(0))
 
         l = []
+        res = sorted(res, key=itemgetter(0))
         for r in res:
             c = Column(str(r[1]))
             c.ordinal = int(r[0])
@@ -45,7 +44,7 @@ class QueryBuilder(metaclass=Singleton):
         self._add_table(t)
         return t
 
-    def _get_table(self, table: str) -> Table:
+    def get_table(self, table: str) -> Table:
         """ Return the Table object from the dictionary having the right name. """
         try:
             t = self._tables[table]
@@ -53,23 +52,22 @@ class QueryBuilder(metaclass=Singleton):
             t = self._fetch_table_info(table)
         return t
 
-    def _add_table(self, table: Table):
+    def _add_table(self, table: Table) -> None:
         """ Add the Table object to the dictionary. """
         assert isinstance(table, Table)
         self._tables[table.name] = table
 
-    def print_structure(self, table: str):
-        """ Print out the structure of the table. """
-        t = self._get_table(table)
-        print(t.structure)
+    def get_structure_string(self, table: str) -> str:
+        """ Return a string representing the structure of the table. """
+        return self.get_table(table).structure
 
     def exists_table(self, table: str) -> bool:
         """ Return True or False whether the input table exists. """
-        q = """SELECT name FROM sqlite_master WHERE type = 'table' AND name = '{}';"""
+        q = "SELECT name FROM sqlite_master WHERE type = 'table' AND name = '{}';"
         res = self._db.execute(q.format(table)).fetchall()
         return False if not res else True
 
-    def get_tables_list(self) -> List[str]:
+    def get_tables_list(self) -> list[str]:
         """ List all the tables in the database. """
         q = """SELECT name FROM sqlite_master WHERE type IN ('table','view')
                AND name NOT LIKE 'sqlite_%' ORDER BY 1;"""
@@ -78,53 +76,31 @@ class QueryBuilder(metaclass=Singleton):
 
     def get_columns(self, table: str) -> OrderedDict:
         """ Return the table's dictionary of column objects. """
-        return self._get_table(table).columns
+        return self.get_table(table).columns
 
-    def get_fields(self, table: str) -> Generator[str, None, None]:
+    def get_fields(self, table: str) -> KeysView:
         """ Return the generator of fields in table. """
-        return self._get_table(table).get_fields()
+        return self.get_table(table).get_fields()
 
-    def get_keys(self, table: str) -> Generator[str, None, None]:
+    def get_keys(self, table: str) -> KeysView:
         """ Return the generator of primary keys. """
-        return self._get_table(table).get_keys()
+        return self.get_table(table).get_keys()
 
     def is_primary(self, table: str, field: str) -> bool:
         """ Return True if field is a primary key """
-        return self._get_table(table).is_primary(field)
+        return self.get_table(table).is_primary(field)
 
-    def new_from_existing(self, table: str, add: dict = None,
-                          remove: Sequence = None) -> Table:
-        """ Create a Table object by adding/removing selected columns from an
-            existing one.
+    def get_create_query(self, table: str) -> str:
+        """ Return the create query relative to the table in input. """
+        q_create = 'SELECT sql FROM sqlite_master where tbl_name = ?;'
+        return self._db.execute(q_create, (table,)).fetchone()[0]
 
-            Input:
-                table [str]: table to be used as base
-                add [dict]: dictionary of columns and properties to add
-                remove [Sequence]: sequence of columns to remove
-
-            Bugs & Limitations:
-                It is currently not possible to add a column with primary key enabled.
-        """
-        t = deepcopy(self._get_table(table))
-
-        # Add columns
-        if add:
-            i = len(t)
-            for k, v in add.items():
-                c = Column(k)
-                c.ordinal = i
-                c.type = v[0]
-                c.notnull = True if 'NOT NULL' in v else False
-                c.is_primary = False
-                t.add_field(c)
-                i = i + 1
-
-        # Remove columns
-        if remove:
-            for c in remove:
-                t.remove_field(c)
-
-        return t
+    @staticmethod
+    def get_rename_table(table: str) -> str:
+        """ Return the alter table query to rename a table. """
+        return 'alter table _TBL_ rename to _OLDTBL_;' \
+            .replace('_OLDTBL_', table + '_old') \
+            .replace('_TBL_', table)
 
     def select(self, table: str, fields: Iterable = None,
                rolling: Iterable = (), keys: Iterable = None,
@@ -148,7 +124,7 @@ class QueryBuilder(metaclass=Singleton):
             Return:
                 query [str]: query ready to be used in an execute
         """
-        t = self._get_table(table)
+        t = self.get_table(table)
 
         if not fields:
             fields = t.get_fields()

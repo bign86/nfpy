@@ -3,7 +3,6 @@
 # Main engine for reporting
 #
 
-from collections import defaultdict
 from jinja2 import FileSystemLoader, Environment
 import json
 import os
@@ -13,7 +12,7 @@ from nfpy import NFPY_ROOT_DIR
 from nfpy.Assets import get_af_glob
 from nfpy.Calendar import get_calendar_glob
 import nfpy.DB as DB
-from nfpy.Tools import (Exceptions as Ex, get_conf_glob, Singleton)
+from nfpy.Tools import (get_conf_glob, Singleton)
 
 from .Reports import *
 
@@ -22,21 +21,10 @@ class ReportingEngine(metaclass=Singleton):
     """ Main class for reporting. """
 
     _TBL_REPORTS = 'Reports'
-    _TBL_ITEMS = 'ReportItems'
     _DT_FMT = '%Y%m%d'
     _IMG_DIR = 'img'
-    _MODEL_PER_ASSET_CL = {
-        'Bond': ('MBDM', 'TRD'),
-        'Company': ('DCF', 'DDM'),
-        'Equity': ('MEDM', 'TRD'),
-        'Indices': ('MADM', 'TRD'),
-        'Portfolio': ('MPDM', 'PtfOptimization'),
-        'Rate': ('MADM', 'TRD'),
-    }
     _REPORTS = {
-        'DDM': ReportDDM, 'DCF': ReportDCF, 'MADM': ReportMADM,
-        'MEDM': ReportMEDM, 'MBDM': ReportMBDM, 'MPDM': ReportMPDM,
-        'PtfOptimization': ReportPtfOptimization, 'TRD': ReportTrading,
+        'Market': ReportMarket,
     }
     _TMPL_PATH = os.path.join(NFPY_ROOT_DIR, 'Reporting/Templates')
     _REP_EXT = '.html'
@@ -56,64 +44,17 @@ class ReportingEngine(metaclass=Singleton):
 
         self._initialize()
 
-    def _initialize(self):
+    def _initialize(self) -> None:
         rep_path = self._conf.report_path
         new_folder = 'Report_' + self._cal.end.strftime(self._DT_FMT)
         self._curr_report_dir = os.path.join(rep_path, new_folder)
         self._curr_img_dir = os.path.join(rep_path, new_folder, self._IMG_DIR)
 
-    def get_report_obj(self, r: str):
+    def get_report_obj(self, r: str) -> TyReport:
         """ Return the report object given the report name. """
         return self._REPORTS[r]
 
-    def get_models_per_asset_type(self, m: str) -> tuple:
-        """ Return the models available for the asset class in input. """
-        return self._MODEL_PER_ASSET_CL[m]
-
-    def add(self, what: str, **kwargs):
-        """ Add an item in the report items table. """
-        if what == 'report':
-            table = self._TBL_REPORTS
-        elif what == 'item':
-            table = self._TBL_ITEMS
-        else:
-            raise ValueError('Mode {} not recognized!'.format(what))
-
-        cols, p = [], []
-        for c in self._qb.get_fields(table):
-            cols.append(c)
-            try:
-                if c == 'parameters':
-                    p.append(json.dumps(kwargs[c]))
-                else:
-                    p.append(kwargs[c])
-            except KeyError:
-                raise KeyError('Missing specification of {}'.format(c))
-
-        q = self._qb.insert(table, cols)
-        self._db.execute(q, p, commit=True)
-
-    def remove(self, what: str, **kwargs):
-        """ Remove an item in the report items table. """
-        if what == 'report':
-            table = self._TBL_REPORTS
-        elif what == 'item':
-            table = self._TBL_ITEMS
-        else:
-            raise ValueError('Mode {} not recognized!'.format(what))
-
-        cols, p = [], []
-        for c in self._qb.get_keys(table):
-            cols.append(c)
-            try:
-                p.append(kwargs[c])
-            except KeyError:
-                raise KeyError('Missing specification of {}'.format(c))
-
-        q = self._qb.delete(table, cols)
-        self._db.executemany(q, p, commit=True)
-
-    def create_new_directory(self):
+    def create_new_directory(self) -> None:
         """ Create a new directory for the current report. """
         new_path = self._curr_img_dir
 
@@ -132,80 +73,42 @@ class ReportingEngine(metaclass=Singleton):
         else:
             print('Successfully created the directory {}'.format(new_path))
 
-    def set_report(self, report: str):
+    def set_report(self, report: str) -> None:
         """ Set the report to be produced. """
         self._p = report
 
     def list(self) -> list:
         """ List reports matching the current setting. """
-        if not self._p:
-            k, p = ('active',), (True,)
-        else:
-            k, p = ('report',), (self._p,)
+        # if not self._p:
+        #     k, p = ('active',), (True,)
+        # else:
+        #     k, p = ('report',), (self._p,)
+        k, p = ('active',), (True,)
         q = self._qb.select(self._TBL_REPORTS, keys=k)
         return self._db.execute(q, p).fetchall()
 
-    def _fetch_report_items(self, report: str) -> list:
-        """ Fetch the list of item to be calculated for the current report. """
-        k, p = ('report', 'active'), (report, True)
-        q = self._qb.select(self._TBL_ITEMS, keys=k)
-        return self._db.execute(q, p).fetchall()
-
-    def _calculate(self, tbg: list):
+    def _calculate(self, data: str) -> tuple:
         """ Calculates results by calling all models. """
         cid = self._curr_img_dir
+        report, uids, params = data[1], data[3], data[4]
+        print(report, uids, params)
 
-        ret_dict = defaultdict(dict)
-        asset_dict = defaultdict(list)
-        for item in tbg:
-            rp, u, m, p, _ = item
-            print(rp, u, m)
-            pd = json.loads(p)
-            report = self._REPORTS[m]
+        pd = json.loads(params)
+        uid_lst = json.loads(uids)
+        report_obj = self._REPORTS[report]
 
-            try:
-                r = report(u, pd, img_path=cid).result
-            except (ValueError, Ex.MissingData, KeyError) as ex:
-                # traceback.print_exc()
-                print(str(ex))
-            else:
-                ret_dict[u][m] = r
-                a_type = self._af.get_type(u)
-                asset_dict[a_type].append(u)
+        res, filters = None, None
+        try:
+            report = report_obj(uid_lst, pd, img_path=cid)
+            res = report.result
+            filters = report.filters
+        except RuntimeError as ex:
+            # traceback.print_exc()
+            print(str(ex))
 
-        for k, v in asset_dict.items():
-            asset_dict[k] = sorted(set(v))
+        return res, filters
 
-        return ret_dict, asset_dict
-
-    def _add_asset_info(self, res: dict, assets: dict):
-        """ Add asset infos to the results. """
-        for a_type, asset in assets.items():
-            for uid in asset:
-                res[uid]['info'] = self._gen_info(a_type, uid)
-
-    def _gen_info(self, a_type: str, uid: str) -> dict:
-        asset = self._af.get(uid)
-        f = ['uid', 'description']
-        if a_type == 'Bond':
-            f = f + ['isin', 'issuer', 'currency', 'asset_class',
-                     'inception_date', 'maturity', 'coupon', 'c_per_year']
-        elif a_type == 'Company':
-            f = f + ['name', 'sector', 'industry', 'equity', 'currency', 'country']
-        elif a_type == 'Currency':
-            f = f + ['price_country', 'base_country', 'price_ccy', 'base_ccy']
-        elif a_type == 'Equity':
-            f = f + ['ticker', 'isin', 'country', 'currency', 'company', 'index']
-        elif a_type == 'Indices':
-            f = f + ['ticker', 'area', 'currency', 'ac']
-        elif a_type == 'Portfolio':
-            f = f + ['name', 'currency', 'inception_date', 'benchmark',
-                     'num_constituents']
-        else:
-            pass
-        return {k: getattr(asset, k) for k in f}
-
-    def _generate(self, name: str, template: str, res: dict, assets: dict):
+    def _generate(self, name: str, template: str, out: tuple) -> None:
         """ Generates the actual report. """
         title = "Report - {}".format(self._cal.end.strftime('%Y-%m-%d'))
         report = ''.join([template, self._REP_EXT])
@@ -213,19 +116,20 @@ class ReportingEngine(metaclass=Singleton):
 
         j_loader = FileSystemLoader(self._TMPL_PATH)
         j_env = Environment(loader=j_loader)
+        j_env.filters.update(out[1])
         main = j_env.get_template(report)
-        out = main.render(title=title, all_res=res, assets=assets)
+        out = main.render(title=title, res=out[0])  # , assets=assets)
 
         out_file = os.path.join(self._curr_report_dir, name)
         outf = open(out_file, 'w')
         outf.write(out)
         outf.close()
 
-    def run(self):
+    def run(self) -> None:
         """ Run the report engine. """
         # Reports to be generated
-        reports = self.list()
-        if not reports:
+        report_lst = self.list()
+        if not report_lst:
             print("No reports to generate.")
             return
 
@@ -233,16 +137,11 @@ class ReportingEngine(metaclass=Singleton):
         self.create_new_directory()
 
         # Calculate model results
-        for report in reports:
-            tbg = self._fetch_report_items(report[0])
-            ret_dict, asset_dict = self._calculate(tbg)
-            # TODO: this has to disappear inside something else. I don't want
-            #       infos to be hardcoded here in the engine.
-            self._add_asset_info(ret_dict, asset_dict)
+        for data in report_lst:
+            out = self._calculate(data)
 
             # Generate reports
-            name, template = report[0:2]
-            self._generate(name, template, ret_dict, asset_dict)
+            self._generate(data[0], data[2], out)
 
 
 def get_re_glob() -> ReportingEngine:

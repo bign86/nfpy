@@ -3,7 +3,7 @@
 #
 
 from collections import OrderedDict
-from typing import (Sequence, Generator)
+from typing import (Sequence, KeysView)
 
 from nfpy.Tools import Utilities as Ut
 
@@ -23,7 +23,7 @@ class Column(Ut.AttributizedDict):
 class Table(object):
     """ Class to store table information (doesn't contain data). """
 
-    _STRUCT_F = ['field', 'ordinal', 'type', 'is_primary', 'notnull']
+    _STRUCT_F = ('field', 'ordinal', 'type', 'is_primary', 'notnull')
 
     def __init__(self, name: str):
         self._name = str(name)
@@ -46,6 +46,7 @@ class Table(object):
         if self._fields.keys():
             m = max(map(len, list(self._fields.keys()))) + 1
             text = '\t'.join([k.rjust(m) for k in self._STRUCT_F]) + '\n'
+            text += '-'*80 + '\n'
             for k, c in self._fields.items():
                 values = [str(c[f]) for f in self._STRUCT_F]
                 text += '\t'.join([k.rjust(m) for k in values]) + '\n'
@@ -53,7 +54,7 @@ class Table(object):
         else:
             return self.__class__.__name__ + "()"
 
-    def set_fields(self, v: Sequence):
+    def set_fields(self, v: Sequence) -> None:
         """ Create the sequence of column fields in the table. Any previous
             list of columns is overwritten.
         """
@@ -61,27 +62,23 @@ class Table(object):
         l = [(k.field, k) for k in v]
         self._fields = OrderedDict(l)
 
-    def add_field(self, v: Column):
+    def add_field(self, v: Column) -> None:
         """ Add a column at the end of the table object. """
         self._fields[v.field] = v
 
-    def remove_field(self, field: str):
+    def remove_field(self, field: str) -> None:
         """ Remove a field from the table object. """
         del self._fields[field]
 
-    def get_fields(self) -> Generator[str, None, None]:
+    def get_fields(self) -> KeysView:
         """ Return the generator of ordered fields in the table. """
         return self._fields.keys()
 
-    def get_keys(self) -> Generator[str, None, None]:
+    def get_keys(self) -> KeysView:
         """ Return the generator of ordered primary keys in the table. """
         for k, v in self._fields.items():
             if v.is_primary:
                 yield k
-
-    def get_num_cols(self) -> int:
-        """ Return the length of the columns dictionary """
-        return len(self._fields)
 
     def is_primary(self, field: str) -> bool:
         """ Check whether the given field is a primary key. """

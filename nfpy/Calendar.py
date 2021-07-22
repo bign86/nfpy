@@ -8,16 +8,18 @@ import itertools
 
 import numpy as np
 import pandas as pd
+from pandas.core.tools.datetimes import DatetimeScalar
 import pandas.tseries.offsets as off
 from typing import (Union, Sequence, TypeVar)
 
 from nfpy.Tools import (get_conf_glob, Singleton)
 
-TyDate = TypeVar('TyDate',
-                 bound=Union[str, pd.Timestamp,
-                             datetime.datetime, np.datetime64])
+TyDatetime = TypeVar('TyDatetime',
+                     bound=Union[str, pd.Timestamp, datetime.date,
+                                 datetime.datetime, np.datetime64])
 TyDateSequence = TypeVar('TyDateSequence',
                          bound=Union[pd.DatetimeIndex, Sequence])
+TyDate = Union[TyDatetime, DatetimeScalar]
 
 _HOLIDAYS_MASK_ = ((1, 1), (5, 1), (6, 2), (8, 15), (12, 24), (12, 25), (12, 26))
 _WEEKEND_MASK_INT_ = (5, 6)
@@ -35,7 +37,6 @@ _FREQ_LABELS = {'D': ('D', off.Day),
                 'BA': ('BA', off.BYearEnd)}
 
 
-# Calendar class
 class Calendar(metaclass=Singleton):
     """ Universal calendar class to initialize dataframes. """
 
@@ -50,7 +51,7 @@ class Calendar(metaclass=Singleton):
         self._initialized = False
 
     @property
-    def calendar(self) -> pd.DatetimeIndex:
+    def calendar(self) -> TyDateSequence:
         """ Return the instantiated calendar if initialized else None. """
         if not self._initialized:
             return pd.DatetimeIndex([], self._frequency)
@@ -72,7 +73,7 @@ class Calendar(metaclass=Singleton):
         return self._t0
 
     @t0.setter
-    def t0(self, v: pd.Timestamp):
+    def t0(self, v: pd.Timestamp) -> None:
         self._t0 = v
 
     @property
@@ -94,18 +95,19 @@ class Calendar(metaclass=Singleton):
     def __bool__(self) -> bool:
         return self._initialized
 
-    def __contains__(self, dt: Union[str, pd.Timestamp]) -> bool:
+    def __contains__(self, dt: TyDate) -> bool:
         return dt in self._calendar
 
     def initialize(self, end: Union[pd.Timestamp, str],
                    start: Union[pd.Timestamp, str] = None,
-                   periods: int = None, fmt: str = '%Y-%m-%d'):
+                   periods: int = None, fmt: str = '%Y-%m-%d') -> None:
         if self._initialized:
             return
 
         # Errors check
         if (start is None) & (periods is None):
-            raise ValueError('Either start time or number of periods are required')
+            raise ValueError("""Either one of starting time and number of \
+periods are required to initialize the calendar""")
 
         # Set the format string
         self.fmt = str(fmt)
@@ -151,7 +153,7 @@ class Calendar(metaclass=Singleton):
         self._initialized = True
 
     @staticmethod
-    def get_offset(freq: str) -> off.BusinessDay:
+    def get_offset(freq: str) -> off:
         """ Get a DateOffset object dependent on the frequency """
         return _FREQ_LABELS[freq][1]
 
@@ -183,8 +185,8 @@ class Calendar(metaclass=Singleton):
         return self._calendar[target]
 
 
-def date_2_datetime(dt: Union[TyDate, TyDateSequence],
-                    fmt: str = '%Y-%m-%d') -> Union[TyDate, TyDateSequence]:
+def date_2_datetime(dt: Union[TyDate, TyDateSequence], fmt: str = '%Y-%m-%d') \
+        -> Union[TyDate, TyDateSequence]:
     if isinstance(dt, (list, tuple)):
         if isinstance(dt[0], str):
             dt = [datetime.datetime.strptime(d, fmt) for d in dt]
@@ -207,8 +209,7 @@ def date_2_datetime(dt: Union[TyDate, TyDateSequence],
         return dt
 
 
-def today(mode: str = 'str', fmt: str = '%Y-%m-%d') \
-        -> TyDate:
+def today(mode: str = 'str', fmt: str = '%Y-%m-%d') -> TyDate:
     """ Return a string with today date """
     t = datetime.date.today()
     if mode == 'str':
@@ -222,8 +223,8 @@ def today(mode: str = 'str', fmt: str = '%Y-%m-%d') \
     return today__
 
 
-def last_business(offset: int = 1, mode: str = 'str', fmt: str = '%Y-%m-%d') \
-        -> TyDate:
+def last_business(offset: int = 1, mode: str = 'str',
+                  fmt: str = '%Y-%m-%d') -> TyDate:
     """ Return the previous business day. """
     lbd_ = (datetime.datetime.today() - off.BDay(offset)).date()
     if mode == 'str':
@@ -237,8 +238,7 @@ def last_business(offset: int = 1, mode: str = 'str', fmt: str = '%Y-%m-%d') \
     return lbd_
 
 
-def now(string: bool = True, fmt: str = '%Y-%m-%d %H:%M') \
-        -> TyDate:
+def now(string: bool = True, fmt: str = '%Y-%m-%d %H:%M') -> TyDate:
     """ Return a string with today date """
     now_ = datetime.datetime.now()
     if string:
@@ -278,7 +278,7 @@ def shift(dt: pd.Timestamp, n: int, freq: str) -> pd.Timestamp:
     return dt + offset(int(n))
 
 
-def pd_2_np64(dt: Union[np.datetime64, pd.Timestamp]) \
+def pd_2_np64(dt: Union[None, TyDateSequence]) \
         -> Union[None, np.datetime64]:
     return dt.asm8 if isinstance(dt, pd.Timestamp) else dt
 

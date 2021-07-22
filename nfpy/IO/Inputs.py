@@ -2,14 +2,13 @@
 # Handler of Inputs
 #
 
-import re
-from datetime import datetime
 import json
-from typing import Union, List, Any
 import pandas as pd
+import re
+from typing import (Any, Union)
 
 from nfpy.Assets import get_af_glob
-from nfpy.Calendar import date_2_datetime
+import nfpy.Calendar as Cal
 import nfpy.Downloader as Dwn
 import nfpy.Financial as Fin
 from nfpy.Tools import Constants as Cn
@@ -77,7 +76,7 @@ class InputHandler(object):
         return json.loads(v)
 
     @staticmethod
-    def _to_timestamp(v: str, **kwargs) -> pd.Timestamp:
+    def _to_timestamp(v: str, **kwargs) -> Cal.TyDate:
         """ Transforms a date from string to pandas timestamp.
 
             Input:
@@ -90,7 +89,7 @@ class InputHandler(object):
         return pd.to_datetime(v, format=kwargs['fmt'])
 
     @staticmethod
-    def _to_datetime(v: str, **kwargs) -> datetime.date:
+    def _to_datetime(v: str, **kwargs) -> Cal.TyDate:
         """ Transforms a date from string to datetime.
 
             Input:
@@ -100,7 +99,7 @@ class InputHandler(object):
             Output:
                 date [datetime.date]: formatted date
         """
-        return date_2_datetime(v, fmt=kwargs['fmt'])
+        return Cal.date_2_datetime(v, fmt=kwargs['fmt'])
 
     def _check_uid(self, uid: str) -> tuple:
         """ Validate a candidate uid checking existence. """
@@ -136,10 +135,10 @@ class InputHandler(object):
         return True, 'Ok'
 
     def _convert(self, vin: str, idesc: str, **kwargs) \
-            -> Union[List, str, int, float, bool, pd.Timestamp, datetime.date]:
-        """ Converts the supplied input by cleaning the string and casting to the
-            appropriate data type. An exception is cast if casting is impossible or
-            if inputs are empty.
+            -> Union[list, int, float, bool, Cal.TyDate]:
+        """ Converts the supplied input by cleaning the string and casting to
+            the appropriate data type. An exception is cast if casting is
+            impossible or if inputs are empty.
 
             Input:
                 msg [str]: message string
@@ -184,10 +183,10 @@ class InputHandler(object):
 
     def input(self, msg: str, idesc: str = 'str', optional: bool = False,
               default: Any = None, checker: str = None, **kwargs) \
-            -> Union[str, int, float, list, bool, pd.Timestamp, datetime.date]:
-        """ Validates the supplied input by cleaning the string and casting to the
-            appropriate data type. An exception is cast if casting is impossible or
-            if inputs are empty.
+            -> Union[int, float, list, bool, Cal.TyDate]:
+        """ Validates the supplied input by cleaning the string and casting to
+            the appropriate data type. An exception is cast if casting is
+            impossible or if inputs are empty.
 
             Input:
                 msg [str]: message string
@@ -200,7 +199,7 @@ class InputHandler(object):
                 is_list [bool]: true if list in input (default False)
 
             Output:
-                vout [Union[str, int, float, list, bool]]: value validated
+                out [Union[int, float, list, bool, Cal.TyDate]]: value validated
 
             Exceptions:
                 MissingData: if no input provided

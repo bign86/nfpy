@@ -13,16 +13,16 @@
 #
 
 from abc import abstractmethod
-import codecs
+# import codecs
 from io import StringIO
 import json
 import numpy as np
 import pandas as pd
 import re
-import requests
+# import requests
 
 from nfpy.Calendar import today
-from nfpy.Tools import Exceptions as Ex
+# from nfpy.Tools import Exceptions as Ex
 
 from .BaseDownloader import BasePage
 from .BaseProvider import (BaseProvider, BaseImportItem)
@@ -100,39 +100,39 @@ class YahooBasePage(BasePage):
 
     _ENCODING = "utf-8-sig"
     _PROVIDER = "Yahoo"
-    _CRUMB_URL = u"https://finance.yahoo.com/quote/{}"
-    _CRUMB_PATTERN = r'"CrumbStore"\s*:\s*\{\s*"crumb"\s*:\s*"(.*?)"\s*\}'
     _REQ_METHOD = 'get'
-
-    def __init__(self, ticker: str):
-        super().__init__(ticker)
-        self._crumb = None
+    # _CRUMB_URL = u"https://finance.yahoo.com/quote/{}"
+    # _CRUMB_PATTERN = r'"CrumbStore"\s*:\s*\{\s*"crumb"\s*:\s*"(.*?)"\s*\}'
 
     @property
     def baseurl(self) -> str:
         """ Return the base url for the page. """
         return self._BASE_URL.format(self.ticker)
 
-    @property
-    def crumburl(self) -> str:
-        """ Return the crumb url for the page. """
-        return self._CRUMB_URL.format(self.ticker)  # .replace('.', '&#46;'))
-
-    def _fetch_crumb(self) -> str:
-        """ Fetch the crumb from Yahoo. So far this is executed every time a
-            new data page is requested.
-        """
-        res = requests.get(self.crumburl)
-        if res.status_code != 200:
-            msg = "Error {} in downloading the Yahoo crumb cookie.\n\t{}"
-            raise requests.HTTPError(msg.format(res.status_code, self.crumburl))
-
-        crumb = re.search(self._CRUMB_PATTERN, res.text)
-        if crumb is None:
-            raise Ex.IsNoneError("Cannot find the crumb cookie from Yahoo")
-
-        self._jar = res.cookies
-        return codecs.decode(crumb.group(1), 'unicode_escape')
+    # def __init__(self, ticker: str):
+    #     super().__init__(ticker)
+    #     self._crumb = None
+    #
+    # @property
+    # def crumburl(self) -> str:
+    #     """ Return the crumb url for the page. """
+    #     return self._CRUMB_URL.format(self.ticker)  # .replace('.', '&#46;'))
+    #
+    # def _fetch_crumb(self) -> str:
+    #     """ Fetch the crumb from Yahoo. So far this is executed every time a
+    #         new data page is requested.
+    #     """
+    #     res = requests.get(self.crumburl)
+    #     if res.status_code != 200:
+    #         msg = "Error {} in downloading the Yahoo crumb cookie.\n\t{}"
+    #         raise requests.HTTPError(msg.format(res.status_code, self.crumburl))
+    #
+    #     crumb = re.search(self._CRUMB_PATTERN, res.text)
+    #     if crumb is None:
+    #         raise Ex.IsNoneError("Cannot find the crumb cookie from Yahoo")
+    #
+    #     self._jar = res.cookies
+    #     return codecs.decode(crumb.group(1), 'unicode_escape')
 
 
 class YahooFinancials(YahooBasePage):
@@ -150,14 +150,14 @@ class YahooFinancials(YahooBasePage):
         pass
 
     @staticmethod
-    def _get_field(it, k):
+    def _get_field(it, k) -> str:
         val = None
         f = it.get(k)
         if f:
             val = f.get('raw')
         return val
 
-    def _parse(self):
+    def _parse(self) -> None:
         """ Parse the fetched object. """
         json_string = re.search(self._JSON_PATTERN, self._robj.text)
         json_dict = json.loads(json_string.group(1))
@@ -242,7 +242,7 @@ class YahooHistoricalBasePage(YahooBasePage):
             'period2': today(fmt='%s')
         })
 
-    def _local_initializations(self, params: dict):
+    def _local_initializations(self, params: dict) -> None:
         """ Local initializations for the single page. """
         if params:
             for p in ['period1', 'period2']:
@@ -278,7 +278,7 @@ class YahooPrices(YahooHistoricalBasePage):
     def event(self) -> str:
         return "history"
 
-    def _parse(self):
+    def _parse(self) -> None:
         """ Parse the fetched object. """
         self._res = self._parse_csv()
 
@@ -293,7 +293,7 @@ class YahooDividends(YahooHistoricalBasePage):
     def event(self) -> str:
         return "dividend"
 
-    def _parse(self):
+    def _parse(self) -> None:
         """ Parse the fetched object. """
         df = self._parse_csv()
         df.insert(2, 'dtype', self._dt.get('dividend'))
@@ -310,7 +310,7 @@ class YahooSplits(YahooHistoricalBasePage):
     def event(self) -> str:
         return "split"
 
-    def _parse(self):
+    def _parse(self) -> None:
         """ Parse the fetched object. """
         df = self._parse_csv()
         df.insert(2, 'dtype', self._dt.get('split'))
