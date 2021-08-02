@@ -50,8 +50,9 @@ if __name__ == '__main__':
     res = db.execute(q).fetchall()
 
     f = list(qb.get_fields('Assets'))
-    print('\n\nAvailable equities:')
-    print(tabulate(res, headers=f, showindex=True))
+    print(f'\n\nAvailable equities:'
+          f'{tabulate(res, headers=f, showindex=True)}',
+          end='\n\n')
     uid = inh.input("\nGive an equity index: ", idesc='int')
     eq = af.get(res[uid][0])
 
@@ -64,7 +65,7 @@ if __name__ == '__main__':
         strat = StrategyToBeTested(_args, True)
         signals = strat(dt, p)
     except (IndexError, TypeError) as ex:
-        print('Signal generation failed for {}\n{}'.format(eq.uid, ex))
+        print(f'Signal generation failed for {eq.uid}\n{ex}')
     else:
         print(signals)
 

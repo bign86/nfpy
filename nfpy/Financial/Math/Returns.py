@@ -37,8 +37,9 @@ def logret(v: pd.Series, fillna: str = 'pad', w: int = 1) -> pd.Series:
         Output:
             _r [pd.Series]: indexed series of is_log returns
     """
-    v = ret(v, fillna, w)
-    return v.add(1.).log()
+    return ret(v, fillna, w) \
+        .add(1.) \
+        .log()
 
 
 def tot_ret(ts: np.ndarray, dt: np.ndarray = None, start: np.datetime64 = None,

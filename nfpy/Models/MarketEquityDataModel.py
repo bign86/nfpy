@@ -10,11 +10,10 @@ from typing import Union
 import nfpy.Financial.Math as Math
 from nfpy.Tools import (Constants as Cn)
 
-from .MarketAssetsDataBaseModel import (BaseMADMResult,
-                                        MarketAssetsDataBaseModel)
+from .MarketAssetsDataBaseModel import (MADMResult, MarketAssetsDataBaseModel)
 
 
-class MEDMResult(BaseMADMResult):
+class MEDMResult(MADMResult):
     """ Base object containing the results of the market asset models. """
 
 
@@ -62,8 +61,7 @@ class MarketEquityDataModel(MarketAssetsDataBaseModel):
         last_price_date = self._dt['last_price_date']
 
         for i in range(length):
-            n = self._time_spans[i]
-            start = self._cal.shift(t0, -n, 'D')
+            start = self._cal.shift(t0, -self._time_spans[i], 'D')
             real_n = self._cal.run_len(start, last_price_date)
             stats[0, i] = asset.return_volatility(start, t0)
 
@@ -88,21 +86,26 @@ class MarketEquityDataModel(MarketAssetsDataBaseModel):
             stats[6, i] = Math.compound(rt, Cn.BDAYS_IN_1Y / real_n)
             stats[7, i] = Math.compound(delta, Cn.BDAYS_IN_1Y / real_n)
 
-        calc = ['volatility', 'mean return', 'tot. return', 'beta',
-                'adj. beta', 'correlation', 'SML ret', 'delta pricing']
-        self._res_update(stats=pd.DataFrame(stats, index=calc,
-                                            columns=self._time_spans),
-                         beta_params=betas[3])
+        self._res_update(
+            stats=pd.DataFrame(
+                stats,
+                index=(
+                    'volatility', 'mean return', 'tot. return', 'beta',
+                    'adj. beta', 'correlation', 'SML ret', 'delta pricing'
+                ),
+                columns=self._time_spans
+            ),
+            beta_params=betas[3]
+        )
 
     def _calc_performance(self):
-        asset, index = self._asset, self._index
         t0 = self._t0
-
         start = self._cal.shift(t0, -2 * Cn.DAYS_IN_1Y, 'D')
-        perf = asset.performance(start=start, end=t0)
-        perf_idx = index.performance(start=start, end=t0)
 
-        self._res_update(perf=perf, perf_idx=perf_idx)
+        self._res_update(
+            perf=self._asset.performance(start=start, end=t0),
+            perf_idx=self._index.performance(start=start, end=t0)
+        )
 
 
 def MEDModel(uid: str, date: Union[str, pd.Timestamp] = None) -> MEDMResult:

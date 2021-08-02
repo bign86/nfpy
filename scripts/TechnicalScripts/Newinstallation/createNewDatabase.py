@@ -26,6 +26,7 @@ TABLES_TO_CREATE = [
     (
         'Alerts',
         """create table Alerts (uid TEXT, date DATETIME, cond TEXT, value REAL,
+            triggered BOOL, date_triggered DATETIME, date_checked DATETIME,
             primary key (uid, date, cond, value)) without rowid;"""
     ),
     (
@@ -39,8 +40,9 @@ TABLES_TO_CREATE = [
     ),
     (
         'BondTS',
-        """create table BondTS (uid TEXT, dtype INTEGER NOT NULL, date DATETIME NOT NULL,
-            value REAL NOT NULL, primary key (uid,dtype,date), foreign key (uid)
+        """create table BondTS (uid TEXT, dtype INTEGER NOT NULL,
+            date DATETIME NOT NULL, value REAL NOT NULL,
+            primary key (uid,dtype,date), foreign key (uid)
             references Bond(uid)) without rowid;"""
     ),
     (
@@ -98,7 +100,7 @@ TABLES_TO_CREATE = [
     (
         'Equity',
         """create table Equity (uid TEXT, ticker TEXT NOT NULL,
-            isin TEXT NOT NULL, description TEXT, country TEXT,
+            isin TEXT NOT NULL, description TEXT, country TEXT, market TEXT,
             currency TEXT NOT NULL, company TEXT, preferred BOOL,
             [index] TEXT, primary key (uid), foreign key (company)
             references Company(uid)) without rowid;"""
@@ -106,7 +108,8 @@ TABLES_TO_CREATE = [
     (
         'EquityTS',
         """create table EquityTS (uid TEXT, dtype INTEGER NOT NULL,
-            date DATETIME NOT NULL, value REAL NOT NULL, primary key (uid,dtype,date),
+            date DATETIME NOT NULL, value REAL NOT NULL,
+            primary key (uid, dtype, date),
             foreign key (uid) references Equity(uid)) without rowid;"""
     ),
     (
@@ -138,7 +141,7 @@ TABLES_TO_CREATE = [
         'InvestingFinancials',
         """create table InvestingFinancials (ticker TEXT, freq TEXT, date DATETIME,
             currency TEXT, statement TEXT, code TEXT, value REAL,
-            primary key (ticker, freq, date, statement, code) ) without rowid;"""
+            primary key (ticker, freq, date, statement, code)) without rowid;"""
     ),
     (
         'InvestingPrices',
@@ -185,8 +188,9 @@ TABLES_TO_CREATE = [
     ),
     (
         'Reports',
-        """create table Reports (report TEXT, template TEXT, active BOOL,
-            primary key (report)) without rowid;"""
+        """create table Reports (name TEXT, report TEXT, template TEXT,
+            uids PARAMETERS, parameters PARAMETERS, active BOOL,
+            primary key (name)) without rowid;"""
     ),
     (
         'SystemInfo',
@@ -250,7 +254,7 @@ def get_db_handler():
     if not db_:
         msg = 'I can not connect to the database... Sorry, but I got to stop here :('
         raise RuntimeError(msg)
-    print("New database created in {}".format(db_.db_path))
+    print(f"New database created in {db_.db_path}")
 
     return db_
 
@@ -259,7 +263,7 @@ def create_database(db_):
     # create tables
     print('Creating tables...')
     for t, q in TABLES_TO_CREATE:
-        print("Create table {}... ".format(t), end="")
+        print(f"Create table {t}... ", end="")
         db_.execute(q)
         print("done!")
 
@@ -268,7 +272,7 @@ def create_database(db_):
     # create views
     print('Creating views...')
     for t, q in VIEWS_TO_CREATE:
-        print("Create view {}... ".format(t), end="")
+        print(f"Create view {t}... ", end="")
         db_.execute(q)
         print("done!")
 
@@ -288,7 +292,7 @@ def populate_database(db_):
         except Exception as ex2:
             raise ex2
 
-    data_file.close()
+    # data_file.close()
 
     print("Adding initial data")
     db_.executemany(Q_SYS, data_dict['DATA_SYS'])

@@ -37,8 +37,8 @@ def analyze():
     n_p = norm.fit(ret)
     c_p = cauchy.fit(ret)
 
-    print('Gaussian  loc= {:.2%}\tscale= {:.2%}'.format(*n_p))
-    print('Lorentian loc= {:.2%}\tscale= {:.2%}'.format(*c_p))
+    print(f'Gaussian  loc= {n_p[0]:.2%}\tscale= {n_p[1]:.2%}\n'
+          f'Lorentian loc= {c_p[0]:.2%}\tscale= {c_p[1]:.2%}')
 
     y_n = norm.pdf(mids, *n_p)
     y_c = cauchy.pdf(mids, *c_p)
@@ -97,9 +97,10 @@ if __name__ == '__main__':
         res = db.execute(q).fetchall()
 
         f = list(qb.get_fields('Assets'))
-        print('\n\nAvailable equities:')
-        print(tabulate(res, headers=f, showindex=True))
-        idx_list = inh.input("\nGive a list of  equity indices: ",
+        print(f'\n\nAvailable equities:\n'
+              f'{tabulate(res, headers=f, showindex=True)}',
+              end='\n\n')
+        idx_list = inh.input("Give a list of  equity indices: ",
                              idesc='int', is_list=True, optional=False)
         eq_list = tuple(res[i][0] for i in idx_list)
 

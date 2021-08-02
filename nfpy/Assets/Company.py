@@ -20,14 +20,17 @@ class Company(AggregationMixin, FinancialItem):
 
     def _load_cnsts(self):
         """ Fetch from the database the fundamentals. """
-        # Define the list of fields to fetch
-        fields = ['code', 'freq', 'date', 'value']
-
         # Get the fundamental data form the database
-        q = self._qb.select(self._CONSTITUENTS_TABLE, fields=fields, keys=('uid',))
-        res = self._db.execute(q, (self._uid,)).fetchall()
+        res = self._db.execute(
+            self._qb.select(
+                self._CONSTITUENTS_TABLE,
+                fields=('code', 'freq', 'date', 'value'),
+                keys=('uid',)
+            ),
+            (self._uid,)
+        ).fetchall()
         if not res:
-            warnings.warn('No fundamental data found for {}'.format(self._uid))
+            warnings.warn(f'No fundamental data found for {self._uid}')
             return
 
         # Create the sorted indices per date

@@ -90,14 +90,23 @@ class Bond(Asset):
 
     def _load_cf(self):
         """ Load the cash flows from the database. """
-        cols = ['date', 'dtype', 'value']
-        dtype_list = ",".join([str(self._dt.get(t)) for t in ('cfP', 'cfC', 'cfS')])
-        where = " dtype in (" + dtype_list + ")"
-        q = self._qb.select(self.ts_table, fields=cols, keys=('uid',), where=where)
+        cols = ('date', 'dtype', 'value')
+        dtype_str = ",".join([
+            str(self._dt.get(t))
+            for t in ('cfP', 'cfC', 'cfS')
+        ])
 
-        r = self._db.execute(q, (self.uid,)).fetchall()
+        r = self._db.execute(
+            self._qb.select(
+                self.ts_table,
+                fields=cols,
+                keys=('uid',),
+                where=f" dtype in ({dtype_str})"
+            ),
+            (self.uid,)
+        ).fetchall()
         if not r:
-            raise Ex.MissingData('Cash flows not available for {}'.format(self.uid))
+            raise Ex.MissingData(f'Cash flows not available for {self.uid}')
 
         cf = pd.DataFrame(data=r, columns=cols)
         cf['date'] = cf['date'].astype(np.datetime64)
@@ -135,9 +144,11 @@ class Bond(Asset):
         except AttributeError:
             date = np.array([date.asm8])
 
-        v, date = Math.calc_ytm(date, self._inception_date.asm8,
-                                self._maturity.asm8, p0, self.cf['value'].values,
-                                self.cf.index.values, self.cf['dtype'].values, .0)
+        v, date = Math.calc_ytm(
+            date, self._inception_date.asm8,
+            self._maturity.asm8, p0, self.cf['value'].values,
+            self.cf.index.values, self.cf['dtype'].values, .0
+        )
         return pd.Series(data=v, index=date)
 
     def fv(self, rate: Union[float, Curve],
@@ -163,10 +174,12 @@ class Bond(Asset):
         else:
             raise TypeError('Wrong date type supplied to bond.fv()')
 
-        v, dates = Math.calc_fv(dates, self._inception_date.asm8,
-                                self._maturity.asm8, .0, self.cf['value'].values,
-                                self.cf.index.values, self.cf['dtype'].values,
-                                rate)
+        v, dates = Math.calc_fv(
+            dates, self._inception_date.asm8,
+            self._maturity.asm8, .0, self.cf['value'].values,
+            self.cf.index.values, self.cf['dtype'].values,
+            rate
+        )
         return pd.Series(data=v, index=dates)
 
     def duration(self, date: Union[pd.Timestamp, pd.DatetimeIndex] = None) \
@@ -186,13 +199,13 @@ class Bond(Asset):
 
         # quick exit for floating rate bonds
         elif self.rate_type == 'float':
-            warnings.warn("{}: duration not supported for floating rates"
-                          .format(self.uid), Ex.UnsupportedWarning)
+            warnings.warn(f"{self.uid}: duration not supported for floating rates",
+                          Ex.UnsupportedWarning)
             return np.nan
 
         elif self.callable:
-            warnings.warn("{}: callability not considered in duration"
-                          .format(self.uid), Ex.ToBeImplementedWarning)
+            warnings.warn(f"{self.uid}: callability not considered in duration",
+                          Ex.ToBeImplementedWarning)
 
         # Handle missing input date
         if date is None:
@@ -204,9 +217,11 @@ class Bond(Asset):
             p0 = p.values
         except AttributeError:
             if np.isnan(p):
-                v = self.prices.values
-                dt = self.prices.index.values
-                p, _ = Math.last_valid_value(v, dt, date.asm8)
+                p, _ = Math.last_valid_value(
+                    self.prices.values,
+                    self.prices.index.values,
+                    date.asm8
+                )
             p0 = p
 
         # Transform to the right format prices and dates
@@ -217,11 +232,16 @@ class Bond(Asset):
         else:
             raise TypeError('Wrong date type supplied to bond.fv()')
 
-        v, dates = Math.calc_duration(dates, self._inception_date.asm8,
-                                      self._maturity.asm8, p0,
-                                      self.cf['value'].values,
-                                      self.cf.index.values,
-                                      self.cf['dtype'].values, .0)
+        v, dates = Math.calc_duration(
+            dates,
+            self._inception_date.asm8,
+            self._maturity.asm8,
+            p0,
+            self.cf['value'].values,
+            self.cf.index.values,
+            self.cf['dtype'].values,
+            .0
+        )
         return pd.Series(data=v, index=dates)
 
     def convexity(self, date: Union[pd.Timestamp, pd.DatetimeIndex] = None) \
@@ -237,13 +257,13 @@ class Bond(Asset):
         """
         # quick exit for floating rate bonds
         if self.rate_type == 'float':
-            warnings.warn("{}: duration not supported for floating rates"
-                          .format(self.uid), Ex.UnsupportedWarning)
+            warnings.warn(f"{self.uid}: duration not supported for floating rates",
+                          Ex.UnsupportedWarning)
             return np.nan
 
         elif self.callable:
-            warnings.warn("{}: callability not considered in duration"
-                          .format(self.uid), Ex.ToBeImplementedWarning)
+            warnings.warn(f"{self.uid}: callability not considered in duration",
+                          Ex.ToBeImplementedWarning)
 
         # Handle input date
         if date is None:
@@ -255,9 +275,11 @@ class Bond(Asset):
             p0 = p.values
         except AttributeError:
             if np.isnan(p):
-                v = self.prices.values
-                dt = self.prices.index.values
-                p, _ = Math.last_valid_value(v, dt, date.asm8)
+                p, _ = Math.last_valid_value(
+                    self.prices.values,
+                    self.prices.index.values,
+                    date.asm8
+                )
             p0 = p
 
         if isinstance(date, pd.Timestamp):
@@ -267,9 +289,14 @@ class Bond(Asset):
         else:
             raise TypeError('Wrong date type supplied to bond.fv()')
 
-        v, dates = Math.calc_convexity(dates, self._inception_date.asm8,
-                                       self._maturity.asm8, p0,
-                                       self.cf['value'].values,
-                                       self.cf.index.values,
-                                       self.cf['dtype'].values, .0)
+        v, dates = Math.calc_convexity(
+            dates,
+            self._inception_date.asm8,
+            self._maturity.asm8,
+            p0,
+            self.cf['value'].values,
+            self.cf.index.values,
+            self.cf['dtype'].values,
+            .0
+        )
         return pd.Series(data=v, index=dates)

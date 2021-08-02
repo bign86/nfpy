@@ -31,18 +31,17 @@ if __name__ == '__main__':
     res = db.execute(q).fetchall()
 
     f = list(qb.get_fields('Assets'))
-    print('\n\nAvailable equities:')
-    print(tabulate(res, headers=f, showindex=True))
+    print(f'\n\nAvailable equities:'
+          f'{tabulate(res, headers=f, showindex=True)}')
     uid = inh.input("\nGive an equity index: ", idesc='int')
     eq = af.get(res[uid][0])
 
     q = "select * from Assets where type = 'Indices'"
-    f = list(qb.get_fields('Assets'))
     res = db.execute(q).fetchall()
 
-    print('\n\nAvailable indices:')
-    print(tabulate(res, headers=f, showindex=True))
-    print('Default index: {}'.format(eq.index))
+    print(f'\n\nAvailable indices:'
+          f'{tabulate(res, headers=f, showindex=True)}'
+          f'Default index: {eq.index}')
     idx = inh.input("\nGive indices comma separated (Default None): ",
                     idesc='int', optional=True, is_list=True)
     w = inh.input("\nChoose window size (Default 120 (~6m)): ", default=120,

@@ -147,8 +147,8 @@ periods are required to initialize the calendar""")
         # offset = min(2, max(0, (self.end.weekday() + 6) % 7 - 3))
         self._t0 = self.end - off.Day(offset)
 
-        print(' * Calendar dates: {} -> {} : {}'
-              .format(self._start.date(), self._end.date(), self._t0.date()),
+        print(f' * Calendar dates: {self._start.date()} -> '
+              f'{self._end.date()} : {self._t0.date()}',
               end='\n\n')
         self._initialized = True
 
@@ -195,7 +195,7 @@ def date_2_datetime(dt: Union[TyDate, TyDateSequence], fmt: str = '%Y-%m-%d') \
         elif isinstance(dt[0], datetime.datetime):
             pass
         else:
-            raise TypeError('Date type ({}) not accepted'.format(type(dt)))
+            raise TypeError(f'Date type ({type(dt)}) not accepted')
         return dt
     else:
         if isinstance(dt, str):
@@ -205,22 +205,33 @@ def date_2_datetime(dt: Union[TyDate, TyDateSequence], fmt: str = '%Y-%m-%d') \
         elif isinstance(dt, datetime.datetime):
             pass
         else:
-            raise TypeError('Date type ({}) not accepted'.format(type(dt)))
+            raise TypeError(f'Date type ({type(dt)}) not accepted')
         return dt
 
 
-def today(mode: str = 'str', fmt: str = '%Y-%m-%d') -> TyDate:
-    """ Return a string with today date """
+def today(mode: str = 'date', fmt: str = '%Y-%m-%d') -> TyDate:
+    """ Return a string with today date. By default returns a datetime.date
+        object. The return type depends on the mode attribute:
+          1. date (default): datetime.date
+          2. str: string
+          3. timestamp: pandas.Timestamp
+          4. datetime: datetime.datetime
+        This function does not include the time in the return object, only the
+        date. Therefore, time is set to 00:00:00.000000. The format attribute is
+        used only if applicable to the mode.
+    """
     t = datetime.date.today()
     if mode == 'str':
-        today__ = t.strftime(fmt)
+        t = t.strftime(fmt)
     elif mode == 'timestamp':
-        today__ = pd.to_datetime(t, format=fmt)
-    elif mode in ('datetime', 'date'):
-        today__ = datetime.datetime(t.year, t.month, t.day)
+        t = pd.to_datetime(t)
+    elif mode == 'datetime':
+        t = datetime.datetime(t.year, t.month, t.day)
+    elif mode == 'date':
+        pass
     else:
-        raise ValueError('Mode {} not recognized!'.format(mode))
-    return today__
+        raise ValueError(f'Mode {mode} in calendar.today() not recognized!')
+    return t
 
 
 def last_business(offset: int = 1, mode: str = 'str',
@@ -230,19 +241,31 @@ def last_business(offset: int = 1, mode: str = 'str',
     if mode == 'str':
         lbd_ = lbd_.strftime(fmt)
     elif mode == 'timestamp':
-        lbd_ = pd.to_datetime(lbd_, format=fmt)
+        lbd_ = pd.to_datetime(lbd_)
     elif mode == 'datetime':
         pass
     else:
-        raise ValueError('Mode {} not recognized!'.format(mode))
+        raise ValueError(f'Mode {mode} in calendar.last_business() not recognized!')
     return lbd_
 
 
-def now(string: bool = True, fmt: str = '%Y-%m-%d %H:%M') -> TyDate:
-    """ Return a string with today date """
-    now_ = datetime.datetime.now()
-    if string:
-        now_ = now_.strftime(fmt)
+def now(mode: str = 'datetime', fmt: str = '%Y-%m-%d %H:%M') -> TyDate:
+    """ Return a string with current date and time.  By default returns a
+        datetime.datetime object. The return type depends on the mode attribute:
+          1. datetime (default): datetime.datetime
+          2. str: string
+          3. timestamp: pandas.Timestamp
+        The format attribute is
+        used only if applicable to the mode.
+    """
+    if mode == 'timestamp':
+        now_ = pd.Timestamp.now()
+    elif mode == 'datetime':
+        now_ = datetime.datetime.now()
+    elif mode == 'str':
+        now_ = datetime.datetime.now().strftime(fmt)
+    else:
+        raise ValueError(f'Mode {mode} in calendar.now() not recognized!')
     return now_
 
 
@@ -278,7 +301,7 @@ def shift(dt: pd.Timestamp, n: int, freq: str) -> pd.Timestamp:
     return dt + offset(int(n))
 
 
-def pd_2_np64(dt: Union[None, TyDateSequence]) \
+def pd_2_np64(dt: Union[None, TyDate]) \
         -> Union[None, np.datetime64]:
     return dt.asm8 if isinstance(dt, pd.Timestamp) else dt
 

@@ -10,7 +10,7 @@ from typing import Union
 from .Returns import compound
 
 
-def df(r: float, t: float, n: int = 1, mode: str = 'simple') -> float:
+def df(r: float, t: int, n: int = 1, mode: str = 'simple') -> float:
     """ General function for discount factors. Choose the type of discount in
         mode among
             - simple: sdf(r, t)
@@ -29,7 +29,7 @@ def cdf(r: float, t: int, n: int = 1) -> float:
     return 1./(1. + compound(r, t, n))
 
 
-def ccdf(r: float, t: float) -> float:
+def ccdf(r: float, t: int) -> float:
     """ Continuously compounded discount factor D for a zero-rate r over the
         time t in years
             $D = \exp{-r t}$
@@ -70,6 +70,6 @@ def rate_interpolate(r: np.ndarray, t: np.ndarray, maturity: Union[float, np.nda
         spl = splrep(t, r, k=3, s=m)
         r_intp = splev(maturity, spl)
     else:
-        raise ValueError('rate_interpolate method {} not recognized'.format(method))
+        raise ValueError(f'rate_interpolate method {method} not recognized')
 
     return r_intp

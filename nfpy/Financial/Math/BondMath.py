@@ -119,11 +119,11 @@ def cash_flows(cf: np.ndarray, dt: np.ndarray, ty: np.ndarray,
             dt [np.ndarray]: array of dates
             perc [float]: percentage of cash flow accrued
     """
-    code = get_dt_glob().get('cfC')
     pf, dts = trim_ts(cf, dt, start=date)
     n = len(pf)
     ty, perc = ty[-n:], .0
 
+    code = get_dt_glob().get('cfC')
     if np.isin(code, ty).any():
         cou_idx = np.where(ty == code)[0]
         perc, _, pe = accrued(dt, date, inception)
@@ -297,7 +297,7 @@ def _gen_bm_func(mode: str, dates: Union[np.datetime64, np.ndarray],
     elif mode == 'cvx':
         f_ = convexity
     else:
-        raise ValueError('_gen_bm_func() mode ({}) not recognized'.format(mode))
+        raise ValueError(f'_gen_bm_func() mode ({mode}) not recognized')
 
     # Trim data
     prices, dts = trim_ts(prices, dates, start=inception, end=maturity)
@@ -387,7 +387,7 @@ def aggregate_cf(cf_values: np.ndarray, cf_dates: np.ndarray) -> tuple:
         ret[:, j] += cf_values[:, i]
         j += 1
 
-    # This version takes the double of the time of the previous
+    # This version takes the double of the time of the piece of code above
     # ret = np.empty((cf_values.shape[0], cf_dt_unique.shape[0]))
     # for i, d in enumerate(cf_dt_unique):
     #     ret[:, i] = np.sum(cf_values[:, np.where(cf_dates == d)[0]], axis=1)

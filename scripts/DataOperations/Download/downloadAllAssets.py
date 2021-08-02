@@ -8,6 +8,20 @@ import nfpy.IO as IO
 
 __version__ = '0.7'
 _TITLE_ = "<<< Update database script >>>"
+__purpose__ = "Updates the time series according to the Downloads table"
+__desc__ = """
+The script uses the Downloads table to gather the required information for
+updating the time series in the database. The following parameters can be
+overridden by the user:
+    - override date [bool]: with True overrides the default frequency of
+        downloads that determines when a time series can be updated.
+    - provider [str]: filter for the downloads relative to the given provider.
+    - page [str]: filter for the downloads relative to the given page.
+    - ticker [str]: filter for the downloads relative to the given ticker.
+    - override automatic [bool]: with True allows to update the items marked as
+        inactive not automatically downloaded.
+    - save [bool]: with False does not save the results in the database.
+"""
 
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')

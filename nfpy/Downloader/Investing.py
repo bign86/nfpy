@@ -131,15 +131,15 @@ class InvestingHistoricalPrices(InvestingBasePage):
         self._p.update({
             'curr_id': self.ticker,
             'smlID': str(randint(1000000, 99999999)),
-            # 'st_date': pd.to_datetime(ld).strftime('%m/%d/%Y'),
-            'st_date': '01/01/2018',
-            'end_date': today(fmt='%m/%d/%Y')
+            'st_date': pd.to_datetime(ld).strftime('%m/%d/%Y'),
+            # 'st_date': '01/01/2018',
+            'end_date': today(mode='str', fmt='%m/%d/%Y')
         })
 
     def _local_initializations(self, params: dict):
         """ Local initializations for the single page. """
         if params:
-            for p in ['st_date', 'end_date']:
+            for p in ('st_date', 'end_date'):
                 if p in params:
                     d = params[p]
                     params[p] = pd.to_datetime(d).strftime('%m/%d/%Y')
@@ -147,14 +147,13 @@ class InvestingHistoricalPrices(InvestingBasePage):
 
     def _parse(self):
         """ Parse the fetched object. """
-        dt = []
-        soup = BeautifulSoup(self._robj.text, "html.parser")
-        t = soup.find('table', {'class': "genTbl closedTbl historicalTbl"})
+        t = BeautifulSoup(self._robj.text, "html.parser") \
+            .find('table', {'class': "genTbl closedTbl historicalTbl"})
         if t is None:
             raise RuntimeError('Results table not found in downloaded data')
 
-        d = t.find('tbody')
-        for tr in d.findAll('tr'):
+        dt = []
+        for tr in t.find('tbody').findAll('tr'):
             row = [None] * 6
             i = 0
             for td in tr.findAll('td'):
@@ -201,12 +200,17 @@ class InvestingDividends(InvestingBasePage):
         j = json.loads(self._robj.text)
         soup = BeautifulSoup(j['historyRows'], "html.parser")
         td_list = soup.select('tr > td')
-        td_dates = [pd.to_datetime(v['data-value'], unit='s')
-                    .strftime('%Y-%m-%d') for v in td_list[::5]]
+        td_dates = [
+            pd.to_datetime(v['data-value'], unit='s')
+                .strftime('%Y-%m-%d')
+            for v in td_list[::5]
+        ]
         td_values = [float(v.text) for v in td_list[1::5]]
-        data = list(zip(td_dates, td_values))
 
-        df = pd.DataFrame(data, columns=['date', 'value'])
+        df = pd.DataFrame(
+            list(zip(td_dates, td_values)),
+            columns=['date', 'value']
+        )
         df.insert(0, 'ticker', self.ticker)
 
         code = get_dt_glob().get('dividend')
@@ -227,9 +231,11 @@ class InvestingFinancialsBasePage(InvestingBasePage):
         self._p = self._PARAMS
 
         tck = self.ticker.split('/')
-        self._p.update({'pair_ID': tck[0],
-                        'period_type': tck[1],
-                        'report_type': self._REPORT_TYPE})
+        self._p.update({
+            'pair_ID': tck[0],
+            'period_type': tck[1],
+            'report_type': self._REPORT_TYPE
+        })
 
     def _parse(self):
         """ Parse the fetched object. """
@@ -243,13 +249,19 @@ class InvestingFinancialsBasePage(InvestingBasePage):
         h = t.find('tr', {'class': "alignBottom"})
         years = [i.text for i in h.select('th > span')][1:]
         if period_type == 'Interim':
-            months = [i.text.split('/')[::-1] for i in h.select('th > div')]
+            months = [
+                i.text.split('/')[::-1]
+                for i in h.select('th > div')
+            ]
         elif period_type == 'Annual':
             months = [('12', '31')] * 4
         else:
-            raise ValueError('Parameter period_type = {} not recognized'
-                             .format(self.params['period_type']))
-        dates = tuple('-'.join([i, *j]) for i, j in zip(years, months))
+            msg = f"Parameter period_type = {self.params['period_type']} not recognized"
+            raise ValueError(msg)
+        dates = tuple(
+            '-'.join([i, *j])
+            for i, j in zip(years, months)
+        )
 
         # Get data
         b = soup.find('tbody')
@@ -271,7 +283,7 @@ class InvestingFinancialsBasePage(InvestingBasePage):
         tck, st = self.params['pair_ID'], self.params['report_type']
         freq = 'A' if period_type == 'Annual' else 'Q'
         ccy = self._curr
-        data_final = list()
+        data_final = []
         for tup in data:
             code = self._COLUMNS[tup[0]]
             for d, v in zip(dates, tup[1:]):
@@ -279,8 +291,10 @@ class InvestingFinancialsBasePage(InvestingBasePage):
                     continue
                 data_final.append((tck, freq, d, ccy, st, code, v))
 
-        cols = self._qb.get_fields(self._TABLE)
-        df = pd.DataFrame(data_final, columns=cols)
+        df = pd.DataFrame(
+            data_final,
+            columns=self._qb.get_fields(self._TABLE)
+        )
         self._res = df
 
 

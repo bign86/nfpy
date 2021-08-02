@@ -5,6 +5,7 @@
 
 import importlib
 
+from enum import Enum
 from pathlib import Path
 from typing import Union, Sequence
 
@@ -24,10 +25,9 @@ class AttributizedDict(dict):
     def __repr__(self):
         if self.keys():
             m = max(map(len, list(self.keys()))) + 1
-            return '\n'.join([k.rjust(m) + ': ' + repr(v)
-                              for k, v in self.items()])
+            return '\n'.join(f"{k.rjust(m)}: {repr(v)}" for k, v in self.items())
         else:
-            return self.__class__.__name__ + "()"
+            return f"{self.__class__.__name__}()"
 
 
 class FileObject(AttributizedDict):
@@ -60,8 +60,8 @@ class FileObject(AttributizedDict):
     def _read(self) -> str:
         """ Read the entire file from disk into memory. Batch mode NOT supported. """
         if self.status_code != 200:
-            raise RuntimeError('Cannot open file {} with status code {}'
-                               .format(self.path, self.status_code))
+            msg = f'Cannot open file {self.path} with status code {self.status_code}'
+            raise RuntimeError(msg)
         with self.path.open(mode='r') as fd:
             text = ''.join(fd.readlines())
         return text
@@ -92,14 +92,34 @@ def list_to_dict(v: Sequence) -> dict:
         return dict(zip(v[::2], v[1::2]))
 
 
-def print_sequence(seq: Sequence, showindex: bool = False):
+def print_sequence(seq: Sequence, showindex: bool = False) -> None:
     """ A super simple poor man's tabulate. """
     if showindex:
-        for i, v in enumerate(seq):
-            print('{}\t{}'.format(i, v))
+        print('\n'.join(f'{i}\t{v}' for i, v in enumerate(seq)))
     else:
-        for v in seq:
-            print('{}'.format(v))
+        print('\n'.join(str(v) for v in seq))
+
+
+class Col(Enum):
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+
+def print_exc(ex: BaseException) -> None:
+    """ Print a raised exception. Gives consistency across the library. """
+    print(f'{Col.FAIL.value}!!!{type(ex).__name__}{Col.ENDC.value} - {ex}')
+
+
+def print_wrn(wrn: Warning) -> None:
+    """ Print a raised warning. Gives consistency across the library. """
+    print(f'{Col.WARNING.value}---{type(wrn).__name__}{Col.ENDC.value} - {wrn}')
 
 
 def ordered_unique(v: Sequence) -> Sequence:

@@ -36,7 +36,8 @@ class DatatypeFactory(metaclass=Singleton):
         return dtype in self._dec_datatypes
     
     def exists(self, dtype: str) -> bool:
-        warnings.warn("Deprecated use __contains__ via the 'in' operator", DeprecationWarning)
+        warnings.warn("Deprecated use __contains__ via the 'in' operator",
+                      DeprecationWarning)
         return self.__contains__(dtype)
 
     def is_code_available(self, code: int) -> bool:
@@ -53,7 +54,7 @@ class DatatypeFactory(metaclass=Singleton):
             del self._mapping[code]
             del self._codes_in_use[code]
         else:
-            raise RuntimeWarning("Datatype {} not found".format(dtype))
+            raise RuntimeWarning(f"Datatype {dtype} not found")
 
     def get(self, dtype: str) -> int:
         """ Return the decoded datatype.
@@ -67,7 +68,7 @@ class DatatypeFactory(metaclass=Singleton):
         try:
             dt = self._dec_datatypes[dtype]
         except KeyError:
-            raise KeyError("Datatype {} not known!".format(dtype))
+            raise KeyError(f"Datatype {dtype} not known!")
         return dt
 
     def teg(self, code: int) -> str:
@@ -82,7 +83,7 @@ class DatatypeFactory(metaclass=Singleton):
         try:
             dt = self._mapping[code]
         except KeyError:
-            raise KeyError("Encoded datatype {} not known!".format(code))
+            raise KeyError(f"Encoded datatype {code} not known!")
         return dt
 
 

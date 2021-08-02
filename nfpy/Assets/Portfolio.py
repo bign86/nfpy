@@ -77,6 +77,9 @@ class Portfolio(AggregationMixin, Asset):
             self._df["price"] = res
         return res
 
+    def load(self):
+        super(Portfolio, self).load()
+
     def _load_cnsts(self):
         """ Fetch from the database the portfolio constituents. """
 
@@ -89,22 +92,26 @@ class Portfolio(AggregationMixin, Asset):
         # before the calendar start to be used for loading. If no snapshot
         # before start is available, the inception date will be used for loading
         if date < start_date:
-            query_snap = 'select distinct date from ' + self._CONSTITUENTS_TABLE + \
-                         ' where ptf_uid = ? order by date'
-            dt = self._db.execute(query_snap, (self._uid,)).fetchall()
+            dt = self._db.execute(
+                f'select distinct date from {self._CONSTITUENTS_TABLE}'
+                f' where ptf_uid = ? order by date',
+                (self._uid,)
+            ).fetchall()
 
-            dt = [datetime.strptime(d[0], '%Y-%m-%d') for d in dt]
-            dt = [date.to_pydatetime()] + dt
+            # dt = [datetime.strptime(d[0], '%Y-%m-%d') for d in dt]
+            # dt = [date.to_pydatetime()] + dt
+            dt = [date.to_pydatetime()] + [d[0] for d in dt]
             idx = bisect_left(dt, start_date)
 
             # If the required loading date is before the start of the calendar
             # we cannot apply the fx rate while loading the trades thus we quit
             if idx == len(dt):
                 fmt = '%Y-%m-%d'
-                msg = """Calendar starting @ {} but loading required @ {}.
-Consider moving back the calendar start date."""
-                raise Ex.CalendarError(msg.format(start_date.strftime(fmt),
-                                                  dt[-1].strftime(fmt)))
+                raise Ex.CalendarError(
+                    f"Calendar starting @ {start_date.strftime(fmt)} but "
+                    f"loading required @ {dt[-1].strftime(fmt)}.\n"
+                    f"Consider moving back the calendar start date."
+                )
 
             # If a snapshot in the future is available just use it
             date = pd.Timestamp(dt[idx])
@@ -116,9 +123,14 @@ Consider moving back the calendar start date."""
 
         # Fetch the portfolio snapshot from the DB if a snapshot is available
         if flag_snapshot:
-            q = self._qb.select(self._CONSTITUENTS_TABLE,
-                                keys=('ptf_uid', 'date'), order='pos_uid')
-            res = self._db.execute(q, (self._uid, date.strftime('%Y-%m-%d'))).fetchall()
+            res = self._db.execute(
+                self._qb.select(
+                    self._CONSTITUENTS_TABLE,
+                    keys=('ptf_uid', 'date'),
+                    order='pos_uid'
+                ),
+                (self._uid, date.strftime('%Y-%m-%d'))
+            ).fetchall()
 
             # Create new uid list and constituents dict to ensure any previous
             # non-null value of the variables is overwritten by the new one
@@ -156,13 +168,15 @@ Consider moving back the calendar start date."""
     def _load_trades(self, start: pd.Timestamp, positions: dict,
                      df: pd.DataFrame) -> tuple:
         """ Updates the portfolio positions by adding the pending trades. """
-        # This should catch also the trades in the same day
-        t0 = self._cal.t0.to_pydatetime() + timedelta(hours=23, minutes=59, seconds=59)
-        start = start.to_pydatetime() - timedelta(hours=1)  # days=1)
-
         # Fetch trades from the database
+        # These parameters should catch also the trades in the same day
+        params = (
+            self._uid,
+            start.to_pydatetime() - timedelta(hours=1),  # days=1)
+            self._cal.t0.to_pydatetime() + timedelta(hours=23, minutes=59, seconds=59),
+        )
         q = self._qb.select(self._TRADES_TABLE, rolling=('date',), keys=('ptf_uid',))
-        trades = self._db.execute(q, (self._uid, start, t0)).fetchall()
+        trades = self._db.execute(q, params).fetchall()
 
         # If there are no trades just exit
         if not trades:
@@ -172,11 +186,11 @@ Consider moving back the calendar start date."""
 
         # Cycle on trades grouping by date
         trades.sort(key=lambda f: f[1])
-        for date, g in groupby(trades, key=lambda f: f[1]):
+        for dt, g in groupby(trades, key=lambda f: f[1]):
 
             # Sort by date
             gt = list(g)
-            dt = pd.to_datetime(date)
+            # dt = pd.to_datetime(date)
             dt = dt.replace(hour=0, minute=0, second=0)
 
             for t in gt:
@@ -228,8 +242,8 @@ Consider moving back the calendar start date."""
                     # and we update the alp of the position accordingly.    
                     pos_fx_rate = 1.
                     if trade_ccy != v.currency:
-                        fx_obj = fx.get(trade_ccy, v.currency)
-                        pos_fx_rate = fx_obj.get(dt)
+                        pos_fx_rate = fx.get(trade_ccy, v.currency) \
+                            .get(dt)
 
                     # Calculate the average cost of the instrument considering
                     # whether we buy/sell/short sell/short cover and the
@@ -248,8 +262,7 @@ Consider moving back the calendar start date."""
                     df.loc[dt, uid] = v.quantity
 
                     if v.quantity == 0.:
-                        print('pos: {} | quantity: {:.2f} ==> deleted'
-                              .format(uid, v.quantity))
+                        print(f'pos: {uid} | quantity: {v.quantity:.2f} ==> deleted')
                         del positions[uid]
 
                 # Update cash position
@@ -334,7 +347,7 @@ Consider moving back the calendar start date."""
         return pd.Series(ret, index=dt)
 
     def tev(self, benchmark: Asset, w: int = None) -> pd.Series:
-        """ Calculates Tracking Error Volatility of the portfolio against a benchmark
+        """ Calculates Tracking Error Volatility of the portfolio against a benchmark.
 
             Input:
                 benchmark [Asset]: asset to be used as benchmark
@@ -366,24 +379,28 @@ Consider moving back the calendar start date."""
         """ Show the portfolio summary in the portfolio base currency. """
         # Run through positions and collect data for the summary
         pos_value = self.positions_value().loc[self._date]
-        tot_value = pos_value.sum()
-
-        data = []
-        for k, p in self._dict_cnsts.items():
-            val = float(pos_value[k])
-            cost = p.alp * p.quantity
-            t = (p.type, p.uid, p.date.strftime('%Y-%m-%d'), p.currency,
-                 p.alp, p.quantity, cost, val)
-            data.append(t)
+        data = [
+            (
+                p.type, p.uid,
+                p.date.strftime('%Y-%m-%d'),
+                p.currency,
+                p.alp, p.quantity,
+                p.alp * p.quantity,
+                float(pos_value[k])
+            )
+            for k, p in self._dict_cnsts.items()
+        ]
 
         # Sort accordingly to the key <type, uid>
         data.sort(key=lambda _t: (_t[0], _t[1]))
-        fields = ('type', 'uid', 'date', 'currency', 'alp', 'quantity',
-                  'cost (FX)', 'value ({})'.format(self._currency))
-        cnsts = pd.DataFrame(data, columns=fields)
+        cnsts = pd.DataFrame(
+            data,
+            columns=('type', 'uid', 'date', 'currency', 'alp', 'quantity',
+                     'cost (FX)', f'value ({self._currency})')
+        )
 
         return {
             'uid': self._uid, 'currency': self._currency, 'date': self._date,
-            'inception': self._inception_date, 'tot_value': tot_value,
+            'inception': self._inception_date, 'tot_value': pos_value.sum(),
             'constituents_data': cnsts,
         }

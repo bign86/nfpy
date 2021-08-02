@@ -25,13 +25,14 @@ if __name__ == '__main__':
 
     # get the table to dump
     table = inh.input("Table to dump: ", idesc='str')
-    if not qb.exists_table(table):
-        raise ValueError("Table {} does not exists in the database".format(table))
+    while not qb.exists_table(table):
+        msg = "The table does not exists in the database. Please give another: "
+        table = inh.input(msg)
 
-    q = "select * from {}".format(table)
+    q = f"select * from {table}"
     l = db.execute(q).fetchall()
 
-    fname = table + '_' + now(fmt='%Y%m%d%H%M') + '.csv'
+    fname = f'{table}_{now(mode="str", fmt="%Y%m%d%H%M")}.csv'
     path = join(conf.backup_dir, fname)
 
     columns = list(qb.get_fields(table))

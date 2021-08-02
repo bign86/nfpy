@@ -94,7 +94,7 @@ class ECBSeries(ECBBasePage):
             'end': today(fmt='%d-%m-%Y')
         })
 
-    def _local_initializations(self, params: dict):
+    def _local_initializations(self, params: dict) -> None:
         """ Local initializations for the single page. """
         if params:
             for p in ['start', 'end']:
@@ -105,11 +105,15 @@ class ECBSeries(ECBBasePage):
         self._crumb = self._fetch_crumb()
         # print("JsessionId: {}".format(crumb))
 
-    def _parse(self):
+    def _parse(self) -> None:
         """ Parse the fetched object. """
-        names = self._COLUMNS
-        data = StringIO(self._robj.text)
-        df = pd.read_csv(data, sep=',', header=None, names=names, skiprows=6,
-                         index_col=False)
+        df = pd.read_csv(
+            StringIO(self._robj.text),
+            sep=',',
+            header=None,
+            names=self._COLUMNS,
+            skiprows=6,
+            index_col=False
+        )
         df.insert(0, 'ticker', self.ticker)
         self._res = df

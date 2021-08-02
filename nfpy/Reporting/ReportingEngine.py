@@ -4,7 +4,6 @@
 #
 
 from jinja2 import FileSystemLoader, Environment
-import json
 import os
 import shutil
 
@@ -45,10 +44,16 @@ class ReportingEngine(metaclass=Singleton):
         self._initialize()
 
     def _initialize(self) -> None:
-        rep_path = self._conf.report_path
-        new_folder = 'Report_' + self._cal.end.strftime(self._DT_FMT)
-        self._curr_report_dir = os.path.join(rep_path, new_folder)
-        self._curr_img_dir = os.path.join(rep_path, new_folder, self._IMG_DIR)
+        new_folder = f'Report_{self._cal.end.strftime(self._DT_FMT)}'
+        self._curr_report_dir = os.path.join(
+            self._conf.report_path,
+            new_folder
+        )
+        self._curr_img_dir = os.path.join(
+            self._conf.report_path,
+            new_folder,
+            self._IMG_DIR
+        )
 
     def get_report_obj(self, r: str) -> TyReport:
         """ Return the report object given the report name. """
@@ -64,14 +69,15 @@ class ReportingEngine(metaclass=Singleton):
 
         try:
             os.makedirs(new_path)
-            src = os.path.join(self._TMPL_PATH, "style.css")
-            dst = os.path.join(self._curr_report_dir, "style.css")
-            shutil.copyfile(src, dst)
+            shutil.copyfile(
+                os.path.join(self._TMPL_PATH, "style.css"),
+                os.path.join(self._curr_report_dir, "style.css")
+            )
         except OSError as ex:
-            print('Creation of the directory {} failed'.format(new_path))
+            print(f'Creation of the directory {new_path} failed')
             raise ex
         else:
-            print('Successfully created the directory {}'.format(new_path))
+            print(f'Successfully created the directory {new_path}')
 
     def set_report(self, report: str) -> None:
         """ Set the report to be produced. """
@@ -79,13 +85,13 @@ class ReportingEngine(metaclass=Singleton):
 
     def list(self) -> list:
         """ List reports matching the current setting. """
-        # if not self._p:
-        #     k, p = ('active',), (True,)
-        # else:
-        #     k, p = ('report',), (self._p,)
-        k, p = ('active',), (True,)
-        q = self._qb.select(self._TBL_REPORTS, keys=k)
-        return self._db.execute(q, p).fetchall()
+        return self._db.execute(
+            self._qb.select(
+                self._TBL_REPORTS,
+                keys=('active',)
+            ),
+            (True,)
+        ).fetchall()
 
     def _calculate(self, data: str) -> tuple:
         """ Calculates results by calling all models. """
@@ -93,13 +99,13 @@ class ReportingEngine(metaclass=Singleton):
         report, uids, params = data[1], data[3], data[4]
         print(report, uids, params)
 
-        pd = json.loads(params)
-        uid_lst = json.loads(uids)
+        # pd = json.loads(params)
+        # uid_lst = json.loads(uids)
         report_obj = self._REPORTS[report]
 
         res, filters = None, None
         try:
-            report = report_obj(uid_lst, pd, img_path=cid)
+            report = report_obj(uids, params, img_path=cid)
             res = report.result
             filters = report.filters
         except RuntimeError as ex:
@@ -108,20 +114,23 @@ class ReportingEngine(metaclass=Singleton):
 
         return res, filters
 
-    def _generate(self, name: str, template: str, out: tuple) -> None:
+    def _generate(self, name: str, template: str, res: tuple) -> None:
         """ Generates the actual report. """
-        title = "Report - {}".format(self._cal.end.strftime('%Y-%m-%d'))
-        report = ''.join([template, self._REP_EXT])
-        name = ''.join([name, self._REP_EXT])
+        j_env = Environment(loader=FileSystemLoader(self._TMPL_PATH))
+        j_env.filters.update(res[1])
+        main = j_env.get_template(''.join([template, self._REP_EXT]))
+        out = main.render(
+            title=f"Report - {self._cal.end.strftime('%Y-%m-%d')}",
+            res=res[0]
+        )  # , assets=assets)
 
-        j_loader = FileSystemLoader(self._TMPL_PATH)
-        j_env = Environment(loader=j_loader)
-        j_env.filters.update(out[1])
-        main = j_env.get_template(report)
-        out = main.render(title=title, res=out[0])  # , assets=assets)
-
-        out_file = os.path.join(self._curr_report_dir, name)
-        outf = open(out_file, 'w')
+        outf = open(
+            os.path.join(
+                self._curr_report_dir,
+                ''.join([name, self._REP_EXT])
+            ),
+            mode='w'
+        )
         outf.write(out)
         outf.close()
 

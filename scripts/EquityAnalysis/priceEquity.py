@@ -16,7 +16,6 @@ from nfpy.Tools import Constants as Cn
 __version__ = '0.3'
 _TITLE_ = "<<< Price equity script >>>"
 
-
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
@@ -36,11 +35,11 @@ if __name__ == '__main__':
 
     # Get equity
     q = "select * from Assets where type = 'Company'"
-    f = list(qb.get_fields('Assets'))
     res = db.execute(q).fetchall()
 
-    print('\n\nAvailable companies:')
-    print(tabulate(res, headers=f, showindex=True))
+    f = list(qb.get_fields('Assets'))
+    print(f'\n\nAvailable companies:'
+          f'{tabulate(res, headers=f, showindex=True)}')
     uid = inh.input("\nGive a company index: ", idesc='int')
     eq = res[uid][0]
 
@@ -50,17 +49,17 @@ if __name__ == '__main__':
 
     res = DividendDiscountModel(eq, future_proj=years).result(d_rate=rrr)
 
-    print('\n----------------------------------\nInputs')
-    print('\tNum of dividends:\t\t\t{:.0f}'.format(res['div_num']))
-    print('\tForecasting years:\t\t\t{:.0f}'.format(res['future_proj']))
-    print('\tActual price:\t\t\t\t{:.2f}'.format(res['last_price']))
-    print('-------\nCalculations')
-    print('\tFrequency of dividends:\t\t{:.2f}'.format(res['div_freq']))
-    print('\tPrice drift (yearly):\t\t{:.1f}%'.format(res['price_drift']*100))
-    print('\tDividend drift (yearly):\t{:.1f}%'.format(res['div_drift']*100))
-    print('-------\nResults')
-    print('\tDiscount rate:\t\t\t\t{:.1f}%'.format(res['d_rate']*100))
-    print('\tFair value zero-growth:\t\t{:.2f}'.format(res['fair_value_no_growth']))
-    print('\tFair value:\t\t\t\t\t{:.2f}'.format(res['fair_value_with_growth']))
+    print(f"\n----------------------------------\nInputs\n"
+          f"\tNum of dividends:\t\t\t{res['div_num']:.0f}\n"
+          f"\tForecasting years:\t\t\t{res['future_proj']:.0f}\n"
+          f"\tActual price:\t\t\t\t{res['last_price']:.2f}\n"
+          f"-------\nCalculations\n"
+          f"\tFrequency of dividends:\t\t{res['div_freq']:.2f}\n"
+          f"\tPrice drift (yearly):\t\t{res['price_drift'] * 100:.1f}%\n"
+          f"\tDividend drift (yearly):\t{res['div_drift'] * 100:.1f}%\n"
+          f"-------\nResults\n"
+          f"\tDiscount rate:\t\t\t\t{res['d_rate'] * 100:.1f}%\n"
+          f"\tFair value zero-growth:\t\t{res['fair_value_no_growth']:.2f}\n"
+          f"\tFair value:\t\t\t\t\t{res['fair_value_with_growth']:.2f}")
 
     print('All done!')

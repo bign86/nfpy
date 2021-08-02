@@ -27,11 +27,16 @@ class AssetFactory(metaclass=Singleton):
 
     def _fetch_type(self, uid: str) -> str:
         """ Fetch the correct asset type. """
-        q = self._qb.select(self._INFO_TABLE, fields=['uid', 'type'], keys=['uid'])
-        res = self._db.execute(q, (uid,)).fetchone()
+        res = self._db.execute(
+            self._qb.select(
+                self._INFO_TABLE,
+                fields=('uid', 'type'),
+                keys=('uid',)
+            ),
+            (uid,)
+        ).fetchone()
         if not res:
-            raise Ex.MissingData('{} not found in the asset types list!'
-                                 .format(uid))
+            raise Ex.MissingData(f'{uid} not found in the asset types list!')
         return res[1]
 
     def _create_obj(self, uid: str) -> TyFI:
@@ -70,22 +75,35 @@ class AssetFactory(metaclass=Singleton):
             a_type = self._fetch_type(uid)
         return a_type
 
-    def add(self, uid: str, asset_type: str):
+    def add(self, uid: str, asset_type: str) -> None:
         """ Add a new uid to the factory table. """
-        q = self._qb.select(self._INFO_TABLE, fields=('uid',), keys=('uid',))
-        r = self._db.execute(q, (uid,)).fetchall()
+        r = self._db.execute(
+            self._qb.select(
+                self._INFO_TABLE,
+                fields=('uid',),
+                keys=('uid',)
+            ),
+            (uid,)
+        ).fetchall()
         if r:
-            raise ValueError("'uid' = {} already present!".format(uid))
+            raise ValueError(f"\'uid\' = {uid} already present!")
 
-        q = self._qb.insert(self._INFO_TABLE)
-        self._db.execute(q, (uid, asset_type), commit=True)
+        self._db.execute(
+            self._qb.insert(self._INFO_TABLE),
+            (uid, asset_type),
+            commit=True
+        )
 
-    def remove(self, uid: str):
+    def remove(self, uid: str) -> None:
         """ Remove an uid from the factory table. """
-        if not isinstance(uid, str):
-            raise TypeError("Only string accepted as inputs!")
-        q = self._qb.delete(self._INFO_TABLE, fields=('uid',))
-        self._db.execute(q, (uid,), commit=True)
+        self._db.execute(
+            self._qb.delete(
+                self._INFO_TABLE,
+                fields=('uid',)
+            ),
+            (uid,),
+            commit=True
+        )
 
 
 def get_af_glob() -> AssetFactory:

@@ -15,10 +15,10 @@ if __name__ == '__main__':
     inh = IO.InputHandler()
 
     table = inh.input("Give me a table to dump: ")
-    t_exists = qb.exists_table(table)
-    if not t_exists:
-        raise ValueError('Supplied table name does not exist! Please give a valid one.')
+    while not qb.exists_table(table):
+        msg = 'Supplied table name does not exist! Please give a valid one: '
+        table = inh.input(msg)
 
-    qb.print_structure(table)
+    print(qb.get_structure_string(table))
 
     print('All done!')

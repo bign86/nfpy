@@ -98,7 +98,12 @@ class TableFiddler(object):
         # Rebuild the table
         names = tuple(old_cols.keys())
         new_table = Table(table.name)
-        new_table.set_fields(tuple(old_cols[names[i]] for i in order))
+        new_table.set_fields(
+            tuple(
+                old_cols[names[i]]
+                for i in order
+            )
+        )
 
         return new_table
 
@@ -123,7 +128,11 @@ class TableFiddler(object):
         column.field = new_name
 
         table.add_field(column)
-        TableFiddler.remove_columns(table, (old_name,), inplace=True)
+        TableFiddler.remove_columns(
+            table,
+            (old_name,),
+            inplace=True
+        )
 
         order = list(range(table.__len__()))
         order.insert(column.ordinal, order.pop())

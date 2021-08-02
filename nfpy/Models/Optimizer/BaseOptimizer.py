@@ -58,10 +58,7 @@ class BaseOptimizer(metaclass=ABCMeta):
 
         # Working variables
         self._len = mean_returns.shape[0]
-        if gamma:
-            self._calc_var = self._fn_var_l2
-        else:
-            self._calc_var = self._fn_var
+        self._calc_var = self._fn_var_l2 if gamma else self._fn_var
 
         # Output variables
         self._res = None
@@ -89,7 +86,7 @@ class BaseOptimizer(metaclass=ABCMeta):
                 variance [float]: portfolio variance
         """
         wgt, cov = args[0], args[1]
-        return float(np.dot(wgt.T, np.dot(cov, wgt)))  # [0]
+        return float(np.dot(wgt.T, np.dot(cov, wgt)))
 
     @staticmethod
     def _fn_var_l2(*args) -> float:
@@ -104,8 +101,8 @@ class BaseOptimizer(metaclass=ABCMeta):
                 variance [float]: portfolio variance
         """
         wgt, cov, g = args[0], args[1], args[2]
-        var = float(np.dot(wgt.T, np.dot(cov, wgt)))
-        var += g * np.dot(wgt.T, wgt)
+        var = float(np.dot(wgt.T, np.dot(cov, wgt))) \
+              + g * np.dot(wgt.T, wgt)
         return var
 
     def _minimizer(self, conf: OptimizerConf) -> OptimizeResult:

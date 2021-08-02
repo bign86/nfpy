@@ -13,8 +13,7 @@ from nfpy.Tools import Exceptions as Ex
 def _check_len(v, w) -> None:
     l = len(v)
     if l < w:
-        raise Ex.ShortSeriesError('Series provided is too short {} < {}'
-                                  .format(l, w))
+        raise Ex.ShortSeriesError(f'Series provided is too short {l} < {w}')
 
 
 def sma(v: np.ndarray, w: int) -> np.ndarray:
@@ -268,7 +267,7 @@ def _rsi(v: np.ndarray, w: int, mode: str) -> np.ndarray:
     elif mode == 'sma':
         ma_function = sma
     else:
-        raise ValueError('RSI mode {} not recognized'.format(mode))
+        raise ValueError(f'RSI mode {mode} not recognized')
 
     up_v, down_v = v.copy(), v.copy()
     up_v[up_v < 0.] = 0.
@@ -337,9 +336,14 @@ def stochastic_oscillator(v: np.ndarray, w_price: int = 14, w_k: int = 3,
     d_p[:n_dp] = np.nan
     dp_slow[:n_dp_slow] = np.nan
 
-    d_p[n_dp:] = np.nanmean(Math.rolling_window(p_k, w_k), axis=1)
+    d_p[n_dp:] = np.nanmean(
+        Math.rolling_window(p_k, w_k),
+        axis=1
+    )
     dp_slow[n_dp_slow:] = np.nanmean(
-        Math.rolling_window(d_p[n_dp:], w_d), axis=1)
+        Math.rolling_window(d_p[n_dp:], w_d),
+        axis=1
+    )
 
     return d_p, dp_slow
 

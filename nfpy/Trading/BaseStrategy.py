@@ -54,7 +54,7 @@ class StrategyResIterator(object):
         while self._i < self._max:
             i = self._i
             self._i += 1
-            yield (self._idx[i], self._dt[i], self._s[i], self._st[i])
+            yield self._idx[i], self._dt[i], self._s[i], self._st[i]
 
 
 class BaseStrategy(metaclass=ABCMeta):

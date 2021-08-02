@@ -4,6 +4,7 @@
 #
 
 from abc import ABCMeta
+from typing import KeysView
 
 from nfpy.Assets import get_af_glob
 from nfpy.DatatypeFactory import get_dt_glob
@@ -58,17 +59,16 @@ class BaseProvider(metaclass=ABCMeta):
         self._af = get_af_glob()
 
     @property
-    def pages(self):
+    def pages(self) -> KeysView:
         return self._PAGES.keys()
 
     @property
-    def import_items(self):
+    def import_items(self) -> KeysView:
         return self._IMPORT_ITEMS.keys()
 
     def create_page_obj(self, page: str, ticker: str) -> BasePage:
         if page not in self._PAGES:
-            raise ValueError("Page {} not available for {}"
-                             .format(page, self._PROVIDER))
+            raise ValueError(f"Page {page} not available for {self._PROVIDER}")
         symbol = '.' + '.'.join([self._PROVIDER, self._PAGES[page]])
         class_ = Ut.import_symbol(symbol, pkg='nfpy.Downloader')
         return class_(ticker)

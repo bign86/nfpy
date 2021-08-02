@@ -31,9 +31,9 @@ if __name__ == '__main__':
     # asset_obj = import_class(asset_type, mod='nfpy.Assets.' + asset_type)
     asset_obj = Ut.import_symbol('.'.join(['nfpy.Assets', asset_type, asset_type]))
     table = asset_obj._BASE_TABLE
-    print("Updating table {}".format(table))
+    print(f"Updating table {table}")
     if not qb.exists_table(table):
-        raise ValueError("Table {} does not exists in the database".format(table))
+        raise ValueError(f"Table {table} does not exists in the database")
 
     # Fill in data
     columns = qb.get_columns(table)
@@ -43,7 +43,7 @@ if __name__ == '__main__':
             d.append(uid)
             continue
         col_type = IO.SQLITE2PY_CONVERSION[c.type]
-        v = inh.input("Insert {} ({}): ".format(c.field, c.type), idesc=col_type)
+        v = inh.input(f"Insert {c.field} ({c.type}): ", idesc=col_type)
         d.append(v)
 
     q = qb.insert(table)

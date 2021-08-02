@@ -15,7 +15,7 @@ def create_configuration():
     for section in PARAMS_DICT__.keys():
         sect_dict = {}
         for k, v in PARAMS_DICT__[section].items():
-            p = input(v[1] + ': ').strip()
+            p = input(f'{v[1]}: ').strip()
             sect_dict[k] = p if p else ''
         parameters[section] = sect_dict
 

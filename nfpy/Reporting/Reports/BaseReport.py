@@ -48,11 +48,13 @@ class BaseReport(metaclass=ABCMeta):
     def _run(self) -> None:
         # Run uids
         for uid in self.uids:
-            print('>>> {}'.format(uid))
+            print(f'>>> {uid}')
             try:
                 type_ = self._af.get_type(uid)
-                params = self._init_input(self._p, type_)
-                self._res[type_][uid] = self._calculate(uid, params)
+                self._res[type_][uid] = self._calculate(
+                    uid,
+                    self._init_input(self._p, type_)
+                )
             except (RuntimeError, KeyError, ValueError) as ex:
                 print(str(ex))
 
@@ -72,7 +74,7 @@ class BaseReport(metaclass=ABCMeta):
 
         fig_full_name, fig_rel_name = [], []
         for l in itertools.product(*labels):
-            name = '_'.join(l) + '.png'
+            name = f'{"_".join(l)}.png'
             fig_full_name.append(join(img_path, name))
             fig_rel_name.append(join(basename(normpath(img_path)), name))
 

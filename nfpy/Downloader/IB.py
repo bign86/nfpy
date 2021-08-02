@@ -42,9 +42,9 @@ class FinancialsItem(BaseImportItem):
                     new_date = old_date.date()
                 data_ins.append((item[0], item[1], new_date, item[3], item[4]))
                 del data[idx]
-        
+
         for t in data_ins:
-            data.append(t)    
+            data.append(t)
 
     def run(self) -> None:
         params = self._get_params()
@@ -94,15 +94,17 @@ class IBBasePage(BasePage):
 
     def _download(self):
         """ Run the app instead of downloading. """
-        self._app.connect(self._conf.ib_interface, self._conf.ib_tws_port,
-                          self._conf.ib_client_id)
+        self._app.connect(
+            self._conf.ib_interface,
+            self._conf.ib_tws_port,
+            self._conf.ib_client_id
+        )
         self._app.run()
         sleep(self._SLEEP_TIME)
         self._robj = self._app.return_data
 
 
 class IBFundamentals(IBBasePage):
-
     _PAGE = 'Financials'
     _COLUMNS = IBFundamentalsConf
     _TABLE = 'IBFinancials'

@@ -160,7 +160,7 @@ class InputHandler(object):
         try:
             cf = self._converters[idesc]
         except KeyError:
-            raise KeyError('Input descriptor {} not recognized'.format(idesc))
+            raise KeyError(f'Input descriptor {idesc} not recognized')
 
         try:
             if is_list:
@@ -178,7 +178,7 @@ class InputHandler(object):
         try:
             valf = self._validators[checker]
         except KeyError:
-            raise KeyError('Input descriptor {} not recognized'.format(checker))
+            raise KeyError(f'Input descriptor {checker} not recognized')
         return valf(value)
 
     def input(self, msg: str, idesc: str = 'str', optional: bool = False,
@@ -213,7 +213,7 @@ class InputHandler(object):
                 value = default
                 _validated = True
             elif (not _v) and (optional is False):
-                print('*** Mandatory ***')
+                print('!!! Mandatory !!!')
             elif (not _v) and (optional is True):
                 _validated = True
             else:
@@ -221,7 +221,7 @@ class InputHandler(object):
                 if checker:
                     _validated, msg_out = self._validate(value, checker)
                     if not _validated:
-                        print('*** Not valid: {}'.format(msg_out))
+                        print(f'!!! Not valid: {msg_out}')
                 else:
                     _validated = True
         return value

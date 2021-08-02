@@ -4,32 +4,27 @@
 #
 
 import nfpy.Assets as As
-import nfpy.Downloader as Dwn
 import nfpy.DB as DB
+import nfpy.Downloader as Dwn
 import nfpy.IO as IO
 from nfpy.Tools import Utilities as Ut
 
 __version__ = '0.5'
-_TITLE_ = "<<< Create new download script >>>"
+_TITLE_ = '<<< Create new download script >>>'
 
 
 def columns_data(_table: str, _data: dict) -> tuple:
     _cols = qb.get_columns(_table)
-    _d = list()
+    _d = []
     for _n, _c in _cols.items():
         if _n in _data:
             _d.append(_data[_n])
             continue
         _col_type = IO.SQLITE2PY_CONVERSION[_c.type]
-        _opt = False
-        _check = None
-        if _n == 'currency':
-            _check = 'currency'
-        elif _n == 'isin':
-            _check = 'isin'
-        elif _n == 'last_update':
-            _opt = True
-        _v = inh.input("Insert {} ({}): ".format(_n, _c.type),
+        _opt = not (_c.is_primary | _c.notnull)
+        _check = _n if _n in ('currency', 'isin') else None
+        _hint = _c.type + ', OPTIONAL' if _opt else _c.type
+        _v = inh.input('Insert {} ({}): '.format(_n, _hint),
                        idesc=_col_type, checker=_check, optional=_opt)
         _d.append(_v)
 
@@ -47,17 +42,21 @@ if __name__ == '__main__':
 
     # Variables
     skip_elaboration = False
-    queries, data = dict(), dict()
+    queries, data = {}, {}
 
     # Choose a UID
     uid = inh.input('Give a UID: ', idesc='str')
     if af.exists(uid):
         skip_elaboration = True
         a_type = af.get_type(uid)
-        print("UID has been found in the database:\n{} {}"
-              .format(a_type, uid), end='\n\n')
+        print(f'UID has been found in the database:\n{a_type} {uid}', end='\n\n')
     else:
-        a_type = inh.input("Insert asset_type: ", idesc='str')
+        # Asset type
+        at, at_idx = af.asset_types, -1
+        Ut.print_sequence(at, showindex=True)
+        while (at_idx < 0) or (at_idx > len(at)):
+            at_idx = inh.input('Insert asset_type index: ', idesc='int')
+        a_type = at[at_idx]
         a_obj = Ut.import_symbol('.'.join(['nfpy.Assets', a_type, a_type]))
         table = a_obj._BASE_TABLE
         asset_data = columns_data(table, {'uid': uid})
@@ -66,18 +65,27 @@ if __name__ == '__main__':
     # DOWNLOADS
     dwn_data = []
     dwn_keys = ('provider', 'page', 'ticker')
-    while inh.input("Add new download?: ", idesc='bool', default=False):
-        provider = inh.input("Give the provider: ", idesc='str',
-                             checker='provider')
+    while inh.input('Add new download?: ', idesc='bool', default=False):
+        # Provider
+        providers, prov_idx = tuple(dwn.providers), -1
+        Ut.print_sequence(providers, showindex=True)
+        while (prov_idx < 0) or (prov_idx > len(providers)):
+            prov_idx = inh.input('Give the provider index: ', idesc='int')
+        provider = providers[prov_idx]
 
-        page = inh.input("Give the download page: ", idesc='str')
-        if not dwn.page_exists(provider, page):
-            print('Page not recognized for this provider')
-            page = inh.input("Give the download page: ", idesc='str')
+        # Page
+        prov_obj = dwn.get_provider(provider)
+        pages, pg_idx = tuple(prov_obj.pages), -1
+        Ut.print_sequence(pages, showindex=True)
+        while (pg_idx < 0) or (pg_idx > len(pages)):
+            pg_idx = inh.input('Give the download page index: ', idesc='int')
+        page = pages[pg_idx]
 
-        ticker = inh.input("Give a downloading ticker to add: ", idesc='str')
+        # Ticker
+        ticker = inh.input('Give a downloading ticker to add: ', idesc='str')
+
+        # Compile data
         params = (provider, page, ticker)
-
         q = qb.select('Downloads', keys=dwn_keys)
         res = db.execute(q, params).fetchall()
         if res:
@@ -94,8 +102,7 @@ if __name__ == '__main__':
     imp_keys = ('uid', 'ticker', 'provider', 'item')
     for d in dwn_data:
         imp_cols = (uid, d[2], d[0])
-        msg = "\nAdd a new import for the following download?\n{} {} {} {}\n" \
-            .format(*imp_cols, d[1])
+        msg = f'\nAdd a new import for the following download?\n{uid} {d[2]} {d[0]} {d[1]}\n'
         if inh.input(msg, idesc='bool', default=False):
             p = {k: v for k, v in zip(imp_keys, imp_cols)}
             imp_cols = columns_data('Imports', p)
@@ -113,15 +120,14 @@ if __name__ == '__main__':
     # Final check
     print('')
     for k, v in queries.items():
-        print('Table: {}'.format(k))
+        print(f'\nTable: {k}')
         for q in v[1]:
-            print('{}'.format(', '.join(map(str, q))), end='\n\n')
+            print(f"{', '.join(map(str, q))}")
 
     # Final insert
-    if inh.input('Do you want to proceed?: ', idesc='bool'):
+    if inh.input('\nDo you want to proceed?: ', idesc='bool'):
         for t in queries.values():
-            query, data = t
-            db.executemany(query, data)
+            db.executemany(*t)
         print('Insert done')
 
-    print("All done!")
+    print('All done!')

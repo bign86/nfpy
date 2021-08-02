@@ -67,7 +67,7 @@ class AggregationMixin(object):
         """ Load the portfolio from base table and load the constituents.
             Overrides the one in Asset.
         """
-        super().load()
+        super(AggregationMixin, self).load()
         if not self._cnsts_loaded:
             self._load_cnsts()
 

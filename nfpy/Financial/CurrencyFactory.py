@@ -86,8 +86,11 @@ class CurrencyFactory(metaclass=Singleton):
 
         self._dict_ccy = {}
 
-        self._q_fetch = self._qb.select(self._TABLE, fields=('uid',),
-                                        keys=('price_ccy', 'base_ccy'))
+        self._q_fetch = self._qb.select(
+            self._TABLE,
+            fields=('uid',),
+            keys=('price_ccy', 'base_ccy')
+        )
         base_ccy = get_conf_glob().base_ccy
         self._base_ccy = self._validate_ccy(base_ccy)
 
@@ -107,12 +110,12 @@ class CurrencyFactory(metaclass=Singleton):
 
     def _validate_ccy(self, v: str) -> str:
         if v not in self._KNOWN_CCY:
-            raise ValueError('Currency {} not recognized'.format(v))
+            raise ValueError(f'Currency {v} not recognized')
         return v
 
     def _validate_base_ccy(self, v: str) -> str:
         if v not in self._BASE_CCY:
-            raise ValueError('Currency {} not recognized'.format(v))
+            raise ValueError(f'Currency {v} not recognized')
         return v
 
     def get(self, src_ccy: str, tgt_ccy: str = None) -> Conversion:
@@ -129,11 +132,12 @@ class CurrencyFactory(metaclass=Singleton):
         if src_ccy == tgt_ccy:
             return DummyConversion()
 
+        selection = (src_ccy, tgt_ccy)
         try:
-            fxc = self._dict_ccy[(src_ccy, tgt_ccy)]
+            fxc = self._dict_ccy[selection]
         except KeyError:
-            self._fetch_obj_fx(src_ccy, tgt_ccy)
-            fxc = self._dict_ccy[(src_ccy, tgt_ccy)]
+            self._fetch_obj_fx(*selection)
+            fxc = self._dict_ccy[selection]
         return fxc
 
     # TODO: to be implemented
@@ -148,21 +152,27 @@ class CurrencyFactory(metaclass=Singleton):
         """ Fetch the exchange object for the given currencies. """
         # Search for the currency direct
         invert = False
-        res = self._db.execute(self._q_fetch, (src_ccy, tgt_ccy)).fetchall()
+        res = self._db.execute(
+            self._q_fetch,
+            (src_ccy, tgt_ccy)
+        ).fetchall()
         if len(res) > 1:
             raise ValueError('Too many currencies fetched, check database!')
 
         elif not res:
             # No results, search for the currency inverted
             invert = True
-            res = self._db.execute(self._q_fetch, (tgt_ccy, src_ccy)).fetchall()
+            res = self._db.execute(
+                self._q_fetch,
+                (tgt_ccy, src_ccy)
+            ).fetchall()
             if len(res) > 1:
                 raise ValueError('Too many currencies fetched, check database!')
 
             if not res:
                 # The conversion is not in the database in any way
-                raise Ex.MissingData('Currency {} -> {} not found in database'
-                                     .format(tgt_ccy, src_ccy))
+                msg = f'Currency {tgt_ccy} -> {src_ccy} not found in database'
+                raise Ex.MissingData(msg)
 
         uid = res[0][0]
         obj_fx = self._af.get(uid)

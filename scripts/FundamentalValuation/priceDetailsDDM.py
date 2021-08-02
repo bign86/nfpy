@@ -24,26 +24,24 @@ _TCOLS = ['year', 'no_growth', 'growth']
 
 
 def print_results(_r):
-    print('\n--------------------------------------------------------------\n')
-    print(' *** Input information ***')
-    print('Company:\t\t\t{} ({})'.format(_r.company, _r.equity))
-    print('Past horizon:\t\t{:d} years\nFuture projection:\t{:d} years'
-          .format(_r.past_horizon, _r.future_proj))
-    print('Discount factor:\t{:.1f}%'.format(_r.d_rate*100), end='\n\n')
-
-    print(' *** Cash flow projection ***', end='\n')
     v = np.vstack((_r.future_dates + curr_year, _r.div_zg, _r.div_gwt)).T
-    print(tabulate(v, headers=_TCOLS, floatfmt=('', '.3f', '.3f')))
-
     lp = _r.last_price
     fv_ng = _r.fair_value_no_growth
     fv_wg = _r.fair_value_with_growth
-
-    print('\nLast price:\t\t\t\t\t{:.2f} ({})'.format(_r.last_price, _r.ccy))
-    print('Fair value\t- no_growth:\t{:.2f} ({:.2f}%)\n\t\t\t- with_growth:\t{:.2f} ({:.2f}%)'
-          .format(fv_ng, (lp - fv_ng) / lp * 100., fv_wg, (lp - fv_wg) / lp * 100.), end='\n\n')
-    print('Drifts (yearly)\t- price:\t\t{:.1f}%\n\t\t\t\t- dividends:\t{:.1f}%'
-          .format(_r.price_drift * 100., _r.div_drift * 100.), end='\n\n')
+    print(f'\n--------------------------------------------------------------\n'
+          f' *** Input information ***\n'
+          f'Company:\t\t\t{_r.company} ({_r.equity})\n'
+          f'Past horizon:\t\t{_r.past_horizon:d} years\n'
+          f'Future projection:\t{_r.future_proj:d} years\n'
+          f'Discount factor:\t{_r.d_rate*100:.1f}%\n\n'
+          f' *** Cash flow projection ***\n'
+          f'{tabulate(v, headers=_TCOLS, floatfmt=("", ".3f", ".3f"))}\n\n'
+          f'Last price:\t\t\t\t\t{_r.last_price:.2f} ({_r.ccy})\n'
+          f'Fair value\t- no_growth:\t{fv_ng:.2f} ({(lp - fv_ng) / lp * 100.:.2f}%)\n'
+          f'\t\t\t- with_growth:\t{fv_wg:.2f} ({(lp - fv_wg) / lp * 100.:.2f}%)\n\n'
+          f'Drifts (yearly)\t- price:\t\t{_r.price_drift * 100.:.1f}%\n'
+          f'\t\t\t\t- dividends:\t{_r.div_drift * 100.:.1f}%',
+          end='\n\n')
 
 
 if __name__ == '__main__':
@@ -56,8 +54,8 @@ if __name__ == '__main__':
     # Get inputs
     cmp = inh.input("Give a company uid: ", idesc='uid')
     while not af.exists(cmp):
-        print(' * Supplied uid does not exist!')
-        cmp = inh.input("Give a company uid: ", idesc='uid')
+        cmp = inh.input(" ! Supplied uid does not exist!\nGive a company uid: ",
+                        idesc='uid')
     ph = inh.input("Give number of years of past horizon (default: 5): ",
                    idesc='int', default=5, optional=True)
     fp = inh.input("Give number of years for projection (default: 3): ",
@@ -72,9 +70,8 @@ if __name__ == '__main__':
     get_calendar_glob().initialize(end_date, start_date)
 
     # Calculate
-    ddm = DividendDiscountModel(cmp, past_horizon=ph,
-                                future_proj=fp)
-    res = ddm.result(d_rate=dr)
+    res = DividendDiscountModel(cmp, past_horizon=ph, future_proj=fp)\
+        .result(d_rate=dr)
 
     print_results(res)
 

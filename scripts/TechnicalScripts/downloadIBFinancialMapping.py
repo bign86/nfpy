@@ -61,9 +61,9 @@ if __name__ == '__main__':
 
     diff_map = new_map - old_map
     diff_dt = new_dt - old_dt
-    print('Downloaded\tmaps: {}\t-\tdatatypes: {}'.format(len(new_map), len(new_dt)))
-    print('Existing\tmaps: {}\t-\tdatatypes: {}'.format(len(old_map), len(old_dt)))
-    print('To be added\tmaps: {}\t-\tdatatypes: {}'.format(len(diff_map), len(diff_dt)))
+    print(f'Downloaded\tmaps: {len(new_map)}\t-\tdatatypes: {len(new_dt)}\n'
+          f'Existing\tmaps: {len(old_map)}\t-\tdatatypes: {len(old_dt)}\n'
+          f'To be added\tmaps: {len(diff_map)}\t-\tdatatypes: {len(diff_dt)}')
 
     if save:
         map_q = qb.insert('MapFinancials')
@@ -71,11 +71,8 @@ if __name__ == '__main__':
         db.executemany(map_q, diff_map)
         db.executemany(dt_q, diff_dt)
     else:
-        print('MapFinancials')
-        for v in diff_map:
-            print(v)
-        print('DecDatatype')
-        for v in diff_dt:
-            print(v)
+        _nl = '\n'
+        print(f'MapFinancials\n{_nl.join(diff_map)}'
+              f'DecDatatype\n{_nl.join(diff_dt)}\n')
 
     print('done!')

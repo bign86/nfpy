@@ -6,11 +6,10 @@
 import pandas as pd
 from typing import Union
 
-from .MarketAssetsDataBaseModel import (BaseMADMResult,
-                                        MarketAssetsDataBaseModel)
+from .MarketAssetsDataBaseModel import (MADMResult, MarketAssetsDataBaseModel)
 
 
-class MPDMResult(BaseMADMResult):
+class MPDMResult(MADMResult):
     """ Base object containing the results of the market portfolio models. """
 
 
@@ -21,19 +20,25 @@ class MarketPortfolioDataModel(MarketAssetsDataBaseModel):
 
     def _calculate(self):
         super()._calculate()
-
-        uids = self._asset.constituents_uids
-        weights = self._asset.weights.values[-1]
-        wgt = pd.DataFrame(weights, index=uids, columns=['weights'])
-
         summary = self._asset.summary()
-        cnsts_data = summary['constituents_data']
-        merged = pd.merge(cnsts_data, wgt, left_on='uid', right_index=True)
 
-        self._res_update(last_trade=summary['date'],
-                         tot_value=summary['tot_value'],
-                         currency=summary['currency'],
-                         cnsts_data=merged)
+        merged = pd.merge(
+            summary['constituents_data'],
+            pd.DataFrame(
+                self._asset.weights.values[-1],
+                index=self._asset.constituents_uids,
+                columns=['weights']
+            ),
+            left_on='uid',
+            right_index=True
+        )
+
+        self._res_update(
+            last_trade=summary['date'],
+            tot_value=summary['tot_value'],
+            currency=summary['currency'],
+            cnsts_data=merged
+        )
 
 
 def MPDModel(uid: str, date: Union[str, pd.Timestamp] = None) -> MPDMResult:

@@ -5,7 +5,7 @@
 from abc import (ABCMeta, abstractmethod)
 import os
 from pathlib import Path
-from typing import (Dict, Union)
+from typing import Union
 
 import pandas as pd
 import requests
@@ -58,11 +58,11 @@ class BasePage(metaclass=ABCMeta):
         return self._ticker
 
     @property
-    def params(self) -> Dict[str, Union[str, int]]:
+    def params(self) -> dict[str, Union[str, int]]:
         return self._p
 
     @params.setter
-    def params(self, v: Dict[str, Union[str, int]]) -> None:
+    def params(self, v: dict[str, Union[str, int]]) -> None:
         """ Filter out unwanted parameters, update the dictionary, downloaded
             page is deleted to allow for a new download.
         """
@@ -116,8 +116,8 @@ class BasePage(metaclass=ABCMeta):
                 _l.append(p)
 
         if _l:
-            raise Ex.IsNoneError("The following parameters are required: {}"
-                                 .format(', '.join(_l)))
+            msg = f"The following parameters are required: {', '.join(_l)}"
+            raise Ex.IsNoneError(msg)
 
     def save(self, backup: bool = False, fname: str = None) -> None:
         """ Save the downloaded page in the DB and on a file.
@@ -154,7 +154,7 @@ class BasePage(metaclass=ABCMeta):
             self._fname = fname
         else:
             self._local_initializations(params)
-        
+
         self._is_initialized = True
 
     def fetch(self) -> None:
@@ -207,24 +207,23 @@ class BasePage(metaclass=ABCMeta):
         elif self.req_method == 'post':
             r = req.post(self.baseurl, data=self._p, headers=headers)
         else:
-            raise ValueError('Request method {} not recognized'
-                             .format(self.req_method))
+            raise ValueError(f'Request method {self.req_method} not recognized')
 
         if r.status_code == 200:
             r.encoding = self._ENCODING
             self._jar = r.cookies
             self._robj = r
         else:
-            raise RuntimeWarning("Error in downloading the page {}: {} @ {}"
-                                 .format(self.__class__.__name__,
-                                         r.status_code, r.reason))
+            msg = f"Error in downloading {self.__class__.__name__}: " \
+                  f"[{r.status_code}] {r.reason}"
+            raise RuntimeWarning(msg)
 
     def _write_to_file(self, fname: str = None) -> None:
         """ Write to a text file. """
         if not fname:
-            now_ = now(string=True, fmt='%Y%m%d_%H%M')
+            now_ = now(mode='str', fmt='%Y%m%d_%H%M')
             t = self._ticker.replace(':', '.')
-            fname = self._PROVIDER + '_' + t + '_' + now_
+            fname = f"{self._PROVIDER}_{t}_{now_}"
 
         bak_dir = get_conf_glob().backup_dir
         fd = Path(os.path.join(bak_dir, fname))
@@ -240,18 +239,35 @@ class BasePage(metaclass=ABCMeta):
         # We make the use of UPSERT optional field
         if self.use_upsert:
             # Update/Insert new data
-            q_ups = self._qb.upsert(self._TABLE, fields=fields_all)
-            self._db.executemany(q_ups, data_all, commit=True)
+            self._db.executemany(
+                self._qb.upsert(
+                    self._TABLE,
+                    fields=fields_all
+                ),
+                data_all,
+                commit=True
+            )
         else:
             # Delete old data
             keys = [k for k in self._qb.get_keys(self._TABLE)]
-            data_del = self._res[keys].values.tolist()
-            q_del = self._qb.delete(self._TABLE, fields=keys)
-            self._db.executemany(q_del, data_del, commit=False)
+            self._db.executemany(
+                self._qb.delete(
+                    self._TABLE,
+                    fields=keys
+                ),
+                self._res[keys].values.tolist(),
+                commit=False
+            )
 
             # Insert new data
-            q_ins = self._qb.merge(self._TABLE, ins_fields=fields_all)
-            self._db.executemany(q_ins, data_all, commit=True)
+            self._db.executemany(
+                self._qb.merge(
+                    self._TABLE,
+                    ins_fields=fields_all
+                ),
+                data_all,
+                commit=True
+            )
 
     def printout(self) -> None:
         """ Print out the results of the fetched object. """
@@ -264,13 +280,19 @@ class BasePage(metaclass=ABCMeta):
                                'display.width', 10000):
             print(repr(self._res))
 
+    # FIXME: shouldn't this one return a parsed date (datetime or Timestamp)?
     def _fetch_last_data_point(self) -> str:
         """ Calculates the last available data point in the database for
             incremental downloads.
         """
-        q = self._Q_MAX_DATE.format(self._TABLE)
-        last_date = self._db.execute(q, (self.ticker,)).fetchone()
-        return last_date[0] if last_date[0] else '1990-01-01'
+        last_date = self._db.execute(
+            self._Q_MAX_DATE.format(self._TABLE),
+            (self.ticker,)
+        ).fetchone()
+        date = '1990-01-01'
+        if last_date and (last_date[0] is not None):
+            date = last_date[0]
+        return date
 
     @abstractmethod
     def _set_default_params(self) -> None:
@@ -282,7 +304,7 @@ class BasePage(metaclass=ABCMeta):
         """ Return the base url for the page. """
 
     @abstractmethod
-    def _local_initializations(self, params: Dict) -> None:
+    def _local_initializations(self, params: dict) -> None:
         """ Page-dependent initializations of parameters. """
 
     @abstractmethod

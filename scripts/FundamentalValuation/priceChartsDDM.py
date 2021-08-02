@@ -24,11 +24,12 @@ _TCOLS = ['year', 'rate %', 'no_growth', 'growth']
 
 def print_results():
     floatfmt = ('.0f', '.1f', '.2f', '.2f')
-    print('\n--------------------------------------------------------------')
-    print('\nVariable future projection')
-    print(tabulate(v1, headers=_TCOLS, floatfmt=floatfmt))
-    print('\nVariable discount rate')
-    print(tabulate(v2, headers=_TCOLS, floatfmt=floatfmt), end='\n\n')
+    print(f'\n--------------------------------------------------------------\n'
+          f'Variable future projection\n'
+          f'{tabulate(v1, headers=_TCOLS, floatfmt=floatfmt)}\n'
+          f'Variable discount rate\n'
+          f'{tabulate(v2, headers=_TCOLS, floatfmt=floatfmt)}',
+          end='\n\n')
 
 
 def print_plots():

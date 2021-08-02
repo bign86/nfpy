@@ -33,8 +33,9 @@ if __name__ == '__main__':
     eqs = db.execute(q).fetchall()
 
     f = list(qb.get_fields('Assets'))
-    print('\n\nAvailable equities:')
-    print(tabulate(eqs, headers=f, showindex=True), end='\n\n')
+    print(f'\n\nAvailable equities:\n'
+          f'{tabulate(eqs, headers=f, showindex=True)}',
+          end='\n\n')
     eq_idx = inh.input("Give an equity index: ", idesc='int')
     eq = af.get(eqs[eq_idx][0])
 
@@ -56,10 +57,11 @@ if __name__ == '__main__':
     res = sorted(res, key=lambda x: x[2], reverse=True)
 
     f = ['', 'Index', 'Correlation', 'Beta', 'Adj. Beta']
-    print('\n--------------------------------------------\nResults:')
-    print('--------------------------------------------')
-    print(tabulate(res, headers=f, showindex=True, floatfmt=".3f"), end='\n\n')
-
+    print(f'\n--------------------------------------------\n'
+          f'Results:\n'
+          f'--------------------------------------------\n'
+          f'{tabulate(res, headers=f, showindex=True, floatfmt=".3f")}',
+          end='\n\n')
     update = inh.input("Update default index (default No)? ",
                        idesc='bool', default=False, optional=True)
     if update:

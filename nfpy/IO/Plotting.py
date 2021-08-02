@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import numpy as np
 import pandas as pd
-from typing import (Union, Sequence)
+from typing import Union
 
 plt.style.use('seaborn')
 
@@ -21,9 +21,9 @@ class Plotter(metaclass=ABCMeta):
     _RC_AXIS = {'c': 'k', 'linewidth': .5}
     _RC_TEXT = {'fontsize': 8, 'fontvariant': 'small-caps'}
 
-    def __init__(self, ncols: int = 1, nrows: int = 1, xl: Sequence = (),
-                 yl: Sequence = (), x_zero: Sequence = (),
-                 y_zero: Sequence = ()):
+    def __init__(self, ncols: int = 1, nrows: int = 1,
+                 xl: [str] = (), yl: [str] = (),
+                 x_zero: [float] = (), y_zero: [float] = ()):
         # Inputs variables
         self._ncols = int(ncols)
         self._nrows = int(nrows)
@@ -84,8 +84,7 @@ class Plotter(metaclass=ABCMeta):
         elif axis == 'y':
             self._ylim[axid] = (bottom, top)
         else:
-            raise ValueError("Axis {} not recognized. Use 'x' or 'y'."
-                             .format(axis))
+            raise ValueError(f"Axis {axis} not recognized. Use 'x' or 'y'.")
 
     @staticmethod
     def show():
@@ -93,10 +92,9 @@ class Plotter(metaclass=ABCMeta):
         plt.tight_layout()
         plt.show()
 
-    @staticmethod
-    def clf():
+    def clf(self):
         """ Call plt.clf(). """
-        plt.clf()
+        self._fig.clf()
 
     @staticmethod
     def cla():
@@ -131,7 +129,7 @@ class Plotter(metaclass=ABCMeta):
         self._plots.append((axid, 'hist', x, y, kwargs))
 
     def annotate(self, axid: int, x: Union[pd.Series, np.array],
-                 y: np.array = None, labels: Sequence = (), **kwargs):
+                 y: np.array = None, labels: [str] = (), **kwargs):
         if isinstance(x, pd.Series):
             _v = x
             x, y = _v.index, _v.values
@@ -141,7 +139,7 @@ class Plotter(metaclass=ABCMeta):
              range_: tuple = (), **kwargs):
         self._lines.append((axid, type_, v, range_, kwargs))
 
-    def fill(self, axid: int, type_: str, v: Sequence, **kwargs):
+    def fill(self, axid: int, type_: str, v: [float], **kwargs):
         self._fills.append((axid, type_, v, kwargs))
 
     def plot(self):
@@ -206,10 +204,10 @@ class Plotter(metaclass=ABCMeta):
                 ax.fill(*val)
 
         # Run over axis lines
-        for ax, xz in zip(self._ax, self._x_zero):
+        for ax, xz, yz in zip(self._ax, self._x_zero, self._y_zero):
             ax.axvline(xz, **self._RC_AXIS)
-        for ax, yz in zip(self._ax, self._y_zero):
             ax.axhline(yz, **self._RC_AXIS)
+        # for ax, yz in zip(self._ax, self._y_zero):
 
         # Run over annotations
         for axid, x, y, l, kw in self._annotations:
@@ -234,13 +232,15 @@ class Plotter(metaclass=ABCMeta):
             ax = self._get_axes(k, False)
             ax.set_ylim(*v)
 
+        return self
+
 
 class TSPlot(Plotter):
     """ Creates a time series plot. """
 
-    def __init__(self, ncols: int = 1, nrows: int = 1, xl: Sequence = ('Date',),
-                 yl: Sequence = ('Price',), x_zero: Sequence = (),
-                 y_zero: Sequence = ()):
+    def __init__(self, ncols: int = 1, nrows: int = 1,
+                 xl: [str] = ('Date',), yl: [str] = ('Price',),
+                 x_zero: [float] = (), y_zero: [float] = ()):
         super().__init__(ncols, nrows, xl, yl, x_zero, y_zero)
 
 

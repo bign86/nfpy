@@ -57,12 +57,13 @@ if __name__ == '__main__':
 
     # List available portfolios
     q_ptf = "select * from Assets where type = 'Portfolio'"
-    fa = list(qb.get_fields('Assets'))
     res = db.execute(q_ptf).fetchall()
 
-    print('\n\nAvailable portfolios:')
-    print(tabulate(res, headers=fa, showindex=True))
-    idx = inh.input("\nGive a portfolio index: ", idesc='int')
+    fa = list(qb.get_fields('Assets'))
+    print(f'\n\nAvailable portfolios:\n'
+          f'{tabulate(res, headers=fa, showindex=True)}',
+          end='\n\n')
+    idx = inh.input("Give a portfolio index: ", idesc='int')
     ptf = res[idx][0]
 
     # User provides data

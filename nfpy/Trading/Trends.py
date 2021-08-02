@@ -5,7 +5,6 @@
 #
 
 import numpy as np
-from typing import Sequence
 
 import nfpy.Financial.Math as Math
 
@@ -177,8 +176,12 @@ def _group_extrema(extrema: np.ndarray, tolerance: float = .05,
         grp_list = []
         # TODO: substitute loop with initial distance calculation
         for i, p_i in enumerate(extrema):
-            high, low = p_i + delta, p_i - delta
-            indexes = np.where(np.logical_and(extrema > low, extrema < high))[0]
+            indexes = np.where(
+                np.logical_and(
+                    extrema > p_i - delta,
+                    extrema < p_i + delta
+                )
+            )[0]
             grp_list.append(indexes)
 
         converged = True
@@ -200,15 +203,20 @@ def _group_extrema(extrema: np.ndarray, tolerance: float = .05,
         if (len(g) == 1) or (i in eliminated):
             continue
         eliminated.extend([v for v in g if v != i])
-    groups = [extrema[g] for i, g in enumerate(grp_list)
-              if i not in eliminated]
-    centers = np.array([g.mean() for g in groups])
-    centers = np.unique(centers)
+    groups = [
+        extrema[g] for i, g in enumerate(grp_list)
+        if i not in eliminated
+    ]
+    centers = np.unique(
+        np.array([
+            g.mean() for g in groups
+        ])
+    )
 
     return centers, converged, it, delta
 
 
-def merge_sr(vola: float, groups: Sequence) -> Sequence:
+def merge_sr(vola: float, groups: [np.ndarray]) -> [np.ndarray]:
     """ Remove redundant S/R lines from S/R groups. The groups must be supplied
         in order of priority. The first group is retained intact, the S/R lines
         in following groups are compared to the ones in previous groups. If a
@@ -236,10 +244,9 @@ def merge_sr(vola: float, groups: Sequence) -> Sequence:
     for g in groups[1:]:
         to_add = []
         for i in g:
-            mask = (i < v[0, :count]) & (i > v[1, :count])
-            if not np.any(mask):
+            all_in = np.any((i < v[0, :count]) & (i > v[1, :count]))
+            if not all_in:
                 to_add.append(i)
-
         result.append(np.array(to_add))
         count += len(g)
 

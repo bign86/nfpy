@@ -9,7 +9,7 @@ from typing import KeysView
 
 import nfpy.Calendar as Cal
 import nfpy.DB as DB
-from nfpy.Tools import (Singleton, Exceptions as Ex)
+from nfpy.Tools import (Singleton, Exceptions as Ex, Utilities as Ut)
 
 from .BaseDownloader import BasePage
 from .BaseProvider import BaseProvider
@@ -62,8 +62,8 @@ class DownloadFactory(metaclass=Singleton):
         else:
             buf = 'Available parameters\n req | name\n'
             for p in sorted(page_obj.params.keys()):
-                prfx = '  *  | ' if p in page_obj._MANDATORY else '     | '
-                buf += prfx + p + '\n'
+                prfx = '*' if p in page_obj._MANDATORY else ' '
+                buf += f'  {prfx}  | {p}\n'
         print(buf)
         return len(page_obj.params)
 
@@ -92,9 +92,11 @@ class DownloadFactory(metaclass=Singleton):
                 data [list]: list of tuples, each one a fetched row
                 fields [list]: list of database column names
         """
-        return self._filter(self._DWN_TABLE, active, **{'provider': provider,
-                                                        'page': page,
-                                                        'ticker': ticker})
+        return self._filter(
+            self._DWN_TABLE,
+            active,
+            **{'provider': provider, 'page': page, 'ticker': ticker}
+        )
 
     def fetch_imports(self, uid: str = None, provider: str = None,
                       item: str = None, active: bool = True) -> tuple:
@@ -110,20 +112,27 @@ class DownloadFactory(metaclass=Singleton):
                 data [list]: list of tuples, each one a fetched row
                 fields [list]: list of database column names
         """
-        return self._filter(self._IMP_TABLE, active,
-                            **{'uid': uid, 'provider': provider, 'item': item})
+        return self._filter(
+            self._IMP_TABLE,
+            active,
+            **{'uid': uid, 'provider': provider, 'item': item}
+        )
 
     def _filter(self, table: str, active: bool, **kwargs) -> tuple:
-        where = 'active = 1' if active else ''
         keys = tuple(k for k, v in kwargs.items() if v is not None)
-        params = tuple(kwargs[k] for k in keys)
-
         fields = self._qb.get_fields(table)
-        q_uid = self._qb.select(table, fields=fields,
-                                keys=keys, where=where)
-        res = self._db.execute(q_uid, params).fetchall()
+
+        res = self._db.execute(
+            self._qb.select(
+                table,
+                fields=fields,
+                keys=keys,
+                where='active = 1' if active else ''
+            ),
+            tuple(kwargs[k] for k in keys)
+        ).fetchall()
         if not res:
-            return None, fields
+            return [], fields
 
         return res, fields
 
@@ -141,7 +150,7 @@ class DownloadFactory(metaclass=Singleton):
         try:
             prov = self._PROVIDERS[provider]
         except KeyError:
-            raise ValueError("Provider {} not recognized".format(provider))
+            raise ValueError(f"Provider {provider} not recognized")
         return prov.create_page_obj(page, ticker)
 
     def do_import(self, data: dict, incremental: bool) -> None:
@@ -152,7 +161,7 @@ class DownloadFactory(metaclass=Singleton):
 
     def run_download(self, do_save: bool = True, override_date: bool = False,
                      provider: str = None, page: str = None,
-                     ticker: str = None, override_active: bool = False):
+                     ticker: str = None, override_active: bool = False) -> None:
         """ Performs a bulk update of the system based on the 'auto' flag in the
             Downloads table. The entries are updated only in case the last
             last update has been done at least 'frequency' days ago.
@@ -169,28 +178,29 @@ class DownloadFactory(metaclass=Singleton):
         active = not override_active
         upd_list, _ = self.fetch_downloads(provider=provider, page=page,
                                            ticker=ticker, active=active)
-        print('We are about to download {} items'.format(len(upd_list)))
+        print(f'We are about to download {len(upd_list)} items')
 
         # General variables
-        today_string = Cal.today()
-        today_dt = Cal.today(mode='datetime')
+        # today_string = Cal.today()
+        today_dt = Cal.today(mode='date')
         q_upd = self._qb.update(self._DWN_TABLE, fields=('last_update',))
 
         for item in upd_list:
-            provider, page_name, ticker, currency, _, upd_freq, last_upd_str = item
+            provider, page_name, ticker, currency, _, upd_freq, last_upd = item
 
             # Check the last update to avoid too frequent updates
-            if last_upd_str and not override_date:
-                last_upd = Cal.date_2_datetime(last_upd_str)
+            if last_upd and not override_date:
+                # last_upd = Cal.date_2_datetime(last_upd_str)
                 delta_days = (today_dt - last_upd).days
                 if delta_days < int(upd_freq):
-                    print('[{}: {}] -> {} updated {} days ago'
-                          .format(provider, page_name, ticker, delta_days))
+                    msg = f'[{provider}: {page_name}] -> ' \
+                          f'{ticker} updated {delta_days} days ago'
+                    print(msg)
                     continue
 
             # If the last update check is passed go on with the update
             try:
-                print('{} -> {}[{}]'.format(ticker, provider, page_name))
+                print(f'{ticker} -> {provider}[{page_name}]')
                 page = self.create_page_obj(provider, page_name, ticker)
                 page.initialize(currency=currency)
 
@@ -199,7 +209,7 @@ class DownloadFactory(metaclass=Singleton):
                     page.fetch()
                 except RuntimeWarning as w:
                     # DownloadFactory throws this error for codes != 200
-                    print(w)
+                    Ut.print_wrn(w)
                     continue
                 if do_save is True:
                     page.save()
@@ -211,7 +221,7 @@ class DownloadFactory(metaclass=Singleton):
                 print(e)
             else:
                 if do_save is True:
-                    data_upd = (today_string, provider, page_name, ticker)
+                    data_upd = (today_dt, provider, page_name, ticker)
                     self._db.execute(q_upd, data_upd, commit=True)
 
     def run_import(self, uid: str = None, provider: str = None,
@@ -230,7 +240,7 @@ class DownloadFactory(metaclass=Singleton):
         active = not override_active
         import_list, fields = self.fetch_imports(provider=provider, item=item,
                                                  uid=uid, active=active)
-        print('We are about to import {} items'.format(len(import_list)))
+        print(f'We are about to import {len(import_list)} items')
 
         for element in import_list:
             import_data = dict(zip(fields, element))

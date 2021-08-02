@@ -301,7 +301,7 @@ class ReportMarket(BaseReport):
         df = mkt_res.cnsts_data
         final_res.cnsts_data = df.style \
             .format('{:,.2f}', subset=['alp', 'cost (FX)',
-                                       'value ({})'.format(mkt_res.currency)]) \
+                                       f'value ({mkt_res.currency})']) \
             .format('{:,.0f}', subset=['quantity']) \
             .format('{:,.1%}', subset=['weights']) \
             .hide_index() \
@@ -385,9 +385,9 @@ class ReportMarket(BaseReport):
         pl = IO.TSPlot()
         pl.lplot(0, p.loc[start:])
         pl.lplot(0, res.ma_fast, color='C1', linewidth=1.5,
-                 linestyle='--', label='MA {}'.format(res.w_fast))
+                 linestyle='--', label=f'MA {res.w_fast}')
         pl.lplot(0, res.ma_slow.loc[start:], color='C2', linewidth=1.5,
-                 linestyle='--', label='MA {}'.format(res.w_slow))
+                 linestyle='--', label=f'MA {res.w_slow}')
         pl.plot()
         pl.save(full_name_long)
         pl.clf()
@@ -446,14 +446,14 @@ class ReportMarket(BaseReport):
             mod = Mod.DiscountedCashFlowModel(uid, **p)
             dcf_res = mod.result(**p)
         except Exception as ex:
-            print('{} - {}'.format(type(ex).__name__, ex))
+            print(f'{type(ex).__name__} - {ex}')
 
         ddm_res = None
         try:
             mod = Mod.DividendDiscountModel(uid, **p)
             ddm_res = mod.result(**p)
         except Exception as ex:
-            print('{} - {}'.format(type(ex).__name__, ex))
+            print(f'{type(ex).__name__} - {ex}')
 
         return self._render_out_company((dcf_res, ddm_res), args)
 

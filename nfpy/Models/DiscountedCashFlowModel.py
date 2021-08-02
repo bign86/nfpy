@@ -84,7 +84,7 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
 
     def __init__(self, uid: str, date: Union[str, pd.Timestamp] = None,
                  past_horizon: int = 5, future_proj: int = 3,
-                 perpetual_rate: float = 0.):
+                 perpetual_rate: float = 0., **kwargs):
         super().__init__(uid, date, past_horizon, future_proj)
         self._p_rate = max(perpetual_rate, .0)
         self._fcf = None
@@ -98,20 +98,19 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
                          future_proj=self._fp)
 
     def _check_applicability(self):
-        f, y = self.frequency, self._ph
-
-        actual_y = len(self._ff.get_index(f))
-        y = min(actual_y, y)
+        f = self.frequency
+        y = min(
+            len(self._ff.get_index(f)),
+            self._ph
+        )
         if y < self._MIN_DEPTH_DATA:
-            raise ValueError('Not enough data found for {}'
-                             .format(self._uid))
+            raise ValueError(f'Not enough data found for {self._uid}')
 
         # If negative average FCF exit
         fcf = self._ff.fcf(f).values[-y:]
         # if np.nanmean(fcf) < 0.:
         if (fcf < 0.).any():
-            raise ValueError('Negative average Free Cash Flow found for {}'
-                             .format(self._uid))
+            raise ValueError(f'Negative average Free Cash Flow found for {self._uid}')
 
         self._ph = y
         self._fcf = fcf
@@ -125,13 +124,16 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
         return {}
 
     def _get_index(self):
-        f, y, p = self.frequency, self._ph, self._fp
+        f = self.frequency
 
-        past = self._ff.get_index(f)[-y:]
+        past = self._ff.get_index(f)[-self._ph:]
         curr = int(past[-1].year) + 1
-        future = pd.DatetimeIndex([pd.Timestamp(y, 12, 31)
-                                   for y in range(curr, curr + p)])
-        return past.append(future)
+        return past.append(
+            pd.DatetimeIndex([
+                pd.Timestamp(y, 12, 31)
+                for y in range(curr, curr + self._fp)
+            ])
+        )
 
     def _calc_fcf_coverage(self, array: np.array):
         f, y = self.frequency, self._ph
@@ -144,8 +146,10 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
         if y > 3:
             cov_min = np.nanargmin(cov)
             cov_max = np.nanargmax(cov)
-            idx = [i for i in range(0, y)
-                   if i != cov_max and i != cov_min]  # and ~np.isnan(i)]
+            idx = [
+                i for i in range(0, y)
+                if (i != cov_max) and (i != cov_min)
+            ]  # and ~np.isnan(i)]
             # FIXME: we should check that after accounting for nans, there are
             #        at least 2 data points left
             mean_fcfcov_margin = np.nanmean(cov[idx])
@@ -174,11 +178,15 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
     def _calc_tax_rate(self, array: np.array):
         f, y = self.frequency, self._ph
 
-        tax_rate = self._ff.income_tax_paid(f).values[-y:] / \
-                   self._ff.income_before_taxes(f).values[-y:]
         # Put a floor = .0 and a cap = .25 to the tax rate
-        tax_rate = np.maximum(np.minimum(tax_rate, self._MAX_TAX_R),
-                              self._MIN_TAX_R)
+        tax_rate = np.maximum(
+            np.minimum(
+                self._ff.income_tax_paid(f).values[-y:] /
+                self._ff.income_before_taxes(f).values[-y:],
+                self._MAX_TAX_R
+            ),
+            self._MIN_TAX_R
+        )
         array[7, :y] = tax_rate
 
     def _calculate(self):
@@ -208,33 +216,45 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
         self._calc_tax_rate(array)
 
         # Get Cost of Debt
-        cod = (self._ff.interest_expenses(f).values[-y:] /
-               array[6, :y]) * (1. - array[7, :y])
-        # Put a floor = .0 to the cost of debt
-        array[8, :y] = np.maximum(cod, .05)
+        # Put a floor = .05 to the cost of debt
+        array[8, :y] = np.maximum(
+            (self._ff.interest_expenses(f).values[-y:] / array[6, :y])
+            * (1. - array[7, :y]),
+            .05
+        )
 
         # Get Beta for Cost of Equity
         # beta = []
         beta = np.empty(y)
         for i, dt in enumerate(index[:y]):
             try:
-                beta[i] = self._eq.beta(start=pd.Timestamp(dt.year, 1, 1),
-                                        end=dt)[1]
+                beta[i] = self._eq.beta(
+                    start=pd.Timestamp(dt.year, 1, 1),
+                    end=dt
+                )[1]
             except ValueError:
                 beta[i] = .0
         # beta = np.array(beta)
         mean_beta = np.mean(beta[np.where(beta != 0)])
-        beta[beta == 0] = mean_beta
+        beta[beta == 0] = np.mean(beta[np.where(beta != 0)])
         array[9, :y] = beta
 
         # Get Market and RF returns for Cost of Equity
-        array[10, :y] = np.array([Math.compound(self._idx.expct_return(
-            start=pd.Timestamp(dt.year, 1, 1), end=dt),
-            Cn.BDAYS_IN_1Y) for dt in index[:y]])
+        array[10, :y] = np.array([
+            Math.compound(
+                self._idx.expct_return(
+                    start=pd.Timestamp(dt.year, 1, 1),
+                    end=dt),
+                Cn.BDAYS_IN_1Y
+            )
+            for dt in index[:y]
+        ])
 
         # Get Cost of Equity
-        coe = array[9, :y] * array[10, :y]
-        array[11, :y] = np.maximum(coe, .0)
+        array[11, :y] = np.maximum(
+            array[9, :y] * array[10, :y],
+            .0
+        )
 
         # Get WACC
         total_asset = self._ff.tot_asset(f).values[-y:]
@@ -249,24 +269,36 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
         cf = np.zeros((2, yj + 1))
         cf[0, :] = np.arange(1, yj + 2, 1)
         cf[1, :yj] = array[0, -yj:]
-        den = max(mean_wacc - self._p_rate, .025)
-        cf[1, -1] = float(array[0, -1:]) * (1. + self._p_rate) / den
+        cf[1, -1] = float(array[0, -1:]) * (1. + self._p_rate) / \
+                    max(mean_wacc - self._p_rate, .025)
 
         # Calculate Fair Value
         shares = float(self._ff.total_shares(f).values[-1])
         fair_value = float(np.sum(Math.dcf(cf, mean_wacc))) / shares
 
         # Accumulate
-        self._res_update(df=pd.DataFrame(array.T, columns=self._COLS,
-                                         index=index), fair_value=fair_value, shares=shares,
-                         mean_wacc=mean_wacc, mean_beta=mean_beta,
-                         last_price=self.get_last_price())
+        self._res_update(
+            df=pd.DataFrame(
+                array.T,
+                columns=self._COLS,
+                index=index
+            ),
+            fair_value=fair_value,
+            shares=shares,
+            mean_wacc=mean_wacc,
+            mean_beta=mean_beta,
+            last_price=self.get_last_price()
+        )
 
 
 def DCFModel(uid: str, date: Union[str, pd.Timestamp] = None,
              past_horizon: int = 5, future_proj: int = 3,
              perpetual_rate: float = 0.) -> DCFResult:
     """ Shortcut for the calculation. Intermediate results are lost. """
-    return DiscountedCashFlowModel(uid, date, past_horizon,
-                                   future_proj, perpetual_rate) \
-        .result()
+    return DiscountedCashFlowModel(
+        uid,
+        date,
+        past_horizon,
+        future_proj,
+        perpetual_rate
+    ).result()

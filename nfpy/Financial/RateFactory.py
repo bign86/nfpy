@@ -16,9 +16,10 @@ class RateFactory(metaclass=Singleton):
 
     _CURVE_TABLE = 'Curve'
     _RATE_TABLE = 'Rate'
-    _Q_GET_RF = """select c.currency, r.uid from Rate as r join CurveConstituents as cc
-on r.uid = cc.bucket join Curve as c on c.uid = cc.uid where r.is_rf = True;"""
-    _Q_SET_RF = """update Rate set is_rf = ? where uid = ?;"""
+    _Q_GET_RF = f'select c.currency, r.uid from Rate as r join CurveConstituents' \
+                f' as cc on r.uid = cc.bucket join Curve as c on c.uid = cc.uid' \
+                f' where r.is_rf = True;'
+    _Q_SET_RF = 'update Rate set is_rf = ? where uid = ?;'
 
     def __init__(self):
         self._db = DB.get_db_glob()
@@ -38,7 +39,7 @@ on r.uid = cc.bucket join Curve as c on c.uid = cc.uid where r.is_rf = True;"""
         for k, g in groupby(res, key=lambda f: f[0]):
             n = len(list(g))
             if n > 1:
-                raise ValueError('{} risk free defined for {}'.format(n, k))
+                raise ValueError(f'{n} risk free defined for {k}')
 
         self._rf = {t[0]: t[1] for t in res}
 
@@ -46,19 +47,17 @@ on r.uid = cc.bucket join Curve as c on c.uid = cc.uid where r.is_rf = True;"""
         try:
             uid = self._rf[ccy]
         except KeyError:
-            raise Ex.MissingData('No risk free set for currency {}'.format(ccy))
+            raise Ex.MissingData(f'No risk free set for currency {ccy}')
         return self._af.get(uid)
 
     def set_rf(self, ccy: str, rate: str):
         """ Set a risk free rate. """
-        res = self._db.execute(self._Q_GET_RF, (ccy,)).fetchall()
-
         data = [(True, rate)]
         if ccy in self._rf:
             old_rate = self._rf[ccy]
-            warnings.warn('The rate {} is set as current risk free and will be overridden'
-                          .format(old_rate))
             data.append((False, old_rate))
+            msg = f'The rate {old_rate} is set as current risk free and will be overridden'
+            warnings.warn(msg)
 
         self._db.executemany(self._Q_SET_RF, data, commit=True)
 

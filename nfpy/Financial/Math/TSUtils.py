@@ -333,8 +333,10 @@ def drawdown(ts: np.ndarray, w: int) -> tuple:
             mdd [np.ndarray]: max drowdown in the window
     """
     w = abs(int(w))
-    r = rolling_window(ts, w)
-    idx_max = np.nanargmax(r, axis=1)
+    idx_max = np.nanargmax(
+        rolling_window(ts, w),
+        axis=1
+    )
     idx_max += np.arange(len(idx_max))
     dd = np.take(ts, idx_max) / ts[w - 1:] - 1.
     mdd = np.empty_like(dd)

@@ -41,7 +41,7 @@ class GordonGrowthModel(BaseFundamentalModel):
         """
         # We assume DDM cannot be used if dividends are NOT paid
         if self._df.num == 0:
-            raise Ex.MissingData('No dividends for {}'.format(self._eq.uid))
+            raise Ex.MissingData(f'No dividends for {self._eq.uid}')
 
     def _calc_freq(self):
         """ Calculates model frequency. """
@@ -60,10 +60,9 @@ class GordonGrowthModel(BaseFundamentalModel):
     def _calculate(self):
         div_drift = self._calc_drift()
         _, div = self._df.last
-        freq = self.frequency
 
         # Create cash flows sequence and calculate final price
-        fut_div = div * (div_drift + 1.) / freq
+        fut_div = div * (div_drift + 1.) / self.frequency
         self._fut_div = fut_div
 
         # Record results
@@ -78,17 +77,17 @@ class GordonGrowthModel(BaseFundamentalModel):
         try:
             d_rate = kwargs['d_rate']
         except KeyError:
-            rf = Fin.get_rf_glob().get_rf(self._asset.currency)
-            d_rate = rf.last_price(self._t0)[0]
+            d_rate = Fin.get_rf_glob() \
+                .get_rf(self._asset.currency) \
+                .last_price(self._t0)[0]
 
         # Check model consistency
         den = d_rate - self._calc_drift()
         if den <= 0.:
-            raise ValueError('The discounting of {:.0f}% is negative for {}'
-                             .format(den*100., self._uid))
+            msg = f'The discounting of {den*100.:.0f}% is negative for {self._uid}'
+            raise ValueError(msg)
 
         fv = float(self._fut_div * Math.cdf(den, 1))
-
         return {'d_rate': d_rate, 'fair_value': fv}
 
 

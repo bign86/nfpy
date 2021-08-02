@@ -4,11 +4,12 @@
 #
 
 import configparser
+import logging
 import os
-from os.path import dirname, abspath
+from os.path import (dirname, abspath)
 from typing import Any
 
-from nfpy import NFPY_ROOT_DIR
+from nfpy import (NFPY_ROOT_DIR, __version__)
 
 from .Singleton import Singleton
 
@@ -43,13 +44,11 @@ PARAMS_DICT__ = {
     },
     'LOGGING': {
         'log_level': (int, 'Log level'),
-        'log_path': (str, 'Path of the log file'),
-        'log_file': (str, 'Log file name'),
+        'log_path': (str, 'Log file full path'),
     },
     'OTHERS': {
         'base_ccy': (str, 'Base currency'),
         'calendar_frequency': (str, 'Default calendar frequency'),
-        # 'date_fmt': (str, 'Default date format')
     }
 }
 
@@ -71,10 +70,7 @@ class Configuration(metaclass=Singleton):
     __nonzero__ = __bool__
 
     def __getitem__(self, k: str) -> str:
-        try:
-            return getattr(self, k, None)
-        except KeyError:
-            raise KeyError(k, 'Key {} does not exists in configuration file'.format(k))
+        return getattr(self, k, None)
 
     def __setitem__(self, k: str, v: Any):
         setattr(self, k, v)
@@ -87,7 +83,7 @@ class Configuration(metaclass=Singleton):
         """
         return os.path.join(NFPY_ROOT_DIR, self.CONF_INI)
 
-    def _parse(self):
+    def _parse(self) -> None:
         """ Parse the configuration file. """
         conf_path = self._get_conf_full_path()
         if not os.path.isfile(conf_path):
@@ -97,16 +93,17 @@ class Configuration(metaclass=Singleton):
         config.read(conf_path)
 
         # Add full db_path property
-        db_path = os.path.join(config['DATABASE']['db_dir'],
-                               config['DATABASE']['db_name'])
-        config['DATABASE']['db_path'] = db_path
+        config['DATABASE']['db_path'] = os.path.join(
+            config['DATABASE']['db_dir'],
+            config['DATABASE']['db_name']
+        )
         PARAMS_DICT__['DATABASE']['db_path'] = (str, '')
 
         for section in config.values():
             try:
                 sect_p = PARAMS_DICT__[section.name]
-            except KeyError as ex:
-                pass
+            except KeyError:
+                continue
             else:
                 for k, v in section.items():
                     setattr(self, k, sect_p[k][0](v))
@@ -114,6 +111,18 @@ class Configuration(metaclass=Singleton):
         self._conf_path = conf_path
         self._conf = config
         self._is_configured = True
+
+    # def _start_logging(self) -> None:
+    #     """ Starts the logging system. """
+    #     log_path = os.path.join(self.log_path, 'nfpy.log')
+    #     logging.basicConfig(
+    #         filename=log_path,
+    #         filemode='w',
+    #         encoding='utf-8',
+    #     )
+    #     logger = logging.getLogger(__name__)
+    #     logger.setLevel(self.log_level)
+    #     logger.info('NFPY version {}'.format(__version__))
 
 
 def get_conf_glob() -> Configuration:
@@ -123,8 +132,10 @@ def get_conf_glob() -> Configuration:
 
 def create_new(parameters: dict):
     """ Creates a new empty configuration file in the standard position. """
-    p = dirname(dirname(abspath(__file__)))
-    conf_path = os.path.join(p, Configuration.CONF_INI)
+    conf_path = os.path.join(
+        dirname(dirname(abspath(__file__))),
+        Configuration.CONF_INI
+    )
 
     # remove existing file, NO BACKUP IS DONE!
     if os.path.isfile(conf_path):

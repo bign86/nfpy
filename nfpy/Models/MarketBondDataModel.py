@@ -10,11 +10,10 @@ from typing import Union
 import nfpy.Financial.Math as Math
 from nfpy.Tools import (Constants as Cn)
 
-from .MarketAssetsDataBaseModel import (BaseMADMResult,
-                                        MarketAssetsDataBaseModel)
+from .MarketAssetsDataBaseModel import (MADMResult, MarketAssetsDataBaseModel)
 
 
-class MBDMResult(BaseMADMResult):
+class MBDMResult(MADMResult):
     """ Base object containing the results of the market asset models. """
 
 

@@ -22,16 +22,18 @@ _TITLE_ = "<<< Price equity DCF details script >>>"
 
 
 def print_results(_r):
-    print('\n--------------------------------------------------------------\n')
-    print(' *** Input information ***')
-    print('Company:\t\t\t{} ({})'.format(_r.uid, _r.equity))
-    print('Past horizon:\t\t{:d} years\nFuture projection:\t{:d} years'
-          .format(_r.past_horizon, _r.future_proj))
-    # print('Discount factor (WACC):\t{:.1f}%'.format(_r.wacc*100), end='\n\n')
-    print('Last price:\t\t\t\t\t{:.2f} ({})\n'.format(_r.last_price, _r.ccy))
-
-    print(tabulate(_r.df, headers=_r.df.columns))
-    print('\nFair value: {:.2f} ({})'.format(_r.fair_value, _r.ccy))
+    floatfmt = (None, '.0f', '.0f', '.0%', '.0f', '.0%', '.0%', '.0f', '.0%',
+                '.0%', '.0%', '.0%', '.0%', '.0%')
+    print(f'\n--------------------------------------------------------------\n\n'
+          f' *** Input information ***\n'
+          f'Company:\t\t\t{_r.uid} ({_r.equity})\n'
+          f'Past horizon:\t\t{_r.past_horizon:d} years\n'
+          f'Future projection:\t{_r.future_proj:d} years\n'
+          f'Last price:\t\t\t{_r.last_price:.2f} ({_r.ccy})\n\n'
+          # 'Discount factor (WACC):\t{:.1f}%'.format(_r.wacc*100), end='\n\n'
+          f'{tabulate(_r.df, headers=_r.df.columns, floatfmt=floatfmt, missingval="-")}\n\n'
+          f'Fair value: {_r.fair_value:.2f} ({_r.ccy})',
+          end='\n\n')
 
 
 def plot_results(_r):
@@ -64,8 +66,8 @@ if __name__ == '__main__':
     # Get inputs
     cmp = inh.input("Give a company uid: ", idesc='uid')
     while not af.exists(cmp):
-        print(' * Supplied uid does not exist!')
-        cmp = inh.input("Give a company uid: ", idesc='uid')
+        cmp = inh.input(" ! Supplied uid does not exist!\nGive a company uid: ",
+                        idesc='uid')
     ph = inh.input("Give number of years of past horizon (default: 5): ",
                    idesc='int', default=5, optional=True)
     fp = inh.input("Give number of years for projection (default: 3): ",
@@ -80,9 +82,9 @@ if __name__ == '__main__':
     get_calendar_glob().initialize(end_date, start_date)
 
     # Calculate
-    dcf = DiscountedCashFlowModel(cmp, perpetual_rate=pr,
-                                  past_horizon=ph, future_proj=fp)
-    res = dcf.result()
+    res = DiscountedCashFlowModel(cmp, perpetual_rate=pr,
+                                  past_horizon=ph, future_proj=fp) \
+        .result()
 
     print_results(res)
     plot_results(res)

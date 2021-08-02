@@ -4,7 +4,7 @@
 
 from collections import OrderedDict
 from operator import itemgetter
-from typing import (Sequence, Iterable, KeysView)
+from typing import Any, Generator, KeysView
 
 from nfpy.Tools import (Singleton, Exceptions as Ex)
 
@@ -24,9 +24,9 @@ class QueryBuilder(metaclass=Singleton):
         """ Fetch the columns and info for table from DB:
             (id, name, type, notnull, default_value, primary_key)
         """
-        res = self._db.execute("PRAGMA TABLE_INFO([{}]);".format(table)).fetchall()
+        res = self._db.execute(f"PRAGMA TABLE_INFO([{table}]);").fetchall()
         if not res:
-            raise Ex.MissingData('Table {} not found in the database'.format(table))
+            raise Ex.MissingData(f'Table {table} not found in the database')
 
         l = []
         res = sorted(res, key=itemgetter(0))
@@ -63,16 +63,17 @@ class QueryBuilder(metaclass=Singleton):
 
     def exists_table(self, table: str) -> bool:
         """ Return True or False whether the input table exists. """
-        q = "SELECT name FROM sqlite_master WHERE type = 'table' AND name = '{}';"
-        res = self._db.execute(q.format(table)).fetchall()
+        q = f"SELECT name FROM sqlite_master " \
+            f"WHERE type = 'table' AND name = '{table}';"
+        res = self._db.execute(q).fetchall()
         return False if not res else True
 
-    def get_tables_list(self) -> list[str]:
+    def get_tables_list(self) -> Generator[Any, Any, None]:
         """ List all the tables in the database. """
         q = """SELECT name FROM sqlite_master WHERE type IN ('table','view')
                AND name NOT LIKE 'sqlite_%' ORDER BY 1;"""
         res = self._db.execute(q).fetchall()
-        return [t[0] for t in res]
+        return (t[0] for t in res)
 
     def get_columns(self, table: str) -> OrderedDict:
         """ Return the table's dictionary of column objects. """
@@ -82,7 +83,7 @@ class QueryBuilder(metaclass=Singleton):
         """ Return the generator of fields in table. """
         return self.get_table(table).get_fields()
 
-    def get_keys(self, table: str) -> KeysView:
+    def get_keys(self, table: str) -> Generator[Any, Any, None]:
         """ Return the generator of primary keys. """
         return self.get_table(table).get_keys()
 
@@ -98,25 +99,22 @@ class QueryBuilder(metaclass=Singleton):
     @staticmethod
     def get_rename_table(table: str) -> str:
         """ Return the alter table query to rename a table. """
-        return 'alter table _TBL_ rename to _OLDTBL_;' \
-            .replace('_OLDTBL_', table + '_old') \
-            .replace('_TBL_', table)
+        return f"alter table {table} rename to {table + '_old'};"
 
-    def select(self, table: str, fields: Iterable = None,
-               rolling: Iterable = (), keys: Iterable = None,
-               partial_keys: Iterable = (), where: str = "",
+    def select(self, table: str, fields: [str] = None, rolling: [str] = (),
+               keys: [str] = None, partial_keys: [str] = (), where: str = "",
                order: str = None) -> str:
         """ Builds a select query for input table:
 
             Input:
                 table [str]: for the from clause
-                fields [Iterable]: if present select only these columns
-                rolling [Iterable]: if present remove these from the list of
+                fields [[str]]]: if present select only these columns
+                rolling [[str]]: if present remove these from the list of
                     keys used for the where condition
-                keys [Iterable]: if present use only these keys to create the
+                keys [[str]]: if present use only these keys to create the
                     where condition, if given empty no keys will be used. If
                     None is given use ALL primary keys to build the query
-                partial_keys [Iterable]: additional keys to be evaluated by a
+                partial_keys [[str]]: additional keys to be evaluated by a
                     'like' clause. If none are given, none are used
                 where [str]: additional where condition
                 order [str]: additional order condition
@@ -128,7 +126,7 @@ class QueryBuilder(metaclass=Singleton):
 
         if not fields:
             fields = t.get_fields()
-        query = "select [" + "],[".join(fields) + "] from [" + table + "]"
+        query = f"select [{'],['.join(fields)}] from [{table}]"
 
         # where on keys
         if keys is None:
@@ -136,35 +134,35 @@ class QueryBuilder(metaclass=Singleton):
                 keys = (k for k in t.get_keys() if k not in rolling)
             else:
                 keys = ()
-        qk = ["[" + k + "] = ? " for k in keys]
+        qk = [f"[{k}] = ? " for k in keys]
 
         # like conditions
-        qk += ["[" + k + "] like ? " for k in partial_keys]
+        qk += [f"[{k}] like ? " for k in partial_keys]
 
         # where on rolling
         for r in rolling:
-            qk += ["[" + r + "] >= ? ", "[" + r + "] <= ? "]
+            qk += [f"[{r}] >= ? ", f"[{r}] <= ? "]
 
         # handle the external where
         if len(where) > 0:
             qk.append(where)
 
         # build the complete where statement
-        q_where = " and ".join(map(str, qk))
+        q_where = f"{' and '.join(map(str, qk))}"
         if len(q_where) > 0:
-            query += " where " + q_where
+            query += f" where {q_where}"
 
         # add ordering
         if order:
-            query += " order by " + order
+            query += f" order by {order}"
 
         return query + ';'
 
-    def insert(self, ins_table: str, ins_fields: Sequence = (), **kwargs) -> str:
+    def insert(self, ins_table: str, ins_fields: [str] = (), **kwargs) -> str:
         """ Builds an insert query for input table:
             Input:
                 ins_table [str]: for the from clause
-                ins_fields [Sequence[str]]: list of fields to insert
+                ins_fields [[str]]: list of fields to insert
                 kwargs [Any]: arguments for a 'select' query
 
             Return:
@@ -172,11 +170,11 @@ class QueryBuilder(metaclass=Singleton):
         """
         return self._get_insert(ins_table, ins_fields, 'insert', **kwargs)
 
-    def merge(self, ins_table: str, ins_fields: Sequence = (), **kwargs) -> str:
+    def merge(self, ins_table: str, ins_fields: [str] = (), **kwargs) -> str:
         """ Builds an insert or replace query for input table:
             Input:
                 ins_table [str]: for the from clause
-                ins_fields [Sequence[str]]: list of fields to insert
+                ins_fields [[str]]: list of fields to insert
                 kwargs [Any]: arguments for a 'select' query
 
             Return:
@@ -185,7 +183,7 @@ class QueryBuilder(metaclass=Singleton):
         return self._get_insert(ins_table, ins_fields,
                                 'insert or replace', **kwargs)
 
-    def _get_insert(self, ins_table: str, ins_fields: Sequence,
+    def _get_insert(self, ins_table: str, ins_fields: [str],
                     command: str, **kwargs) -> str:
         """ Creates an insert like query. """
         keys = self.get_keys(ins_table)
@@ -194,29 +192,29 @@ class QueryBuilder(metaclass=Singleton):
 
         miss_keys = set(keys) - set(ins_fields)
         if miss_keys:
-            msg = "Missing the following keys in the insert list " + \
-                  ",".join(map(str, miss_keys))
+            msg = f"Missing the following keys in the insert list " \
+                  f"{','.join(map(str, miss_keys))}"
             raise ValueError(msg)
 
-        query = command + " into [" + str(ins_table) + "]"
-        query += " ([" + "],[".join(ins_fields) + "]) "
+        query = f"{command} into [{str(ins_table)}]" \
+                f"([{'],['.join(ins_fields)}])"
 
         if not kwargs:
-            query += " values (" + ",".join(['?'] * len(ins_fields)) + ");"
+            query += f" values ({','.join(['?'] * len(ins_fields))});"
         else:
             query += self.select(**kwargs)
 
         return query
 
-    def update(self, table: str, fields: Sequence = (), keys: Sequence = (),
+    def update(self, table: str, fields: [str] = (), keys: [str] = (),
                where: str = "") -> str:
         """ Builds an insert query the for input table. The where condition is
             applied by default on the primary key of the table:
             
             Input:
                 table [str]: for the from clause
-                fields [Sequence[str]]: list of fields to update
-                keys [Sequence[str]]: if present use only these keys to create
+                fields [[str]]: list of fields to update
+                keys [[str]]: if present use only these keys to create
                     the where condition, if given empty no keys will be used.
                     If None is given use ALL primary keys to build the query
                 where [str]: additional where condition
@@ -231,19 +229,20 @@ class QueryBuilder(metaclass=Singleton):
         if not fields:
             fields = self.get_fields(table)
 
-        query = "update [" + str(table) + "]"
-        query += " set [" + "] = ?, [".join(fields) + "] = ?"
-        query += " where " + " = ? and ".join(keys) + " = ?" + where
+        query = f"update [{str(table)}] set [{'] = ?, ['.join(fields)}] = ?" \
+                f" where {' = ? and '.join(keys)} = ?"
+        if where:
+            query += f" and {where}"
 
         return query + ';'
 
-    def upsert(self, table: str, fields: Sequence = None, where: str = "") -> str:
+    def upsert(self, table: str, fields: [str] = None, where: str = "") -> str:
         """ Builds an upsert query for the input table. The where condition is
             applied by default on the primary key of the table:
 
             Input:
                 table [str]: for the from clause
-                fields [Sequence[str]]: list of fields to update
+                fields [[str]]: list of fields to update
                 where [str]: additional where condition
 
             Return:
@@ -253,26 +252,26 @@ class QueryBuilder(metaclass=Singleton):
         if not fields:
             fields = self.get_fields(table)
 
-        query = "insert into [" + str(table) + "]"
-        query += " ([" + "],[".join(fields) + "]) "
-        query += " values (" + ",".join(['?'] * len(fields)) + ")"
-        query += " on conflict ([" + "],[".join(keys) + "]) do update set "
-        query += ", ".join(("[" + f + "] = excluded.[" + f + "]" for f in fields))
-        query += where
+        query = f"insert into [{str(table)}] ([{'],['.join(fields)}]) " \
+                f"values ({','.join(['?'] * len(fields))}) " \
+                f"on conflict ([{'],['.join(keys)}]) do update set " \
+                f"{', '.join((f'[{f}] = excluded.[{f}]' for f in fields))}"
+        if where:
+            query += f" where {where}"
 
         return query + ';'
 
     @staticmethod
-    def selectall(table: str, fields: Iterable = None) -> str:
+    def selectall(table: str, fields: [str] = None) -> str:
         """ Builds a select query for input table. """
         f_str = '*'
         if fields:
-            f_str = "[" + "],[".join(fields) + "]"
+            f_str = f"[{'],['.join(fields)}]"
 
-        return 'select ' + f_str + ' from ' + table + ';'
+        return f'select {f_str} from {table};'
 
     @staticmethod
-    def delete(table: str, fields: Sequence = None) -> str:
+    def delete(table: str, fields: [str] = None) -> str:
         """ Builds a delete query for input table:
             Input:
                 table [str]: for the from clause
@@ -281,9 +280,9 @@ class QueryBuilder(metaclass=Singleton):
             Return:
                 query [str]: query ready to be used in an execute
         """
-        query = "delete from [" + str(table) + "]"
+        query = f"delete from [{str(table)}]"
         if fields:
-            query += " where " + " = ? and ".join(fields) + " = ?"
+            query += f" where {' = ? and '.join(fields)} = ?"
 
         return query + ';'
 
@@ -296,7 +295,7 @@ class QueryBuilder(metaclass=Singleton):
             Return:
                 query [str]: query ready to be used in an execute
         """
-        return "truncate table [" + str(table) + '];'
+        return f"truncate table [{str(table)}];"
 
     @staticmethod
     def drop(table: str) -> str:
@@ -309,36 +308,35 @@ class QueryBuilder(metaclass=Singleton):
         """
         # PRAGMA foreign_keys=OFF;
         # PRAGMA foreign_keys = ON;
-        return "drop table [" + str(table) + '];'
+        return f"drop table [{str(table)}];"
 
     @staticmethod
     def create(struct: Table) -> str:
         """ Builds a create query from a given table structure. """
 
-        query = "create table [" + struct.name + "] ("
+        query = f"create table [{struct.name}] ("
 
         # Build columns query
         cols = []
         pk = []
         for k, v in struct.columns.items():
             nn = 'NOT NULL' if v.notnull else ''
-            cols.append(' '.join(map(str, ['[' + k + ']', v.type, nn])))
+            cols.append(' '.join(map(str, [f'[{k}]', v.type, nn])))
             if v.is_primary:
                 pk.append(k)
         query += ', '.join(cols)
 
         # Build primary keys query
         if pk:
-            query += ', primary key ([' + '], ['.join(pk) + '])'
+            query += f", primary key ([{'], ['.join(pk)}])"
 
         query += ") without rowid;"
         return query
 
     @staticmethod
-    def add_column(table: str, col_name: str, col_prop: Sequence) -> str:
+    def add_column(table: str, col_name: str, col_prop: [str]) -> str:
         """ Builds a add column query for the given table. """
-        q = 'alter table ' + table + ' add ' + col_name + ' ' + ' '.join(col_prop)
-        return q + ';'
+        return f"alter table {table} add {col_name} {' '.join(col_prop)};"
 
 
 def get_qb_glob() -> QueryBuilder:

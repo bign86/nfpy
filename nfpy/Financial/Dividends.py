@@ -140,8 +140,8 @@ class DividendFactory(object):
         """
         # FIXME: the function does not work if "special" dividends are distributed
         if self._num < 2:
-            raise ValueError('Too few dividends to determine dividend frequency in {}'
-                             .format(self._eq.uid))
+            msg = f'Too few dividends to determine dividend frequency in {self._eq.uid}'
+            raise ValueError(msg)
 
         mean_dist = np.mean(self.distance)
         if self._flim[0] <= mean_dist <= self._flim[1]:
@@ -151,28 +151,29 @@ class DividendFactory(object):
         elif self._flim[4] <= mean_dist <= self._flim[5]:
             freq = .25
         else:
-            raise ValueError('Impossible to determine dividend frequency in {}'
-                             .format(self._eq.uid))
+            msg = f'Impossible to determine dividend frequency in {self._eq.uid}'
+            raise ValueError(msg)
         self._freq = freq
 
     def _calc_drift(self):
         """ Determine the drift of dividends. """
-        div, num = self._div, self._num
-        if num < 2:
-            raise ValueError('Too few dividends to determine dividend drift in {}'
-                             .format(self._eq.uid))
+        if self._num < 2:
+            msg = f'Too few dividends to determine dividend drift in {self._eq.uid}'
+            raise ValueError(msg)
 
         returns, distance = self.returns, self.distance
-        daily_ret = compound(returns, 1. / distance)
-        annualized_ret = compound(returns, Cn.BDAYS_IN_1Y / distance)
-        self._daily_drift = np.mean(daily_ret)
-        self._ann_drift = np.mean(annualized_ret)
+        self._daily_drift = np.mean(
+            compound(returns, 1. / distance)
+        )
+        self._ann_drift = np.mean(
+            compound(returns, Cn.BDAYS_IN_1Y / distance)
+        )
 
     def _calc_returns(self):
         """ Calculates the percentage change of dividends. """
         if self._num < 2:
-            raise ValueError('Too few dividends to determine dividend returns in {}'
-                             .format(self._eq.uid))
+            msg = f'Too few dividends to determine dividend returns in {self._eq.uid}'
+            raise ValueError(msg)
         self._divret = self._div[1:] / self._div[:-1] - 1.
 
     def _calc_distance(self):

@@ -24,12 +24,12 @@ if __name__ == '__main__':
     msg = """Insert an asset class if you want to narrow down research: """
     choice = inh.input(msg, idesc='str')
     if choice:
-        q = q + " where type = '{}'".format(choice)
+        q += f" where type = '{choice}'"
 
-    f = list(qb.get_fields('Assets'))
     res = db.execute(q).fetchall()
+    f = list(qb.get_fields('Assets'))
+    print(f'\nResults:\n'
+          f'{tabulate(res, headers=f, showindex=True)}',
+          end='\n\n')
 
-    print('\nResults:\n')
-    print(tabulate(res, headers=f, showindex=True))
-
-    print('\n\nfine')
+    print('All done!')

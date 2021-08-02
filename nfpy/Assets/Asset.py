@@ -9,7 +9,7 @@ from typing import (TypeVar, Union)
 
 import nfpy.Calendar as Cal
 import nfpy.Financial.Math as Math
-from nfpy.Tools import (Exceptions as Ex)
+from nfpy.Tools import (Exceptions as Ex, Utilities as Ut)
 
 from .FinancialItem import FinancialItem
 
@@ -100,12 +100,13 @@ class Asset(FinancialItem):
                 date [pd.Timestamp]: date of the last valid price
                 idx [int]: index of the last valid price
         """
-        dt = Cal.pd_2_np64(dt) if dt else self._cal.t0.asm8
+        ts = self.prices.values
+        date = self.prices.index.values
 
-        p = self.prices
-        ts, date = p.values, p.index.values
-
-        pos = np.searchsorted(date, [dt])[0]
+        pos = None
+        if dt:
+            dt = Cal.pd_2_np64(dt)
+            pos = np.searchsorted(date, [dt])[0]
         idx = Math.last_valid_index(ts, pos)
 
         return ts[idx], date[idx], idx
@@ -136,28 +137,46 @@ class Asset(FinancialItem):
         self.dtype = self._dt.get(dt)
 
         # Take results and append to the unique dataframe indexed on the calendar
-        q = self._qb.select(self.ts_table, fields=('date', 'value'),
-                            rolling=self.ts_roll_key_list)
-        data = self._get_dati_for_query(self.ts_table,
-                                        rolling=self.ts_roll_key_list)
+        data = (
+            *self._get_dati_for_query(
+                self.ts_table,
+                rolling=self.ts_roll_key_list
+            ),
+            self._cal.start.to_pydatetime(),
+            self._cal.end.to_pydatetime()
+        )
         self.dtype = -1
 
-        cal = Cal.get_calendar_glob()
-        data += (cal.start.to_pydatetime(), cal.end.to_pydatetime())
+        try:
+            df = pd.read_sql_query(
+                self._qb.select(
+                    self.ts_table,
+                    fields=('date', 'value'),
+                    rolling=self.ts_roll_key_list
+                ),
+                self._db.connection,
+                index_col=['date'],
+                params=data,
+                parse_dates=['date']
+            )
+        except KeyError as ex:
+            Ut.print_exc(ex)
+            raise ex
 
-        conn = self._db.connection
-        df = pd.read_sql_query(q, conn, index_col=['date'], params=data)
         if df.empty:
-            raise Ex.MissingData("{} {} not found in the database!"
-                                 .format(self.uid, dt))
+            raise Ex.MissingData(f"{self.uid} {dt} not found in the database!")
 
-        df.index = pd.to_datetime(df.index)
+        # df.index = pd.to_datetime(df.index)
         df.rename(columns={"value": str(dt)}, inplace=True)
         return df
 
     def load_dtype_in_df(self, dt: str) -> None:
-        df = self.load_dtype(dt)
-        self._df = self._df.merge(df, how='left', left_index=True, right_index=True)
+        self._df = self._df.merge(
+            self.load_dtype(dt),
+            how='left',
+            left_index=True,
+            right_index=True
+        )
         self._df.sort_index(inplace=True)
 
     def calc_returns(self) -> pd.Series:
@@ -168,7 +187,7 @@ class Asset(FinancialItem):
         """ Calculates the log returns from the series of the prices. """
         return Math.logret(self.prices)
 
-    def write_dtype(self, dt: str):
+    def write_dtype(self, dt: str) -> None:
         """ Writes a time series to the DB. The content of the column 'datatype'
             of the table containing the time series is given in input.
 
@@ -178,19 +197,25 @@ class Asset(FinancialItem):
             Exceptions:
                 KeyError: if datatype is not recognized in the decoding table
         """
-        self.dtype = self._dt.get(dt)
-        q_del = self._qb.delete(self.ts_table, fields=("uid", "dtype"))
-        self._db.execute(q_del, (self.uid, self.dtype))
+        dtype = self._dt.get(dt)
+        self._db.execute(
+            self._qb.delete(
+                self.ts_table,
+                fields=("uid", "dtype")
+            ),
+            (self.uid, dtype)
+        )
 
         # iterate over the index and extracting the dtype value
         def iter_df__():
             for t in self._df.itertuples(index=True):
                 val = getattr(t, dt)
-                yield (self.uid, self.dtype, t.date, val)
+                yield self.uid, dtype, t.date, val
 
-        q_ins = self._qb.insert(self.ts_table)
-        self._db.executemany(q_ins, iter_df__)
-        del self.dtype
+        self._db.executemany(
+            self._qb.insert(self.ts_table),
+            iter_df__
+        )
 
     def expct_return(self, start: Union[np.datetime64, pd.Timestamp] = None,
                      end: Union[np.datetime64, pd.Timestamp] = None,
@@ -209,10 +234,13 @@ class Asset(FinancialItem):
                 mean_ret [float]: expected value for returns
         """
         _ret = self.log_returns if is_log else self.returns
-        start = Cal.pd_2_np64(start)
-        end = Cal.pd_2_np64(end)
-        ts, dt = _ret.values, _ret.index.values
-        return Math.e_ret(ts, dt, start=start, end=end, is_log=is_log)
+        return Math.e_ret(
+            _ret.values,
+            _ret.index.values,
+            start=Cal.pd_2_np64(start),
+            end=Cal.pd_2_np64(end),
+            is_log=is_log
+        )
 
     def return_volatility(self, start: Union[np.datetime64, pd.Timestamp] = None,
                           end: Union[np.datetime64, pd.Timestamp] = None,
@@ -230,10 +258,12 @@ class Asset(FinancialItem):
                 vola_ret [float]: expected value for returns
         """
         _ret = self.log_returns if is_log else self.returns
-        start = Cal.pd_2_np64(start)
-        end = Cal.pd_2_np64(end)
-        _ts, _ = Math.trim_ts(_ret.values, _ret.index.values,
-                              start=start, end=end)
+        _ts, _ = Math.trim_ts(
+            _ret.values,
+            _ret.index.values,
+            start=Cal.pd_2_np64(start),
+            end=Cal.pd_2_np64(end)
+        )
         return float(np.nanstd(_ts))
 
     def total_return(self, start: Union[np.datetime64, pd.Timestamp] = None,
@@ -252,10 +282,13 @@ class Asset(FinancialItem):
                 tot_ret [float]: expected value for returns
         """
         _ret = self.log_returns if is_log else self.returns
-        start = Cal.pd_2_np64(start)
-        end = Cal.pd_2_np64(end)
-        ts, dt = _ret.values, _ret.index.values
-        return Math.tot_ret(ts, dt, start=start, end=end, is_log=is_log)
+        return Math.tot_ret(
+            _ret.values,
+            _ret.index.values,
+            start=Cal.pd_2_np64(start),
+            end=Cal.pd_2_np64(end),
+            is_log=is_log
+        )
 
     def performance(self, start: Union[np.datetime64, pd.Timestamp] = None,
                     end: Union[np.datetime64, pd.Timestamp] = None,
@@ -274,10 +307,14 @@ class Asset(FinancialItem):
                 perf [pd.Series]: Compounded returns series
         """
         r = self.returns
-        start = Cal.pd_2_np64(start)
-        end = Cal.pd_2_np64(end)
-        p, dt = Math.comp_ret(r.values, r.index.values, start=start,
-                              end=end, base=base, is_log=is_log)
+        p, dt = Math.comp_ret(
+            r.values,
+            r.index.values,
+            start=Cal.pd_2_np64(start),
+            end=Cal.pd_2_np64(end),
+            base=base,
+            is_log=is_log
+        )
         return pd.Series(p, index=dt)
 
 

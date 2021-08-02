@@ -3,11 +3,12 @@
 # Base class for trading
 #
 
+from datetime import timedelta
 import pandas as pd
 import numpy as np
 from typing import Union
 
-from nfpy.Calendar import get_calendar_glob
+import nfpy.Calendar as Cal
 import nfpy.Financial.Math as Math
 from nfpy.Trading import (Indicators as Ind, Strategies as Str)
 import nfpy.Trading as Trd
@@ -28,7 +29,7 @@ class TradingModel(BaseModel):
                  w_ma_slow: int = 120, w_ma_fast: int = 21,
                  sr_mult: float = 5., **kwargs):
         super().__init__(uid, date)
-        self._cal = get_calendar_glob()
+        self._cal = Cal.get_calendar_glob()
 
         self._w_ma_slow = w_ma_slow
         self._w_ma_fast = w_ma_fast
@@ -46,9 +47,16 @@ class TradingModel(BaseModel):
         self._calc_wma()
 
     def _calc_alerts(self):
-        ae = Trd.AlertEngine()
-        alerts = ae.raise_breaches(self._uid, sr=True, alerts=True)
-        self._res_update(alerts=alerts)
+        ae = Trd.AlertsEngine()
+        window = Cal.today(mode='datetime') - timedelta(days=10)
+        ae.raise_alerts(self._uid, date_checked=window)
+        self._res_update(
+            alerts=ae.fetch(
+                self._uid,
+                triggered=True,
+                date_triggered=window
+            )
+        )
 
     def _calc_wma(self):
         prices, t0 = self._asset.prices, self._t0
@@ -57,28 +65,33 @@ class TradingModel(BaseModel):
 
         # Moving averages
         p_slow = prices.iloc[-int(w_slow * (sr_mult + 1)):]
-        ma_slow = Ind.ewma(p_slow.values, w=w_slow)
-        wma_slow = pd.Series(ma_slow, p_slow.index.values)
+        # wma_slow = pd.Series(
+        #    Ind.ewma(p_slow.values, w=w_slow),
+        #    p_slow.index.values
+        # )
 
         fast_length = int(w_fast * (sr_mult + 1))
         p_fast = prices.iloc[-fast_length:]
-        ema_cr = Str.TwoEMACross(w_fast, w_slow, True)
-        signals, ma = ema_cr(p_fast.index.values, p_fast.values)
-        wma_fast = pd.Series(ma[w_fast], p_fast.index.values)
+        signals, ma = Str.TwoEMACross(w_fast, w_slow, True) \
+            .__call__(p_fast.index.values, p_fast.values)
+        # wma_fast = pd.Series(ma[w_fast], p_fast.index.values)
 
         if len(signals.signals) > 0:
-            p, dt = p_fast.values, p_fast.index.values
-            last_price = Math.last_valid_value(p, dt, t0.asm8)[0]
+            last_price = Math.last_valid_value(
+                p_fast.values,
+                p_fast.index.values,
+                t0.asm8
+            )[0]
 
-            df = pd.DataFrame(index=signals.dates,
-                              columns=['signal', 'price', 'return', 'delta days'])
-
-            sig_price = p_fast.iloc[signals.indices]
-            sig_price = sig_price.values
+            sig_price = p_fast.iloc[signals.indices].values
             res = np.empty(sig_price.shape)
             res[:-1] = sig_price[1:] / sig_price[:-1] - 1.
             res[-1] = last_price / sig_price[-1] - 1.
 
+            df = pd.DataFrame(
+                index=signals.dates,
+                columns=['signal', 'price', 'return', 'delta days']
+            )
             df['signal'] = signals.signals
             df['price'] = sig_price
             df['return'] = res
@@ -88,7 +101,17 @@ class TradingModel(BaseModel):
             df = pd.DataFrame(columns=['signal', 'price', 'return', 'delta days'])
 
         df.replace(to_replace={'signal': {1: 'buy', -1: 'sell'}}, inplace=True)
-        self._res_update(ma_fast=wma_fast, ma_slow=wma_slow, signals=df)
+        self._res_update(
+            ma_fast=pd.Series(
+                ma[w_fast],
+                p_fast.index.values
+            ),
+            ma_slow=pd.Series(
+                Ind.ewma(p_slow.values, w=w_slow),
+                p_slow.index.values
+            ),
+            signals=df
+        )
 
     def _otf_calculate(self, **kwargs) -> dict:
         pass

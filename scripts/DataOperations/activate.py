@@ -39,7 +39,7 @@ if __name__ == '__main__':
 
     for table in ['Downloads', 'Imports']:
         print('\n-------------------------------------------------------------')
-        print('          {}'.format(table), end='\n\n')
+        print(f'          {table}', end='\n\n')
         q = qb.select(table, keys=select_keys)
         res = db.execute(q, select_data).fetchall()
 

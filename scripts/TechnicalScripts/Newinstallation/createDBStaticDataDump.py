@@ -9,7 +9,7 @@ from pathlib import Path
 import pickle
 
 from nfpy import NFPY_ROOT_DIR
-import nfpy.IO as IO
+import nfpy.DB as DB
 
 __version__ = '0.2'
 _TITLE_ = "<<< Database static data dump creation script >>>"
@@ -21,9 +21,12 @@ TBL_LIST = ['DecDatatype', 'SystemInfo', 'MapFinancials']
 
 
 def get_db_data():
-    db = IO.get_db_glob()
-    qb = IO.get_qb_glob()
-    return {t: db.execute(qb.selectall(t)).fetchall() for t in TBL_LIST}
+    db = DB.get_db_glob()
+    qb = DB.get_qb_glob()
+    return {
+        t: db.execute(qb.selectall(t)).fetchall()
+        for t in TBL_LIST
+    }
 
 
 def to_pickle(dt):

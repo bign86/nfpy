@@ -8,7 +8,7 @@ import pandas as pd
 from typing import (Union, TypeVar)
 
 from nfpy.Assets import get_af_glob
-from nfpy.Calendar import get_calendar_glob
+import nfpy.Calendar as Cal
 from nfpy.Tools import Utilities as Ut
 
 import nfpy.Financial as Fin
@@ -33,8 +33,11 @@ class BaseModel(metaclass=ABCMeta):
         self._uid = uid
         self._asset = self._af.get(uid)
 
+        # FIXME: should be a Timestamp or a datetime64.
+        #       if True: is a Timestamp
+        #       if False: is a datetime
         if date is None:
-            self._t0 = get_calendar_glob().t0
+            self._t0 = Cal.get_calendar_glob().t0
         elif isinstance(date, str):
             self._t0 = pd.to_datetime(date, format='%Y-%m-%d')
 
@@ -43,7 +46,8 @@ class BaseModel(metaclass=ABCMeta):
         self._is_calculated = False
 
     @property
-    def t0(self) -> pd.Timestamp:
+    # FIXME: not a Timestamp
+    def t0(self) -> Cal.TyDate:
         return self._t0
 
     def _res_update(self, **kwargs):

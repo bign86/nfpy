@@ -180,7 +180,6 @@ class FundamentalsFactory(object):
                 cnst[(freq, 'STIE')] + cnst[(freq, 'SCEX')] + \
                 cnst[(freq, 'SOCF')]
         else:
-            raise Ex.MissingData('{} [{}] for {} not found'
-                                 .format('FCFF', '0FCFF', self._comp.uid))
+            raise Ex.MissingData(f'FCFF [0FCFF] for {self._comp.uid} not found')
         d.name = '0FCFF'
         return d

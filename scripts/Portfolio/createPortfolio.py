@@ -44,7 +44,7 @@ if __name__ == '__main__':
             continue
         col_type = IO.SQLITE2PY_CONVERSION[c.type]
         optional = False if c.notnull else True
-        v = inh.input("Insert {} ({}): ".format(c.field, c.type),
+        v = inh.input(f"Insert {c.field} ({c.type}): ",
                       idesc=col_type, optional=optional)
         if c.field == 'currency':
             pos_dict['pos_uid'] = v
@@ -62,7 +62,7 @@ if __name__ == '__main__':
         if c.field not in pos_dict:
             col_type = IO.SQLITE2PY_CONVERSION[c.type]
             optional = False if c.notnull else True
-            v = inh.input("Insert {} ({}): ".format(c.field, c.type),
+            v = inh.input(f"Insert {c.field} ({c.type}): ",
                           idesc=col_type, optional=optional)
             pos_dict[c.field] = v
 

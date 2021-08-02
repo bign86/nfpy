@@ -19,19 +19,20 @@ if __name__ == '__main__':
 
     start = inh.input("Give a start date: ", idesc='timestamp')
     end = inh.input("Give an end date (default today): ",
-                    idesc='timestamp', default=today(mode='timestamp'),
+                    idesc='timestamp',
+                    default=today(mode='timestamp'),
                     optional=True)
     cal.initialize(end, start=start)
 
     uid = inh.input("Give a portfolio uid: ", idesc='str', checker='uid')
     ptf = af.get(uid)
 
-    print('Portfolio @ {}'.format(ptf.date))
-    print('Portfolio constituents [{}]:\n{}'.format(ptf.num_constituents,
-                                                    ptf.constituents_uids))
-    print('Portfolio value: {:.2f} {}'.format(ptf.total_value.iat[-1], ptf.currency))
+    print(f'Portfolio @ {ptf.date}'
+          f'Portfolio constituents [{ptf.num_constituents}]:\n{ptf.constituents_uids}'
+          f'Portfolio value: {ptf.total_value.iat[-1]:.2f} {ptf.currency}',
+          end='\n\n')
 
-    save = inh.input("\nSave the new portfolio positions (default No)?: ",
+    save = inh.input("Save the new portfolio positions (default No)?: ",
                      idesc='bool', default=False, optional=True)
     if save:
         print('Saving...')

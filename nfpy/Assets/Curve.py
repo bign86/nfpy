@@ -28,10 +28,16 @@ class Curve(AggregationMixin, Asset):
 
     def _load_cnsts(self):
         """ Fetch from the database the curve constituents. """
-        q = self._qb.select(self._CONSTITUENTS_TABLE, fields=["bucket"], keys=["uid"])
-        res = self._db.execute(q, (self._uid,)).fetchall()
+        res = self._db.execute(
+            self._qb.select(
+                self._CONSTITUENTS_TABLE,
+                fields=("bucket",),
+                keys=("uid",)
+            ),
+            (self._uid,)
+        ).fetchall()
         if not res:
-            raise Ex.MissingData('No constituents found for Curve {}'.format(self.uid))
+            raise Ex.MissingData(f'No constituents found for Curve {self.uid}')
 
         af = get_af_glob()
         bucket_list = []

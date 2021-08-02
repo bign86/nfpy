@@ -54,8 +54,8 @@ if __name__ == '__main__':
     page = prov_obj.create_page_obj(*params[1:])
     q_del = qb.delete(page.table, fields=('ticker',))
 
-    print('The query to be executed:\n{}'.format(q_del))
-    if inh.input('Proceed?: ', idesc='bool', default=False):
+    if inh.input(f'The query to be executed:\n{q_del}\nProceed?: ',
+                 idesc='bool', default=False):
         DB.backup_db()
         db.execute(q_del, p=(params[2],), commit=True)
     else:

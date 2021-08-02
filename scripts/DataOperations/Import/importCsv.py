@@ -26,7 +26,7 @@ if __name__ == '__main__':
 
     # get and validate inputs
     dsrc = conf.backup_dir
-    msg = "Give me filename to upload (must be present in the data source folder {}): ".format(dsrc)
+    msg = f"Give me filename to upload (must be present in the data source folder {dsrc}): "
     name = inh.input(msg, idesc='str')
     src_file = os.path.join(dsrc, name)
     if not os.path.isfile(src_file):
@@ -42,7 +42,7 @@ if __name__ == '__main__':
         reader = csv.reader(f, dialect='excel')
         _ = next(reader)
         data = list(reader)
-    print("Insert/Update {} records in table {}".format(len(data), table))
+    print(f"Insert/Update {len(data)} records in table {table}")
 
     # set up data
     keys = [k for k in qb.get_keys(table)]

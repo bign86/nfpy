@@ -150,14 +150,19 @@ class Equity(Asset):
         if benchmark is None:
             benchmark = get_af_glob().get(self.index)
         elif not isinstance(benchmark, Asset):
-            raise TypeError('Wrong benchmark type')
+            ty = type(benchmark).__name__
+            raise TypeError(f'Objects of type {ty} cannot be used as benchmarks')
 
         eq = self.log_returns if log else self.returns
         idx = benchmark.log_returns if log else benchmark.returns
-        start = Cal.pd_2_np64(start)
-        end = Cal.pd_2_np64(end)
-        return Math.beta(eq.index.values, eq.values, idx.values,
-                         start, end, w)
+        return Math.beta(
+            eq.index.values,
+            eq.values,
+            idx.values,
+            start=Cal.pd_2_np64(start),
+            end=Cal.pd_2_np64(end),
+            w=w
+        )
 
     def correlation(self, benchmark: Asset = None,
                     start: Union[np.datetime64, pd.Timestamp] = None,
@@ -187,11 +192,16 @@ class Equity(Asset):
         if benchmark is None:
             benchmark = get_af_glob().get(self.index)
         elif not isinstance(benchmark, Asset):
-            raise TypeError('Wrong benchmark type')
+            ty = type(benchmark).__name__
+            raise TypeError(f'Objects of type {ty} cannot be used as benchmarks')
 
         eq = self.log_returns if log else self.returns
         idx = benchmark.log_returns if log else benchmark.returns
-        start = Cal.pd_2_np64(start)
-        end = Cal.pd_2_np64(end)
-        return Math.correlation(eq.index.values, eq.values, idx.values,
-                                start, end, w)
+        return Math.correlation(
+            eq.index.values,
+            eq.values,
+            idx.values,
+            start=Cal.pd_2_np64(start),
+            end=Cal.pd_2_np64(end),
+            w=w
+        )

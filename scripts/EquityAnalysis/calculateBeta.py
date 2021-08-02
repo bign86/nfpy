@@ -14,7 +14,6 @@ import nfpy.IO as IO
 __version__ = '0.7'
 _TITLE_ = "<<< Beta calculation script >>>"
 
-
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
@@ -25,8 +24,6 @@ if __name__ == '__main__':
 
     start_date = inh.input("Give starting date for time series: ",
                            idesc='datetime', optional=False)
-    # if not start_date:
-    #     raise ValueError('You must give a starting date.')
 
     end_date = inh.input("Give ending date for time series (default <today>): ",
                          default=today(), idesc='timestamp')
@@ -36,19 +33,20 @@ if __name__ == '__main__':
     res = db.execute(q).fetchall()
 
     f = list(qb.get_fields('Assets'))
-    print('\n\nAvailable equities:')
-    print(tabulate(res, headers=f, showindex=True))
-    uid = inh.input("\nGive an equity index: ", idesc='int')
+    print(f'\n\nAvailable equities:\n'
+          f'{tabulate(res, headers=f, showindex=True)}',
+          end='\n\n')
+    uid = inh.input("Give an equity index: ", idesc='int')
     eq = af.get(res[uid][0])
 
     q = "select * from Assets where type = 'Indices'"
-    f = list(qb.get_fields('Assets'))
     res = db.execute(q).fetchall()
 
-    print('\n\nAvailable indices:')
-    print(tabulate(res, headers=f, showindex=True))
-    print('Default index: {}'.format(eq.index))
-    idx = inh.input("\nGive an index index :) (Default None): ",
+    print(f'\n\nAvailable indices:\n'
+          f'{tabulate(res, headers=f, showindex=True)}'
+          f'Default index: {eq.index}',
+          end='\n\n')
+    idx = inh.input("Give one index index :) (Default None): ",
                     idesc='int', optional=True)
     bmk = af.get(res[idx][0]) if idx else None
 
@@ -57,16 +55,18 @@ if __name__ == '__main__':
         bmk = af.get(eq.index)
     rho = eq.returns.corr(bmk.returns)
 
-    print('\n----------------------------------\nBeta calculation results')
-    print('----------------------------------')
-    print('Instrument : {} ({})'.format(eq.uid, eq.type))
-    print('             {}'.format(eq.description))
-    print('Proxy      : {} ({})'.format(bmk.uid, bmk.type))
-    print('             {}'.format(bmk.description))
-    print('Beta       : {:2.3f}'.format(b))
-    print('Adj. Beta  : {:2.3f}'.format(adj_b))
-    print('Intercept  : {:2.3f}'.format(itc))
-    print('Correlation: {:2.3f}\n'.format(rho))
+    print(f'\n----------------------------------\n'
+          f'    Beta calculation results'
+          f'----------------------------------\n'
+          f'Instrument : {eq.uid} ({eq.type})\n'
+          f'             {eq.description}\n'
+          f'Proxy      : {bmk.uid} ({bmk.type})\n'
+          f'             {bmk.description}\n'
+          f'Beta       : {b:2.3f}\n'
+          f'Adj. Beta  : {adj_b:2.3f}\n'
+          f'Intercept  : {itc:2.3f}\n'
+          f'Correlation: {rho:2.3f}',
+          end='\n\n')
 
     br = bmk.returns.values
     er = eq.returns.values

@@ -53,17 +53,19 @@ if __name__ == '__main__':
     cal.initialize(end, start=start)
 
     q = "select * from Assets where type = 'Portfolio'"
-    f = list(qb.get_fields('Assets'))
     res = db.execute(q).fetchall()
 
-    print('\n\nAvailable portfolios:')
-    print(tabulate(res, headers=f, showindex=True))
-    idx = inh.input("\nGive a portfolio index: ", idesc='int')
+    f = list(qb.get_fields('Assets'))
+    print(f'\n\nAvailable portfolios:\n'
+          f'{tabulate(res, headers=f, showindex=True)}',
+          end='\n\n')
+    idx = inh.input("Give a portfolio index: ", idesc='int')
     uid = res[idx][0]
 
-    print('\n\nAvailable optimizers:')
-    print(tabulate(_OPTIMIZERS, headers=_OPT_H, showindex=False))
-    idx_l = inh.input("\nChoose optimizers indices (comma separated): ",
+    print(f'\n\nAvailable optimizers:\n'
+          f'{tabulate(_OPTIMIZERS, headers=_OPT_H, showindex=False)}',
+          end='\n\n')
+    idx_l = inh.input("Choose optimizers indices (comma separated): ",
                       idesc='int', is_list=True)
 
     algos = {}

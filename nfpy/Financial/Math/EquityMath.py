@@ -59,8 +59,8 @@ def fv(cf: np.ndarray, r: Union[float, np.ndarray],
         Output:
             _r [float]: fair value
     """
-    _dcf = dcf(cf, r, t)
-    return float(_dcf.sum()) - accrued
+    _dcf = float(dcf(cf, r, t).sum())
+    return _dcf - accrued
 
 
 def beta(dt: np.ndarray, ts: np.ndarray, proxy: np.ndarray,
@@ -258,5 +258,4 @@ def sml(r: float, exposure: float, rf: float, rm: float) -> tuple:
             delta [float]: over-/under- pricing
     """
     rt = (rm - rf) * exposure + rf
-    delta = (r - rt)
-    return rt, delta
+    return rt, (r - rt)

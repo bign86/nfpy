@@ -52,6 +52,7 @@ def ptf_value(uids: list, ccy: str, dt: np.ndarray, pos: np.ndarray) -> tuple:
         pos[:, i] *= value
 
     # Forward-fill values
+    # TODO: verify this is NOT in-place
     pos = ffill_cols(pos, .0)
     tot_val = np.sum(pos, axis=1)
 

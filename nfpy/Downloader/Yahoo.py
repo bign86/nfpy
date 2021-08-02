@@ -13,16 +13,13 @@
 #
 
 from abc import abstractmethod
-# import codecs
 from io import StringIO
 import json
 import numpy as np
 import pandas as pd
 import re
-# import requests
 
 from nfpy.Calendar import today
-# from nfpy.Tools import Exceptions as Ex
 
 from .BaseDownloader import BasePage
 from .BaseProvider import (BaseProvider, BaseImportItem)
@@ -101,6 +98,7 @@ class YahooBasePage(BasePage):
     _ENCODING = "utf-8-sig"
     _PROVIDER = "Yahoo"
     _REQ_METHOD = 'get'
+
     # _CRUMB_URL = u"https://finance.yahoo.com/quote/{}"
     # _CRUMB_PATTERN = r'"CrumbStore"\s*:\s*\{\s*"crumb"\s*:\s*"(.*?)"\s*\}'
 
@@ -149,13 +147,13 @@ class YahooFinancials(YahooBasePage):
         """ Local initializations for the single page. """
         pass
 
-    @staticmethod
-    def _get_field(it, k) -> str:
-        val = None
-        f = it.get(k)
-        if f:
-            val = f.get('raw')
-        return val
+    # @staticmethod
+    # def _get_field(it, k) -> str:
+    #     val = None
+    #     f = it.get(k)
+    #     if f:
+    #         val = f.get('raw')
+    #     return val
 
     def _parse(self) -> None:
         """ Parse the fetched object. """
@@ -163,8 +161,8 @@ class YahooFinancials(YahooBasePage):
         json_dict = json.loads(json_string.group(1))
         data = json_dict['context']['dispatcher']['stores']['QuoteSummaryStore']
         if not data:
-            raise RuntimeError('Data group not found in Yahoo financials for {}'
-                               .format(self.ticker))
+            msg = f'Data group not found in Yahoo financials for {self.ticker}'
+            raise RuntimeError(msg)
 
         rows = []
 
@@ -200,16 +198,18 @@ class YahooFinancials(YahooBasePage):
             ('CAS', 'cashflowStatementHistory', 'cashflowStatements', 'A'),
             ('CAS', 'cashflowStatementHistoryQuarterly', 'cashflowStatements', 'Q'),
         )
-
         for td in to_download:
-            hash_map = YahooFinancialsConf[td[0]]
-            data_tab = data[td[1]][td[2]]
-            p = (self._ticker, td[3], self._curr, td[0])
-            _extract_(p, hash_map, data_tab)
+            _extract_(
+                (self._ticker, td[3], self._curr, td[0]),
+                YahooFinancialsConf[td[0]],
+                data[td[1]][td[2]]
+            )
 
         # Create dataframe
-        cols = self._qb.get_fields(self._TABLE)
-        df = pd.DataFrame.from_records(rows, columns=cols)
+        df = pd.DataFrame.from_records(
+            rows,
+            columns=self._qb.get_fields(self._TABLE)
+        )
 
         # I want a cleaner version of the _robj for backup purposes
         self._robj = json_string
@@ -237,10 +237,13 @@ class YahooHistoricalBasePage(YahooBasePage):
     def _set_default_params(self) -> None:
         self._p = self._PARAMS
         ld = self._fetch_last_data_point()
-        self._p.update({
-            'period1': str(int(pd.to_datetime(ld).timestamp())),
-            'period2': today(fmt='%s')
-        })
+        self._p.update(
+            {
+                # TODO: pd.to_datetime(ld).strftime('%s') yields a different output
+                'period1': str(int(pd.to_datetime(ld).timestamp())),
+                'period2': today(mode='str', fmt='%s')
+            }
+        )
 
     def _local_initializations(self, params: dict) -> None:
         """ Local initializations for the single page. """
@@ -257,8 +260,13 @@ class YahooHistoricalBasePage(YahooBasePage):
 
     def _parse_csv(self) -> pd.DataFrame:
         names = self._COLUMNS
-        data = StringIO(self._robj.text)
-        df = pd.read_csv(data, sep=',', header=None, names=names, skiprows=1)
+        df = pd.read_csv(
+            StringIO(self._robj.text),
+            sep=',',
+            header=None,
+            names=names,
+            skiprows=1
+        )
 
         # When downloading prices the oldest row is often made of nulls,
         # this is to remove it
@@ -316,7 +324,7 @@ class YahooSplits(YahooHistoricalBasePage):
         df.insert(2, 'dtype', self._dt.get('split'))
 
         if not df.empty:
-            print(' !!! New split found !!!')
+            print(' >>> New split found!')
 
         def _calc(x: str) -> float:
             """ Transform splits in adjustment factors """

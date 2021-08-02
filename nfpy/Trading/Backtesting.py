@@ -166,9 +166,10 @@ class Backtesting(object):
 
     def _create_new_directory(self):
         """ Create a new directory for the current backtest. """
-        backtest_path = self._conf.backtest_path
-        new_folder = 'Backtest_' + self._cal.end.strftime(self._DT_FMT)
-        path = os.path.join(backtest_path, new_folder)
+        path = os.path.join(
+            self._conf.backtest_path,
+            f'Backtest_{self._cal.end.strftime(self._DT_FMT)}'
+        )
         self._backtest_dir = path
 
         # If directory exists exit
@@ -178,10 +179,10 @@ class Backtesting(object):
         try:
             os.makedirs(path)
         except OSError as ex:
-            print('Creation of the directory {} failed'.format(path))
+            print(f'Creation of the directory {path} failed')
             raise ex
         else:
-            print('Successfully created the directory {}'.format(path))
+            print(f'Successfully created the directory {path}')
 
     def run(self) -> None:
         # Initializations
@@ -207,7 +208,7 @@ class Backtesting(object):
         try:
             signals = self._strat(self._dt, p)
         except (IndexError, TypeError) as ex:
-            print('Backtest failed for {}\n{}'.format(eq.uid, ex))
+            print(f'Backtest failed for {eq.uid}\n{ex}')
             return
         else:
             ptf = self._apply(p, signals, self._initial)
@@ -307,14 +308,12 @@ class Backtesting(object):
         c0 = self._initial
         for uid in self._uids:
             ptf = self._res[uid]
-            print('{} [{}]\t{:.0f}\t{:.1%}'
-                  .format(uid, len(ptf.trades), ptf.cash, ptf.cash / c0 - 1.))
+            msg = f'{uid} [{len(ptf.trades)}]\t{ptf.cash:.0f}\t{ptf.cash / c0 - 1.:.1%}\n'
             for t in ptf.trades:
-                print('{} {}\t{:.2f}\t{}\t{:.2f}\t{:.2f}\t{:.2f}'
-                      .format(str(t[0])[:10], *t[1:]))
+                msg += f'{str(t[0])[:10]} {t[1]}\t{t[2]:.2f}\t{t[3]}\t{t[4]:.2f}\t{t[5]:.2f}\t{t[6]:.2f}\n'
+            print(msg)
 
-        ptf = self._res['consolidated']
-        print(ptf)
+        print(self._res['consolidated'])
 
     # @@@ RESULTS TO SAVE/SHOW @@@
     # + ptf final value and total return
