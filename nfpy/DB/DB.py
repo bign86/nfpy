@@ -4,27 +4,15 @@
 
 import os
 import atexit
-import sqlite3
 from typing import Iterable
 
-import pandas as pd
+# from ..DB import logger
+from nfpy.Tools import (Singleton, Exceptions as Ex,
+                        get_conf_glob, Utilities as Ut)
 
-from nfpy.Tools import (Singleton, Exceptions as Ex, get_conf_glob)
+from .DBTypes import *
 
-# Conversion between db types and python types
-SQLITE2PY_TYPES = {
-    'TEXT': str,
-    'INT': int,
-    'INTEGER': int,
-    'FLOAT': float,
-    'REAL': float,
-    'NUMERIC': int,
-    'DATE': pd.Timestamp,
-    'DATETIME': pd.Timestamp,
-    'BOOL': bool,
-}
-
-_MIN_DB_VERSION = 0.8
+_MIN_DB_VERSION = 0.9
 
 
 class DBHandler(metaclass=Singleton):
@@ -72,26 +60,30 @@ class DBHandler(metaclass=Singleton):
     def cursor(self) -> sqlite3.Cursor:
         return self.connection.cursor()
 
-    def execute(self, q: str, p: Iterable = (), commit: bool = False)\
+    def execute(self, q: str, p: Iterable = (), commit: bool = False) \
             -> sqlite3.Cursor:
         c = self.cursor
         try:
             c.execute(q, tuple(p))
             if commit:
                 self.connection.commit()
-        except sqlite3.Error:
+        except sqlite3.Error as ex:
+            msg = f'{ex}\n{q}\n{repr(p)}'
+            Ut.print_exc(Ex.DatabaseError(msg))
             self.connection.rollback()
             raise
         return c
 
-    def executemany(self, q: str, p: Iterable, commit: bool = False)\
+    def executemany(self, q: str, p: Iterable, commit: bool = False) \
             -> sqlite3.Cursor:
         c = self.cursor
         try:
             c.executemany(q, tuple(p))
             if commit:
                 self.connection.commit()
-        except sqlite3.Error:
+        except sqlite3.Error as ex:
+            msg = f'{ex}\n{q}\n{repr(p)}'
+            Ut.print_exc(Ex.DatabaseError(msg))
             self.connection.rollback()
             raise
         return c
@@ -108,16 +100,21 @@ class DBHandler(metaclass=Singleton):
 
     def _create_connection(self):
         """ Creates the DB connection """
-        self._conn = sqlite3.connect(self.db_path)
+        self._conn = sqlite3.connect(
+            self.db_path,
+            detect_types=sqlite3.PARSE_DECLTYPES
+        )
 
         # Sanity check on the database version
         q = "select value from SystemInfo where field = 'DBVersion'"
         v = self.execute(q).fetchone()[0]
         self._db_version = float(v)
         if v < _MIN_DB_VERSION:
-            raise Ex.DatabaseError('DB version {} < {} (minimum version)'
-                                   .format(v, _MIN_DB_VERSION))
+            msg = f'DB version {v} < {_MIN_DB_VERSION} (minimum version)'
+            # logger.error(msg)
+            raise Ex.DatabaseError(msg)
 
+        # logger.info('DB version {}'.format(v))
         self._is_connected = True
 
     def _close_connection(self):
@@ -127,14 +124,41 @@ class DBHandler(metaclass=Singleton):
                 # call for the optimization of the indexes
                 self.cursor.execute('PRAGMA optimize;')
                 self._conn.commit()
-            except sqlite3.Error:
+            except sqlite3.Error as ex:
                 self._conn.rollback()
                 print('Cannot commit to the database!')
-                raise
+                raise ex
             else:
                 self._conn.close()
                 self._conn = None
                 self._is_connected = False
+
+    def backup(self, f_name: str = None) -> None:
+        """ Backup the connected database into the destination. """
+        # Create new backup filename
+        path, file = os.path.split(self._db_path)
+        if f_name is None:
+            name, ext = os.path.splitext(file)
+            new_file = os.path.join(
+                get_conf_glob().backup_folder,
+                ''.join([name, f"_{datetime.today().strftime('%Y%m%d_%H%M%S')}", ext])
+            )
+        else:
+            new_file = f_name
+
+        # Visualize progress
+        def progress(status, remaining, total):
+            print(f'Copied {total - remaining} of {total} pages...')
+
+        try:
+            bck = sqlite3.connect(new_file)
+            self._conn.backup(bck, pages=1, progress=progress)
+            bck.close()
+        except sqlite3.Error as ex:
+            Ut.print_exc(ex)
+            raise ex
+
+        print(f"Database backup'd in: {new_file}")
 
 
 def get_db_glob(db_path: str = None) -> DBHandler:
@@ -148,7 +172,6 @@ def get_db_glob(db_path: str = None) -> DBHandler:
 
 
 def backup_db(db_path: str = None, f_name: str = None):
-    from datetime import datetime
     from shutil import copyfile
 
     conf = get_conf_glob()
@@ -161,15 +184,16 @@ def backup_db(db_path: str = None, f_name: str = None):
     path, file = os.path.split(db_path)
 
     if f_name is None:
-        bak_path = conf.backup_folder
         name, ext = os.path.splitext(file)
-        date = '_' + datetime.today().strftime('%Y%m%d_%H%M%S')
-        new_file = os.path.join(bak_path, ''.join([name, date, ext]))
+        new_file = os.path.join(
+            conf.backup_folder,
+            ''.join([name, f"_{datetime.today().strftime('%Y%m%d_%H%M%S')}", ext])
+        )
     else:
         new_file = f_name
 
     copyfile(db_path, new_file)
-    print("Database backup'd in: {}".format(new_file))
+    print(f"Database backup'd in: {new_file}")
 
 
 # register the connection closing.
