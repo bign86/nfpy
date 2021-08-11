@@ -1,15 +1,16 @@
 #
-# Market Report
-# Report class for the Market Data
+# Alerts Report
+# Report class for the Market Alerts
 #
 
+from copy import deepcopy
 import numpy as np
 import pandas as pd
 from typing import Any
 
 import nfpy.IO as IO
 import nfpy.Models as Mod
-from nfpy.Tools import (Constants as Cn, Utilities as Ut)
+from nfpy.Tools import (Constants as Cn)
 
 from .BaseReport import BaseReport
 
@@ -20,44 +21,14 @@ else:
     PD_STYLE_PROP = {'na_rep': "-"}
 
 
-class ReportMarket(BaseReport):
-    # _M_OBJ = Mod.MarketDataModel
-    # _IMG_LABELS = ('p_price',)
-    _M_LABEL = 'Market'
+class ReportAlerts(BaseReport):
+    _M_LABEL = 'Alerts'
     DEFAULT_P = {
-        "d_rate": 0.00,
-        "algorithms": {
-            "MarkowitzModel": {"gamma": .0},
-            "MinimalVarianceModel": {"gamma": .0},
-            "MaxSharpeModel": {"gamma": .0},
-            "RiskParityModel": {}
-        },
         "w_ma_slow": 120,
         "w_ma_fast": 21,
         "w_sr_slow": 120,
         "w_sr_fast": 21,
         "sr_mult": 5.0
-    }
-    _PTF_PLT_STYLE = {
-        'Markowitz': (
-            'plot',
-            {
-                'linestyle': '-', 'linewidth': 2., 'marker': '',
-                'color': 'C0', 'label': 'EffFrontier'
-            }
-        ),
-        'MaxSharpe': (
-            'scatter',
-            {'marker': 'o', 'color': 'C1', 'label': 'MaxSharpe'}
-        ),
-        'MinVariance': (
-            'scatter',
-            {'marker': 'o', 'color': 'C2', 'label': 'MinVariance'}
-        ),
-        'RiskParity': (
-            'scatter',
-            {'marker': 'o', 'color': 'C4', 'label': 'RiskParity'}
-        ),
     }
 
     def _init_input(self, type_: str) -> dict:
@@ -69,16 +40,7 @@ class ReportMarket(BaseReport):
             the self._p symbol are NOT altered for later usage by making copies
             if required.
         """
-        params = {}
-        params.update(self._p)
-
-        if type_ == 'Portfolio':
-            t0 = self._cal.t0
-            start = pd.Timestamp(year=(t0.year - 2), month=t0.month, day=t0.day)
-            params.update({'iterations': 50, 'start': start.asm8,
-                           't0': t0.asm8, 'gamma': None})
-
-        return params
+        return self._p
 
     def _calculate(self, *args: tuple) -> Any:
         """ Calculate the required models.
@@ -88,54 +50,25 @@ class ReportMarket(BaseReport):
         """
         asset = self._af.get(args[0])
         type_ = asset.type
-        # results = ()
-        if type_ == 'Bond':
-            res1 = self._calc_bond(args)
-            fields = ('uid', 'description', 'isin', 'issuer', 'currency',
-                      'asset_class', 'inception_date', 'maturity', 'coupon',
-                      'c_per_year')
-            res1.info = {k: getattr(asset, k) for k in fields}
-            # self._jinja_filters['Bond'] = self.is_mbdm
-            res2 = self._calc_trading(args)
-            results = (res1, res2)
-        elif type_ == 'Company':
-            res1 = self._calc_company(args)
-            fields = ('uid', 'description', 'name', 'sector', 'industry',
-                      'equity', 'currency', 'country')
-            res1.info = {k: getattr(asset, k) for k in fields}
-            # self._jinja_filters['Company'] = None
-            results = (res1,)
-        elif type_ == 'Currency':
+        if type_ in ('Bond', 'Company', 'Curve', 'Indices', 'Portfolio', 'Rate'):
+            raise RuntimeError(f'Asset type {type_} not supported by this model')
+
+        if type_ == 'Currency':
             res1 = self._calc_generic(args)
             fields = ('uid', 'description', 'price_country', 'base_country',
                       'price_ccy', 'base_ccy')
             res1.info = {k: getattr(asset, k) for k in fields}
-            # self._jinja_filters['Currency'] = self.is_madm
-            results = (res1,)
+            res2 = self._calc_trading(args)
+            results = (res1, res2)
         elif type_ == 'Equity':
             res1 = self._calc_equity(args)
             fields = ('uid', 'description', 'ticker', 'isin', 'country',
                       'currency', 'company', 'index')
             res1.info = {k: getattr(asset, k) for k in fields}
-            # self._jinja_filters['Equity'] = self.is_medm
             res2 = self._calc_trading(args)
             results = (res1, res2)
-        elif type_ == 'Indices':
-            res1 = self._calc_generic(args)
-            fields = ('uid', 'description', 'ticker', 'area', 'currency', 'ac')
-            res1.info = {k: getattr(asset, k) for k in fields}
-            # self._jinja_filters['Indices'] = self.is_madm
-            results = (res1,)
-        elif type_ == 'Portfolio':
-            res1 = self._calc_ptf(args)
-            fields = ('uid', 'description', 'name', 'currency',
-                      'inception_date', 'benchmark', 'num_constituents')
-            res1.info = {k: getattr(asset, k) for k in fields}
-            # res2 = self._calc_trading(args)
-            # results = (res1, res2)
-            results = (res1,)
         else:
-            raise RuntimeError('Asset type not recognized')
+            raise RuntimeError(f'Asset type {type_} not supported by this model')
 
         return results
 
@@ -311,90 +244,6 @@ class ReportMarket(BaseReport):
 
         return res
 
-    def _calc_ptf(self, args: tuple) -> Any:
-        uid, p = args
-        mod = Mod.MarketPortfolioDataModel(uid, **p)
-        mkt_res = mod.result(**p)
-        oe = Mod.OptimizationEngine(uid, **p)
-        # oe_res = oe.result
-        # res.update(oe.result)
-        return self._render_out_ptf((mkt_res, oe.result), args)
-
-    def _render_out_ptf(self, res: Any, args: tuple) -> Any:
-        # Market data
-        mkt_res = res[0]
-        final_res = self._render_out_generic(mkt_res, args)
-
-        # Render dataframes
-        df = mkt_res.cnsts_data
-        final_res.cnsts_data = df.style \
-            .format('{:,.2f}', subset=['alp', 'cost (FX)',
-                                       f'value ({mkt_res.currency})']) \
-            .format('{:,.0f}', subset=['quantity']) \
-            .format('{:,.1%}', subset=['weights']) \
-            .hide_index() \
-            .set_table_attributes('class="dataframe"') \
-            .render()
-
-        # Plot portfolio data
-        labels = ((mkt_res.uid,), ('PtfOpt',), ('ptf_opt_res',))
-        fig_full, fig_rel = self._get_image_paths(labels)
-
-        ptf = self._af.get(mkt_res.uid)
-        idx = ptf.constituents_uids.index(ptf.currency)
-        wgt = np.delete(ptf.weights.values[-1], idx)
-        wgt /= np.sum(wgt)
-
-        # Create result object
-        final_res.var_ret_plot = fig_rel[0]
-
-        # Create plot
-        pl = IO.PtfOptimizationPlot(x_zero=(.0,), y_zero=(.0,))
-
-        # Process data
-        models = ['Actual']
-        weights = [wgt]
-        for r in res[1].results:
-            if r.success is False:
-                continue
-
-            model = r.model
-            call, kw = self._PTF_PLT_STYLE[model]
-            pl.add(0, call, r, **kw)
-
-            if model == 'Markowitz':
-                continue
-
-            models.extend([model, model + '_delta'])
-            model_wgt = r.weights[0]
-            weights.extend([model_wgt, model_wgt / wgt - 1.])
-
-        # Save out figure
-        pl.plot() \
-            .save(fig_full[0]) \
-            .close(True)
-        # pl.clf()
-
-        # Create correlation matrix
-        corr_df = pd.DataFrame(res[1].corr, index=res[1].uids,
-                               columns=res[1].uids)
-        final_res.corr = corr_df.style \
-            .format('{:,.0%}') \
-            .set_table_attributes('class="matrix"') \
-            .render()
-        # .background_gradient(cmap='RdYlGn', axis=None) \
-
-        # Create results table
-        wgt_df = pd.DataFrame(np.vstack(weights).T,
-                              index=res[1].uids,
-                              columns=models)
-        final_res.weights = wgt_df.style \
-            .format('{:,.1%}') \
-            .set_table_attributes('class="dataframe"') \
-            .render()
-
-        return final_res
-
     def _calc_trading(self, args: tuple) -> Any:
         uid, p = args
         mod = Mod.TradingModel(uid, **p)
@@ -466,88 +315,3 @@ class ReportMarket(BaseReport):
             .render()
 
         return res
-
-    def _calc_company(self, args: tuple) -> Any:
-        uid, p = args
-        dcf_res = None
-        try:
-            mod = Mod.DiscountedCashFlowModel(uid, **p)
-            dcf_res = mod.result(**p)
-        except Exception as ex:
-            Ut.print_exc(ex)
-
-        ddm_res = None
-        try:
-            mod = Mod.DividendDiscountModel(uid, **p)
-            ddm_res = mod.result(**p)
-        except Exception as ex:
-            Ut.print_exc(ex)
-
-        return self._render_out_company((dcf_res, ddm_res), args)
-
-    def _render_out_company(self, res: Any, args: tuple) -> Any:
-        final_res = Ut.AttributizedDict()
-
-        # Render DDM
-        ddm_res = res[1]
-        if ddm_res is not None:
-            final_res.has_ddm = True
-            final_res.ccy = ddm_res.ccy
-            final_res.last_price = ddm_res.last_price
-            final_res.ret_zg = ddm_res.ret_no_growth * 100.
-            final_res.ret_wg = ddm_res.ret_with_growth * 100.
-            final_res.fair_value_no_growth = ddm_res.fair_value_no_growth
-            final_res.fair_value_with_growth = ddm_res.fair_value_with_growth
-
-            fig_full, fig_rel = self._get_image_paths((ddm_res.uid,))
-            final_res.div_fig = fig_rel[0]
-
-            # Save out figure
-            IO.TSPlot(yl=('Dividend',)) \
-                .lplot(0, ddm_res.div_ts, marker='o', label='historical') \
-                .lplot(0, ddm_res.div_zg[0, :], ddm_res.div_zg[1, :],
-                       marker='o', label='no growth') \
-                .lplot(0, ddm_res.div_gwt[0, :], ddm_res.div_gwt[1, :],
-                       marker='o', label='w/ growth') \
-                .plot() \
-                .save(fig_full[0]) \
-                .close(True)
-            # pl.clf()
-        else:
-            final_res.has_ddm = False
-
-        # Render DCF
-        dcf_res = res[0]
-        if dcf_res is not None:
-            final_res.has_dcf = True
-            final_res.ccy = dcf_res.ccy
-            final_res.last_price = dcf_res.last_price
-            final_res.fair_value = dcf_res.fair_value
-
-            df = dcf_res.df
-            df.index = df.index.strftime("%Y-%m-%d")
-            # df = df.T
-            final_res.df = df.T.style \
-                .format("{:.2f}", **PD_STYLE_PROP) \
-                .set_table_attributes('class="dataframe"') \
-                .render()
-        else:
-            final_res.has_dcf = False
-
-        return final_res
-
-    @staticmethod
-    def is_madm(v: Any) -> bool:
-        return isinstance(v, Mod.MADMResult)
-
-    @staticmethod
-    def is_mbdm(v: Any) -> bool:
-        return isinstance(v, Mod.MBDMResult)
-
-    @staticmethod
-    def is_medm(v: Any) -> bool:
-        return isinstance(v, Mod.MEDMResult)
-
-    @staticmethod
-    def is_trd(v: Any) -> bool:
-        return isinstance(v, Mod.TradingResult)

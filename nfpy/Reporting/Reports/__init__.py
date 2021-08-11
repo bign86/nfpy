@@ -1,6 +1,7 @@
-from .BaseReport import TyReport
+from .BaseReport import (TyReport, ReportResult)
 from .ReportMarket import ReportMarket
+from .ReportAlerts import ReportAlerts
 
 __all__ = [
-    'ReportMarket', 'TyReport',
+    'ReportAlerts', 'ReportMarket', 'ReportResult', 'TyReport'
 ]

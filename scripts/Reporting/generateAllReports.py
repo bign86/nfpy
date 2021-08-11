@@ -17,9 +17,9 @@ if __name__ == '__main__':
 
     cal = get_calendar_glob()
     end = today(mode='timestamp')
-    start = end - DateOffset(years=10)
+    start = end - DateOffset(months=120)
     cal.initialize(end, start)
 
-    get_re_glob().run()
+    get_re_glob().run(active=True)
 
     print('All done!')

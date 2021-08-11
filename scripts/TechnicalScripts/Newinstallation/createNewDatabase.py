@@ -90,7 +90,7 @@ TABLES_TO_CREATE = [
         'Downloads',
         """create table Downloads (provider TEXT, page TEXT, ticker TEXT NOT NULL,
             currency TEXT, active BOOL NOT NULL, update_frequency INTEGER NOT NULL,
-            last_update DATETIME, primary key (provider, page, ticker)) without rowid;"""
+            last_update DATE, primary key (provider, page, ticker)) without rowid;"""
     ),
     (
         'ECBSeries',
@@ -188,8 +188,8 @@ TABLES_TO_CREATE = [
     ),
     (
         'Reports',
-        """create table Reports (name TEXT, report TEXT, template TEXT,
-            uids PARAMETERS, parameters PARAMETERS, active BOOL,
+        """create table Reports (name TEXT, description TEXT, report TEXT,
+            template TEXT, uids PARAMETERS, parameters PARAMETERS, active BOOL,
             primary key (name)) without rowid;"""
     ),
     (

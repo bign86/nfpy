@@ -40,13 +40,14 @@ if __name__ == '__main__':
         print('All done!')
         exit()
 
-    print('\n-------------------------------------------------------------')
-    print('          {}'.format(_TABLE), end='\n\n')
     q = qb.select(_TABLE, partial_keys=select_keys)
     res = db.execute(q, select_data).fetchall()
 
     fields = tuple(qb.get_fields(_TABLE))
-    print(tabulate(res, fields, showindex=True), end='\n\n')
+    print(f'\n-------------------------------------------------------------\n'
+          f'          {_TABLE}\n\n',
+          f'{tabulate(res, fields, showindex=True)}',
+          end='\n\n')
 
     msg = "Choose the indices to modify (default None): "
     idx = inh.input(msg, idesc='int', is_list=True, default=None, optional=True)

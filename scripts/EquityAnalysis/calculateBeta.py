@@ -29,30 +29,42 @@ if __name__ == '__main__':
                          default=today(), idesc='timestamp')
     get_calendar_glob().initialize(end_date, start_date)
 
-    q = "select * from Assets where type = 'Equity'"
-    res = db.execute(q).fetchall()
-
     f = list(qb.get_fields('Assets'))
-    print(f'\n\nAvailable equities:\n'
-          f'{tabulate(res, headers=f, showindex=True)}',
-          end='\n\n')
-    uid = inh.input("Give an equity index: ", idesc='int')
-    eq = af.get(res[uid][0])
 
-    q = "select * from Assets where type = 'Indices'"
-    res = db.execute(q).fetchall()
+    # Get equities
+    eq_uid = inh.input("Give an equity uid (press Enter for a list): ",
+                       optional=True)
+    if not eq_uid:
+        q = "select * from Assets where type = 'Equity'"
+        res = db.execute(q).fetchall()
 
-    print(f'\n\nAvailable indices:\n'
-          f'{tabulate(res, headers=f, showindex=True)}'
-          f'Default index: {eq.index}',
-          end='\n\n')
-    idx = inh.input("Give one index index :) (Default None): ",
-                    idesc='int', optional=True)
-    bmk = af.get(res[idx][0]) if idx else None
+        msg = f'\n\nAvailable equities:\n' \
+              f'{tabulate(res, headers=f, showindex=True)}\n' \
+              f'Give an equity index: '
+        idx = inh.input(msg, idesc='int')
+        eq_uid = res[idx][0]
+    eq = af.get(eq_uid)
+
+    # Get index
+    bmk_uid = eq.index
+    if not inh.input(f"Use default benchmark index ({bmk_uid})? (Default True): ",
+                     idesc='bool', default=True):
+        bmk_uid = inh.input("Give an index uid (press Enter for a list): ",
+                            optional=True)
+        if not bmk_uid:
+            q = "select * from Assets where type = 'Indices'"
+            res = db.execute(q).fetchall()
+
+            print(f'\n\nAvailable indices:\n'
+                  f'{tabulate(res, headers=f, showindex=True)}'
+                  f'Default index: {eq.index}',
+                  end='\n\n')
+            idx = inh.input("Give one index index :) (Default None): ",
+                            idesc='int', optional=True)
+            bmk_uid = res[idx][0]
+    bmk = af.get(bmk_uid)
 
     dt, b, adj_b, itc = eq.beta(bmk)
-    if not idx:
-        bmk = af.get(eq.index)
     rho = eq.returns.corr(bmk.returns)
 
     print(f'\n----------------------------------\n'
@@ -70,14 +82,17 @@ if __name__ == '__main__':
 
     br = bmk.returns.values
     er = eq.returns.values
-    xg = np.linspace(min(float(np.nanmin(br)), .0),
-                     float(np.nanmax(br)), 2)
+    xg = np.linspace(
+        min(float(np.nanmin(br)), .0),
+        float(np.nanmax(br)),
+        2
+    )
     yg = b * xg + itc
 
-    plt = IO.Plotter()
-    plt.scatter(0, br, er, color='C0', linewidth=.0, marker='o', alpha=.5)
-    plt.lplot(0, xg, yg, color='C0')
-    plt.plot()
-    plt.show()
+    IO.Plotter() \
+        .scatter(0, br, er, color='C0', linewidth=.0, marker='o', alpha=.5) \
+        .lplot(0, xg, yg, color='C0') \
+        .plot() \
+        .show()
 
     print('All done!')

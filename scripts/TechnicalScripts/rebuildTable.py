@@ -26,15 +26,15 @@ if __name__ == '__main__':
           end='\n\n')
 
     # Ask for the changes in structure
-    to_remove = inh.input("List columns to remove, comma separated (default: None): ",
+    to_remove = inh.input("List columns to remove by name, comma separated (default: None): ",
                           idesc='str', optional=True, is_list=True, default=[])
-    to_add = inh.input("List columns to add, comma separated (default: None): ",
+    to_add = inh.input("List columns to add by name, comma separated (default: None): ",
                        idesc='str', optional=True, is_list=True, default=[])
 
     for i in range(len(to_add)):
         col = to_add[i]
-        msg = f"""> Column [{col}]:\ninsert column type followed by optional \
-attributes such as 'NOT NULL' (comma separated): """
+        msg = f"> Column [{col}]:\ninsert column type followed by optional " \
+              f"attributes such as 'NOT NULL' (comma separated): "
         p = inh.input(msg, idesc='str', is_list=True)
         to_add[i] = (col, p)
 
@@ -60,17 +60,17 @@ attributes such as 'NOT NULL' (comma separated): """
             print(f'> Adding column {v[0]}\n\t{q_add}')
             db.execute(q_add)
     else:
-        # Copy table
-        old_table_name = table_name + '_old'
-        print(f'Renaming {table_name} to {old_table_name}')
-        db.execute(qb.get_rename_table(table_name))
-
         # Generate the new create query
         table_struct = qb.get_table(table_name)
         tf.add_columns(table_struct, to_add, inplace=True)
         tf.remove_columns(table_struct, to_remove, inplace=True)
         q_create = qb.create(table_struct)
         # print(q_create)
+
+        # Copy table
+        old_table_name = table_name + '_old'
+        print(f'Renaming {table_name} to {old_table_name}')
+        db.execute(qb.get_rename_table(table_name))
 
         # Create new table
         print('Creating the new table')

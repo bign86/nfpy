@@ -42,6 +42,11 @@ def convert_datetime(val) -> datetime:
     return datetime(year, month, day, hours, minutes, seconds, microseconds)
 
 
+def adapt_parameters(val) -> Any:
+    """ Converts from PARAMETERS to json. """
+    return json.dumps(val)
+
+
 def convert_parameters(val) -> Any:
     """ Converts from PARAMETERS to json. """
     return json.loads(val)
@@ -50,6 +55,8 @@ def convert_parameters(val) -> Any:
 # Register the adapters
 sqlite3.register_adapter(numpy.datetime64, adapt_np64)
 sqlite3.register_adapter(pandas.Timestamp, adapt_pd_timestamp)
+sqlite3.register_adapter(list, adapt_parameters)
+sqlite3.register_adapter(dict, adapt_parameters)
 
 # Register the converters
 sqlite3.register_converter("DATETIME", convert_datetime)

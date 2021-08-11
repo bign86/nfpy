@@ -10,8 +10,8 @@ from typing import Union
 
 import nfpy.Calendar as Cal
 import nfpy.Financial.Math as Math
-from nfpy.Trading import (Indicators as Ind, Strategies as Str)
 import nfpy.Trading as Trd
+from nfpy.Trading import (Indicators as Ind, Strategies as Str)
 
 from .BaseModel import (BaseModel, BaseModelResult)
 
@@ -25,28 +25,30 @@ class TradingModel(BaseModel):
 
     _RES_OBJ = TradingResult
 
-    def __init__(self, uid: str, date: Union[str, pd.Timestamp] = None,
-                 w_ma_slow: int = 120, w_ma_fast: int = 21,
-                 sr_mult: float = 5., **kwargs):
+    def __init__(self, uid: str, date: Union[str, pd.Timestamp] = None, **kwargs):
         super().__init__(uid, date)
         self._cal = Cal.get_calendar_glob()
 
-        self._w_ma_slow = w_ma_slow
-        self._w_ma_fast = w_ma_fast
-        self._sr_mult = sr_mult
+        self._w_ma_slow = kwargs['w_ma_slow']
+        self._w_ma_fast = kwargs['w_ma_fast']
+        self._w_sr_slow = kwargs['w_sr_slow']
+        self._w_sr_fast = kwargs['w_sr_fast']
+        self._sr_mult = kwargs['sr_mult']
 
         self._res_update(date=self._t0, uid=self._uid, sr_mult=self._sr_mult,
                          w_slow=self._w_ma_slow, w_fast=self._w_ma_fast,
+                         w_sr_slow=self._w_sr_slow, w_sr_fast=self._w_sr_fast,
                          prices=self._asset.prices)
 
     def _calculate(self):
-        # Support/Resistances
+        # Manual alerts and Support/Resistances
         self._calc_alerts()
 
         # Moving averages
         self._calc_wma()
 
     def _calc_alerts(self):
+        # Manual alerts
         ae = Trd.AlertsEngine()
         window = Cal.today(mode='datetime') - timedelta(days=10)
         ae.raise_alerts(self._uid, date_checked=window)
@@ -56,6 +58,12 @@ class TradingModel(BaseModel):
                 triggered=True,
                 date_triggered=window
             )
+        )
+
+        # Support / Resistances
+        be = Trd.BreachesEngine(self._w_sr_slow, self._w_sr_fast, 10)
+        self._res_update(
+            breaches=be.raise_breaches(self._uid)
         )
 
     def _calc_wma(self):
@@ -118,10 +126,3 @@ class TradingModel(BaseModel):
 
     def _check_applicability(self):
         pass
-
-
-def TRDModel(uid: str, date: Union[str, pd.Timestamp] = None,
-             w_ma_slow: int = 120, w_ma_fast: int = 21, sr_mult: float = 5.,
-             ) -> TradingResult:
-    """ Shortcut for the calculation. Intermediate results are lost. """
-    return TradingModel(uid, date, w_ma_slow, w_ma_fast, sr_mult).result()

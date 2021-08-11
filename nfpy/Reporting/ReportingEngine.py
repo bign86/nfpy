@@ -3,17 +3,24 @@
 # Main engine for reporting
 #
 
+from bs4 import BeautifulSoup
+from collections import namedtuple
 from jinja2 import FileSystemLoader, Environment
 import os
 import shutil
+from typing import (Generator, Union, KeysView)
 
 from nfpy import NFPY_ROOT_DIR
 from nfpy.Assets import get_af_glob
 from nfpy.Calendar import get_calendar_glob
 import nfpy.DB as DB
-from nfpy.Tools import (get_conf_glob, Singleton)
+from nfpy.Tools import (get_conf_glob, Singleton, Utilities as Ut)
 
 from .Reports import *
+
+ReportData = namedtuple('ReportData', (
+    'name', 'description', 'report', 'template', 'uids', 'parameters', 'active'
+))
 
 
 class ReportingEngine(metaclass=Singleton):
@@ -21,9 +28,9 @@ class ReportingEngine(metaclass=Singleton):
 
     _TBL_REPORTS = 'Reports'
     _DT_FMT = '%Y%m%d'
-    _IMG_DIR = 'img'
     _REPORTS = {
         'Market': ReportMarket,
+        'Alerts': ReportAlerts,
     }
     _TMPL_PATH = os.path.join(NFPY_ROOT_DIR, 'Reporting/Templates')
     _REP_EXT = '.html'
@@ -36,32 +43,31 @@ class ReportingEngine(metaclass=Singleton):
         self._conf = get_conf_glob()
 
         # Work variables
-        self._p = {}
         self._curr_report_dir = ''
-        self._curr_img_dir = ''
         self._rep_path = ''
-
-        self._initialize()
-
-    def _initialize(self) -> None:
-        new_folder = f'Report_{self._cal.end.strftime(self._DT_FMT)}'
-        self._curr_report_dir = os.path.join(
-            self._conf.report_path,
-            new_folder
-        )
-        self._curr_img_dir = os.path.join(
-            self._conf.report_path,
-            new_folder,
-            self._IMG_DIR
-        )
 
     def get_report_obj(self, r: str) -> TyReport:
         """ Return the report object given the report name. """
         return self._REPORTS[r]
 
-    def create_new_directory(self) -> None:
-        """ Create a new directory for the current report. """
-        new_path = self._curr_img_dir
+    def get_report_types(self) -> KeysView:
+        return self._REPORTS.keys()
+
+    def exists(self, name: str) -> bool:
+        """ Report yes if a report with the input name exists. """
+        if len(list(self.list((name,)))) > 0:
+            return True
+        else:
+            return False
+
+    def _create_new_directory(self) -> None:
+        """ Create a new directory for the today's reports. """
+        new_folder = f'Reports_{self._cal.end.strftime(self._DT_FMT)}'
+        new_path = os.path.join(
+            self._conf.report_path,
+            new_folder
+        )
+        self._curr_report_dir = new_path
 
         # If directory exists exit
         if os.path.exists(new_path):
@@ -71,7 +77,7 @@ class ReportingEngine(metaclass=Singleton):
             os.makedirs(new_path)
             shutil.copyfile(
                 os.path.join(self._TMPL_PATH, "style.css"),
-                os.path.join(self._curr_report_dir, "style.css")
+                os.path.join(new_path, "style.css")
             )
         except OSError as ex:
             print(f'Creation of the directory {new_path} failed')
@@ -79,78 +85,116 @@ class ReportingEngine(metaclass=Singleton):
         else:
             print(f'Successfully created the directory {new_path}')
 
-    def set_report(self, report: str) -> None:
-        """ Set the report to be produced. """
-        self._p = report
+    def list(self, names: [str] = (), active: bool = None) \
+            -> Generator[ReportData, ReportData, None]:
+        """ List reports matching the given input. """
+        where = ''
+        if names:
+            name_list = "\', \'".join(names)
+            where = f"name in ('{name_list}')"
 
-    def list(self) -> list:
-        """ List reports matching the current setting. """
-        return self._db.execute(
-            self._qb.select(
-                self._TBL_REPORTS,
-                keys=('active',)
-            ),
-            (True,)
-        ).fetchall()
+        keys, data = [], []
+        if active is not None:
+            keys = ('active',)
+            data = (active,)
 
-    def _calculate(self, data: str) -> tuple:
+        return (
+            report for report in
+            map(
+                ReportData._make,
+                self._db.execute(
+                    self._qb.select(
+                        self._TBL_REPORTS,
+                        keys=keys,
+                        where=where
+                    ),
+                    data
+                ).fetchall()
+            )
+        )
+
+    def _calculate(self, data: ReportData) -> ReportResult:
         """ Calculates results by calling all models. """
-        cid = self._curr_img_dir
-        report, uids, params = data[1], data[3], data[4]
-        print(report, uids, params)
-
-        # pd = json.loads(params)
-        # uid_lst = json.loads(uids)
-        report_obj = self._REPORTS[report]
-
-        res, filters = None, None
+        # res, filters = None, None
         try:
-            report = report_obj(uids, params, img_path=cid)
-            res = report.result
-            filters = report.filters
+            res = self._REPORTS[data.report](
+                data.name, data.template,
+                data.uids, data.parameters,
+                path=self._curr_report_dir
+            ).result
+            # filters = report.filters
         except RuntimeError as ex:
             # traceback.print_exc()
-            print(str(ex))
+            Ut.print_exc(ex)
+            res = None
 
-        return res, filters
+        return res  # , filters
 
-    def _generate(self, name: str, template: str, res: tuple) -> None:
+    def _generate(self, res: Union[dict, ReportResult]) -> None:
         """ Generates the actual report. """
         j_env = Environment(loader=FileSystemLoader(self._TMPL_PATH))
-        j_env.filters.update(res[1])
-        main = j_env.get_template(''.join([template, self._REP_EXT]))
-        out = main.render(
-            title=f"Report - {self._cal.end.strftime('%Y-%m-%d')}",
-            res=res[0]
-        )  # , assets=assets)
+        # j_env.filters.update(res[1])
+        out = j_env.get_template(''.join([res.template, self._REP_EXT])) \
+            .render(
+            title=res.title,
+            res=res.output
+        )
 
         outf = open(
             os.path.join(
                 self._curr_report_dir,
-                ''.join([name, self._REP_EXT])
+                ''.join([res.name, self._REP_EXT])
             ),
             mode='w'
         )
         outf.write(out)
         outf.close()
 
-    def run(self) -> None:
+    def run(self, names: [str] = (), active: bool = None) -> None:
         """ Run the report engine. """
-        # Reports to be generated
-        report_lst = self.list()
-        if not report_lst:
-            print("No reports to generate.")
-            return
-
         # Create a new report directory
-        self.create_new_directory()
+        self._create_new_directory()
 
         # Calculate model results
-        for data in report_lst:
-            out = self._calculate(data)
+        done_reports = []
+        for data in self.list(names, active):
+            print(f'>>> Generating {data.name} [{data.report}]')
+            # out = self._calculate(data)
+            self._generate(
+                self._calculate(data)
+            )
+            done_reports.append(data)
 
-            # Generate reports
-            self._generate(data[0], data[2], out)
+        # Update report index
+        self._update_index(done_reports)
+
+    def _update_index(self, done: [ReportData]) -> None:
+        # Extract information
+        to_print = [
+            (d.name, str(d.description))
+            for d in done
+        ]
+
+        # Parse existing index file
+        try:
+            index_file = os.path.join(self._curr_report_dir, "index.html")
+            with open(index_file) as f:
+                soup = BeautifulSoup(f, "html.parser")
+                ul = soup.find('ul', {'class': "reports_list"})
+
+                to_print.extend([
+                    tuple(li.text.split(' - ', maxsplit=1))
+                    for li in ul.select('li')
+                ])
+        except FileNotFoundError:
+            pass
+
+        index = Ut.AttributizedDict()
+        index.name = 'index'
+        index.template = 'index'
+        index.title = f"Reports list - {self._cal.end.strftime('%Y-%m-%d')}"
+        index.output = sorted(set(to_print), key=lambda v: v[0])
+        self._generate(index)
 
 
 def get_re_glob() -> ReportingEngine:

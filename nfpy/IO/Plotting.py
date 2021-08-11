@@ -14,7 +14,7 @@ from typing import Union
 plt.style.use('seaborn')
 
 
-class Plotter(metaclass=ABCMeta):
+class Plotter(object):
     """ New plotting class. """
 
     _RC = {'linestyle': '-', 'marker': ''}
@@ -47,18 +47,18 @@ class Plotter(metaclass=ABCMeta):
         self._initialize()
 
     def _initialize(self):
-        fig, ax = plt.subplots(self._ncols, self._nrows)
+        fig, ax = plt.subplots(self._nrows, self._ncols)
         self._fig = fig
         if self._length == 1:
             self._ax = [ax]
         else:
             self._ax = ax
-        self._ax2 = [None] * self._length
+        self._ax2 = [None for _ in range(self._length)]
 
         if not self._xl:
-            self._xl = (None,) * self._length
+            self._xl = tuple(None for _ in range(self._length))
         if not self._yl:
-            self._yl = (None,) * self._length
+            self._yl = tuple(None for _ in range(self._length))
 
     def __del__(self):
         self.close()
@@ -67,6 +67,7 @@ class Plotter(metaclass=ABCMeta):
         """ Call the savefig() method. """
         self._fig.tight_layout()
         self._fig.savefig(f_name, format=fmt)
+        return self
 
     def _get_axes(self, axid: int, secondary: bool):
         if secondary:
@@ -85,11 +86,11 @@ class Plotter(metaclass=ABCMeta):
             self._ylim[axid] = (bottom, top)
         else:
             raise ValueError(f"Axis {axis} not recognized. Use 'x' or 'y'.")
+        return self
 
-    @staticmethod
-    def show():
+    def show(self):
         """ Show the figure to screen. """
-        plt.tight_layout()
+        self._fig.tight_layout()
         plt.show()
 
     def clf(self):
@@ -112,6 +113,7 @@ class Plotter(metaclass=ABCMeta):
             _v = x
             x, y = _v.index, _v.values
         self._plots.append((axid, 'plot', x, y, kwargs))
+        return self
 
     def scatter(self, axid: int, x: Union[pd.Series, np.array],
                 y: np.array = None, **kwargs):
@@ -120,6 +122,7 @@ class Plotter(metaclass=ABCMeta):
             _v = x
             x, y = _v.index, _v.values
         self._plots.append((axid, 'scatter', x, y, kwargs))
+        return self
 
     def hist(self, axid: int, x: Union[pd.Series, np.array],
              y: np.array = None, **kwargs):
@@ -127,6 +130,7 @@ class Plotter(metaclass=ABCMeta):
             _v = x
             x, y = _v.index, _v.values
         self._plots.append((axid, 'hist', x, y, kwargs))
+        return self
 
     def annotate(self, axid: int, x: Union[pd.Series, np.array],
                  y: np.array = None, labels: [str] = (), **kwargs):
@@ -134,18 +138,21 @@ class Plotter(metaclass=ABCMeta):
             _v = x
             x, y = _v.index, _v.values
         self._annotations.append((axid, x, y, labels, kwargs))
+        return self
 
     def line(self, axid: int, type_: str, v: Union[float, np.array],
              range_: tuple = (), **kwargs):
         self._lines.append((axid, type_, v, range_, kwargs))
+        return self
 
     def fill(self, axid: int, type_: str, v: [float], **kwargs):
         self._fills.append((axid, type_, v, kwargs))
+        return self
 
     def plot(self):
         """ Creates the figure. """
-        add_legend = [False] * self._length
-        label_legend = [[]] * self._length
+        add_legend = [False for _ in range(self._length)]
+        label_legend = [[] for _ in range(self._length)]
 
         # Run over plots
         for plot in self._plots:
@@ -259,6 +266,8 @@ class PtfOptimizationPlot(Plotter):
             yc = np.array(res.const_ret)
             labels = res.uids
             self._annotations.append((axid, xc, yc, labels, {'marker': 'x'}))
+
+        return self
 
 
 def shiftedColorMap(cmap, start=0, midpoint=0.5, stop=1.0, name='shiftedcmap'):

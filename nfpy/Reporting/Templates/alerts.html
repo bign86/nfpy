@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <title>Report NFPY</title>
+  </head>
+  <body>
+    <!-- TITLE -->
+    <h1>{{ title }}</h1>
+    <a href="index.html">Index</a>
+
+    <!-- UIDs list -->
+    <h3><a name="uidList"></a>List of UIDs</h3>
+    <h4>Equities:</h4>
+    {%- for uid, v in res['Equity'].items()|sort -%}
+      <a href="#{{ uid }}">{{ uid }}</a> - {{ v.company }}<br>
+    {% endfor -%}
+    <h4>Currencies:</h4>
+    {%- for uid in res['Currency'].keys()|sort -%}
+      <a href="#{{ uid }}">{{ uid }}</a><br>
+    {% endfor -%}
+
+    <!-- REPORTS -->
+    <h2>Reports</h2>
+
+    <!-- Currencies -->
+    {%- if 'Currency' in res -%}
+      <h3>Currencies</h3>
+
+      {%- for uid, models in res["Currency"].items()|sort -%}
+        <a name="{{ uid }}"></a><h4><a href="#uidList">Top</a> - {{ uid }}</h4>
+
+        <!-- Market model -->
+        {% set current = models[0] %}
+        <table>
+          <tr>
+            <td class='anag-prop'>Base country</td><td class='anag-value'>{{ current["info"]["base_country"] }}</td>
+            <td class='anag-prop'>Base FX</td><td class='anag-value'>{{ current["info"]["base_fx"] }}</td>
+          </tr>
+          <tr>
+            <td class='anag-prop'>Target country</td><td class='anag-value'>{{ current["info"]["tgt_country"] }}</td>
+            <td class='anag-prop'>Target FX</td><td class='anag-value'>{{ current["info"]["tgt_fx"] }}</td>
+          </tr>
+        </table>
+
+        <div>
+          <img src="{{ current.img_prices }}" alt="Full history of prices" class="price-full-h">
+        </div>
+
+        <div>
+          <p>Last price: {{ '%.3f' | format(current.last_price|float) }} @ {{current.last_price_date.strftime('%Y-%m-%d') }}</p>
+          <p>{{ current.stats }}</p>
+        </div>
+      {%- endfor -%}
+    {%- endif -%}
+
+    <!-- Equities -->
+    {%- if 'Equity' in res -%}
+      <h3>Equities</h3>
+
+      {%- for uid, models in res["Equity"].items()|sort -%}
+        <a name="{{ uid }}"></a><h4><a href="#uidList">Top</a> - {{ uid }}</h4>
+
+        <!-- Market model -->
+        {% set current = models[0] %}
+        <table>
+          <tr>
+            <td class='anag-prop'>Isin</td><td class='anag-value'>{{ current["info"]["isin"] }}</td>
+            <td class='anag-prop'>Company</td><td class='anag-value'><a href="#{{ current['info']['company_uid'] }}">{{ current["info"]["company_uid"] }}</a></td>
+            <td class='anag-prop'>Country</td><td class='anag-value'>{{ current["info"]["country"] }}</td>
+          </tr>
+          <tr>
+            <td class='anag-prop'>Index</td><td class='anag-value'><a href="#{{ current['info']['index'] }}">{{ current["info"]["index"] }}</a></td>
+            <td class='anag-prop'>Description</td><td class='anag-value'> {{ current["info"]["description"] }}</td>
+            <td class='anag-prop'>Currency</td><td class='anag-value'>{{ current["info"]["currency"] }}</td>
+          </tr>
+        </table>
+
+        <img src="{{ current.img_prices_long }}" alt="Full history of prices" class="price-full-h">
+        <img src="{{ current.img_performance }}" alt="Last 1 year performance" class="perf-vs-idx">
+        <img src="{{ current.img_beta }}" alt="Beta scatter" class="beta-scatter">
+
+        <p>Last price: {{ '%.3f' | format(current.last_price|float) }} {{ current["info"]["currency"] }} @ {{ current.last_price_date.strftime('%Y-%m-%d') }}</p>
+        {{ current.stats }}
+
+        <!-- Trading model -->
+        {% set current = models[1] %}
+        <img src="{{ current.prices_long }}" alt="S/R slow MA" class="SR-slow">
+        <img src="{{ current.prices_short }}" alt="S/R FAST MA" class="SR-fast">
+        {{ current.signals }}
+
+        <p>Table of raised manual alerts</p>
+        {{ current.alerts_table }}
+
+        <p>Table of S/R lines breaches</p>
+        {{ current.breach_table }}
+
+      {%- endfor -%}
+    {%- endif -%}
+
+
+  </body>
+</html>

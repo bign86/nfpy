@@ -181,7 +181,6 @@ class DownloadFactory(metaclass=Singleton):
         print(f'We are about to download {len(upd_list)} items')
 
         # General variables
-        # today_string = Cal.today()
         today_dt = Cal.today(mode='date')
         q_upd = self._qb.update(self._DWN_TABLE, fields=('last_update',))
 
@@ -190,7 +189,6 @@ class DownloadFactory(metaclass=Singleton):
 
             # Check the last update to avoid too frequent updates
             if last_upd and not override_date:
-                # last_upd = Cal.date_2_datetime(last_upd_str)
                 delta_days = (today_dt - last_upd).days
                 if delta_days < int(upd_freq):
                     msg = f'[{provider}: {page_name}] -> ' \

@@ -35,10 +35,10 @@ class BreachesResult(Ut.AttributizedDict):
         f_max = np.nanmax(self.p) + 1.65 * vola
         dt_min, dt_max = self.dt[-self.w_check], self.dt[-1]
 
-        pl = IO.TSPlot(yl=(f'Price ({self.ccy})',))
-        pl.lplot(0, self.dt, self.p)
-        pl.line(0, 'v', dt_min, (f_min, f_max), colors='C2', linewidth=1.)
-        pl.set_limits(0, 'y', f_min, f_max)
+        pl = IO.TSPlot(yl=(f'Price ({self.ccy})',)) \
+            .lplot(0, self.dt, self.p) \
+            .line(0, 'v', dt_min, (f_min, f_max), colors='C2', linewidth=1.) \
+            .set_limits(0, 'y', f_min, f_max)
 
         # FIXME: generalize to n < 'something reasonable' elements
         for sr, color in zip(self.sr_list, ('dimgray', 'sandybrown')):
@@ -66,9 +66,8 @@ class BreachesResult(Ut.AttributizedDict):
 class BreachesEngine(object):
     """ Engine to evaluate breaches of trading signals. """
 
-    def __init__(self, sr_mult: float = 5., w_check: int = 10,
-                 confidence: float = 1.65, w_sr_fast: int = 21,
-                 w_sr_slow: int = 120) -> None:
+    def __init__(self, w_sr_slow: int, w_sr_fast: int, w_check: int,
+                 sr_mult: float = 5., confidence: float = 1.65) -> None:
         # Handlers
         self._af = get_af_glob()
 
