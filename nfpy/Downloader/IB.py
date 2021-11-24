@@ -29,22 +29,24 @@ class FinancialsItem(BaseImportItem):
         return self._d['ticker'].split('/')[0],
 
     @staticmethod
-    def _clean_eoy_dates(data: list) -> None:
+    def _clean_eoy_dates(data: [tuple]) -> []:
         """ Moves EOY results to the actual end of the year. """
         data_ins = []
         for idx in range(len(data) - 1, -1, -1):
             item = data[idx]
             if item[3] == 'A':
-                old_date = datetime.datetime.strptime(item[2], '%Y-%m-%d')
-                if old_date.month != 12:
-                    new_date = datetime.date(old_date.year - 1, 12, 31)
+                # old_date = datetime.datetime.strptime(item[2], '%Y-%m-%d')
+                if item[2].month != 12:
+                    new_date = datetime.date(item[2].year - 1, 12, 31)
                 else:
-                    new_date = old_date.date()
+                    new_date = item[2].date()
                 data_ins.append((item[0], item[1], new_date, item[3], item[4]))
                 del data[idx]
 
         for t in data_ins:
             data.append(t)
+
+        return data
 
     def run(self) -> None:
         params = self._get_params()
@@ -53,12 +55,14 @@ class FinancialsItem(BaseImportItem):
         if self._incr:
             qr += self._Q_INCR
         qr = qr.format(**self._d) + ';'
-        data = self._db.execute(qr, params).fetchall()
 
-        self._clean_eoy_dates(data)
-
-        qw = self._Q_WRITE.format(**self._d)
-        self._db.executemany(qw, data, commit=True)
+        self._db.executemany(
+            self._Q_WRITE.format(**self._d),
+            self._clean_eoy_dates(
+                self._db.execute(qr, params).fetchall()
+            ),
+            commit=True
+        )
 
 
 class IBProvider(BaseProvider):
@@ -109,20 +113,20 @@ class IBFundamentals(IBBasePage):
     _COLUMNS = IBFundamentalsConf
     _TABLE = 'IBFinancials'
 
-    def _local_initializations(self, params: dict):
+    def _local_initializations(self) -> None:
         """ Local initializations for the single page. """
         tck = self.ticker.split('/')
         self._app = IBAppFundamentals()
-        self._app.addContracts(tck, self._curr)
+        self._app.addContracts(tck, self._ext_p['currency'])
 
-    def _parse(self):
+    def _parse(self) -> None:
         tree = ET.fromstring(self._robj)
         financial = tree.find('FinancialStatements')
 
         tck = self.ticker.split('/')[0]
-        ccy = self._curr
+        ccy = self._ext_p['currency']
 
-        data = list()
+        data = []
         for freq in ('AnnualPeriods', 'InterimPeriods'):
             f_ = 'A' if freq == 'AnnualPeriods' else 'Q'
             history = financial.find(freq)

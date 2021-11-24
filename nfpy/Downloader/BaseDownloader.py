@@ -33,7 +33,8 @@ class BasePage(metaclass=ABCMeta):
     _REQ_METHOD = ''
     _USE_UPSERT = False
     _HEADER = {}
-    _Q_MAX_DATE = "select max(date) from {} where ticker = ?"
+    _Q_MAX_DATE = ''
+    _Q_SELECT = ''
 
     def __init__(self, ticker: str):
         self._db = DB.get_db_glob()
@@ -45,7 +46,8 @@ class BasePage(metaclass=ABCMeta):
         self._robj = None
         self._res = None
         self._jar = None
-        self._curr = None
+        self._ext_p = None
+        # self._curr = None
         self._fname = None
         self._is_initialized = False
 
@@ -109,6 +111,19 @@ class BasePage(metaclass=ABCMeta):
     def use_upsert(self) -> bool:
         return self._USE_UPSERT
 
+    @property
+    def select(self) -> str:
+        return self._Q_SELECT
+
+    @property
+    def data(self) -> pd.DataFrame:
+        if not self.is_downloaded:
+            msg = f"{' | '.join((self.provider, self.page, self.ticker))} - Nothing to save"
+            raise RuntimeError(msg)
+        if not self.is_parsed:
+            self._parse()
+        return self._res
+
     def _check_params(self) -> None:
         _l = []
         for p in self._MANDATORY:
@@ -119,46 +134,54 @@ class BasePage(metaclass=ABCMeta):
             msg = f"The following parameters are required: {', '.join(_l)}"
             raise Ex.IsNoneError(msg)
 
-    def save(self, backup: bool = False, fname: str = None) -> None:
-        """ Save the downloaded page in the DB and on a file.
+    def save(self) -> None:
+        """ Save the downloaded page in the DB. """
+        _ = self.data
+        self._write_to_db()
+
+    def dump(self, fname: str = None) -> None:
+        """ Dump the downloaded page on a file.
 
             Input:
                 fname [str]: backup file name, overrides default
         """
-        if not self.is_downloaded:
-            raise RuntimeError("Nothing to save")
-        if not self.is_parsed:
-            self._parse()
-        if backup:
-            self._write_to_file(fname)
-        self._write_to_db()
+        _ = self.data
+        self._write_to_file(fname)
 
-    def initialize(self, currency: str = None, fname: Union[str, Path] = None,
-                   params: dict = None) -> None:
+    def initialize(self, fname: Union[str, Path] = None, params: dict = None):
         """ Parameters are checked before download, encoding is set, parsed
             object is deleted if present.
 
             Input:
-                currency [str]: currency of the download
                 fname [Union[str, Path]]: file name to load
-                params [dict]: dictionary of parameters to update
+                params [dict]: dictionary of parameters to update. Supported:
+                    'currency': currency of the download (mandatory)
+                    'start': starting date
+                    'end': ending date
+
+            Output:
+                self: returns self on completion
 
             Errors:
                 MissingData: if data are not found in the database
         """
         if self._is_initialized is True:
-            return
+            return self
 
-        self._curr = currency
+        self._ext_p = params
         if fname is not None:
             self._fname = fname
         else:
-            self._local_initializations(params)
+            self._local_initializations()
 
         self._is_initialized = True
+        return self
 
-    def fetch(self) -> None:
+    def fetch(self):
         """ Either download from internet or from a local file the data.
+
+            Output:
+                self: returns self on completion
 
             Errors:
                 IsNoneError: if one mandatory parameter is absent
@@ -172,6 +195,7 @@ class BasePage(metaclass=ABCMeta):
             self._check_params()
             self._download()
         self._res = None
+        return self
 
     def _load_file(self) -> None:
         """ Load a file to be parsed. """
@@ -214,7 +238,7 @@ class BasePage(metaclass=ABCMeta):
             self._jar = r.cookies
             self._robj = r
         else:
-            msg = f"Error in downloading {self.__class__.__name__}: " \
+            msg = f"Error in downloading {self.__class__.__name__}|{self.ticker}: " \
                   f"[{r.status_code}] {r.reason}"
             raise RuntimeWarning(msg)
 
@@ -223,9 +247,9 @@ class BasePage(metaclass=ABCMeta):
         if not fname:
             now_ = now(mode='str', fmt='%Y%m%d_%H%M')
             t = self._ticker.replace(':', '.')
-            fname = f"{self._PROVIDER}_{t}_{now_}"
+            fname = f"{self._PROVIDER}_{self.page}_{t}_{now_}"
 
-        bak_dir = get_conf_glob().backup_dir
+        bak_dir = get_conf_glob().backup_folder
         fd = Path(os.path.join(bak_dir, fname))
         with fd.open(mode='w') as f:
             f.write(self._robj.text)
@@ -271,23 +295,19 @@ class BasePage(metaclass=ABCMeta):
 
     def printout(self) -> None:
         """ Print out the results of the fetched object. """
-        if not self.is_downloaded:
-            raise RuntimeError("Nothing to save")
-        if not self.is_parsed:
-            self._parse()
         with pd.option_context('display.max_rows', None,
                                'display.max_columns', None,
                                'display.width', 10000):
-            print(repr(self._res))
+            print(repr(self.data))
 
     # FIXME: shouldn't this one return a parsed date (datetime or Timestamp)?
-    def _fetch_last_data_point(self) -> str:
+    def _fetch_last_data_point(self, data: ()) -> str:
         """ Calculates the last available data point in the database for
             incremental downloads.
         """
         last_date = self._db.execute(
-            self._Q_MAX_DATE.format(self._TABLE),
-            (self.ticker,)
+            self._Q_MAX_DATE,
+            data
         ).fetchone()
         date = '1990-01-01'
         if last_date and (last_date[0] is not None):
@@ -304,7 +324,7 @@ class BasePage(metaclass=ABCMeta):
         """ Return the base url for the page. """
 
     @abstractmethod
-    def _local_initializations(self, params: dict) -> None:
+    def _local_initializations(self) -> None:
         """ Page-dependent initializations of parameters. """
 
     @abstractmethod

@@ -185,7 +185,7 @@ class DownloadFactory(metaclass=Singleton):
         q_upd = self._qb.update(self._DWN_TABLE, fields=('last_update',))
 
         for item in upd_list:
-            provider, page_name, ticker, currency, _, upd_freq, last_upd = item
+            provider, page_name, ticker, ccy, _, upd_freq, last_upd = item
 
             # Check the last update to avoid too frequent updates
             if last_upd and not override_date:
@@ -199,12 +199,10 @@ class DownloadFactory(metaclass=Singleton):
             # If the last update check is passed go on with the update
             try:
                 print(f'{ticker} -> {provider}[{page_name}]')
-                page = self.create_page_obj(provider, page_name, ticker)
-                page.initialize(currency=currency)
-
-                # Perform download and save results
                 try:
-                    page.fetch()
+                    page = self.create_page_obj(provider, page_name, ticker) \
+                               .initialize(params={'currency': ccy}) \
+                               .fetch()
                 except RuntimeWarning as w:
                     # DownloadFactory throws this error for codes != 200
                     Ut.print_wrn(w)

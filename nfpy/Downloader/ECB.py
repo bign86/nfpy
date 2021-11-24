@@ -84,24 +84,26 @@ class ECBSeries(ECBBasePage):
     _MANDATORY = ("SERIES_KEY",)
     _TABLE = "ECBSeries"
     _BASE_URL = u"http://sdw.ecb.europa.eu/quickviewexport.do;jsessionid={}?"
+    _Q_MAX_DATE = "select max(date) from ECBSeries where ticker = ?"
 
     def _set_default_params(self) -> None:
         self._p = self._PARAMS
-        ld = self._fetch_last_data_point()
+        ld = self._fetch_last_data_point((self.ticker,))
         self._p.update({
             'SERIES_KEY': self._ticker,
             'start': pd.to_datetime(ld).strftime('%d-%m-%Y'),
             'end': today(fmt='%d-%m-%Y')
         })
 
-    def _local_initializations(self, params: dict) -> None:
+    def _local_initializations(self) -> None:
         """ Local initializations for the single page. """
-        if params:
-            for p in ['start', 'end']:
-                if p in params:
-                    d = params[p]
-                    params[p] = pd.to_datetime(d).strftime('%d-%m-%Y')
-            self.params = params
+        p = {}
+        if self._ext_p:
+            for t in [('start', 'st_date'), ('end', 'end_date')]:
+                if t[0] in self._ext_p:
+                    d = self._ext_p[t[0]]
+                    p[t[1]] = pd.to_datetime(d).strftime('%d-%m-%Y')
+            self.params = p
         self._crumb = self._fetch_crumb()
         # print("JsessionId: {}".format(crumb))
 

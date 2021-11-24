@@ -143,17 +143,9 @@ class YahooFinancials(YahooBasePage):
     def _set_default_params(self) -> None:
         pass
 
-    def _local_initializations(self, params: dict) -> None:
+    def _local_initializations(self) -> None:
         """ Local initializations for the single page. """
         pass
-
-    # @staticmethod
-    # def _get_field(it, k) -> str:
-    #     val = None
-    #     f = it.get(k)
-    #     if f:
-    #         val = f.get('raw')
-    #     return val
 
     def _parse(self) -> None:
         """ Parse the fetched object. """
@@ -200,7 +192,7 @@ class YahooFinancials(YahooBasePage):
         )
         for td in to_download:
             _extract_(
-                (self._ticker, td[3], self._curr, td[0]),
+                (self._ticker, td[3], self._ext_p['currency'], td[0]),
                 YahooFinancialsConf[td[0]],
                 data[td[1]][td[2]]
             )
@@ -236,7 +228,9 @@ class YahooHistoricalBasePage(YahooBasePage):
 
     def _set_default_params(self) -> None:
         self._p = self._PARAMS
-        ld = self._fetch_last_data_point()
+        ld = self._fetch_last_data_point(
+            (self.ticker, self._dt.get(self.event))
+        )
         self._p.update(
             {
                 # TODO: pd.to_datetime(ld).strftime('%s') yields a different output
@@ -245,14 +239,15 @@ class YahooHistoricalBasePage(YahooBasePage):
             }
         )
 
-    def _local_initializations(self, params: dict) -> None:
+    def _local_initializations(self) -> None:
         """ Local initializations for the single page. """
-        if params:
-            for p in ['period1', 'period2']:
-                if p in params:
-                    d = params[p]
-                    params[p] = str(int(pd.to_datetime(d).timestamp()))
-            self.params = params
+        p = {}
+        if self._ext_p:
+            for t in [('start', 'period1'), ('end', 'period2')]:
+                if t[0] in self._ext_p:
+                    d = self._ext_p[t[0]]
+                    p[t[1]] = str(int(pd.to_datetime(d).timestamp()))
+            self.params = p
 
         # self.params = {'crumb': self._fetch_crumb()}
         # print("CRUMB: {}".format(crumb))
@@ -281,10 +276,23 @@ class YahooPrices(YahooHistoricalBasePage):
     _PAGE = 'HistoricalPrices'
     _COLUMNS = YahooHistPricesConf
     _TABLE = "YahooPrices"
+    _Q_MAX_DATE = "select max(date) from YahooPrices where ticker = ?"
+    _Q_SELECT = "select * from YahooPrices where ticker = ?"
 
     @property
     def event(self) -> str:
         return "history"
+
+    def _set_default_params(self) -> None:
+        self._p = self._PARAMS
+        ld = self._fetch_last_data_point((self.ticker,))
+        self._p.update(
+            {
+                # TODO: pd.to_datetime(ld).strftime('%s') yields a different output
+                'period1': str(int(pd.to_datetime(ld).timestamp())),
+                'period2': today(mode='str', fmt='%s')
+            }
+        )
 
     def _parse(self) -> None:
         """ Parse the fetched object. """
@@ -296,6 +304,8 @@ class YahooDividends(YahooHistoricalBasePage):
     _PAGE = 'Dividends'
     _COLUMNS = YahooHistDividendsConf
     _TABLE = "YahooEvents"
+    _Q_MAX_DATE = "select max(date) from YahooEvents where ticker = ? and dtype = ?"
+    _Q_SELECT = "select * from YahooEvents where ticker = ? and dtype = 6"
 
     @property
     def event(self) -> str:
@@ -313,6 +323,8 @@ class YahooSplits(YahooHistoricalBasePage):
     _PAGE = 'Splits'
     _COLUMNS = YahooHistSplitsConf
     _TABLE = "YahooEvents"
+    _Q_MAX_DATE = "select max(date) from YahooEvents where ticker = ? and dtype = ?"
+    _Q_SELECT = "select * from YahooEvents where ticker = ? and dtype = 5"
 
     @property
     def event(self) -> str:

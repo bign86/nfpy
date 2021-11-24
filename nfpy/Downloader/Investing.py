@@ -94,7 +94,7 @@ class InvestingBasePage(BasePage):
         """ Return the base url for the page. """
         return self._BASE_URL + self._URL_SUFFIX
 
-    def _local_initializations(self, params: dict):
+    def _local_initializations(self):
         """ Local initializations for the single page. """
         pass
 
@@ -124,28 +124,30 @@ class InvestingHistoricalPrices(InvestingBasePage):
         "action": "historical_data",
     }
     _MANDATORY = ("curr_id",)
+    _Q_MAX_DATE = "select max(date) from InvestingPrices where ticker = ?"
+    _Q_SELECT = "select * from InvestingPrices where ticker = ?"
 
     def _set_default_params(self) -> None:
         self._p = self._PARAMS
-        ld = self._fetch_last_data_point()
+        ld = self._fetch_last_data_point((self.ticker,))
         self._p.update({
             'curr_id': self.ticker,
             'smlID': str(randint(1000000, 99999999)),
             'st_date': pd.to_datetime(ld).strftime('%m/%d/%Y'),
-            # 'st_date': '01/01/2018',
             'end_date': today(mode='str', fmt='%m/%d/%Y')
         })
 
-    def _local_initializations(self, params: dict):
+    def _local_initializations(self) -> None:
         """ Local initializations for the single page. """
-        if params:
-            for p in ('st_date', 'end_date'):
-                if p in params:
-                    d = params[p]
-                    params[p] = pd.to_datetime(d).strftime('%m/%d/%Y')
-            self.params = params
+        p = {}
+        if self._ext_p:
+            for t in [('start', 'st_date'), ('end', 'end_date')]:
+                if t[0] in self._ext_p:
+                    d = self._ext_p[t[0]]
+                    p[t[1]] = pd.to_datetime(d).strftime('%m/%d/%Y')
+            self.params = p
 
-    def _parse(self):
+    def _parse(self) -> None:
         """ Parse the fetched object. """
         t = BeautifulSoup(self._robj.text, "html.parser") \
             .find('table', {'class': "genTbl closedTbl historicalTbl"})
@@ -185,6 +187,8 @@ class InvestingDividends(InvestingBasePage):
     _URL_SUFFIX = '/equities/MoreDividendsHistory'
     _PARAMS = {'pairID': None, 'last_timestamp': None}
     _MANDATORY = ('pairID', 'last_timestamp')
+    _Q_MAX_DATE = "select max(date) from InvestingEvents where ticker = ? and dtype = 6"
+    _Q_SELECT = "select * from InvestingEvents where ticker = ? and dtype = 6"
 
     def _set_default_params(self) -> None:
         self._p = self._PARAMS
@@ -202,7 +206,7 @@ class InvestingDividends(InvestingBasePage):
         td_list = soup.select('tr > td')
         td_dates = [
             pd.to_datetime(v['data-value'], unit='s')
-                .strftime('%Y-%m-%d')
+              .strftime('%Y-%m-%d')
             for v in td_list[::5]
         ]
         td_values = [float(v.text) for v in td_list[1::5]]
@@ -282,7 +286,7 @@ class InvestingFinancialsBasePage(InvestingBasePage):
         # Adjust the data structure
         tck, st = self.params['pair_ID'], self.params['report_type']
         freq = 'A' if period_type == 'Annual' else 'Q'
-        ccy = self._curr
+        ccy = self._ext_p['currency']
         data_final = []
         for tup in data:
             code = self._COLUMNS[tup[0]]
