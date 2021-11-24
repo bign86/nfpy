@@ -3,13 +3,12 @@
 # Class to handle plots in a standardized way across the library
 #
 
-from abc import ABCMeta
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import numpy as np
 import pandas as pd
-from typing import Union
+from typing import (TypeVar, Union)
 
 plt.style.use('seaborn')
 
@@ -46,7 +45,7 @@ class Plotter(object):
 
         self._initialize()
 
-    def _initialize(self):
+    def _initialize(self) -> None:
         fig, ax = plt.subplots(self._nrows, self._ncols)
         self._fig = fig
         if self._length == 1:
@@ -88,35 +87,35 @@ class Plotter(object):
             raise ValueError(f"Axis {axis} not recognized. Use 'x' or 'y'.")
         return self
 
-    def show(self):
+    def show(self) -> None:
         """ Show the figure to screen. """
         self._fig.tight_layout()
         plt.show()
 
-    def clf(self):
+    def clf(self) -> None:
         """ Call plt.clf(). """
         self._fig.clf()
 
     @staticmethod
-    def cla():
+    def cla() -> None:
         """ Call plt.cla(). """
         plt.cla()
 
-    def close(self, close_all: bool = False):
+    def close(self, close_all: bool = False) -> None:
         """ Call plt.close(). """
         s = 'all' if close_all else self._fig
         plt.close(s)
 
-    def lplot(self, axid: int, x: Union[pd.Series, np.array],
-              y: np.array = None, **kwargs):
+    def lplot(self, axid: int, x: Union[pd.Series, np.ndarray],
+              y: np.ndarray = None, **kwargs):
         if isinstance(x, pd.Series):
             _v = x
             x, y = _v.index, _v.values
         self._plots.append((axid, 'plot', x, y, kwargs))
         return self
 
-    def scatter(self, axid: int, x: Union[pd.Series, np.array],
-                y: np.array = None, **kwargs):
+    def scatter(self, axid: int, x: Union[pd.Series, np.ndarray],
+                y: np.ndarray = None, **kwargs):
         """ Add more plots to be plotted. """
         if isinstance(x, pd.Series):
             _v = x
@@ -124,23 +123,23 @@ class Plotter(object):
         self._plots.append((axid, 'scatter', x, y, kwargs))
         return self
 
-    def hist(self, axid: int, x: Union[pd.Series, np.array],
-             y: np.array = None, **kwargs):
+    def hist(self, axid: int, x: Union[pd.Series, np.ndarray],
+             y: np.ndarray = None, **kwargs):
         if isinstance(x, pd.Series):
             _v = x
             x, y = _v.index, _v.values
         self._plots.append((axid, 'hist', x, y, kwargs))
         return self
 
-    def annotate(self, axid: int, x: Union[pd.Series, np.array],
-                 y: np.array = None, labels: [str] = (), **kwargs):
+    def annotate(self, axid: int, x: Union[pd.Series, np.ndarray],
+                 y: np.ndarray = None, labels: [str] = (), **kwargs):
         if isinstance(x, pd.Series):
             _v = x
             x, y = _v.index, _v.values
         self._annotations.append((axid, x, y, labels, kwargs))
         return self
 
-    def line(self, axid: int, type_: str, v: Union[float, np.array],
+    def line(self, axid: int, type_: str, v: Union[float, np.ndarray],
              range_: tuple = (), **kwargs):
         self._lines.append((axid, type_, v, range_, kwargs))
         return self
@@ -254,6 +253,7 @@ class TSPlot(Plotter):
 class PtfOptimizationPlot(Plotter):
     """ Creates a variance/return plot from a OptimizerResult object. """
 
+    # FIXME: remove this subclass and delegate to the optimizerResult obj
     # def add(self, axid: int, call: str, res: OptimizerResult, **kwargs):
     def add(self, axid: int, call: str, res, **kwargs):
         """ Add more plots to be plotted. """
@@ -322,3 +322,6 @@ def shiftedColorMap(cmap, start=0, midpoint=0.5, stop=1.0, name='shiftedcmap'):
     plt.register_cmap(cmap=newcmap)
 
     return newcmap
+
+
+TyPlot = TypeVar('TyPlot', bound=Plotter)
