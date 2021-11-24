@@ -51,9 +51,9 @@ if __name__ == '__main__':
         print('No loose companies found...')
     else:
         cmp_dict = Ut.list_to_dict(cmp_list)
-        msg = "{'uid':^12}: {'name':^8}\t{'equity':^8}\n"
+        msg = f"{'uid':^8}: {'name':^25}\t{'equity':^12}\n"
         for cmp, data in cmp_dict.items():
-            msg += f'{cmp:12}: {data[0]:8}\t{data[1]:8}\n'
+            msg += f'{cmp:8}: {data[0]:25}\t{data[1]:12}\n'
         print(msg, end='\n\n')
 
     print('All done!')

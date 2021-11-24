@@ -4,6 +4,8 @@
 #
 
 from nfpy.Tools.Configuration import (PARAMS_DICT__, create_new)
+from nfpy.Tools.Exceptions import ConfigurationError
+from nfpy.Tools.Utilities import print_exc
 
 __version__ = '0.2'
 _TITLE_ = "<<< Configuration file creation script >>>"
@@ -20,8 +22,13 @@ def create_configuration():
         parameters[section] = sect_dict
 
     print('Creating new file...')
-    create_new(parameters)
-    print("--- File Created! ---")
+    try:
+        create_new(parameters)
+    except ConfigurationError as ex:
+        print_exc(ex)
+        exit()
+    else:
+        print("--- File Created! ---")
 
 
 if __name__ == '__main__':

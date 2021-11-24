@@ -37,6 +37,11 @@ _PLT_STYLE = {
         'scatter',
         {'marker': 'o', 'color': 'C4', 'label': 'RiskParity'}
     ),
+    'CALModel': (
+        'plot',
+        {'linestyle': '-', 'linewidth': 2., 'marker': '',
+         'color': 'C0', 'label': 'EffFrontier'}
+    ),
 }
 
 if __name__ == '__main__':
@@ -56,13 +61,13 @@ if __name__ == '__main__':
     res = db.execute(q).fetchall()
 
     f = list(qb.get_fields('Assets'))
-    print(f'\n\nAvailable portfolios:\n'
+    print(f'Available portfolios:\n'
           f'{tabulate(res, headers=f, showindex=True)}',
           end='\n\n')
     idx = inh.input("Give a portfolio index: ", idesc='int')
     uid = res[idx][0]
 
-    print(f'\n\nAvailable optimizers:\n'
+    print(f'\nAvailable optimizers:\n'
           f'{tabulate(_OPTIMIZERS, headers=_OPT_H, showindex=False)}',
           end='\n\n')
     idx_l = inh.input("Choose optimizers indices (comma separated): ",

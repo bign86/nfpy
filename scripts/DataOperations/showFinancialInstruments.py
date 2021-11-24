@@ -8,7 +8,7 @@ from tabulate import tabulate
 import nfpy.DB as DB
 import nfpy.IO as IO
 
-__version__ = '0.3'
+__version__ = '0.4'
 _TITLE_ = "<<< Show financial instruments script >>>"
 
 
@@ -19,17 +19,15 @@ if __name__ == '__main__':
     qb = DB.get_qb_glob()
     inh = IO.InputHandler()
 
-    q = 'select * from Assets'
+    uid = inh.input('Give a UID: ', idesc='str')
+    ac = db.execute('select type from Assets where uid = ?', (uid,)).fetchone()
+    while not ac:
+        uid = inh.input('Not found. Please enter UID again: ', idesc='str')
+        ac = db.execute('select type from Assets where uid = ?', (uid,)).fetchone()
 
-    msg = """Insert an asset class if you want to narrow down research: """
-    choice = inh.input(msg, idesc='str')
-    if choice:
-        q += f" where type = '{choice}'"
-
-    res = db.execute(q).fetchall()
-    f = list(qb.get_fields('Assets'))
-    print(f'\nResults:\n'
-          f'{tabulate(res, headers=f, showindex=True)}',
-          end='\n\n')
+    ac = ac[0]
+    res = db.execute(f'select * from {ac} where uid = ?', (uid,)).fetchall()
+    f = list(qb.get_fields(ac))
+    print(f'\n{ac}\n{tabulate(res, headers=f)}', end='\n\n')
 
     print('All done!')

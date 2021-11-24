@@ -45,14 +45,13 @@ if __name__ == '__main__':
 
     msg = f'\nThe following are the details of the report:\n' \
           f'name:              {data[0]}\n' \
-          f'report (py):       {data[1]}\n' \
-          f'template (html):   {data[2]}.html\n' \
-          f'active:            {"Yes" if bool(data[5]) else "No"}\n' \
-          f'num. uids:         {len(data[3])}'
-    print(msg, end='\n\n')
-
-    msg = f'The following parameters have been defined:\n' \
-          f'{json.dumps(data[4], indent=4, sort_keys=True)}'
+          f'description:       {data[1]}\n' \
+          f'report (py):       {data[2]}\n' \
+          f'template (html):   {data[3]}.html\n' \
+          f'active:            {"Yes" if bool(data[6]) else "No"}\n' \
+          f'num. uids:         {len(data[4])}\n\n' \
+          f'The following parameters are defined:\n' \
+          f'{json.dumps(data[5], indent=4, sort_keys=True)}'
     print(msg, end='\n\n')
 
     print('All done!')

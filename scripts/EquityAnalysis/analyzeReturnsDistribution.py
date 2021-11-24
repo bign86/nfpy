@@ -87,7 +87,7 @@ if __name__ == '__main__':
         raise ValueError('You must give a starting date.')
 
     end_date = inh.input("Give ending date for time series (default <today>): ",
-                         default=today(), idesc='timestamp')
+                         default=today(mode='timestamp'), idesc='timestamp')
     get_calendar_glob().initialize(end_date, start_date)
 
     msg = "Give a list of equities (press Enter for a list): "

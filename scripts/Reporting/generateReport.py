@@ -22,7 +22,7 @@ if __name__ == '__main__':
     inh = IO.InputHandler()
 
     end = today(mode='timestamp')
-    start = end - DateOffset(years=10)
+    start = end - DateOffset(months=120)
     cal.initialize(end, start)
 
     # Get reports
@@ -33,10 +33,12 @@ if __name__ == '__main__':
         q = f"select {', '.join(fields)} from Reports"
         res = db.execute(q).fetchall()
 
-        msg = f'\n\nAvailable reports:\n' \
+        msg = f'\nAvailable reports:\n' \
               f'{tabulate(res, headers=fields, showindex=True)}\n' \
               f'Give a report index: '
         idx = inh.input(msg, idesc='int')
+        while idx < 0 or idx > len(res):
+            idx = inh.input('Not possible. Given another index: ', idesc='int')
         rep_name = res[idx][0]
 
     get_re_glob().run(names=(rep_name,))

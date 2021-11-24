@@ -3,14 +3,58 @@
 # Script to change the status in Downloads and/or Imports.
 #
 
-from operator import itemgetter
+from collections import namedtuple
 from tabulate import tabulate
 
 import nfpy.DB as DB
+import nfpy.Tools.Exceptions as Ex
 import nfpy.IO as IO
 
-__version__ = '0.3'
+__version__ = '0.4'
 _TITLE_ = "<<< Activate/Deactivate financial instruments >>>"
+
+
+def _mod_table(items: [], tbl: str) -> []:
+    msg = f'The following {tbl} have been found:\n' \
+          f'{tabulate(items, qb.get_fields(tbl), showindex=True)}\n\n' \
+          f'Give index list of selected {tbl} to change (Default None): '
+    idx = inh.input(msg, idesc='int', is_list=True, optional=True)
+    if not idx:
+        return []
+
+    idx = [
+        i for i in set(idx)
+        if 0 <= i < len(items)
+    ]
+    to_change = []
+    for i in sorted(idx)[::-1]:
+        v = items.pop(i)
+        t = v._replace(active=int(not v.active))
+        to_change.append(t)
+    msg = f'The following will change:\n' \
+          f'{tabulate(to_change, qb.get_fields(tbl), showindex=True)}\n\n' \
+          f'Continue (Default False)?: '
+    if inh.input(msg, idesc='bool', default=False):
+        return to_change
+    else:
+        return []
+
+
+def _wrt_to_db(wrt: [], tbl: str):
+    if wrt:
+        keys = set(qb.get_fields(tbl)) - {'active'}
+
+        data = [
+            (w.active,) + tuple(getattr(w, f) for f in keys)
+            for w in wrt
+        ]
+
+        db.executemany(
+            qb.update(tbl, fields=('active',), keys=keys),
+            data,
+            commit=True
+        )
+
 
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
@@ -19,51 +63,49 @@ if __name__ == '__main__':
     qb = DB.get_qb_glob()
     inh = IO.InputHandler()
 
-    params = {}
+    # Give inputs
+    uid = inh.input('Give a UID: ', checker='uid')
+    tblNt = namedtuple('tblNt', qb.get_fields('Imports'))
+    imports = list(
+        map(
+            tblNt._make,
+            db.execute(
+                qb.select('Imports', keys=('uid',)),
+                (uid,)
+            ).fetchall()
+        )
+    )
+    if not imports:
+        raise Ex.MissingData(f'No Imports found for this UID!')
 
-    msg = "Give a ticker (default None): "
-    params['ticker'] = inh.input(msg, idesc='str', default=None, optional=True)
+    if inh.input(f'Modify Imports (Default False)?: ',
+                 idesc='bool', default=False):
+        _wrt_to_db(
+            _mod_table(imports, 'Imports'),
+            'Imports'
+        )
 
-    msg = "Give a provider (default None): "
-    params['provider'] = inh.input(msg, idesc='str', default=None, optional=True)
-
-    msg = "Give a page (default None): "
-    params['page'] = inh.input(msg, idesc='str', default=None, optional=True)
-
-    select_keys = tuple(k for k, v in params.items() if v is not None)
-    select_data = tuple(params[k] for k in select_keys)
-
-    if not select_keys:
-        print('All done!')
+    where = '\", \"'.join(set(v.ticker for v in imports))
+    where = f'ticker in (\"{where}\")'
+    tblNt = namedtuple('tblNt', qb.get_fields('Downloads'))
+    downloads = list(
+        map(
+            tblNt._make,
+            db.execute(
+                qb.select('Downloads', keys=(), where=where),
+                ()
+            ).fetchall()
+        )
+    )
+    if not downloads:
+        print('No downloads on this UID.')
         exit()
 
-    for table in ['Downloads', 'Imports']:
-        print('\n-------------------------------------------------------------')
-        print(f'          {table}', end='\n\n')
-        q = qb.select(table, keys=select_keys)
-        res = db.execute(q, select_data).fetchall()
-
-        fields = tuple(qb.get_fields(table))
-        print(tabulate(res, fields, showindex=True), end='\n\n')
-
-        msg = "Choose the indices to modify (default None): "
-        idx = inh.input(msg, idesc='int', is_list=True,
-                        default=None, optional=True)
-
-        if not idx:
-            continue
-        filtered = itemgetter(*idx)(res)
-        if len(idx) == 1:
-            filtered = (filtered,)
-
-        msg = "Choose activate (1) or deactivate (0): "
-        op = inh.input(msg, idesc='bool', optional=False)
-
-        update_keys = tuple(qb.get_keys(table))
-        fields_pos = tuple(fields.index(f) for f in update_keys)
-        update_data = tuple((op,) + itemgetter(*fields_pos)(v) for v in filtered)
-
-        q = qb.update(table, fields=('active',), keys=update_keys)
-        db.executemany(q, update_data, commit=True)
+    if inh.input(f'Modify Downloads (Default False)?: ',
+                 idesc='bool', default=False):
+        _wrt_to_db(
+            _mod_table(downloads, 'Downloads'),
+            'Downloads'
+        )
 
     print('All done!')

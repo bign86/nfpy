@@ -51,7 +51,7 @@ if __name__ == '__main__':
 
     # Add uids
     to_add = inh.input('List uids to add, comma separated: ',
-                       is_list=True, deafult=[])
+                       is_list=True, default=[])
 
     # Check for associated equity/companies
     for u in to_add:
