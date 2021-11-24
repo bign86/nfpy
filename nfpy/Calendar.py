@@ -98,16 +98,16 @@ class Calendar(metaclass=Singleton):
     def __contains__(self, dt: TyDate) -> bool:
         return dt in self._calendar
 
-    def initialize(self, end: Union[pd.Timestamp, str],
-                   start: Union[pd.Timestamp, str] = None,
+    def initialize(self, end: TyDate, start: TyDate = None,
                    periods: int = None, fmt: str = '%Y-%m-%d') -> None:
         if self._initialized:
             return
 
         # Errors check
         if (start is None) & (periods is None):
-            raise ValueError("""Either one of starting time and number of \
-periods are required to initialize the calendar""")
+            msg = f"Either one of starting time and number of periods are " \
+                  f"required to initialize the calendar"
+            raise ValueError(msg)
 
         # Set the format string
         self.fmt = str(fmt)

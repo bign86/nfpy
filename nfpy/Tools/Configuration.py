@@ -6,11 +6,12 @@
 import configparser
 import logging
 import os
-from os.path import (dirname, abspath)
+import sys
 from typing import Any
 
-from nfpy import (NFPY_ROOT_DIR, __version__)
+from nfpy import NFPY_ROOT_DIR
 
+from .Exceptions import ConfigurationError
 from .Singleton import Singleton
 
 # Dictionary of parameters in the current configuration file
@@ -52,11 +53,17 @@ PARAMS_DICT__ = {
     }
 }
 
+_CONF_INI = 'nfpyConf.ini'
+_OPSYS_HOME = {
+    'aix': '.nfpy',
+    'linux': '.nfpy',
+    'darwin': '.nfpy',
+    'win32': 'nfpy',
+}
+
 
 class Configuration(metaclass=Singleton):
     """ Global configuration class """
-
-    CONF_INI = 'nfpyConf.ini'
 
     def __init__(self):
         self._is_configured = False
@@ -75,19 +82,26 @@ class Configuration(metaclass=Singleton):
     def __setitem__(self, k: str, v: Any):
         setattr(self, k, v)
 
-    def _get_conf_full_path(self) -> str:
+    @staticmethod
+    def get_conf_full_path() -> [str]:
         """ Return the full path of the nfpyConf.ini file by interrogating the
             current position of this very module.
-            FIXME: The position must be standardized possibly in a configuration
-                   folder somewhere in the user home.
         """
-        return os.path.join(NFPY_ROOT_DIR, self.CONF_INI)
+        opsys = _OPSYS_HOME[sys.platform]
+        return (
+            os.path.expanduser(os.path.join('~', opsys, _CONF_INI)),
+            os.path.join(NFPY_ROOT_DIR, _CONF_INI)
+        )
 
     def _parse(self) -> None:
         """ Parse the configuration file. """
-        conf_path = self._get_conf_full_path()
-        if not os.path.isfile(conf_path):
-            raise ValueError('Supplied file does not exist! Give a valid one.')
+        conf_path = None
+        for path in self.get_conf_full_path():
+            if os.path.isfile(path):
+                conf_path = path
+                break
+        if not conf_path:
+            raise ValueError('No config file found! Aborting!')
 
         config = configparser.ConfigParser()
         config.read(conf_path)
@@ -132,17 +146,23 @@ def get_conf_glob() -> Configuration:
 
 def create_new(parameters: dict):
     """ Creates a new empty configuration file in the standard position. """
-    conf_path = os.path.join(
-        dirname(dirname(abspath(__file__))),
-        Configuration.CONF_INI
-    )
+    conf_written = False
+    for path in Configuration.get_conf_full_path():
+        try:
+            # remove existing file, NO BACKUP IS DONE!
+            if os.path.isfile(path):
+                os.remove(path)
 
-    # remove existing file, NO BACKUP IS DONE!
-    if os.path.isfile(conf_path):
-        os.remove(conf_path)
+            f = open(path, "w")
+            cp = configparser.ConfigParser()
+            cp.read_dict(parameters)
+            cp.write(f)
+            f.close()
+        except RuntimeError:
+            continue
+        else:
+            conf_written = True
+            break
 
-    f = open(conf_path, "w")
-    cp = configparser.ConfigParser()
-    cp.read_dict(parameters)
-    cp.write(f)
-    f.close()
+    if not conf_written:
+        raise ConfigurationError('Could not write the configuration file!')

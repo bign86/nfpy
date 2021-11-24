@@ -7,40 +7,44 @@
 
 
 class IsNoneError(RuntimeError):
-    """ This exception should be thrown when something is found to be None and
-        was not supposed to.
-    """
+    """ Thrown when something is found to be None and was not supposed to. """
 
 
 class MissingData(RuntimeError):
-    """ This exception should be thrown when something is not found. """
+    """ Thrown when something is not found in the database. """
 
 
 class DatabaseError(RuntimeError):
-    """ This exception should be thrown when something is wrong with the database. """
+    """ Thrown when something is wrong with the database. """
 
 
 class CalendarError(RuntimeError):
-    """ This exception should be thrown when something is wrong with the calendar. """
+    """ Thrown when something is wrong with the calendar. """
 
 
 class ShortSeriesError(RuntimeError):
-    """ This exception should be thrown when a series is too short. """
+    """ Thrown when a series is too short. """
 
 
 class AssetTypeError(RuntimeError):
-    """ This exception should be thrown when the asset type is wrong. """
+    """ Thrown when the asset type is wrong. """
+
+
+class NanPresent(RuntimeError):
+    """ Thrown when NaNs are present where there should be none. """
+
+
+class ConfigurationError(RuntimeError):
+    """ Thrown when errors happen with the Configuration module. """
 
 
 class MissingDataWarn(RuntimeWarning):
-    """ This warning should be used when something non-critical is not found. """
+    """ Thrown when something non-critical is not found in the database. """
 
 
 class UnsupportedWarning(Warning):
-    """ This warning should be thrown when an unsopported feature is requested. """
+    """ Thrown when an unsopported feature is requested. """
 
 
 class ToBeImplementedWarning(Warning):
-    """ This warning should be thrown when a feature is planned to be
-        supported in the future.
-    """
+    """ Thrown when a feature is planned to be supported in the future. """

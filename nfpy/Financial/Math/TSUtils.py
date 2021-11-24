@@ -88,7 +88,7 @@ def rolling_mean(v: np.ndarray, w: int):
 
 def trim_ts(v: Union[None, np.ndarray], dt: np.ndarray,
             start: np.datetime64 = None, end: np.datetime64 = None,
-            axis: int = 0) -> tuple:
+            axis: int = 0) -> ():
     """ Replicates the use of Pandas .loc[] to slice a time series on a given
         pair of dates. Returns the sliced values array and dates array.
 
@@ -173,7 +173,7 @@ def last_valid_index(v: np.ndarray, start: int = None) -> int:
 
 
 def last_valid_value(v: np.ndarray, dt: np.ndarray = None,
-                     t0: np.datetime64 = None ) -> tuple:
+                     t0: np.datetime64 = None) -> ():
     """ Find the last valid value at a date <= t0.
 
         Input:
@@ -211,7 +211,7 @@ def next_valid_index(v: np.ndarray, start: int = 0) -> int:
     return i
 
 
-def next_valid_value(v: np.ndarray, start: int = 0) -> tuple:
+def next_valid_value(v: np.ndarray, start: int = 0) -> ():
     """ Find the next valid value starting from the given index.
 
         Input:
@@ -226,7 +226,8 @@ def next_valid_value(v: np.ndarray, start: int = 0) -> tuple:
     return float(v[idx]), idx
 
 
-def next_valid_value_date(v: np.ndarray, dt: np.ndarray, t0: np.datetime64) -> tuple:
+def next_valid_value_date(v: np.ndarray, dt: np.ndarray,
+                          t0: np.datetime64) -> ():
     """ Find the next valid value at a date >= t0.
 
         Input:
@@ -243,7 +244,7 @@ def next_valid_value_date(v: np.ndarray, dt: np.ndarray, t0: np.datetime64) -> t
     return float(v[pos + idx]), pos + idx
 
 
-def dropna(v: np.ndarray, axis: int = 0) -> tuple:
+def dropna(v: np.ndarray, axis: int = 0) -> ():
     """ Drop NA from 2D input array. """
     if len(v.shape) == 1:
         mask = ~np.isnan(v)
@@ -272,6 +273,7 @@ def fillna(v: np.ndarray, n: float, inplace=False) -> np.ndarray:
     return v
 
 
+# TODO: this one should really have a inplace option
 def ffill_cols(v: np.ndarray, n: float = 0):
     """ Forward fill nan with the last valid value column-wise.
 
@@ -283,6 +285,8 @@ def ffill_cols(v: np.ndarray, n: float = 0):
         Output:
             out [np.ndarray]: array with NaNs filled column-wise
     """
+    # FIXME: this involves a copy in np.flatten(). In general, bad way to take
+    #        into account dimensionality.
     flatten = False
     if len(v.shape) == 1:
         v = v[:, None]
@@ -294,6 +298,7 @@ def ffill_cols(v: np.ndarray, n: float = 0):
     idx = np.where(~mask, np.arange(mask.shape[0])[:, None], 0)
     out = np.take_along_axis(v, np.maximum.accumulate(idx, axis=0), axis=0)
     v[0] = tmp
+
     if flatten:
         out = out.flatten()
     return out
@@ -321,7 +326,7 @@ def ts_yield(dt: np.ndarray, ts: np.ndarray, base: np.ndarray,
     return ts[idx_ts] / base[idx_base]
 
 
-def drawdown(ts: np.ndarray, w: int) -> tuple:
+def drawdown(ts: np.ndarray, w: int) -> ():
     """ Calculate the maximum drawdown in the given time window.
 
         Input:
