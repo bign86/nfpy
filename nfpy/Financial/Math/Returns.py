@@ -8,10 +8,11 @@ from typing import Union
 import numpy as np
 import pandas as pd
 
-from .TSUtils import trim_ts
+from .TSUtils import (ffill_cols, trim_ts)
 
 
-def ret(v: pd.Series, fillna: str = 'pad', w: int = 1) -> pd.Series:
+def ret(v: Union[np.ndarray, pd.Series], fillna: str = 'pad', w: int = 1) \
+        -> Union[np.ndarray, pd.Series]:
     """ Compute returns for the series using the pandas function pct_change()
 
         Inputs:
@@ -22,10 +23,15 @@ def ret(v: pd.Series, fillna: str = 'pad', w: int = 1) -> pd.Series:
         Output:
             _r [pd.Series]: indexed series of simple returns
     """
-    return v.pct_change(w, fill_method=fillna)
+    if isinstance(v, pd.Series):
+        return v.pct_change(w, fill_method=fillna)
+    else:
+        vf = ffill_cols(v)
+        return vf[1:] / vf[:-1] - 1.
 
 
-def logret(v: pd.Series, fillna: str = 'pad', w: int = 1) -> pd.Series:
+def logret(v: Union[np.ndarray, pd.Series], fillna: str = 'pad', w: int = 1) \
+        -> Union[np.ndarray, pd.Series]:
     """ Compute is_log returns from the series of simple returns or prices
 
         Inputs:
@@ -37,9 +43,13 @@ def logret(v: pd.Series, fillna: str = 'pad', w: int = 1) -> pd.Series:
         Output:
             _r [pd.Series]: indexed series of is_log returns
     """
-    return ret(v, fillna, w) \
-        .add(1.) \
-        .log()
+    if isinstance(v, pd.Series):
+        return ret(v, fillna, w) \
+            .add(1.) \
+            .log()
+    else:
+        vf = ffill_cols(v)
+        return np.log(vf[1:] / vf[:-1])
 
 
 def tot_ret(ts: np.ndarray, dt: np.ndarray = None, start: np.datetime64 = None,
@@ -70,7 +80,7 @@ def tot_ret(ts: np.ndarray, dt: np.ndarray = None, start: np.datetime64 = None,
 
 def comp_ret(ts: np.ndarray, dt: np.ndarray = None, start: np.datetime64 = None,
              end: np.datetime64 = None, base: float = 1., is_log: bool = False
-             ) -> tuple:
+             ) -> ():
     """ Calculates the series of total returns by compounding. Identical to
         tot_ret() but returns the compounded series instead of the last value
         only.
@@ -129,8 +139,8 @@ def compound(r: Union[float, np.ndarray], t: Union[int, np.ndarray],
     """ Compound input rate of return.
 
         Input:
-            r [Union[float, np.ndarray]]: rate of return
-            t [Union[int, np.ndarray]]: time of compounding
-            n [int]: frequency of compounding
+            r [Union[float, np.ndarray]]: rate of return over some period
+            t [Union[int, np.ndarray]]: compounding periods
+            n [int]: frequency of compounding relative to the period of <r>
     """
     return (1. + r / n) ** t - 1.

@@ -18,10 +18,9 @@ class CALModel(BaseOptimizer):
 
     def __init__(self, mean_returns: np.ndarray, covariance: np.ndarray,
                  iterations: int = 50, points: int = 20,
-                 rf_ret: float = None, **kwargs):
+                 rf_ret: float = .0, **kwargs):
         super().__init__(mean_returns=mean_returns, covariance=covariance,
                          iterations=iterations, **kwargs)
-
         self._num = points
         self._rf_ret = rf_ret
 

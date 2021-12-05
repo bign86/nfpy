@@ -4,7 +4,7 @@
 #
 
 import configparser
-import logging
+# import logging
 import os
 import sys
 from typing import Any
@@ -21,18 +21,14 @@ PARAMS_DICT__ = {
         'db_name': (str, 'database name'),
     },
     'FOLDERS': {
-        'data_folder': (str, 'data folder'),
+        'working_folder': (str, 'working folder'),
         'backup_folder': (str, 'backup folder'),
     },
     'REPORTING': {
-        'zip_format': (str, 'Archive format'),
+        'archive_format': (str, 'Archive format'),
         'report_path': (str, 'Path to report directory'),
         'report_arch_path': (str, 'Path to archive directory'),
         'report_retention': (int, 'Report retention days'),
-        'plot_long_win': (str, 'max'),
-        'plot_short_win': (int, 120),
-        'ewma_fast': (int, 21),
-        'ewma_slow': (int, 120),
     },
     'BACKTESTING': {
         'backtest_path': (str, 'Path to backtest results directory'),
@@ -144,7 +140,7 @@ def get_conf_glob() -> Configuration:
     return Configuration()
 
 
-def create_new(parameters: dict):
+def create_new(parameters: {}) -> None:
     """ Creates a new empty configuration file in the standard position. """
     conf_written = False
     for path in Configuration.get_conf_full_path():

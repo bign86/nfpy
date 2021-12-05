@@ -3,14 +3,13 @@
 # Report class for the Market Alerts
 #
 
-from copy import deepcopy
-import numpy as np
+from collections import defaultdict
 import pandas as pd
 from typing import Any
 
 import nfpy.IO as IO
 import nfpy.Models as Mod
-from nfpy.Tools import (Constants as Cn)
+from nfpy.Tools import Utilities as Ut
 
 from .BaseReport import BaseReport
 
@@ -24,11 +23,14 @@ else:
 class ReportAlerts(BaseReport):
     _M_LABEL = 'Alerts'
     DEFAULT_P = {
-        "w_ma_slow": 120,
-        "w_ma_fast": 21,
-        "w_sr_slow": 120,
-        "w_sr_fast": 21,
-        "sr_mult": 5.0
+        "baseData": {"time_spans": None},
+        "alerts": {
+            "w_ma_slow": 120,
+            "w_ma_fast": 21,
+            "w_sr_slow": 120,
+            "w_sr_fast": 21,
+            "sr_mult": 5.0
+        }
     }
 
     def _init_input(self, type_: str) -> dict:
@@ -42,42 +44,45 @@ class ReportAlerts(BaseReport):
         """
         return self._p
 
-    def _calculate(self, *args: tuple) -> Any:
+    def _calculate(self) -> Any:
         """ Calculate the required models.
             MUST ensure that the model parameters passed in <args> are not
             modified so that the database parameters in self._p are not
             changed from one asset to the next.
         """
-        asset = self._af.get(args[0])
-        type_ = asset.type
-        if type_ in ('Bond', 'Company', 'Curve', 'Indices', 'Portfolio', 'Rate'):
-            raise RuntimeError(f'Asset type {type_} not supported by this model')
+        outputs = defaultdict(dict)
+        for uid in self.uids:
+            print(f'  > {uid}')
+            try:
+                asset = self._af.get(uid)
+                type_ = asset.type
+                params = self._init_input(type_)
+                if type_ == 'Currency':
+                    res1 = self._calc_generic(uid, params)
+                    fields = ('uid', 'description', 'price_country', 'base_country',
+                              'price_ccy', 'base_ccy')
+                    res1.info = {k: getattr(asset, k) for k in fields}
+                    res2 = self._calc_trading(uid, params)
+                    outputs[type_][uid] = (res1, res2)
+                elif type_ == 'Equity':
+                    res1 = self._calc_equity(uid, params)
+                    fields = ('uid', 'description', 'ticker', 'isin', 'country',
+                              'currency', 'company', 'index')
+                    res1.info = {k: getattr(asset, k) for k in fields}
+                    res2 = self._calc_trading(uid, params)
+                    outputs[type_][uid] = (res1, res2)
+                else:
+                    raise RuntimeError(f'Asset type {type_} not supported by this model')
+            except (RuntimeError, KeyError, ValueError) as ex:
+                Ut.print_exc(ex)
 
-        if type_ == 'Currency':
-            res1 = self._calc_generic(args)
-            fields = ('uid', 'description', 'price_country', 'base_country',
-                      'price_ccy', 'base_ccy')
-            res1.info = {k: getattr(asset, k) for k in fields}
-            res2 = self._calc_trading(args)
-            results = (res1, res2)
-        elif type_ == 'Equity':
-            res1 = self._calc_equity(args)
-            fields = ('uid', 'description', 'ticker', 'isin', 'country',
-                      'currency', 'company', 'index')
-            res1.info = {k: getattr(asset, k) for k in fields}
-            res2 = self._calc_trading(args)
-            results = (res1, res2)
-        else:
-            raise RuntimeError(f'Asset type {type_} not supported by this model')
+        return outputs
 
-        return results
+    def _calc_generic(self, uid: str, p: {}) -> Any:
+        mod = Mod.MarketAssetsDataBaseModel(uid, **p['baseData'])
+        return self._render_out_generic(mod.result(**p['baseData']))
 
-    def _calc_generic(self, args: tuple) -> Any:
-        uid, p = args
-        mod = Mod.MarketAssetsDataBaseModel(uid, **p)
-        return self._render_out_generic(mod.result(**p), args)
-
-    def _render_out_generic(self, res: Any, args: tuple) -> Any:
+    def _render_out_generic(self, res: Any) -> Any:
         labels = ((res.uid,), ('MA',), ('p_price',))
         fig_full, fig_rel = self._get_image_paths(labels)
         res.img_prices = fig_rel[0]
@@ -104,12 +109,11 @@ class ReportAlerts(BaseReport):
 
         return res
 
-    def _calc_equity(self, args: tuple) -> Any:
-        uid, p = args
-        mod = Mod.MarketEquityDataModel(uid, **p)
-        return self._render_out_equity(mod.result(**p), args)
+    def _calc_equity(self, uid: str, p: {}) -> Any:
+        mod = Mod.MarketEquityDataModel(uid, **p['baseData'])
+        return self._render_out_equity(mod.result(**p['baseData']))
 
-    def _render_out_equity(self, res: Any, args: tuple) -> Any:
+    def _render_out_equity(self, res: Any) -> Any:
         labels = ((res.uid,), ('ME',), ('p_price', 'perf', 'beta'))
         fig_full, fig_rel = self._get_image_paths(labels)
 
@@ -123,39 +127,6 @@ class ReportAlerts(BaseReport):
             .lplot(0, res.prices, label='Price') \
             .plot() \
             .save(fig_full[0]) \
-            .close(True)
-        # pl.clf()
-
-        # Performance plot
-        IO.TSPlot() \
-            .lplot(0, res.perf, color='C0', linewidth=1.5, label=res.uid) \
-            .lplot(0, res.perf_idx, color='C2', linewidth=1.5, label='Index') \
-            .plot() \
-            .save(fig_full[1]) \
-            .close(True)
-        # pl.clf()
-
-        # Beta plot
-        start = self._cal.shift(res.date, -Cn.DAYS_IN_1Y, 'D')
-        r = res.returns.loc[start:]
-        ir = res.index_returns.loc[start:]
-        beta = res.beta_params
-        xg = np.linspace(
-            min(
-                float(np.nanmin(ir.values)),
-                .0
-            ),
-            float(np.nanmax(ir.values)),
-            2
-        )
-        yg = beta[0] * xg + beta[2]
-
-        IO.Plotter(x_zero=(.0,), y_zero=(.0,)) \
-            .scatter(0, ir.values, r.values, color='C0', linewidth=.0,
-                     marker='o', alpha=.5) \
-            .lplot(0, xg, yg, color='C0') \
-            .plot() \
-            .save(fig_full[2]) \
             .close(True)
         # pl.clf()
 
@@ -178,12 +149,11 @@ class ReportAlerts(BaseReport):
 
         return res
 
-    def _calc_bond(self, args: tuple) -> Any:
-        uid, p = args
-        mod = Mod.MarketBondDataModel(uid, **p)
-        return self._render_out_bond(mod.result(**p), args)
+    def _calc_bond(self, uid: str, p: {}) -> Any:
+        mod = Mod.MarketBondDataModel(uid, **p['baseData'])
+        return self._render_out_bond(mod.result(**p['baseData']))
 
-    def _render_out_bond(self, res: Any, args: tuple) -> Any:
+    def _render_out_bond(self, res: Any) -> Any:
         labels = ((res.uid,), ('ME',), ('p_price', 'price_ytm'))
         fig_full, fig_rel = self._get_image_paths(labels)
 
@@ -244,12 +214,11 @@ class ReportAlerts(BaseReport):
 
         return res
 
-    def _calc_trading(self, args: tuple) -> Any:
-        uid, p = args
-        mod = Mod.TradingModel(uid, **p)
-        return self._render_out_trd(mod.result(**p), args)
+    def _calc_trading(self, uid: str, p: {}) -> Any:
+        mod = Mod.TradingModel(uid, **p['alerts'])
+        return self._render_out_trd(mod.result(**p['alerts']))
 
-    def _render_out_trd(self, res: Any, args: tuple) -> Any:
+    def _render_out_trd(self, res: Any) -> Any:
         labels = ((res.uid,), ('TRD',), ('p_long', 'p_short'))
         fig_full, fig_rel = self._get_image_paths(labels)
         res.prices_long, res.prices_short = fig_rel
@@ -270,11 +239,11 @@ class ReportAlerts(BaseReport):
             .clf()
 
         # Breaches plot
-        res.breaches.plot() \
-            .plot() \
-            .save(full_name_short) \
-            .close(True) \
-            # pl.clf()
+        # res.breaches.plot() \
+        #     .plot() \
+        #     .save(full_name_short) \
+        #     .clf()
+        #     .close(True) \
 
         # Signals table
         df = res.signals
@@ -300,18 +269,18 @@ class ReportAlerts(BaseReport):
             .render()
 
         # S/R breach table
-        df_b = pd.DataFrame(res.breaches.breaches, columns=['price'])
-        df_b['signal'] = ['Breach'] * len(res.breaches.breaches)
-        df_t = pd.DataFrame(res.breaches.testing, columns=['price'])
-        df_t['signal'] = ['Testing'] * len(res.breaches.testing)
-        df = pd.concat((df_b, df_t), ignore_index=True)
-        df.sort_values('price', inplace=True)
-        res.breach_table = df.style.format(
-            formatter={
-                'price': '{:,.2f}'.format,
-            },
-            **PD_STYLE_PROP) \
-            .set_table_attributes('class="dataframe"') \
-            .render()
+        # df_b = pd.DataFrame(res.breaches.breaches, columns=['price'])
+        # df_b['signal'] = ['Breach'] * len(res.breaches.breaches)
+        # df_t = pd.DataFrame(res.breaches.testing, columns=['price'])
+        # df_t['signal'] = ['Testing'] * len(res.breaches.testing)
+        # df = pd.concat((df_b, df_t), ignore_index=True)
+        # df.sort_values('price', inplace=True)
+        # res.breach_table = df.style.format(
+        #     formatter={
+        #         'price': '{:,.2f}'.format,
+        #     },
+        #     **PD_STYLE_PROP) \
+        #     .set_table_attributes('class="dataframe"') \
+        #     .render()
 
         return res

@@ -1,12 +1,10 @@
 #
-# Backtesting functions
-# Functions to backtest simple strategies
+# Backtester class
+# Class to backtest simple strategies
 #
 
-from collections import deque
 import numpy as np
 import os
-from typing import (Sequence, Iterable)
 
 import nfpy.Assets as Ast
 import nfpy.Calendar as Cal
@@ -26,8 +24,8 @@ class Portfolio(object):
         self._cost_basis = .0  # Average price of the position
 
         self.cash = float(initial)  # Available cash
-        self.final_value = .0  # Final value of the portfolio
         self.initial = float(initial)
+        self.final_value = .0  # Final value of the portfolio
         self.num_buy = 0
         self.num_sell = 0
         self.returns = []  # List of returns from closing positions
@@ -50,9 +48,10 @@ class Portfolio(object):
         self.shares += sz
         assert self.cash >= .0
 
-        trade = (dt, s, p, sz, paid, self._cost_basis, .0)
+        trade = (dt, s, p, sz, paid, self._cost_basis, .0, .0)
         self.trades.append(trade)
         self._last_sig = s
+        self.num_buy += 1
 
     def sell(self, dt: np.datetime64, p: float, s: Signal, sz: int):
         """ Sell the position.
@@ -70,21 +69,15 @@ class Portfolio(object):
         self.shares -= sz
         assert self.cash >= .0
 
-        trade = (dt, s, p, sz, received, self._cost_basis,
-                 (p - self._cost_basis) * sz)
-        self.trades.append(trade)
-        self._last_sig = Signal.SELL
-
         ret = p / self._cost_basis - 1.
-        self.returns.append(ret)
+        trade = (dt, s, p, sz, received, self._cost_basis,
+                 (p - self._cost_basis) * sz, ret)
+        self.trades.append(trade)
+
+        self._last_sig = Signal.SELL
+        self.num_sell += 1
 
     def statistics(self):
-        for t in self.trades:
-            if t[1] == Signal.BUY:
-                self.num_buy += 1
-            else:
-                self.num_sell += 1
-
         self.final_value = self.cash
         self.total_return = self.cash / self.initial - 1.
 
@@ -102,39 +95,40 @@ class ConsolidatedResults(Ut.AttributizedDict):
         self.sell_number = []
 
 
-class Backtesting(object):
+class Backtester(object):
     _DT_FMT = '%Y%m%d'
 
-    def __init__(self, uids: Sequence, initial: float, short: bool,
-                 full_out: bool, debug: bool):
+    def __init__(self, uids: [], initial: float, debug: bool):
         # Handlers
         self._af = Ast.get_af_glob()
-        self._cal = Cal.get_calendar_glob()
         self._conf = get_conf_glob()
 
         # Input variables
         self._debug = bool(debug)
-        self._full_out = bool(full_out)
-        self._initial = initial
-        self._short = bool(short)
+        self._initial = float(initial)
         self._uids = tuple(uids)
 
         # Objects to set
-        # self._pricer = None
         self._sizer = None
         self._strat = None
+        self._params = {}
 
         # Working variables
         self._backtest_dir = ''
-        self._dt = self._cal.calendar.values
-        self._q = ""
+        self._q = ''
 
         # Output variables
         self._res = {}
 
     @property
-    def results(self) -> dict:
+    def results(self) -> {}:
+        if not self._res:
+            self.run()
         return self._res
+
+    @results.deleter
+    def results(self) -> None:
+        self._res = {}
 
     @property
     def strategy(self) -> TyStrategy:
@@ -152,23 +146,20 @@ class Backtesting(object):
     def sizer(self, s: TySizer):
         self._sizer = s
 
-    # @property
-    # def pricer(self) -> TyPricer:
-    #     return self._pricer
-    #
-    # @pricer.setter
-    # def pricer(self, p: TyPricer):
-    #     self._pricer = p
+    @property
+    def parameters(self) -> {}:
+        return self._params
 
-    def _gen_sample(self) -> Iterable:
-        for uid in self._uids:
-            yield self._af.get(uid)
+    @parameters.setter
+    def parameters(self, p: {}):
+        self._params = p
 
     def _create_new_directory(self):
         """ Create a new directory for the current backtest. """
+        cal = Cal.get_calendar_glob()
         path = os.path.join(
             self._conf.backtest_path,
-            f'Backtest_{self._cal.end.strftime(self._DT_FMT)}'
+            f'Backtest_{cal.end.strftime(self._DT_FMT)}'
         )
         self._backtest_dir = path
 
@@ -189,131 +180,113 @@ class Backtesting(object):
         self._create_new_directory()
 
         # Backtest strategy
-        for eq in self._gen_sample():
+        for uid in self._uids:
+            eq = self._af.get(uid)
             try:
                 self._backtest(eq)
             except RuntimeError as ex:
                 print(ex)
 
         # Consolidate results
-        self._consolidate()
+        # self._consolidate()
 
-    def _backtest(self, eq):
+    def _backtest(self, eq: Ast.TyAsset):
         """ The backtester applies the strategy to the series and obtains
             signals with their dates and strength.
         """
-        # print('>>> {}'.format(eq.uid))
+        print('>>> {}'.format(eq.uid))
 
         p = eq.prices.values
+        dt = eq.prices.index.values
         try:
-            signals = self._strat(self._dt, p)
+            strat = self._strat(dt, p, **self._params)
+            ptf = self._apply(
+                dt, p,
+                strat.bulk_exec(),
+                self._initial
+            )
         except (IndexError, TypeError) as ex:
             print(f'Backtest failed for {eq.uid}\n{ex}')
             return
         else:
-            ptf = self._apply(p, signals, self._initial)
             ptf.statistics()
             self._res[eq.uid] = ptf
 
-    def _apply(self, prices: np.ndarray, signals: StrategyResult,
-               initial: float) -> Portfolio:
+    def _apply(self, dates: np.ndarray, prices: np.ndarray,
+               signals: StrategyResult, initial: float) -> Portfolio:
         """ Perform the backtesting of a simple strategy. Assumptions:
-                1. No short selling, the first valid signal must be 'BUY'
-                2. No transaction costs
-                3. Fractional ownership of stocks allowed
-                4. Any stock available at the end of the time period is
-                   converted to cash at the last available price
 
             Input:
                 dates [np.ndarray]: dates series
                 price [np.ndarray]: price series of the instrument
                 signals [StrategyResult]: signals to backtest
-                sizer [Sizer]: sizer that determines the size of the trade
-                pricer [Pricer]: pricer that determines the price of the trade
                 initial [float]: initial cash value
 
             Output:
                 ptf [Portfolio]: backtested hypothetical portfolio
+
+            TODOs: The following assumptions are valid and must be relaxed:
+                1. No short selling
+                2. No transaction costs
+                3. Fractional ownership of stocks allowed
+                4. Any stock available at the end of the time period is
+                   converted to cash at the last available price
         """
+        # Make sure to have no nans in prices
         ptf = Portfolio(initial=initial)
-
-        # Orders book. Each submitted order is added here
-        book = deque()
-
-        # Make sure to have no nans
         prices = Math.ffill_cols(prices)
-        # self._pricer.set(prices)
         self._sizer.set(prices, ptf)
 
-        j = 0
-        for t in signals:
-            idx, dt, sig, strg = t
+        for idx, dt, sig in signals:
 
-            # Advance to the following signal applying the orders in the book
-            while self._dt[j] < dt:
-                n = len(book)
-                i = 0
-                while i < n:
-                    o = book.pop()
-                    if not self._execute(ptf, prices, j, o[0], o[1]):
-                        book.appendleft(o)
-                    i += 1
-                j += 1
-
-            # Insert an order into the book. The new order is put in the book
-            # after we check whether actionable orders are present
+            # The period idx + 1 is the effective period for applying the signal
+            eff_idx = idx + 1
             s = Signal.BUY if sig > 0 else Signal.SELL
-            # p = self._pricer(j, s)
-            sz = self._sizer(j, s)
-            book.appendleft((s, sz))
+            sz = self._sizer(eff_idx, s)
+            if sz > 0:
+                dt = dates[eff_idx]
+                if s == Signal.BUY:
+                    p = max(prices[idx], prices[eff_idx])
+                    ptf.buy(dt, p, s, sz)
+                else:
+                    p = min(prices[idx], prices[eff_idx])
+                    ptf.sell(dt, p, s, sz)
 
-        # Sell residual securities at the current market price
-        ptf.sell(self._dt[-1], prices[-1], Signal.SELL, ptf.shares)
+        # Sell any residual security at the current market price at the end of
+        # the backtesting period to get the final portfolio value
+        ptf.sell(dates[-1], prices[-1], Signal.SELL, ptf.shares)
 
         # Clean up
         self._sizer.clean()
-        # self._pricer.clean()
 
         return ptf
 
-    def _execute(self, ptf: Portfolio, prices: np.ndarray, i: int,
-                 s: Signal, sz: int) -> bool:
-        """ Tries to execute the input order. """
-        dt = self._dt[i]
-        if s == Signal.BUY:
-            p = max(prices[i-1], prices[i])
-            ptf.buy(dt, p, s, sz)
-        else:
-            p = min(prices[i-1], prices[i])
-            ptf.sell(dt, p, s, sz)
-        return True
+    # def _consolidate(self):
+    #     """ Creates consolidated results objects by grouping equities by some
+    #         given logic. A consolidated result of all backtested equities is
+    #         always generated.
+    #     """
+    #     csd = ConsolidatedResults()
+    #     for uid, bt in self._res.items():
+    #         csd.total_ret.append(bt.total_return)
+    #         csd.final_value.append(bt.final_value)
+    #         csd.trade_rets.extend(bt.returns)
+    #         csd.trades_number.append(len(bt.trades))
+    #         csd.buy_number.append(bt.num_buy)
+    #         csd.sell_number.append(bt.num_sell)
+    #
+    #     self._res['consolidated'] = csd
 
-    def _consolidate(self):
-        """ Creates consolidated results objects by grouping equities by some
-            given logic. A consolidated result of all backtested equities is
-            always generated.
-        """
-        csd = ConsolidatedResults()
-        for uid, bt in self._res.items():
-            csd.total_ret.append(bt.total_return)
-            csd.final_value.append(bt.final_value)
-            csd.trade_rets.extend(bt.returns)
-            csd.trades_number.append(len(bt.trades))
-            csd.buy_number.append(bt.num_buy)
-            csd.sell_number.append(bt.num_sell)
-
-        self._res['consolidated'] = csd
-
-    def print(self):
-        c0 = self._initial
-        for uid in self._uids:
-            ptf = self._res[uid]
-            msg = f'{uid} [{len(ptf.trades)}]\t{ptf.cash:.0f}\t{ptf.cash / c0 - 1.:.1%}\n'
-            for t in ptf.trades:
-                msg += f'{str(t[0])[:10]} {t[1]}\t{t[2]:.2f}\t{t[3]}\t{t[4]:.2f}\t{t[5]:.2f}\t{t[6]:.2f}\n'
-            print(msg)
-
-        print(self._res['consolidated'])
+    # def print(self):
+    #     c0 = self._initial
+    #     for uid in self._uids:
+    #         ptf = self._res[uid]
+    #         msg = f'{uid} [{len(ptf.trades)}]\t{ptf.cash:.0f}\t{ptf.cash / c0 - 1.:.1%}\n'
+    #         for t in ptf.trades:
+    #             msg += f'{str(t[0])[:10]} {t[1]}\t{t[2]:.2f}\t{t[3]}\t{t[4]:.2f}\t{t[5]:.2f}\t{t[6]:.2f}\n'
+    #         print(msg)
+    #
+    #     print(self._res['consolidated'])
 
     # @@@ RESULTS TO SAVE/SHOW @@@
     # + ptf final value and total return

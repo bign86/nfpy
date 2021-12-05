@@ -14,7 +14,7 @@ class Order(Enum):
 
 
 class Signal(Enum):
-    BUY = 0
-    SELL = 1
+    BUY = 1
+    SELL = -1
     CL_BUY = 2
-    CL_SELL = 3
+    CL_SELL = -2

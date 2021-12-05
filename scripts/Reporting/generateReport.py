@@ -11,7 +11,7 @@ import nfpy.DB as DB
 import nfpy.IO as IO
 from nfpy.Reporting import get_re_glob
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< Report generation script >>>"
 
 if __name__ == '__main__':
@@ -26,8 +26,8 @@ if __name__ == '__main__':
     cal.initialize(end, start)
 
     # Get reports
-    rep_name = inh.input("Give report name (press Enter for a list): ",
-                         optional=True)
+    msg = "Give a list of report names (press Enter to see existing ones): "
+    rep_name = inh.input(msg, default=[], is_list=True)
     if not rep_name:
         fields = ('name', 'report', 'active')
         q = f"select {', '.join(fields)} from Reports"
@@ -36,11 +36,11 @@ if __name__ == '__main__':
         msg = f'\nAvailable reports:\n' \
               f'{tabulate(res, headers=fields, showindex=True)}\n' \
               f'Give a report index: '
-        idx = inh.input(msg, idesc='int')
-        while idx < 0 or idx > len(res):
+        idx = inh.input(msg, idesc='int', is_list=True)
+        while min(idx) < 0 or max(idx) >= len(res):
             idx = inh.input('Not possible. Given another index: ', idesc='int')
-        rep_name = res[idx][0]
+        rep_name = [res[i][0] for i in idx]
 
-    get_re_glob().run(names=(rep_name,))
+    get_re_glob().run(names=rep_name)
 
     print('All done!')

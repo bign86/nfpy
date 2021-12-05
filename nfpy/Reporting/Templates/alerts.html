@@ -3,23 +3,25 @@
   <head>
     <meta charset="UTF-8">
     <link rel="stylesheet" type="text/css" href="style.css">
-    <title>Report NFPY</title>
+    <title>Report Alerts NFPY</title>
   </head>
   <body>
     <!-- TITLE -->
     <h1>{{ title }}</h1>
     <a href="index.html">Index</a>
+    <hr class="shadow">
 
     <!-- UIDs list -->
     <h3><a name="uidList"></a>List of UIDs</h3>
     <h4>Equities:</h4>
-    {%- for uid, v in res['Equity'].items()|sort -%}
-      <a href="#{{ uid }}">{{ uid }}</a> - {{ v.company }}<br>
+    {%- for uid, v in res['Equity'].items() -%}
+      <a href="#{{ uid }}">{{ v[0].info["company"] }}</a> - {{ uid }}<br>
     {% endfor -%}
     <h4>Currencies:</h4>
     {%- for uid in res['Currency'].keys()|sort -%}
       <a href="#{{ uid }}">{{ uid }}</a><br>
     {% endfor -%}
+    <hr>
 
     <!-- REPORTS -->
     <h2>Reports</h2>
@@ -29,6 +31,7 @@
       <h3>Currencies</h3>
 
       {%- for uid, models in res["Currency"].items()|sort -%}
+        <hr class="light">
         <a name="{{ uid }}"></a><h4><a href="#uidList">Top</a> - {{ uid }}</h4>
 
         <!-- Market model -->
@@ -54,51 +57,64 @@
         </div>
       {%- endfor -%}
     {%- endif -%}
+    <hr>
 
     <!-- Equities -->
     {%- if 'Equity' in res -%}
       <h3>Equities</h3>
 
       {%- for uid, models in res["Equity"].items()|sort -%}
+        <hr class="light">
         <a name="{{ uid }}"></a><h4><a href="#uidList">Top</a> - {{ uid }}</h4>
 
         <!-- Market model -->
         {% set current = models[0] %}
-        <table>
-          <tr>
-            <td class='anag-prop'>Isin</td><td class='anag-value'>{{ current["info"]["isin"] }}</td>
-            <td class='anag-prop'>Company</td><td class='anag-value'><a href="#{{ current['info']['company_uid'] }}">{{ current["info"]["company_uid"] }}</a></td>
-            <td class='anag-prop'>Country</td><td class='anag-value'>{{ current["info"]["country"] }}</td>
-          </tr>
-          <tr>
-            <td class='anag-prop'>Index</td><td class='anag-value'><a href="#{{ current['info']['index'] }}">{{ current["info"]["index"] }}</a></td>
-            <td class='anag-prop'>Description</td><td class='anag-value'> {{ current["info"]["description"] }}</td>
-            <td class='anag-prop'>Currency</td><td class='anag-value'>{{ current["info"]["currency"] }}</td>
-          </tr>
-        </table>
-
-        <img src="{{ current.img_prices_long }}" alt="Full history of prices" class="price-full-h">
-        <img src="{{ current.img_performance }}" alt="Last 1 year performance" class="perf-vs-idx">
-        <img src="{{ current.img_beta }}" alt="Beta scatter" class="beta-scatter">
-
-        <p>Last price: {{ '%.3f' | format(current.last_price|float) }} {{ current["info"]["currency"] }} @ {{ current.last_price_date.strftime('%Y-%m-%d') }}</p>
-        {{ current.stats }}
+        <div>
+          <table>
+            <tr>
+              <td class='anag-prop'>Isin</td><td class='anag-value'>{{ current["info"]["isin"] }}</td>
+              <td class='anag-prop'>Company</td><td class='anag-value'><a href="#{{ current['info']['company_uid'] }}">{{ current["info"]["company_uid"] }}</a></td>
+              <td class='anag-prop'>Country</td><td class='anag-value'>{{ current["info"]["country"] }}</td>
+            </tr>
+            <tr>
+              <td class='anag-prop'>Index</td><td class='anag-value'><a href="#{{ current['info']['index'] }}">{{ current["info"]["index"] }}</a></td>
+              <td class='anag-prop'>Description</td><td class='anag-value'> {{ current["info"]["description"] }}</td>
+              <td class='anag-prop'>Currency</td><td class='anag-value'>{{ current["info"]["currency"] }}</td>
+            </tr>
+          </table>
+          <br>
+          <p>Last price: {{ '%.3f' | format(current.last_price|float) }} {{ current["info"]["currency"] }} @ {{ current.last_price_date.strftime('%Y-%m-%d') }}</p>
+          {{ current.stats }}
+          <img src="{{ current.img_prices_long }}" alt="Full history of prices" class="price-full-h">
+        </div>
 
         <!-- Trading model -->
         {% set current = models[1] %}
-        <img src="{{ current.prices_long }}" alt="S/R slow MA" class="SR-slow">
-        <img src="{{ current.prices_short }}" alt="S/R FAST MA" class="SR-fast">
-        {{ current.signals }}
-
-        <p>Table of raised manual alerts</p>
-        {{ current.alerts_table }}
-
-        <p>Table of S/R lines breaches</p>
-        {{ current.breach_table }}
+        <div>
+          <div>
+            <img src="{{ current.prices_long }}" alt="S/R slow MA" class="SR-slow">
+            <img src="{{ current.prices_short }}" alt="S/R FAST MA" class="SR-fast">
+          </div>
+          <div>
+            {{ current.signals }}
+            <div class="row">
+              <div class="column">
+                <h5>Table of raised manual alerts</h5>
+                {{ current.alerts_table }}
+              </div>
+              <!--
+              <div class="column">
+                <h5>Table of S/R lines breaches</h5>
+                {{ current.breach_table }}
+              </div>
+              -->
+            </div>
+          </div>
+        </div>
 
       {%- endfor -%}
     {%- endif -%}
-
+    <hr>
 
   </body>
 </html>

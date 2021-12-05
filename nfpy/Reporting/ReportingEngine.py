@@ -4,23 +4,17 @@
 #
 
 from bs4 import BeautifulSoup
-from collections import namedtuple
 from jinja2 import FileSystemLoader, Environment
 import os
 import shutil
-from typing import (Generator, Union, KeysView)
+from typing import (Generator, Iterable, KeysView, Union)
 
 from nfpy import NFPY_ROOT_DIR
-from nfpy.Assets import get_af_glob
-from nfpy.Calendar import get_calendar_glob
+import nfpy.Calendar as Cal
 import nfpy.DB as DB
 from nfpy.Tools import (get_conf_glob, Singleton, Utilities as Ut)
 
 from .Reports import *
-
-ReportData = namedtuple('ReportData', (
-    'name', 'description', 'report', 'template', 'uids', 'parameters', 'active'
-))
 
 
 class ReportingEngine(metaclass=Singleton):
@@ -31,15 +25,14 @@ class ReportingEngine(metaclass=Singleton):
     _REPORTS = {
         'Market': ReportMarket,
         'Alerts': ReportAlerts,
+        'Backtest': ReportBacktester,
     }
     _TMPL_PATH = os.path.join(NFPY_ROOT_DIR, 'Reporting/Templates')
     _REP_EXT = '.html'
 
     def __init__(self):
-        self._af = get_af_glob()
         self._qb = DB.get_qb_glob()
         self._db = DB.get_db_glob()
-        self._cal = get_calendar_glob()
         self._conf = get_conf_glob()
 
         # Work variables
@@ -62,7 +55,7 @@ class ReportingEngine(metaclass=Singleton):
 
     def _create_new_directory(self) -> None:
         """ Create a new directory for the today's reports. """
-        new_folder = f'Reports_{self._cal.end.strftime(self._DT_FMT)}'
+        new_folder = f'Reports_{Cal.today(mode="str", fmt=self._DT_FMT)}'
         new_path = os.path.join(
             self._conf.report_path,
             new_folder
@@ -113,23 +106,6 @@ class ReportingEngine(metaclass=Singleton):
             )
         )
 
-    def _calculate(self, data: ReportData) -> ReportResult:
-        """ Calculates results by calling all models. """
-        # res, filters = None, None
-        try:
-            res = self._REPORTS[data.report](
-                data.name, data.template,
-                data.uids, data.parameters,
-                path=self._curr_report_dir
-            ).result
-            # filters = report.filters
-        except RuntimeError as ex:
-            # traceback.print_exc()
-            Ut.print_exc(ex)
-            res = None
-
-        return res  # , filters
-
     def _generate(self, res: Union[dict, ReportResult]) -> None:
         """ Generates the actual report. """
         j_env = Environment(loader=FileSystemLoader(self._TMPL_PATH))
@@ -150,23 +126,36 @@ class ReportingEngine(metaclass=Singleton):
         outf.write(out)
         outf.close()
 
-    def run(self, names: [str] = (), active: bool = None) -> None:
+    def _run(self, call_list: Union[Iterable, Generator]) -> None:
         """ Run the report engine. """
         # Create a new report directory
         self._create_new_directory()
 
         # Calculate model results
         done_reports = []
-        for data in self.list(names, active):
+        for data in call_list:
             print(f'>>> Generating {data.name} [{data.report}]')
-            # out = self._calculate(data)
-            self._generate(
-                self._calculate(data)
-            )
+            try:
+                res = self._REPORTS[data.report](
+                    data,
+                    path=self._curr_report_dir
+                ).result
+            except RuntimeError as ex:
+                Ut.print_exc(ex)
+                continue
+            self._generate(res)
             done_reports.append(data)
 
         # Update report index
         self._update_index(done_reports)
+
+    def run(self, names: [str] = (), active: bool = None) -> None:
+        """ Run the report engine. """
+        self._run(self.list(names, active))
+
+    def run_custom(self, rep_list: [ReportData]) -> None:
+        """ Run the report engine. """
+        self._run(rep_list)
 
     def _update_index(self, done: [ReportData]) -> None:
         # Extract information
@@ -192,7 +181,7 @@ class ReportingEngine(metaclass=Singleton):
         index = Ut.AttributizedDict()
         index.name = 'index'
         index.template = 'index'
-        index.title = f"Reports list - {self._cal.end.strftime('%Y-%m-%d')}"
+        index.title = f"Reports list - {Cal.today(mode='str', fmt='%Y-%m-%d')}"
         index.output = sorted(set(to_print), key=lambda v: v[0])
         self._generate(index)
 

@@ -42,7 +42,8 @@ class InputHandler(object):
             'int': self._to_int, 'bool': self._to_bool,
             'uid': self._to_string, 'datetime': self._to_datetime,
             'currency': self._to_string, 'timestamp': self._to_timestamp,
-            'country': self._to_string, 'dict': self._to_dict,
+            'country': self._to_string, 'dict': self._to_json,
+            'json': self._to_json,
         }
         self._validators = {
             'uid': self._check_uid, 'currency': self._check_ccy,
@@ -71,7 +72,7 @@ class InputHandler(object):
         return re.sub('[!@#$?*;,:+]', '', v)
 
     @staticmethod
-    def _to_dict(v: str, **kwargs) -> dict:
+    def _to_json(v: str, **kwargs) -> Any:
         _ = kwargs
         return json.loads(v)
 
@@ -182,8 +183,7 @@ class InputHandler(object):
         return valf(value)
 
     def input(self, msg: str, idesc: str = 'str', optional: bool = False,
-              default: Any = None, checker: str = None, **kwargs) \
-            -> Union[int, float, list, bool, Cal.TyDate]:
+              default: Any = None, checker: str = None, **kwargs) -> Any:
         """ Validates the supplied input by cleaning the string and casting to
             the appropriate data type. An exception is cast if casting is
             impossible or if inputs are empty.

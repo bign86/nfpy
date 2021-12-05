@@ -3,6 +3,7 @@
 # Report class for the Market Data
 #
 
+from collections import defaultdict
 import numpy as np
 import pandas as pd
 from typing import Any
@@ -26,17 +27,25 @@ class ReportMarket(BaseReport):
     _M_LABEL = 'Market'
     DEFAULT_P = {
         "d_rate": 0.00,
-        "algorithms": {
-            "MarkowitzModel": {"gamma": .0},
-            "MinimalVarianceModel": {"gamma": .0},
-            "MaxSharpeModel": {"gamma": .0},
-            "RiskParityModel": {}
+        "baseData": {"time_spans": None},
+        "portfolioOptimization": {
+            "algorithms": {
+                "MarkowitzModel": {"gamma": .0},
+                "MinimalVarianceModel": {"gamma": .0},
+                "MaxSharpeModel": {"gamma": .0},
+                "RiskParityModel": {}
+            },
+            "iterations": 30,
+            "start": None,
+            "t0": None
         },
-        "w_ma_slow": 120,
-        "w_ma_fast": 21,
-        "w_sr_slow": 120,
-        "w_sr_fast": 21,
-        "sr_mult": 5.0
+        "alerts": {
+            "w_ma_slow": 120,
+            "w_ma_fast": 21,
+            "w_sr_slow": 120,
+            "w_sr_fast": 21,
+            "sr_mult": 5.0
+        }
     }
     _PTF_PLT_STYLE = {
         'Markowitz': (
@@ -75,76 +84,83 @@ class ReportMarket(BaseReport):
         if type_ == 'Portfolio':
             t0 = self._cal.t0
             start = pd.Timestamp(year=(t0.year - 2), month=t0.month, day=t0.day)
-            params.update({'iterations': 50, 'start': start.asm8,
-                           't0': t0.asm8, 'gamma': None})
+            params["portfolioOptimization"].update(
+                {'start': start.asm8, 't0': t0.asm8}
+            )
 
         return params
 
-    def _calculate(self, *args: tuple) -> Any:
+    def _calculate(self) -> Any:
         """ Calculate the required models.
             MUST ensure that the model parameters passed in <args> are not
             modified so that the database parameters in self._p are not
             changed from one asset to the next.
         """
-        asset = self._af.get(args[0])
-        type_ = asset.type
-        # results = ()
-        if type_ == 'Bond':
-            res1 = self._calc_bond(args)
-            fields = ('uid', 'description', 'isin', 'issuer', 'currency',
-                      'asset_class', 'inception_date', 'maturity', 'coupon',
-                      'c_per_year')
-            res1.info = {k: getattr(asset, k) for k in fields}
-            # self._jinja_filters['Bond'] = self.is_mbdm
-            res2 = self._calc_trading(args)
-            results = (res1, res2)
-        elif type_ == 'Company':
-            res1 = self._calc_company(args)
-            fields = ('uid', 'description', 'name', 'sector', 'industry',
-                      'equity', 'currency', 'country')
-            res1.info = {k: getattr(asset, k) for k in fields}
-            # self._jinja_filters['Company'] = None
-            results = (res1,)
-        elif type_ == 'Currency':
-            res1 = self._calc_generic(args)
-            fields = ('uid', 'description', 'price_country', 'base_country',
-                      'price_ccy', 'base_ccy')
-            res1.info = {k: getattr(asset, k) for k in fields}
-            # self._jinja_filters['Currency'] = self.is_madm
-            results = (res1,)
-        elif type_ == 'Equity':
-            res1 = self._calc_equity(args)
-            fields = ('uid', 'description', 'ticker', 'isin', 'country',
-                      'currency', 'company', 'index')
-            res1.info = {k: getattr(asset, k) for k in fields}
-            # self._jinja_filters['Equity'] = self.is_medm
-            res2 = self._calc_trading(args)
-            results = (res1, res2)
-        elif type_ == 'Indices':
-            res1 = self._calc_generic(args)
-            fields = ('uid', 'description', 'ticker', 'area', 'currency', 'ac')
-            res1.info = {k: getattr(asset, k) for k in fields}
-            # self._jinja_filters['Indices'] = self.is_madm
-            results = (res1,)
-        elif type_ == 'Portfolio':
-            res1 = self._calc_ptf(args)
-            fields = ('uid', 'description', 'name', 'currency',
-                      'inception_date', 'benchmark', 'num_constituents')
-            res1.info = {k: getattr(asset, k) for k in fields}
-            # res2 = self._calc_trading(args)
-            # results = (res1, res2)
-            results = (res1,)
-        else:
-            raise RuntimeError('Asset type not recognized')
+        outputs = defaultdict(dict)
+        for uid in self.uids:
+            print(f'  > {uid}')
+            try:
+                asset = self._af.get(uid)
+                type_ = asset.type
+                params = self._init_input(type_)
+                # results = ()
+                if type_ == 'Bond':
+                    res1 = self._calc_bond(uid, params)
+                    fields = ('uid', 'description', 'isin', 'issuer',
+                              'currency', 'asset_class', 'inception_date',
+                              'maturity', 'coupon', 'c_per_year')
+                    res1.info = {k: getattr(asset, k) for k in fields}
+                    # self._jinja_filters['Bond'] = self.is_mbdm
+                    res2 = self._calc_trading(uid, params)
+                    outputs[type_][uid] = (res1, res2)
+                elif type_ == 'Company':
+                    res1 = self._calc_company(uid, params)
+                    fields = ('uid', 'description', 'name', 'sector', 'industry',
+                              'equity', 'currency', 'country')
+                    res1.info = {k: getattr(asset, k) for k in fields}
+                    # self._jinja_filters['Company'] = None
+                    outputs[type_][uid] = (res1,)
+                elif type_ == 'Currency':
+                    res1 = self._calc_generic(uid, params)
+                    fields = ('uid', 'description', 'price_country',
+                              'base_country', 'price_ccy', 'base_ccy')
+                    res1.info = {k: getattr(asset, k) for k in fields}
+                    # self._jinja_filters['Currency'] = self.is_madm
+                    outputs[type_][uid] = (res1,)
+                elif type_ == 'Equity':
+                    res1 = self._calc_equity(uid, params)
+                    fields = ('uid', 'description', 'ticker', 'isin', 'country',
+                              'currency', 'company', 'index')
+                    res1.info = {k: getattr(asset, k) for k in fields}
+                    # self._jinja_filters['Equity'] = self.is_medm
+                    res2 = self._calc_trading(uid, params)
+                    outputs[type_][uid] = (res1, res2)
+                elif type_ == 'Indices':
+                    res1 = self._calc_generic(uid, params)
+                    fields = ('uid', 'description', 'ticker', 'area', 'currency', 'ac')
+                    res1.info = {k: getattr(asset, k) for k in fields}
+                    # self._jinja_filters['Indices'] = self.is_madm
+                    outputs[type_][uid] = (res1,)
+                elif type_ == 'Portfolio':
+                    res1 = self._calc_ptf(uid, params)
+                    fields = ('uid', 'description', 'name', 'currency',
+                              'inception_date', 'benchmark', 'num_constituents')
+                    res1.info = {k: getattr(asset, k) for k in fields}
+                    # res2 = self._calc_trading(args)
+                    # results = (res1, res2)
+                    outputs[type_][uid] = (res1,)
+                else:
+                    raise RuntimeError('Asset type not recognized')
+            except (RuntimeError, KeyError, ValueError) as ex:
+                Ut.print_exc(ex)
 
-        return results
+        return outputs
 
-    def _calc_generic(self, args: tuple) -> Any:
-        uid, p = args
-        mod = Mod.MarketAssetsDataBaseModel(uid, **p)
-        return self._render_out_generic(mod.result(**p), args)
+    def _calc_generic(self, uid: str, p: {}) -> Any:
+        mod = Mod.MarketAssetsDataBaseModel(uid, **p['baseData'])
+        return self._render_out_generic(mod.result(**p['baseData']))
 
-    def _render_out_generic(self, res: Any, args: tuple) -> Any:
+    def _render_out_generic(self, res: Any) -> Any:
         labels = ((res.uid,), ('MA',), ('p_price',))
         fig_full, fig_rel = self._get_image_paths(labels)
         res.img_prices = fig_rel[0]
@@ -171,12 +187,11 @@ class ReportMarket(BaseReport):
 
         return res
 
-    def _calc_equity(self, args: tuple) -> Any:
-        uid, p = args
+    def _calc_equity(self, uid: str, p: {}) -> Any:
         mod = Mod.MarketEquityDataModel(uid, **p)
-        return self._render_out_equity(mod.result(**p), args)
+        return self._render_out_equity(mod.result(**p))
 
-    def _render_out_equity(self, res: Any, args: tuple) -> Any:
+    def _render_out_equity(self, res: Any) -> Any:
         labels = ((res.uid,), ('ME',), ('p_price', 'perf', 'beta'))
         fig_full, fig_rel = self._get_image_paths(labels)
 
@@ -245,12 +260,11 @@ class ReportMarket(BaseReport):
 
         return res
 
-    def _calc_bond(self, args: tuple) -> Any:
-        uid, p = args
+    def _calc_bond(self, uid: str, p: {}) -> Any:
         mod = Mod.MarketBondDataModel(uid, **p)
-        return self._render_out_bond(mod.result(**p), args)
+        return self._render_out_bond(mod.result(**p))
 
-    def _render_out_bond(self, res: Any, args: tuple) -> Any:
+    def _render_out_bond(self, res: Any) -> Any:
         labels = ((res.uid,), ('ME',), ('p_price', 'price_ytm'))
         fig_full, fig_rel = self._get_image_paths(labels)
 
@@ -311,19 +325,18 @@ class ReportMarket(BaseReport):
 
         return res
 
-    def _calc_ptf(self, args: tuple) -> Any:
-        uid, p = args
+    def _calc_ptf(self, uid: str, p: {}) -> Any:
         mod = Mod.MarketPortfolioDataModel(uid, **p)
         mkt_res = mod.result(**p)
-        oe = Mod.OptimizationEngine(uid, **p)
+        oe = Mod.OptimizationEngine(uid, **p['portfolioOptimization'])
         # oe_res = oe.result
         # res.update(oe.result)
-        return self._render_out_ptf((mkt_res, oe.result), args)
+        return self._render_out_ptf((mkt_res, oe.result))
 
-    def _render_out_ptf(self, res: Any, args: tuple) -> Any:
+    def _render_out_ptf(self, res: Any) -> Any:
         # Market data
         mkt_res = res[0]
-        final_res = self._render_out_generic(mkt_res, args)
+        final_res = self._render_out_generic(mkt_res)
 
         # Render dataframes
         df = mkt_res.cnsts_data
@@ -395,12 +408,11 @@ class ReportMarket(BaseReport):
 
         return final_res
 
-    def _calc_trading(self, args: tuple) -> Any:
-        uid, p = args
-        mod = Mod.TradingModel(uid, **p)
-        return self._render_out_trd(mod.result(**p), args)
+    def _calc_trading(self, uid: str, p: {}) -> Any:
+        mod = Mod.TradingModel(uid, **p['alerts'])
+        return self._render_out_trd(mod.result(**p['alerts']))
 
-    def _render_out_trd(self, res: Any, args: tuple) -> Any:
+    def _render_out_trd(self, res: Any) -> Any:
         labels = ((res.uid,), ('TRD',), ('p_long', 'p_short'))
         fig_full, fig_rel = self._get_image_paths(labels)
         res.prices_long, res.prices_short = fig_rel
@@ -421,11 +433,11 @@ class ReportMarket(BaseReport):
             .clf()
 
         # Breaches plot
-        res.breaches.plot() \
-            .plot() \
-            .save(full_name_short) \
-            .close(True) \
-            # pl.clf()
+        # res.breaches.plot() \
+        #     .plot() \
+        #     .save(full_name_short) \
+        #     .close(True) \
+        #     pl.clf()
 
         # Signals table
         df = res.signals
@@ -451,24 +463,23 @@ class ReportMarket(BaseReport):
             .render()
 
         # S/R breach table
-        df_b = pd.DataFrame(res.breaches.breaches, columns=['price'])
-        df_b['signal'] = ['Breach'] * len(res.breaches.breaches)
-        df_t = pd.DataFrame(res.breaches.testing, columns=['price'])
-        df_t['signal'] = ['Testing'] * len(res.breaches.testing)
-        df = pd.concat((df_b, df_t), ignore_index=True)
-        df.sort_values('price', inplace=True)
-        res.breach_table = df.style.format(
-            formatter={
-                'price': '{:,.2f}'.format,
-            },
-            **PD_STYLE_PROP) \
-            .set_table_attributes('class="dataframe"') \
-            .render()
+        # df_b = pd.DataFrame(res.breaches.breaches, columns=['price'])
+        # df_b['signal'] = ['Breach'] * len(res.breaches.breaches)
+        # df_t = pd.DataFrame(res.breaches.testing, columns=['price'])
+        # df_t['signal'] = ['Testing'] * len(res.breaches.testing)
+        # df = pd.concat((df_b, df_t), ignore_index=True)
+        # df.sort_values('price', inplace=True)
+        # res.breach_table = df.style.format(
+        #     formatter={
+        #         'price': '{:,.2f}'.format,
+        #     },
+        #     **PD_STYLE_PROP) \
+        #     .set_table_attributes('class="dataframe"') \
+        #     .render()
 
         return res
 
-    def _calc_company(self, args: tuple) -> Any:
-        uid, p = args
+    def _calc_company(self, uid: str, p: {}) -> Any:
         dcf_res = None
         try:
             mod = Mod.DiscountedCashFlowModel(uid, **p)
@@ -483,9 +494,9 @@ class ReportMarket(BaseReport):
         except Exception as ex:
             Ut.print_exc(ex)
 
-        return self._render_out_company((dcf_res, ddm_res), args)
+        return self._render_out_company((dcf_res, ddm_res))
 
-    def _render_out_company(self, res: Any, args: tuple) -> Any:
+    def _render_out_company(self, res: Any) -> Any:
         final_res = Ut.AttributizedDict()
 
         # Render DDM

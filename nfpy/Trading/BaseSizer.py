@@ -17,12 +17,13 @@ class BaseSizer(metaclass=ABCMeta):
         self._p = None
         self._ptf = None
 
-    def set(self, p: np.ndarray, ptf):
+    def set(self, p: np.ndarray, ptf) -> None:
         self._p = p
         self._ptf = ptf
 
-    def clean(self):
+    def clean(self) -> None:
         self._p = None
+        self._ptf = None
 
     @abstractmethod
     def __call__(self, i: int, s: Signal) -> int:

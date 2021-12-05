@@ -5,6 +5,7 @@
 #
 
 import numpy as np
+from typing import (Callable, Optional)
 
 import nfpy.Financial.Math as Math
 from nfpy.Tools import Exceptions as Ex
@@ -13,7 +14,12 @@ from nfpy.Tools import Exceptions as Ex
 def _check_len(v, w) -> None:
     l = len(v)
     if l < w:
-        raise Ex.ShortSeriesError(f'Series provided is too short {l} < {w}')
+        raise Ex.ShortSeriesError(f'The provided Series is too short {l} < {w}')
+
+
+def _check_nans(v: np.ndarray) -> None:
+    if np.sum(np.isnan(v)) > 0:
+        raise Ex.NanPresent(f'The provided Series contains NaNs')
 
 
 def sma(v: np.ndarray, w: int) -> np.ndarray:
@@ -32,28 +38,7 @@ def sma(v: np.ndarray, w: int) -> np.ndarray:
     return ret
 
 
-def sma_approx(v: np.ndarray, w: int) -> np.ndarray:
-    """ Simple Moving Average signal. Online approximate algorithm.
-
-        Input:
-            v [np.ndarray]: data series
-            w [int]: averaging window
-    """
-    _check_len(v, w)
-
-    ret = v.copy()
-    curr, idx = Math.next_valid_value(v)
-
-    for i in range(idx + 1, len(v)):
-        _v = ret[i]
-        if _v == _v:
-            curr += (_v - curr) / w
-        ret[i] = curr
-
-    return ret
-
-
-def smstd(v: np.ndarray, w: int, ddof: int = 1) -> np.ndarray:
+def smstd(v: np.ndarray, w: int, ddof: Optional[int] = 1) -> np.ndarray:
     """ Simple Moving Standard deviation indicator.
 
         Input:
@@ -70,15 +55,12 @@ def smstd(v: np.ndarray, w: int, ddof: int = 1) -> np.ndarray:
     return ret
 
 
-def csma(v: np.ndarray, w: int) -> np.ndarray:
+def csma(v: np.ndarray) -> np.ndarray:
     """ Cumulative Simple Moving Average indicator.
 
         Input:
             v [np.ndarray]: data series
-            w [int]: averaging window
     """
-    _check_len(v, w)
-
     # ret = np.empty_like(div)
     # ret[0] = v[0]
     # for i, d in enumerate(v, 1):
@@ -120,7 +102,7 @@ def ewma_other_version(v: np.ndarray, w: int) -> np.ndarray:
     """
     _check_len(v, w)
 
-    alpha = 2. / (w + 1)
+    alpha = 2. / (1. + w)
     alpha_rev = 1. - alpha
     n = v.shape[0]
 
@@ -131,38 +113,31 @@ def ewma_other_version(v: np.ndarray, w: int) -> np.ndarray:
     pw0 = alpha * alpha_rev ** (n - 1)
 
     mult = v * pw0 * scale_arr
-    cumsums = np.cumsum(mult)
+    cumsums = np.nancumsum(mult)
     ret = offset + cumsums * scale_arr[::-1]
 
     return ret
 
 
-def ewma(v: np.ndarray, w: int, span: int = None) -> np.ndarray:
+def ewma(v: np.ndarray, w: int) -> np.ndarray:
     """ Exponentially Weighted Moving Average indicator.
 
         Input:
             v [np.ndarray]: data series
             w [int]: averaging window
     """
-    if w:
-        alpha = 2. / (1. + w)
-    elif span:
-        alpha = 1. / (1. + span)
-    else:
-        raise ValueError('Either one of w and span must be specified')
-
-    n = len(v)
+    alpha = 2. / (1. + w)
     coeff = 1. - alpha
 
     fv = Math.next_valid_index(v)
     curr = v[fv]
 
-    ret = np.empty(n)
+    ret = np.empty_like(v)
     ret[:fv] = np.nan
     ret[fv] = curr
     ret[fv + 1:] = alpha * v[fv + 1:]
 
-    for i in range(fv + 1, n):
+    for i in range(fv + 1, v.shape[0]):
         _v = ret[i]
         if _v == _v:
             curr = _v + coeff * curr
@@ -171,17 +146,17 @@ def ewma(v: np.ndarray, w: int, span: int = None) -> np.ndarray:
     return ret
 
 
-def mma(v: np.ndarray, w: int) -> np.ndarray:
-    """ Modified Moving Average indicator. Corresponds to EWMA with
-            alpha = 1/span.
-
-        Input:
-            v [np.ndarray]: data series
-            w [int]: averaging window
-    """
-    return ewma(v, w, 2 * w - 1)
-
-
+# def mma(v: np.ndarray, w: int) -> np.ndarray:
+#     """ Modified Moving Average indicator. Corresponds to EWMA with
+#             alpha = 1/span.
+#
+#         Input:
+#             v [np.ndarray]: data series
+#             w [int]: averaging window
+#     """
+#     return ewma(v, w)
+#
+#
 def smd(v: np.ndarray, w: int) -> np.ndarray:
     """ Simple Moving Median indicator.
 
@@ -197,13 +172,13 @@ def smd(v: np.ndarray, w: int) -> np.ndarray:
     return ret
 
 
-def bollinger(v: np.ndarray, w: int, rho: float) -> tuple:
+def bollinger(v: np.ndarray, w: int, alpha: float) -> []:
     """ Bollinger Bands indicator.
 
         Input:
             v [np.ndarray]: data series
             w [int]: averaging window
-            rho [float]: multiplier of the standard deviation
+            alpha [float]: multiplier of the standard deviation
 
         Output:
             b_down [np.ndarray]: the Lower Bollinger band
@@ -215,7 +190,7 @@ def bollinger(v: np.ndarray, w: int, rho: float) -> tuple:
     _check_len(v, w)
 
     mean = sma(v, w)
-    band_dev = rho * smstd(v, w)
+    band_dev = alpha * smstd(v, w)
     low = mean - band_dev
     up = mean + band_dev
     bdiff = up - low
@@ -225,14 +200,14 @@ def bollinger(v: np.ndarray, w: int, rho: float) -> tuple:
     return low, mean, up, bp, bwidth
 
 
-def macd(v: np.ndarray, w_macd: int, w_fast: int, w_slow: int) -> tuple:
+def macd(v: np.ndarray, w_slow: int, w_fast: int, w_macd: int) -> []:
     """ Moving Average Convergence Divergence indicator calculated using EWMAs.
 
         Input:
             v [np.ndarray]: data series
-            w_macd [int]: averaging window for the indicator
-            w_fast [int]: fast window
             w_slow [int]: slow window
+            w_fast [int]: fast window
+            w_macd [int]: averaging window for the indicator
 
         Output:
             macd [np.ndarray]: MACD line
@@ -245,7 +220,6 @@ def macd(v: np.ndarray, w_macd: int, w_fast: int, w_slow: int) -> tuple:
         w_fast, w_slow = w_slow, w_fast
     elif w_fast == w_slow:
         raise ValueError('Windows for MACD cannot be equal')
-
     if w_macd >= w_fast:
         raise ValueError('MACD window should be smaller than fast EMA window')
 
@@ -260,24 +234,22 @@ def macd(v: np.ndarray, w_macd: int, w_fast: int, w_slow: int) -> tuple:
     return _macd, signal, hist, fast_ema, slow_ema
 
 
-def _rsi(v: np.ndarray, w: int, mode: str) -> np.ndarray:
+def _rsi(v: np.ndarray, w: int, ma_f: Callable) -> np.ndarray:
     """ Relative Strength Index indicator calculation. """
-    if mode == 'ewma':
-        ma_function = mma
-    elif mode == 'sma':
-        ma_function = sma
-    else:
-        raise ValueError(f'RSI mode {mode} not recognized')
+    up_d = np.diff(v)
+    down_d = -np.copy(up_d)
+    up_d[up_d < 0.] = 0.
+    down_d[down_d < 0.] = 0.
 
-    up_v, down_v = v.copy(), v.copy()
-    up_v[up_v < 0.] = 0.
-    down_v[down_v > 0.] = 0.
-
-    plus = ma_function(up_v, w)
-    minus = ma_function(down_v.abs(), w)
+    plus = ma_f(up_d, w)
+    minus = ma_f(down_d, w)
     rs = plus / minus
 
-    return 1. - 1. / (1. + rs)
+    rsi = np.empty_like(v)
+    rsi[0] = np.nan
+    rsi[1:] = 1. - 1. / (1. + rs)
+
+    return rsi
 
 
 def wilder_rsi(v: np.ndarray, w: int) -> np.ndarray:
@@ -290,7 +262,7 @@ def wilder_rsi(v: np.ndarray, w: int) -> np.ndarray:
         Output:
             rsi [np.ndarray]: RSI signal
     """
-    return _rsi(v, w, mode='ewma')
+    return _rsi(v, w, ma_f=ewma)
 
 
 def cutler_rsi(v: np.ndarray, w: int) -> np.ndarray:
@@ -303,11 +275,11 @@ def cutler_rsi(v: np.ndarray, w: int) -> np.ndarray:
         Output:
             rsi [np.ndarray]: RSI signal
     """
-    return _rsi(v, w, mode='sma')
+    return _rsi(v, w, ma_f=sma)
 
 
 def stochastic_oscillator(v: np.ndarray, w_price: int = 14, w_k: int = 3,
-                          w_d: int = 5) -> tuple:
+                          w_d: int = 5) -> []:
     """ Stochastic Oscillator.
 
         Input:

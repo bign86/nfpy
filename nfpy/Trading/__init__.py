@@ -1,10 +1,10 @@
 from .AlertsEngine import (AlertsEngine, Alert)
-from .Backtesting import Backtesting
+from .Backtesting import (Backtester, Portfolio)
 from .BaseSizer import TySizer
 from .BaseStrategy import TyStrategy
-from .BreachesEngine import BreachesEngine
+# from .BreachesEngine import BreachesEngine
 from .Enums import (Order, Signal)
-from .Trends import (merge_sr, search_sr)
+from .SR import *
 
 
 __all__ = [
@@ -12,7 +12,7 @@ __all__ = [
     'AlertsEngine', 'Alert',
 
     # Backtesting
-    'Backtesting',
+    'Backtester', 'Portfolio',
 
     # BaseSizer
     'TySizer',
@@ -21,11 +21,11 @@ __all__ = [
     'TyStrategy',
 
     # BreachesEngine
-    'BreachesEngine',
+    # 'BreachesEngine',
 
     # Enum
     'Order', 'Signal',
 
-    # Trends
-    'merge_sr', 'search_sr',
+    # SR
+    'SR',
 ]

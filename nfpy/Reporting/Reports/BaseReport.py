@@ -4,14 +4,18 @@
 #
 
 from abc import (ABCMeta, abstractmethod)
-from collections import defaultdict
+from collections import namedtuple
 import itertools
 import os.path
 from typing import (Any, Type)
 
 from nfpy.Assets import get_af_glob
-from nfpy.Calendar import get_calendar_glob
+import nfpy.Calendar as Cal
 from nfpy.Tools import Utilities as Ut
+
+ReportData = namedtuple('ReportData', (
+    'name', 'description', 'report', 'template', 'uids', 'parameters', 'active'
+))
 
 
 class ReportResult(Ut.AttributizedDict):
@@ -23,12 +27,11 @@ class BaseReport(metaclass=ABCMeta):
     _DIR_IMG = 'img'
     DEFAULT_P = {}
 
-    def __init__(self, name: str, template: str, uids: [str],
-                 p: dict = None, path: str = None):
+    def __init__(self, data: ReportData, path: str = None):
         # Inputs
-        self._name = name
-        self._uids = uids
-        self._p = p
+        self._name = data.name
+        self._uids = data.uids
+        self._p = data.parameters
 
         # Paths
         self._base_path = path
@@ -38,14 +41,14 @@ class BaseReport(metaclass=ABCMeta):
 
         # Work & Output variables
         self._af = get_af_glob()
-        self._cal = get_calendar_glob()
+        self._cal = Cal.get_calendar_glob()
         self._is_calculated = False
         # self._jinja_filters = {}
 
         self._res = ReportResult()
-        self._res.name = name
-        self._res.template = template
-        self._res.title = f"Report - {self._cal.end.strftime('%Y-%m-%d')}"
+        self._res.name = data.name
+        self._res.template = data.template
+        self._res.title = f"Report - {Cal.today(mode='str')}"
 
     @property
     def uids(self) -> [str]:
@@ -63,21 +66,19 @@ class BaseReport(metaclass=ABCMeta):
 
     def _create_new_directory(self) -> None:
         """ Create a new directory for the current report. """
-        img_rel_path = os.path.join(
+        self._img_rel_path = os.path.join(
             self._name,
             self._DIR_IMG
         )
-        rep_path = os.path.join(
+        self._report_path = os.path.join(
             self._base_path,
             self._name
         )
         img_path = os.path.join(
             self._base_path,
-            img_rel_path
+            self._img_rel_path
         )
-        self._report_path = rep_path
         self._img_path = img_path
-        self._img_rel_path = img_rel_path
 
         # If directory exists exit
         if os.path.exists(img_path):
@@ -96,18 +97,19 @@ class BaseReport(metaclass=ABCMeta):
         self._create_new_directory()
 
         # Run uids
-        outputs = defaultdict(dict)
-        for uid in self.uids:
-            print(f'  > {uid}')
-            try:
-                type_ = self._af.get_type(uid)
-                outputs[type_][uid] = self._calculate(
-                    uid,
-                    self._init_input(type_)
-                )
-            except (RuntimeError, KeyError, ValueError) as ex:
-                Ut.print_exc(ex)
-        self._res.output = outputs
+        # outputs = defaultdict(dict)
+        # for uid in self.uids:
+        #     print(f'  > {uid}')
+        #     try:
+        #         type_ = self._af.get_type(uid)
+        #         outputs[type_][uid] = self._calculate(
+        #             uid,
+        #             self._init_input(type_)
+        #         )
+        #     except (RuntimeError, KeyError, ValueError) as ex:
+        #         Ut.print_exc(ex)
+        # self._res.output = outputs
+        self._res.output = self._calculate()
         self._is_calculated = True
 
     @abstractmethod
@@ -122,14 +124,14 @@ class BaseReport(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def _calculate(self, *args) -> Any:
+    def _calculate(self) -> Any:
         """ Calculate the required models.
             MUST ensure that the model parameters passed in <args> are not
             modified so that the database parameters in self._p are not
             changed from one asset to the next.
         """
 
-    def _get_image_paths(self, labels: tuple) -> tuple[tuple, tuple]:
+    def _get_image_paths(self, labels: []) -> [[], []]:
         fig_full_name, fig_rel_name = [], []
         for l in itertools.product(*labels):
             name = f'{"_".join(l)}.png'

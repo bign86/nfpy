@@ -20,7 +20,7 @@ if __name__ == '__main__':
     conf = get_conf_glob()
     src = conf.report_path
     dest = conf.report_arch_path
-    zip_fmt = conf.zip_format
+    zip_fmt = conf.archive_format
     retention = conf.report_retention
 
     t0 = today(mode='datetime')

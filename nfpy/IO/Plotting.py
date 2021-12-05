@@ -20,7 +20,7 @@ class Plotter(object):
     _RC_AXIS = {'c': 'k', 'linewidth': .5}
     _RC_TEXT = {'fontsize': 8, 'fontvariant': 'small-caps'}
 
-    def __init__(self, ncols: int = 1, nrows: int = 1,
+    def __init__(self, nrows: int = 1, ncols: int = 1, figsize: [float] = None,
                  xl: [str] = (), yl: [str] = (),
                  x_zero: [float] = (), y_zero: [float] = ()):
         # Inputs variables
@@ -30,6 +30,7 @@ class Plotter(object):
         self._yl = tuple(yl)
         self._x_zero = x_zero
         self._y_zero = y_zero
+        self._size = figsize
 
         # Working variables
         self._length = ncols * nrows
@@ -46,7 +47,8 @@ class Plotter(object):
         self._initialize()
 
     def _initialize(self) -> None:
-        fig, ax = plt.subplots(self._nrows, self._ncols)
+        fig = plt.figure(figsize=self._size)
+        ax = fig.subplots(self._nrows, self._ncols)
         self._fig = fig
         if self._length == 1:
             self._ax = [ax]
@@ -213,7 +215,6 @@ class Plotter(object):
         for ax, xz, yz in zip(self._ax, self._x_zero, self._y_zero):
             ax.axvline(xz, **self._RC_AXIS)
             ax.axhline(yz, **self._RC_AXIS)
-        # for ax, yz in zip(self._ax, self._y_zero):
 
         # Run over annotations
         for axid, x, y, l, kw in self._annotations:
@@ -232,11 +233,9 @@ class Plotter(object):
 
         # Adjust limits
         for k, v in self._xlim.items():
-            ax = self._get_axes(k, False)
-            ax.set_xlim(*v)
+            self._get_axes(k, False).set_xlim(*v)
         for k, v in self._ylim.items():
-            ax = self._get_axes(k, False)
-            ax.set_ylim(*v)
+            self._get_axes(k, False).set_ylim(*v)
 
         return self
 
@@ -244,10 +243,10 @@ class Plotter(object):
 class TSPlot(Plotter):
     """ Creates a time series plot. """
 
-    def __init__(self, ncols: int = 1, nrows: int = 1,
+    def __init__(self, ncols: int = 1, nrows: int = 1, figsize: [float] = None,
                  xl: [str] = ('Date',), yl: [str] = ('Price',),
                  x_zero: [float] = (), y_zero: [float] = ()):
-        super().__init__(ncols, nrows, xl, yl, x_zero, y_zero)
+        super().__init__(ncols, nrows, figsize, xl, yl, x_zero, y_zero)
 
 
 class PtfOptimizationPlot(Plotter):

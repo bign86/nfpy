@@ -9,6 +9,7 @@
     <!-- TITLE -->
     <h1>{{ title }}</h1>
     <a href="index.html">Index</a>
+    <hr class="shadow">
 
     <!-- UIDs list -->
     <h3><a name="uidList"></a>List of UIDs</h3>
@@ -18,6 +19,7 @@
         <a href="#{{ uid }}">{{ uid }}</a>
       {% endfor -%}
     {% endfor -%}
+    <hr>
 
     <!-- REPORTS -->
     <h2>Reports</h2>
@@ -27,6 +29,7 @@
       <h3>Bonds</h3>
 
       {%- for uid, models in res["Bond"].items()|sort -%}
+          <hr class="light">
         <a name="{{ uid }}"></a><h4><a href="#uidList">Top</a> - {{ uid }}</h4>
 
         <!-- Market model -->
@@ -81,12 +84,14 @@
 
       {%- endfor -%}
     {%- endif -%}
+    <hr>
 
     <!-- Companies -->
     {%- if 'Company' in res -%}
       <h3>Companies</h3>
 
       {%- for uid, models in res["Company"].items()|sort -%}
+        <hr class="light">
         <a name="{{ uid }}"></a><h4><a href="#uidList">Top</a> - {{ uid }}</h4>
 
         <!-- Market model -->
@@ -149,12 +154,14 @@
 
       {%- endfor -%}
     {%- endif -%}
+    <hr>
 
     <!-- Currencies -->
     {%- if 'Currency' in res -%}
       <h3>Currencies</h3>
 
       {%- for uid, models in res["Currency"].items()|sort -%}
+        <hr class="light">
         <a name="{{ uid }}"></a><h4><a href="#uidList">Top</a> - {{ uid }}</h4>
 
         <!-- Market model -->
@@ -180,12 +187,14 @@
         </div>
       {%- endfor -%}
     {%- endif -%}
+    <hr>
 
     <!-- Equities -->
     {%- if 'Equity' in res -%}
       <h3>Equities</h3>
 
       {%- for uid, models in res["Equity"].items()|sort -%}
+        <hr class="light">
         <a name="{{ uid }}"></a><h4><a href="#uidList">Top</a> - {{ uid }}</h4>
 
         <!-- Market model -->
@@ -224,12 +233,14 @@
 
       {%- endfor -%}
     {%- endif -%}
+    <hr>
 
     <!-- Indices -->
     {%- if 'Indices' in res -%}
       <h3>Indices</h3>
 
       {%- for uid, models in res["Indices"].items()|sort -%}
+        <hr class="light">
         <a name="{{ uid }}"></a><h4><a href="#uidList">Top</a> - {{ uid }}</h4>
 
         <!-- Market model -->
@@ -255,12 +266,14 @@
         </div>
       {%- endfor -%}
     {%- endif -%}
+    <hr>
 
     <!-- Portfolios -->
     {%- if 'Portfolio' in res -%}
       <h3>Portfolios</h3>
 
       {%- for uid, models in res["Portfolio"].items()|sort -%}
+        <hr class="light">
         <a name="{{ uid }}"></a><h4><a href="#uidList">Top</a> - {{ uid }}</h4>
 
         <!-- Portfolio performance -->
@@ -309,6 +322,7 @@
 
       {%- endfor -%}
     {%- endif -%}
+    <hr>
 
   </body>
 </html>
