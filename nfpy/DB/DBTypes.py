@@ -11,6 +11,20 @@ import sqlite3
 from typing import Any
 
 
+SQLITE2PY_CONVERSION = {
+    'BOOL': 'bool',
+    'DATE': 'datetime',
+    'DATETIME': 'datetime',
+    'FLOAT': 'float',
+    'INT': 'int',
+    'INTEGER': 'int',
+    'NUMERIC': 'int',
+    'PARAMETERS': 'json',
+    'REAL': 'float',
+    'TEXT': 'str',
+}
+
+
 def adapt_np64(val) -> str:
     """ Operates on numpy.datetime64() to obtain a representation to be used
         in sqlite3.
