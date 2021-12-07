@@ -1,9 +1,9 @@
-from .Inputs import (InputHandler, SQLITE2PY_CONVERSION)
+from .Inputs import (InputHandler)
 from .Plotting import *
 
 __all__ = [
     # Inputs
-    'InputHandler', 'SQLITE2PY_CONVERSION',
+    'InputHandler',
 
     # Plotting
     'Plotter', 'PtfOptimizationPlot', 'TSPlot', 'shiftedColorMap', 'TyPlot'

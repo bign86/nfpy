@@ -21,7 +21,6 @@ else:
 
 
 class ReportAlerts(BaseReport):
-    _M_LABEL = 'Alerts'
     DEFAULT_P = {
         "baseData": {"time_spans": None},
         "alerts": {

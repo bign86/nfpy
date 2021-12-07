@@ -14,7 +14,8 @@ import nfpy.Calendar as Cal
 from nfpy.Tools import Utilities as Ut
 
 ReportData = namedtuple('ReportData', (
-    'name', 'description', 'report', 'template', 'uids', 'parameters', 'active'
+    'id', 'title', 'description', 'report', 'template',
+    'uids', 'parameters', 'active'
 ))
 
 
@@ -23,13 +24,12 @@ class ReportResult(Ut.AttributizedDict):
 
 
 class BaseReport(metaclass=ABCMeta):
-    _M_LABEL = ''
     _DIR_IMG = 'img'
     DEFAULT_P = {}
 
     def __init__(self, data: ReportData, path: str = None):
         # Inputs
-        self._name = data.name
+        self._id = data.id
         self._uids = data.uids
         self._p = data.parameters
 
@@ -46,9 +46,9 @@ class BaseReport(metaclass=ABCMeta):
         # self._jinja_filters = {}
 
         self._res = ReportResult()
-        self._res.name = data.name
+        self._res.id = data.id
         self._res.template = data.template
-        self._res.title = f"Report - {Cal.today(mode='str')}"
+        self._res.title = f"{data.title} - {Cal.today(mode='str')}"
 
     @property
     def uids(self) -> [str]:
@@ -67,12 +67,12 @@ class BaseReport(metaclass=ABCMeta):
     def _create_new_directory(self) -> None:
         """ Create a new directory for the current report. """
         self._img_rel_path = os.path.join(
-            self._name,
+            self._id,
             self._DIR_IMG
         )
         self._report_path = os.path.join(
             self._base_path,
-            self._name
+            self._id
         )
         img_path = os.path.join(
             self._base_path,

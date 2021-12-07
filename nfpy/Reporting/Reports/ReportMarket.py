@@ -22,9 +22,6 @@ else:
 
 
 class ReportMarket(BaseReport):
-    # _M_OBJ = Mod.MarketDataModel
-    # _IMG_LABELS = ('p_price',)
-    _M_LABEL = 'Market'
     DEFAULT_P = {
         "d_rate": 0.00,
         "baseData": {"time_spans": None},

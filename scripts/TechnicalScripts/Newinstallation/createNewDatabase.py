@@ -180,17 +180,17 @@ TABLES_TO_CREATE = [
             primary key (uid, dtype, date), foreign key (uid)
             references Rate(uid)) without rowid;"""
     ),
-    (
-        'ReportItems',
-        """create table ReportItems (report TEXT, uid TEXT, model TEXT,
-            parameters TEXT, active BOOL NOT NULL,
-            primary key (report, uid, model)) without rowid;"""
-    ),
+    # (
+    #     'ReportItems',
+    #     """create table ReportItems (report TEXT, uid TEXT, model TEXT,
+    #         parameters TEXT, active BOOL NOT NULL,
+    #         primary key (report, uid, model)) without rowid;"""
+    # ),
     (
         'Reports',
-        """create table Reports (name TEXT, description TEXT, report TEXT,
-            template TEXT, uids PARAMETERS, parameters PARAMETERS, active BOOL,
-            primary key (name)) without rowid;"""
+        """create table Reports (id TEXT, title TEXT, description TEXT,
+            report TEXT, template TEXT, uids PARAMETERS, parameters PARAMETERS,
+            active BOOL, primary key (id)) without rowid;"""
     ),
     (
         'SystemInfo',

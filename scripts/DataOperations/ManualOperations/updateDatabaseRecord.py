@@ -29,7 +29,7 @@ if __name__ == '__main__':
     for k, c in columns.items():
         if not c.is_primary:
             continue
-        col_type = IO.SQLITE2PY_CONVERSION[c.type]
+        col_type = DB.SQLITE2PY_CONVERSION[c.type]
         v = inh.input(f"Insert {c.field}: ", idesc=col_type)
         d_keys.append(v)
         keys.append(k)
@@ -41,7 +41,7 @@ if __name__ == '__main__':
     for k, c in columns.items():
         if c.is_primary:
             continue
-        col_type = IO.SQLITE2PY_CONVERSION[c.type]
+        col_type = DB.SQLITE2PY_CONVERSION[c.type]
         v = inh.input(f"Insert {c.field} ({c.type}): ", idesc=col_type)
         if v is not None:
             d.append(v)

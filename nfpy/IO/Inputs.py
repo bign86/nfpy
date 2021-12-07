@@ -13,18 +13,6 @@ import nfpy.Downloader as Dwn
 import nfpy.Financial as Fin
 from nfpy.Tools import Constants as Cn
 
-SQLITE2PY_CONVERSION = {
-    'TEXT': 'str',
-    'INT': 'int',
-    'INTEGER': 'int',
-    'FLOAT': 'float',
-    'REAL': 'float',
-    'NUMERIC': 'int',
-    'DATE': 'datetime',
-    'DATETIME': 'datetime',
-    'BOOL': 'bool',
-}
-
 
 class InputHandler(object):
     """ Object to handle inputs and wrapping all relevant input and input

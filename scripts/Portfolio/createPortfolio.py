@@ -42,7 +42,7 @@ if __name__ == '__main__':
         if c.field == 'uid':
             ptf_data.append(uid)
             continue
-        col_type = IO.SQLITE2PY_CONVERSION[c.type]
+        col_type = DB.SQLITE2PY_CONVERSION[c.type]
         optional = False if c.notnull else True
         v = inh.input(f"Insert {c.field} ({c.type}): ",
                       idesc=col_type, optional=optional)
@@ -60,7 +60,7 @@ if __name__ == '__main__':
     # Fill in position
     for n, c in cnst_cols.items():
         if c.field not in pos_dict:
-            col_type = IO.SQLITE2PY_CONVERSION[c.type]
+            col_type = DB.SQLITE2PY_CONVERSION[c.type]
             optional = False if c.notnull else True
             v = inh.input(f"Insert {c.field} ({c.type}): ",
                           idesc=col_type, optional=optional)

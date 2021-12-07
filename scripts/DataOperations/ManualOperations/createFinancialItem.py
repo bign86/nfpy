@@ -28,8 +28,9 @@ if __name__ == '__main__':
     asset_type = inh.input("Insert asset_type: ", idesc='str')
 
     # Register in the specific table
-    # asset_obj = import_class(asset_type, mod='nfpy.Assets.' + asset_type)
-    asset_obj = Ut.import_symbol('.'.join(['nfpy.Assets', asset_type, asset_type]))
+    asset_obj = Ut.import_symbol(
+        '.'.join(['nfpy.Assets', asset_type, asset_type])
+    )
     table = asset_obj._BASE_TABLE
     print(f"Updating table {table}")
     if not qb.exists_table(table):
@@ -42,7 +43,7 @@ if __name__ == '__main__':
         if c.field == 'uid':
             d.append(uid)
             continue
-        col_type = IO.SQLITE2PY_CONVERSION[c.type]
+        col_type = DB.SQLITE2PY_CONVERSION[c.type]
         v = inh.input(f"Insert {c.field} ({c.type}): ", idesc=col_type)
         d.append(v)
 

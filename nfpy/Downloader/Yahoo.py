@@ -20,6 +20,7 @@ import pandas as pd
 import re
 
 from nfpy.Calendar import today
+from nfpy.Tools import Utilities as Ut
 
 from .BaseDownloader import BasePage
 from .BaseProvider import (BaseProvider, BaseImportItem)
@@ -231,10 +232,11 @@ class YahooHistoricalBasePage(YahooBasePage):
         ld = self._fetch_last_data_point(
             (self.ticker, self._dt.get(self.event))
         )
+        start = pd.to_datetime(ld) + pd.DateOffset(days=1)
         self._p.update(
             {
                 # TODO: pd.to_datetime(ld).strftime('%s') yields a different output
-                'period1': str(int(pd.to_datetime(ld).timestamp())),
+                'period1': str(int(start.timestamp())),
                 'period2': today(mode='str', fmt='%s')
             }
         )
@@ -336,7 +338,7 @@ class YahooSplits(YahooHistoricalBasePage):
         df.insert(2, 'dtype', self._dt.get('split'))
 
         if not df.empty:
-            print(' >>> New split found!')
+            Ut.print_wrn(Warning(f' >>> New split found for {self.ticker}!'))
 
         def _calc(x: str) -> float:
             """ Transform splits in adjustment factors """

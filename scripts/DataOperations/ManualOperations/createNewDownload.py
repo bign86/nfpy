@@ -20,7 +20,7 @@ def columns_data(_table: str, _data: dict) -> tuple:
         if _n in _data:
             _d.append(_data[_n])
             continue
-        _col_type = IO.SQLITE2PY_CONVERSION[_c.type]
+        _col_type = DB.SQLITE2PY_CONVERSION[_c.type]
         _opt = not (_c.is_primary | _c.notnull)
         _check = _n if _n in ('currency', 'isin') else None
         _hint = _c.type + ', OPTIONAL' if _opt else _c.type

@@ -38,28 +38,26 @@ if __name__ == '__main__':
     res = db.execute(q).fetchall()
 
     f = list(qb.get_fields('Assets'))
-    print(f'\n\nAvailable companies:'
+    print(f'\n\nAvailable companies:\n'
           f'{tabulate(res, headers=f, showindex=True)}')
     uid = inh.input("\nGive a company index: ", idesc='int')
     eq = res[uid][0]
 
     rrr = inh.input("Enter your required rate of return: ", idesc='float')
-    if not rrr:
-        raise ValueError('You must give a required rate of return.')
 
     res = DividendDiscountModel(eq, future_proj=years).result(d_rate=rrr)
 
     print(f"\n----------------------------------\nInputs\n"
-          f"\tNum of dividends:\t\t\t{res['div_num']:.0f}\n"
-          f"\tForecasting years:\t\t\t{res['future_proj']:.0f}\n"
-          f"\tActual price:\t\t\t\t{res['last_price']:.2f}\n"
+          f"\tNum of dividends:\t\t{res['div_num']:.0f}\n"
+          f"\tForecasting years:\t\t{res['future_proj']:.0f}\n"
+          f"\tActual price:\t\t\t{res['last_price']:.2f}\n"
           f"-------\nCalculations\n"
           f"\tFrequency of dividends:\t\t{res['div_freq']:.2f}\n"
           f"\tPrice drift (yearly):\t\t{res['price_drift'] * 100:.1f}%\n"
           f"\tDividend drift (yearly):\t{res['div_drift'] * 100:.1f}%\n"
           f"-------\nResults\n"
-          f"\tDiscount rate:\t\t\t\t{res['d_rate'] * 100:.1f}%\n"
+          f"\tDiscount rate:\t\t\t{res['d_rate'] * 100:.1f}%\n"
           f"\tFair value zero-growth:\t\t{res['fair_value_no_growth']:.2f}\n"
-          f"\tFair value:\t\t\t\t\t{res['fair_value_with_growth']:.2f}")
+          f"\tFair value:\t\t\t{res['fair_value_with_growth']:.2f}")
 
     print('All done!')

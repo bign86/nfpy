@@ -7,14 +7,14 @@ from bs4 import BeautifulSoup
 from jinja2 import FileSystemLoader, Environment
 import os
 import shutil
-from typing import (Generator, Iterable, KeysView, Union)
+from typing import (Generator, Iterable, Union)
 
 from nfpy import NFPY_ROOT_DIR
 import nfpy.Calendar as Cal
 import nfpy.DB as DB
 from nfpy.Tools import (get_conf_glob, Singleton, Utilities as Ut)
 
-from .Reports import *
+from . import Reports as Rep
 
 
 class ReportingEngine(metaclass=Singleton):
@@ -23,12 +23,11 @@ class ReportingEngine(metaclass=Singleton):
     _TBL_REPORTS = 'Reports'
     _DT_FMT = '%Y%m%d'
     _REPORTS = {
-        'Market': ReportMarket,
-        'Alerts': ReportAlerts,
-        'Backtest': ReportBacktester,
+        Rep.ReportMarket,
+        Rep.ReportAlerts,
+        Rep.ReportBacktester
     }
     _TMPL_PATH = os.path.join(NFPY_ROOT_DIR, 'Reporting/Templates')
-    _REP_EXT = '.html'
 
     def __init__(self):
         self._qb = DB.get_qb_glob()
@@ -39,16 +38,18 @@ class ReportingEngine(metaclass=Singleton):
         self._curr_report_dir = ''
         self._rep_path = ''
 
-    def get_report_obj(self, r: str) -> TyReport:
+    @staticmethod
+    def get_report_obj(r: str) -> Rep.TyReport:
         """ Return the report object given the report name. """
-        return self._REPORTS[r]
+        return getattr(Rep, r)
 
-    def get_report_types(self) -> KeysView:
-        return self._REPORTS.keys()
+    @staticmethod
+    def report_obj_exist(r: str) -> bool:
+        return hasattr(Rep, r)
 
-    def exists(self, name: str) -> bool:
+    def exists(self, report_id: str) -> bool:
         """ Report yes if a report with the input name exists. """
-        if len(list(self.list((name,)))) > 0:
+        if len(list(self.list((report_id,)))) > 0:
             return True
         else:
             return False
@@ -78,13 +79,13 @@ class ReportingEngine(metaclass=Singleton):
         else:
             print(f'Successfully created the directory {new_path}')
 
-    def list(self, names: [str] = (), active: bool = None) \
-            -> Generator[ReportData, ReportData, None]:
+    def list(self, ids: [str] = (), active: bool = None) \
+            -> Generator[Rep.ReportData, Rep.ReportData, None]:
         """ List reports matching the given input. """
         where = ''
-        if names:
-            name_list = "\', \'".join(names)
-            where = f"name in ('{name_list}')"
+        if ids:
+            name_list = "\', \'".join(ids)
+            where = f"id in ('{name_list}')"
 
         keys, data = [], []
         if active is not None:
@@ -94,7 +95,7 @@ class ReportingEngine(metaclass=Singleton):
         return (
             report for report in
             map(
-                ReportData._make,
+                Rep.ReportData._make,
                 self._db.execute(
                     self._qb.select(
                         self._TBL_REPORTS,
@@ -106,11 +107,11 @@ class ReportingEngine(metaclass=Singleton):
             )
         )
 
-    def _generate(self, res: Union[dict, ReportResult]) -> None:
+    def _generate(self, res: Union[dict, Rep.ReportResult]) -> None:
         """ Generates the actual report. """
         j_env = Environment(loader=FileSystemLoader(self._TMPL_PATH))
         # j_env.filters.update(res[1])
-        out = j_env.get_template(''.join([res.template, self._REP_EXT])) \
+        out = j_env.get_template(res.template) \
             .render(
             title=res.title,
             res=res.output
@@ -119,7 +120,7 @@ class ReportingEngine(metaclass=Singleton):
         outf = open(
             os.path.join(
                 self._curr_report_dir,
-                ''.join([res.name, self._REP_EXT])
+                ''.join([res.id, os.path.splitext(res.template)])
             ),
             mode='w'
         )
@@ -134,9 +135,9 @@ class ReportingEngine(metaclass=Singleton):
         # Calculate model results
         done_reports = []
         for data in call_list:
-            print(f'>>> Generating {data.name} [{data.report}]')
+            print(f'>>> Generating {data.id} [{data.report}]')
             try:
-                res = self._REPORTS[data.report](
+                res = globals()[data.report](
                     data,
                     path=self._curr_report_dir
                 ).result
@@ -153,14 +154,14 @@ class ReportingEngine(metaclass=Singleton):
         """ Run the report engine. """
         self._run(self.list(names, active))
 
-    def run_custom(self, rep_list: [ReportData]) -> None:
+    def run_custom(self, rep_list: [Rep.ReportData]) -> None:
         """ Run the report engine. """
         self._run(rep_list)
 
-    def _update_index(self, done: [ReportData]) -> None:
+    def _update_index(self, done: [Rep.ReportData]) -> None:
         # Extract information
         to_print = [
-            (d.name, str(d.description))
+            (d.id, str(d.description))
             for d in done
         ]
 
@@ -179,7 +180,7 @@ class ReportingEngine(metaclass=Singleton):
             pass
 
         index = Ut.AttributizedDict()
-        index.name = 'index'
+        index.id = 'index'
         index.template = 'index'
         index.title = f"Reports list - {Cal.today(mode='str', fmt='%Y-%m-%d')}"
         index.output = sorted(set(to_print), key=lambda v: v[0])

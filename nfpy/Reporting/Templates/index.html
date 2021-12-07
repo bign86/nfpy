@@ -1,24 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8">
     <link rel="stylesheet" type="text/css" href="style.css">
     <title>Report Index</title>
-  </head>
-  <body>
-    <!-- TITLE -->
-    <h1>{{ title }}</h1>
-    <hr>
+</head>
+<body>
+<!-- TITLE -->
+<h1>{{ title }}</h1>
+<hr>
 
-    <!-- UIDs list -->
-    <div>Below the list of reports run today:</div>
+<!-- UIDs list -->
+<div>Below the list of reports run today:</div>
 
-    <div>
-      <ul class="reports_list">
+<div>
+    <ul class="reports_list">
         {%- for name, desc in res -%}
-          <li><a href="{{ name }}.html">{{ name }}</a> - {{ desc }}</li>
-        {% endfor -%}
-      </ul>
-    </div>
-  </body>
+        <li><a href="{{ name }}.html">{{ name }}</a> - {{ desc }}</li>
+        {%- endfor -%}
+    </ul>
+</div>
+</body>
 </html>
