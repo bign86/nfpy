@@ -14,12 +14,12 @@ from typing import (Union, Sequence, TypeVar)
 
 from nfpy.Tools import (get_conf_glob, Singleton)
 
-TyDatetime = TypeVar('TyDatetime',
-                     bound=Union[str, pd.Timestamp, datetime.date,
-                                 datetime.datetime, np.datetime64])
-TyDateSequence = TypeVar('TyDateSequence',
-                         bound=Union[pd.DatetimeIndex, Sequence])
-TyDate = Union[TyDatetime, DatetimeScalar]
+TyDatetime = TypeVar('TyDatetime', bound=Union[
+    str, pd.Timestamp, datetime.datetime, np.datetime64
+])
+TyDate = TypeVar('TyDate', bound=Union[str, datetime.date])
+TyTime = Union[TyDate, TyDatetime, DatetimeScalar]
+TyTimeSequence = Union[pd.DatetimeIndex, Sequence[TyTime]]
 
 _HOLIDAYS_MASK_ = ((1, 1), (5, 1), (6, 2), (8, 15), (12, 24), (12, 25), (12, 26))
 _WEEKEND_MASK_INT_ = (5, 6)
@@ -51,7 +51,7 @@ class Calendar(metaclass=Singleton):
         self._initialized = False
 
     @property
-    def calendar(self) -> TyDateSequence:
+    def calendar(self) -> TyTimeSequence:
         """ Return the instantiated calendar if initialized else None. """
         if not self._initialized:
             return pd.DatetimeIndex([], self._frequency)
@@ -185,8 +185,8 @@ class Calendar(metaclass=Singleton):
         return self._calendar[target]
 
 
-def date_2_datetime(dt: Union[TyDate, TyDateSequence], fmt: str = '%Y-%m-%d') \
-        -> Union[TyDate, TyDateSequence]:
+def date_2_datetime(dt: Union[TyDate, TyTimeSequence], fmt: str = '%Y-%m-%d') \
+        -> Union[TyDatetime, TyTimeSequence]:
     if isinstance(dt, (list, tuple)):
         if isinstance(dt[0], str):
             dt = [datetime.datetime.strptime(d, fmt) for d in dt]
