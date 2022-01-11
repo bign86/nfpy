@@ -6,7 +6,12 @@ import pandas as pd
 
 from nfpy.Assets import get_af_glob
 import nfpy.DB as DB
-from nfpy.Tools import (Singleton, Exceptions as Ex, get_conf_glob)
+from nfpy.Tools import (
+    Constants as Cn,
+    Exceptions as Ex,
+    get_conf_glob,
+    Singleton,
+)
 
 
 # TODO: This makes the inversion every time, we could store two different
@@ -75,9 +80,10 @@ class CurrencyFactory(metaclass=Singleton):
     """ Handles currency exchanges. """
 
     _TABLE = 'Currency'
-    _KNOWN_CCY = ['ARS', 'AUD', 'CAD', 'CNY', 'CHF', 'EUR', 'GBP', 'HKD', 'JPY',
-                  'NZD', 'NWK', 'RUB', 'TRY', 'USD', 'ZAR']
-    _BASE_CCY = ['CHF', 'EUR', 'GBP', 'USD']
+
+    # _KNOWN_CCY = ['ARS', 'AUD', 'CAD', 'CNY', 'CHF', 'EUR', 'GBP', 'HKD', 'JPY',
+    #               'NZD', 'NWK', 'RUB', 'TRY', 'USD', 'ZAR']
+    # _BASE_CCY = ['CHF', 'EUR', 'GBP', 'USD']
 
     def __init__(self):
         self._af = get_af_glob()
@@ -91,8 +97,9 @@ class CurrencyFactory(metaclass=Singleton):
             fields=('uid',),
             keys=('price_ccy', 'base_ccy')
         )
-        base_ccy = get_conf_glob().base_ccy
-        self._base_ccy = self._validate_ccy(base_ccy)
+        self._base_ccy = self._validate_ccy(
+            get_conf_glob().base_ccy
+        )
 
     @property
     def base_ccy(self) -> str:
@@ -102,19 +109,13 @@ class CurrencyFactory(metaclass=Singleton):
     def base_ccy(self, v: str):
         self._base_ccy = self._validate_ccy(v)
 
-    def is_ccy(self, v: str) -> bool:
-        return v in self._KNOWN_CCY
+    @staticmethod
+    def is_ccy(v: str) -> bool:
+        return v in Cn.KNOWN_CCY
 
-    def is_base_ccy(self, v: str) -> bool:
-        return v in self._BASE_CCY
-
-    def _validate_ccy(self, v: str) -> str:
-        if v not in self._KNOWN_CCY:
-            raise ValueError(f'Currency {v} not recognized')
-        return v
-
-    def _validate_base_ccy(self, v: str) -> str:
-        if v not in self._BASE_CCY:
+    @staticmethod
+    def _validate_ccy(v: str) -> str:
+        if v not in Cn.KNOWN_CCY:
             raise ValueError(f'Currency {v} not recognized')
         return v
 

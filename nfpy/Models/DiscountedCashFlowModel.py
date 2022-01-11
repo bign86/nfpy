@@ -5,10 +5,11 @@
 
 import numpy as np
 import pandas as pd
-from typing import Union
+from typing import (Any, Union)
 
+from nfpy.Calendar import TyDate
 import nfpy.Financial as Fin
-import nfpy.Financial.Math as Math
+import nfpy.Math as Math
 from nfpy.Tools import Constants as Cn
 
 from .BaseFundamentalModel import BaseFundamentalModel
@@ -81,6 +82,7 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
     _MAX_TAX_R = .15
     _MIN_TAX_R = .10
     _MIN_DEPTH_DATA = 3
+    _MIN_DEBT_COST = .05
 
     def __init__(self, uid: str, date: Union[str, pd.Timestamp] = None,
                  past_horizon: int = 5, future_proj: int = 3,
@@ -97,7 +99,7 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
                          start=self._start, past_horizon=self._ph,
                          future_proj=self._fp)
 
-    def _check_applicability(self):
+    def _check_applicability(self) -> None:
         f = self.frequency
         y = min(
             len(self._ff.get_index(f)),
@@ -108,22 +110,21 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
 
         # If negative average FCF exit
         fcf = self._ff.fcf(f).values[-y:]
-        # if np.nanmean(fcf) < 0.:
         if (fcf < 0.).any():
             raise ValueError(f'Negative average Free Cash Flow found for {self._uid}')
 
         self._ph = y
         self._fcf = fcf
 
-    def _calc_freq(self):
+    def _calc_freq(self) -> None:
         """ Calculate the frequency. """
         self._freq = 'A'
 
-    def _otf_calculate(self, **kwargs) -> dict:
+    def _otf_calculate(self, **kwargs) -> dict[str, Any]:
         """ Perform on-the-fly calculations. """
         return {}
 
-    def _get_index(self):
+    def _get_index(self) -> pd.Series:
         f = self.frequency
 
         past = self._ff.get_index(f)[-self._ph:]
@@ -135,7 +136,7 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
             ])
         )
 
-    def _calc_fcf_coverage(self, array: np.array):
+    def _calc_fcf_coverage(self, array: np.array) -> None:
         f, y = self.frequency, self._ph
 
         # Get Free Cash Flow and Net Income
@@ -161,7 +162,7 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
         array[2, :y] = cov
         array[2, y:] = mean_fcfcov_margin
 
-    def _calc_revenues(self, array: np.array):
+    def _calc_revenues(self, array: np.array) -> None:
         f, y, p = self.frequency, self._ph, self._fp
 
         rev = np.empty(y + p)
@@ -175,10 +176,10 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
         array[4, 1:y] = ret
         array[4, y:] = mean_ret
 
-    def _calc_tax_rate(self, array: np.array):
+    def _calc_tax_rate(self, array: np.array) -> None:
         f, y = self.frequency, self._ph
 
-        # Put a floor = .0 and a cap = .25 to the tax rate
+        # Put a floor and a cap to the tax rate
         tax_rate = np.maximum(
             np.minimum(
                 self._ff.income_tax_paid(f).values[-y:] /
@@ -189,7 +190,7 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
         )
         array[7, :y] = tax_rate
 
-    def _calculate(self):
+    def _calculate(self) -> None:
         """ Perform main calculations. """
         f, y, yj = self.frequency, self._ph, self._fp
         array = np.empty((len(self._COLS), y + yj))
@@ -216,25 +217,30 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
         self._calc_tax_rate(array)
 
         # Get Cost of Debt
-        # Put a floor = .05 to the cost of debt
+        # Put a floor to the cost of debt
         array[8, :y] = np.maximum(
             (self._ff.interest_expenses(f).values[-y:] / array[6, :y])
             * (1. - array[7, :y]),
-            .05
+            self._MIN_DEBT_COST
         )
 
         # Get Beta for Cost of Equity
-        # beta = []
         beta = np.empty(y)
+        returns = self._eq.returns
+        b_returns = self._idx.returns
         for i, dt in enumerate(index[:y]):
             try:
-                beta[i] = self._eq.beta(
-                    start=pd.Timestamp(dt.year, 1, 1),
-                    end=dt
+                beta[i] = Math.beta(
+                    returns.index.values,
+                    returns.values,
+                    b_returns.values,
+                    start=np.datetime64(
+                        f'{str(dt.year)}-01-01'
+                    ),
+                    end=dt.asm8
                 )[1]
             except ValueError:
                 beta[i] = .0
-        # beta = np.array(beta)
         mean_beta = np.mean(beta[np.where(beta != 0)])
         beta[beta == 0] = np.mean(beta[np.where(beta != 0)])
         array[9, :y] = beta
@@ -291,9 +297,8 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
         )
 
 
-def DCFModel(uid: str, date: Union[str, pd.Timestamp] = None,
-             past_horizon: int = 5, future_proj: int = 3,
-             perpetual_rate: float = 0.) -> DCFResult:
+def DCFModel(uid: str, date: TyDate = None, past_horizon: int = 5,
+             future_proj: int = 3, perpetual_rate: float = 0.) -> DCFResult:
     """ Shortcut for the calculation. Intermediate results are lost. """
     return DiscountedCashFlowModel(
         uid,

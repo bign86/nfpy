@@ -4,9 +4,7 @@
 #
 
 from collections import namedtuple
-# from collections import (defaultdict, namedtuple)
-# from itertools import groupby
-from typing import Union
+from typing import (Sequence, Union)
 
 from nfpy.Assets import get_af_glob
 import nfpy.Calendar as Cal
@@ -21,7 +19,7 @@ class AlertsEngine(object):
 
     _TABLE = 'Alerts'
     _Q_ADD_ALERT = f"insert into Alerts (uid, date, cond, value, triggered," \
-                   f"date_triggered) values (?, ?, ?, ?, ?, ?);"
+                   f"date_triggered, date_checked) values (?, ?, ?, ?, ?, ?, ?);"
     _Q_RMV_ALERT = f"delete from Alerts where uid = ? and date = ?" \
                    f" and cond = ? and value = ? and triggered = ?;"
 
@@ -31,13 +29,17 @@ class AlertsEngine(object):
         self._db = DB.get_db_glob()
         self._qb = DB.get_qb_glob()
 
-    def fetch(self, uid: [str] = (), triggered: Union[None, bool] = False,
+        self._breached = []
+        self._checked = []
+
+    def fetch(self, uid: Sequence[str] = (),
+              triggered: Union[None, bool] = False,
               date_triggered: Cal.TyDatetime = None,
-              date_checked: Cal.TyDatetime = None) -> [Alert]:
+              date_checked: Cal.TyDatetime = None) -> list[Alert]:
         """ Fetch alerts from the database according to given filters.
 
             Input:
-                uid [[str]]: sequence of uids to load
+                uid [MutableSequence]: sequence of uids to load
                 triggered [Union[None, bool]]: triggered status of fetched alerts:
                     * True = only triggered alerts
                     * False = only valid alerts
@@ -85,12 +87,12 @@ class AlertsEngine(object):
 
         return res
 
-    def _save(self, breached: [Alert], alerts: [Alert]) -> None:
+    def update_db(self) -> None:
         """ Function to update the Alerts table in the database at object
             destruction time.
         """
         # Update breached alerts
-        if len(breached) > 0:
+        if len(self._breached) > 0:
             self._db.executemany(
                 self._qb.update(
                     self._TABLE,
@@ -98,14 +100,15 @@ class AlertsEngine(object):
                 ),
                 (
                     (*b[4:7], *b[:4])
-                    for b in breached
+                    for b in self._breached
                 ),
                 commit=True
             )
+            self._breached = []
 
         # Update the control date on the non-breached alerts
         today = Cal.today(mode='datetime')
-        if len(alerts) > 0:
+        if len(self._checked) > 0:
             self._db.executemany(
                 self._qb.update(
                     self._TABLE,
@@ -113,16 +116,17 @@ class AlertsEngine(object):
                 ),
                 (
                     (*al[:4], today)
-                    for al in alerts
+                    for al in self._checked
                 ),
                 commit=True
             )
+            self._checked = []
 
-    def add(self, alerts: [Alert]) -> None:
+    def add(self, alerts: Sequence[Alert]) -> None:
         """ Add a manual alert to the database. """
         self._db.executemany(self._Q_ADD_ALERT, alerts, commit=True)
 
-    def remove(self, alerts: [Alert]) -> None:
+    def remove(self, alerts: Sequence[Alert]) -> None:
         """ Remove a manual alert from filtered and database. """
         self._db.executemany(
             self._Q_RMV_ALERT,
@@ -130,31 +134,32 @@ class AlertsEngine(object):
                 (*a[:5],)
                 for a in alerts
             ),
-            commit=True)
+            commit=True
+        )
 
-    def raise_alerts(self, uids: [str] = (),
-                     date_checked: Cal.TyDatetime = None) -> [Alert]:
-        """ Raise manual alerts for given <uids> by verifying the condition.
+    def trigger(self, uids: Sequence[str] = (),
+                date_checked: Cal.TyDatetime = None) -> list[Alert]:
+        """ Trigger manual alerts for given <uids> by verifying the condition.
 
             Input:
-                uids [[str]]: UIDs to raise alerts for
+                uids [MutableSequence[str]]: UIDs to raise alerts for
                 date_checked [Cal.TyDatetime]: lower limit for last check date
+
+            Output:
+                breached [list[Alerts]]: list of breached alerts
         """
-        # Fetch and quick exit
         alerts = self.fetch(uids, triggered=False, date_checked=date_checked)
         if not alerts:
             return []
 
-        # Quick exit
-        breached, idx = [], []
-        prices = {}
-        today = Cal.today(mode='datetime')
+        prices, idx = {}, []
         for i, al in enumerate(alerts):
             # Get last price
             if al.uid not in prices:
                 p = self._af \
                     .get(al.uid) \
                     .last_price()[0]
+                # Add back to the dict as the same uid may appear again
                 prices[al.uid] = p
             else:
                 p = prices[al.uid]
@@ -163,11 +168,12 @@ class AlertsEngine(object):
                     ((al.cond == 'L') & (p < al.value)):
                 idx.append(i)
 
+        today = Cal.today(mode='datetime')
         breached = [
             Alert(*alerts.pop(i)[:4], True, today, today)
             for i in idx[::-1]
         ]
 
-        # Update the database
-        self._save(breached, alerts)
+        self._breached.extend(list(set(self._breached) | set(breached)))
+        self._checked.extend(list(set(self._checked) | set(alerts)))
         return breached

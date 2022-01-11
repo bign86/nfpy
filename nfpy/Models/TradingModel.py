@@ -9,7 +9,7 @@ import numpy as np
 from typing import Union
 
 import nfpy.Calendar as Cal
-import nfpy.Financial.Math as Math
+import nfpy.Math as Math
 import nfpy.Trading as Trd
 from nfpy.Trading import (Indicators as Ind, Strategies as Str)
 
@@ -27,8 +27,6 @@ class TradingModel(BaseModel):
 
     def __init__(self, uid: str, date: Union[str, pd.Timestamp] = None, **kwargs):
         super().__init__(uid, date)
-        self._cal = Cal.get_calendar_glob()
-
         self._w_ma_slow = kwargs['w_ma_slow']
         self._w_ma_fast = kwargs['w_ma_fast']
         self._w_sr_slow = kwargs['w_sr_slow']
@@ -50,21 +48,19 @@ class TradingModel(BaseModel):
     def _calc_alerts(self):
         # Manual alerts
         ae = Trd.AlertsEngine()
-        window = Cal.today(mode='datetime') - timedelta(days=10)
-        ae.raise_alerts(self._uid, date_checked=window)
         self._res_update(
-            alerts=ae.fetch(
-                self._uid,
-                triggered=True,
-                date_triggered=window
+            alerts=ae.trigger(
+                [self._uid],
+                date_checked=Cal.today(mode='datetime') - timedelta(days=10)
             )
         )
+        ae.update_db()
 
         # Support / Resistances
-        be = Trd.BreachesEngine(self._w_sr_slow, self._w_sr_fast, 10)
-        self._res_update(
-            breaches=be.raise_breaches(self._uid)
-        )
+        # be = Trd.BreachesEngine(self._w_sr_slow, self._w_sr_fast, 10)
+        # self._res_update(
+        #     breaches=be.raise_breaches(self._uid)
+        # )
 
     def _calc_wma(self):
         prices, t0 = self._asset.prices, self._t0
@@ -80,8 +76,9 @@ class TradingModel(BaseModel):
 
         fast_length = int(w_fast * (sr_mult + 1))
         p_fast = prices.iloc[-fast_length:]
-        signals, ma = Str.TwoEMACross(w_fast, w_slow, True) \
-            .__call__(p_fast.index.values, p_fast.values)
+        strat = Str.TwoEMACross(p_fast.index.values, p_fast.values,
+                                w_fast, w_slow, True)
+        signals = strat.bulk_exec()
         # wma_fast = pd.Series(ma[w_fast], p_fast.index.values)
 
         if len(signals.signals) > 0:
@@ -111,7 +108,7 @@ class TradingModel(BaseModel):
         df.replace(to_replace={'signal': {1: 'buy', -1: 'sell'}}, inplace=True)
         self._res_update(
             ma_fast=pd.Series(
-                ma[w_fast],
+                strat._ma_fast,
                 p_fast.index.values
             ),
             ma_slow=pd.Series(
@@ -122,7 +119,7 @@ class TradingModel(BaseModel):
         )
 
     def _otf_calculate(self, **kwargs) -> dict:
-        pass
+        return kwargs
 
     def _check_applicability(self):
         pass

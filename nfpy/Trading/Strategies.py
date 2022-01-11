@@ -5,32 +5,33 @@
 #
 
 import numpy as np
+from typing import (Any, Generator, Optional)
+
+import nfpy.Math as Math
 
 from . import Indicators as Sig
 from .BaseStrategy import (BaseStrategy, StrategyResult)
+from .SR import Trends as Tr
 
 
 class MAStrategy(BaseStrategy):
 
     @staticmethod
-    def _cross_sig_(dt: np.ndarray, v1: np.ndarray, v2: np.ndarray) -> tuple:
-        cross = np.where(v1 > v2, 1, 0)
-        cross[1:] = np.diff(cross)
-        cross[0] = 0
+    def _cross_sig_(dt: np.ndarray, v1: np.ndarray,
+                    v2: np.ndarray, w: int) -> tuple:
+        v1 = Math.ffill_cols(v1)
+        cross = np.diff(np.where(v1 > v2, 1, 0))
+        cross[:w - 1] = 0
 
         mask = cross != 0
         idx = np.nonzero(mask)[0]
-
-        # Calculate returned quantities
-        dt = dt[idx]
         signals = cross[idx]
 
-        strength = np.zeros(len(idx))
-        for n, i in enumerate(idx):
-            strength[n] = (v1[i + 1] - v1[i - 1])
-        strength /= np.max(np.abs(strength))
+        # Calculate returned quantities
+        idx = idx + 1
+        dt = dt[idx]
 
-        return idx, dt, signals, strength
+        return idx, dt, signals
 
 
 class SMAPriceCross(MAStrategy):
@@ -42,7 +43,7 @@ class SMAPriceCross(MAStrategy):
             dt [np.ndarray]: date series
             p [np.ndarray]: price series
             w [int]: rolling window size
-            ma [np.ndarray]: pre-computed SMA
+            check [Optional[int]]: number of periods to confirm the signal
 
         Output:
             dt [np.ndarray]: date series of the signals
@@ -53,15 +54,33 @@ class SMAPriceCross(MAStrategy):
             mask [np.ndarray]: mask of signals positions
     """
 
-    def __init__(self, w: int, full_out: bool = False):
-        super().__init__(full_out)
+    _LABEL = 'SMA_P_Cross'
+    NAME = 'SMA/Price cross'
+    DESCRIPTION = f"Generates a buy signal when the price crosses above the " \
+                  f"SMA and a sell signal when the price crosses below the " \
+                  f"SMA. The side of the SMA taken by the price is indicative " \
+                  f"of the trend."
+
+    def __init__(self, dt: np.ndarray, p: np.ndarray,
+                 w: int, npc: Optional[int] = 0):
+        super().__init__(dt, p, npc)
         self._w = w
 
-    def _f(self, dt: np.ndarray, p: np.ndarray) -> tuple:
-        ma = Sig.sma(p, self._w)
-        res = self._cross_sig_(dt, p, ma)
+    @property
+    def min_length(self) -> int:
+        return self._w + self._num_p_conf
 
-        return StrategyResult(*res), {self._w: ma}
+    def _f(self, i: int) -> tuple:
+        return -999,
+
+    def check_order_validity(self, order: list) -> str:
+        return 'execute'
+
+    def _bulk(self) -> StrategyResult:
+        self._ma = Sig.sma(self._p, self._w)
+        return StrategyResult(
+            *self._cross_sig_(self._dt, self._p, self._ma, self._w)
+        )
 
 
 class TwoSMACross(MAStrategy):
@@ -87,17 +106,35 @@ class TwoSMACross(MAStrategy):
                                   as the input price series
     """
 
-    def __init__(self, w_fast: int, w_slow: int, full_out: bool = False):
-        super().__init__(full_out)
+    _LABEL = '2_SMA_Cross'
+    NAME = '2 SMA Cross'
+    DESCRIPTION = f"Generates a buy signal when the fast SMA crosses above slow " \
+                  f"SMA and a sell signal when the fast SMA crosses below. The " \
+                  f"side of the slow SMA taken by the fast is indicative of the " \
+                  f"trend."
+
+    def __init__(self, dt: np.ndarray, p: np.ndarray, w_fast: int,
+                 w_slow: int, npc: Optional[int] = 0):
+        super().__init__(dt, p, npc)
         self._wf = w_fast
         self._ws = w_slow
 
-    def _f(self, dt: np.ndarray, p: np.ndarray) -> tuple:
-        ma_fast = Sig.sma(p, self._wf)
-        ma_slow = Sig.sma(p, self._ws)
-        res = self._cross_sig_(dt, ma_fast, ma_slow)
+    @property
+    def min_length(self) -> int:
+        return self._ws + self._num_p_conf
 
-        return StrategyResult(*res), {self._wf: ma_fast, self._ws: ma_slow}
+    def _f(self, i: int) -> tuple:
+        return -999,
+
+    def check_order_validity(self, order: list) -> str:
+        return 'execute'
+
+    def _bulk(self) -> StrategyResult:
+        self._ma_fast = Sig.sma(self._p, self._wf)
+        self._ma_slow = Sig.sma(self._p, self._ws)
+        return StrategyResult(
+            *self._cross_sig_(self._dt, self._ma_fast, self._ma_slow, self._ws)
+        )
 
 
 class EMAPriceCross(MAStrategy):
@@ -119,15 +156,33 @@ class EMAPriceCross(MAStrategy):
                              input price series
     """
 
-    def __init__(self, w: int, full_out: bool = False):
-        super().__init__(full_out)
+    _LABEL = 'EMA_P_Cross'
+    NAME = 'EMA/Price Cross'
+    DESCRIPTION = f"Generates a buy signal when the price crosses above the EMA " \
+                  f"and a sell signal when the price crosses below the EMA. The " \
+                  f"side of the EMA taken by the price is indicative of the " \
+                  f"trend."
+
+    def __init__(self, dt: np.ndarray, p: np.ndarray,
+                 w: int, npc: Optional[int] = 0):
+        super().__init__(dt, p, npc)
         self._w = w
 
-    def _f(self, dt: np.ndarray, p: np.ndarray) -> tuple:
-        ma = Sig.ewma(p, self._w)
-        res = self._cross_sig_(dt, p, ma)
+    @property
+    def min_length(self) -> int:
+        return self._w + self._num_p_conf
 
-        return StrategyResult(*res), {self._w: ma}
+    def _f(self, i: int) -> tuple:
+        return -999,
+
+    def check_order_validity(self, order: list) -> str:
+        return 'execute'
+
+    def _bulk(self) -> StrategyResult:
+        self._ma = Sig.ewma(self._p, self._w)
+        return StrategyResult(
+            *self._cross_sig_(self._dt, self._p, self._ma, self._w)
+        )
 
 
 class TwoEMACross(MAStrategy):
@@ -153,47 +208,61 @@ class TwoEMACross(MAStrategy):
                                   as the input price series
     """
 
-    def __init__(self, w_fast: int, w_slow: int, full_out: bool = False):
-        super().__init__(full_out)
+    _LABEL = '2_EMA_Cross'
+    NAME = '2 EMA Cross'
+    DESCRIPTION = f"Generates a buy signal when the fast EMA crosses above slow " \
+                  f"EMA and a sell signal when the fast EMA crosses below. The " \
+                  f"side of the slow EMA taken by the fast is indicative of the " \
+                  f"trend."
+
+    def __init__(self, dt: np.ndarray, p: np.ndarray, w_fast: int,
+                 w_slow: int, npc: Optional[int] = 0):
+        super().__init__(dt, p, npc)
         self._wf = w_fast
         self._ws = w_slow
 
-    def _f(self, dt: np.ndarray, p: np.ndarray) -> tuple:
-        ma_fast = Sig.ewma(p, self._wf)
-        ma_slow = Sig.ewma(p, self._ws)
-        res = self._cross_sig_(dt, ma_fast, ma_slow)
+    @property
+    def min_length(self) -> int:
+        return self._ws + self._num_p_conf
 
-        return StrategyResult(*res), {self._wf: ma_fast, self._ws: ma_slow}
+    def _f(self, i: int) -> tuple:
+        return -999,
+
+    def check_order_validity(self, order: list) -> str:
+        return 'execute'
+
+    def _bulk(self) -> StrategyResult:
+        self._ma_fast = Sig.ewma(self._p, self._wf)
+        self._ma_slow = Sig.ewma(self._p, self._ws)
+        return StrategyResult(
+            *self._cross_sig_(self._dt, self._ma_fast, self._ma_slow, self._ws)
+        )
 
 
 class ThreeMAStrategy(BaseStrategy):
 
     @staticmethod
     def _3ma_swing(dt: np.ndarray, p: np.ndarray, v1: np.ndarray,
-                   v2: np.ndarray, v3: np.ndarray) -> tuple:
+                   v2: np.ndarray, v3: np.ndarray, w: int) -> []:
         # Calculate the trend mask
+        p = Math.ffill_cols(p)
         mask_tr = (p - v3) > .0
 
         # Calculate cross MAs
-        cross_cr = np.where(v1 > v2, 1, 0)
-        cross_cr[1:] = np.diff(cross_cr)
-        cross_cr[0] = 0
+        cross_cr = np.diff(np.where(v1 > v2, 1, 0))
+        cross_cr[:w - 1] = 0
 
         # Calculate final mask and indices
-        mask = ((cross_cr == 1) & mask_tr) | \
-               ((cross_cr == -1) & ~mask_tr)
+        mask = ((cross_cr == 1) & mask_tr[1:]) | \
+               ((cross_cr == -1) & ~mask_tr[1:])
         idx = np.nonzero(mask)[0]
-
-        # Calculate returned quantities
-        dt = dt[idx]
         signals = cross_cr[idx]
 
-        strength = np.zeros(len(idx))
-        for n, i in enumerate(idx):
-            strength[n] = (v1[i + 1] - v1[i - 1]) / np.abs(p[i] - v3[i])
-        strength /= np.nanmax(np.abs(strength))
+        # Calculate returned quantities
+        idx = idx + 1
+        dt = dt[idx]
 
-        return idx, dt, signals, strength
+        return idx, dt, signals
 
 
 class ThreeSMAMomentumStrategy(ThreeMAStrategy):
@@ -221,25 +290,38 @@ class ThreeSMAMomentumStrategy(ThreeMAStrategy):
                 length as the input price series
     """
 
-    _LABEL = '3SMAMom'
+    _LABEL = '3_SMA_Mom'
+    NAME = '3 SMA Momentum Cross'
+    DESCRIPTION = f"Generates a buy signal when the fast SMA crosses above slow " \
+                  f"SMA if the price is above the trending (longest) SMA, and a " \
+                  f"sell signal when the fast SMA crosses below the slow SMA and " \
+                  f"the price is above the trending SMA."
 
-    def __init__(self, w_fast: int, w_slow: int, w_trend: int,
-                 full_out: bool = None):
-        super().__init__(full_out)
+    def __init__(self, dt: np.ndarray, p: np.ndarray, w_fast: int,
+                 w_slow: int, w_trend: int, npc: Optional[int] = 0):
+        super().__init__(dt, p, npc)
         self._wf = w_fast
         self._ws = w_slow
         self._wt = w_trend
 
-    def _f(self, dt: np.ndarray, p: np.ndarray) -> tuple:
-        # Calculate MAs
-        ma_fast = Sig.sma(p, self._wf)
-        ma_slow = Sig.sma(p, self._ws)
-        ma_trend = Sig.sma(p, self._wt)
+    @property
+    def min_length(self) -> int:
+        return self._ws + self._num_p_conf
 
-        res = self._3ma_swing(dt, p, ma_fast, ma_slow, ma_trend)
+    def _f(self, i: int) -> tuple:
+        return -999,
 
-        return StrategyResult(*res), {self._wf: ma_fast, self._ws: ma_slow,
-                                      self._wt: ma_trend}
+    def check_order_validity(self, order: list) -> str:
+        return 'execute'
+
+    def _bulk(self) -> StrategyResult:
+        self._ma_fast = Sig.sma(self._p, self._wf)
+        self._ma_slow = Sig.sma(self._p, self._ws)
+        self._ma_trend = Sig.sma(self._p, self._wt)
+        return StrategyResult(
+            *self._3ma_swing(self._dt, self._p, self._ma_fast,
+                             self._ma_slow, self._ma_trend, self._ws)
+        )
 
 
 class ThreeEMAMomentumStrategy(ThreeMAStrategy):
@@ -254,9 +336,6 @@ class ThreeEMAMomentumStrategy(ThreeMAStrategy):
             w_fast [int]: fast rolling window size
             w_slow [int]: slow rolling window size
             w_trend [int]: slowest rolling window size for general trend
-            ma_fast [np.ndarray]: pre-computed fast EMA
-            ma_slow [np.ndarray]: pre-computed slow EMA
-            ma_trend [np.ndarray]: pre-computed trend EMA
 
         Output:
             dt [np.ndarray]: date series of the signals
@@ -270,78 +349,164 @@ class ThreeEMAMomentumStrategy(ThreeMAStrategy):
                 as the input price series
     """
 
-    def __init__(self, w_fast: int, w_slow: int, w_trend: int,
-                 full_out: bool = None):
-        super().__init__(full_out)
+    _LABEL = '3_EMA_Mom'
+    NAME = '3 EMA Momentum Cross'
+    DESCRIPTION = f"Generates a buy signal when the fast EMA crosses above slow " \
+                  f"EMA if the price is above the trending (longest) EMA, and a " \
+                  f"sell signal when the fast EMA crosses below the slow EMA and " \
+                  f"the price is above the trending EMA."
+
+    def __init__(self, dt: np.ndarray, p: np.ndarray, w_fast: int,
+                 w_slow: int, w_trend: int, npc: Optional[int] = 0):
+        super().__init__(dt, p, npc)
         self._wf = w_fast
         self._ws = w_slow
         self._wt = w_trend
 
-    def _f(self, dt: np.ndarray, p: np.ndarray) -> tuple:
-        # Calculate MAs
-        ma_fast = Sig.ewma(p, self._wf)
-        ma_slow = Sig.ewma(p, self._ws)
-        ma_trend = Sig.ewma(p, self._wt)
+    @property
+    def min_length(self) -> int:
+        return self._ws + self._num_p_conf
 
-        res = self._3ma_swing(dt, p, ma_fast, ma_slow, ma_trend)
+    def _f(self, i: int) -> tuple:
+        return -999,
 
-        return StrategyResult(*res), {self._wf: ma_fast, self._ws: ma_slow,
-                                      self._wt: ma_trend}
+    def check_order_validity(self, order: list) -> str:
+        return 'execute'
+
+    def _bulk(self) -> StrategyResult:
+        self._ma_fast = Sig.ewma(self._p, self._wf)
+        self._ma_slow = Sig.ewma(self._p, self._ws)
+        self._ma_trend = Sig.ewma(self._p, self._wt)
+        return StrategyResult(
+            *self._3ma_swing(self._dt, self._p, self._ma_fast,
+                             self._ma_slow, self._ma_trend, self._ws)
+        )
 
 
-class MACDSwingStrategy(BaseStrategy):
+class MACDHistReversalStrategy(BaseStrategy):
+    _LABEL = 'MACD_Hist_Rev'
+    NAME = 'MACD Histogram Reversal'
+    DESCRIPTION = f"Generates a buy signal when the histogram of the MACD " \
+                  f"crosses from negative to positive, and a sell signal " \
+                  f"when it crosses from positive to negative. "
 
-    def __init__(self, w_macd: int, w_fast: int, w_slow: int, w_filter: int,
-                 full_out: bool = None):
-        super().__init__(full_out)
-        # NOTE: common to have 9, 12, 26
+    def __init__(self, dt: np.ndarray, p: np.ndarray, w_fast: int, w_slow: int,
+                 w_macd: int, npc: Optional[int] = 0):
+        super().__init__(dt, p, npc)
         self._wm = w_macd
         self._wf = w_fast
         self._ws = w_slow
-        self._filter = w_filter
 
-    def _f(self, dt: np.ndarray, p: np.ndarray) -> tuple:
-        res = Sig.macd(p, self._wm, self._wf, self._ws)
+    @property
+    def min_length(self) -> int:
+        return self._ws + self._num_p_conf
+
+    def _f(self, i: int) -> tuple:
+        return -999,
+
+    def check_order_validity(self, order: list) -> str:
+        return 'execute'
+
+    def _bulk(self) -> StrategyResult:
+        sig = Sig.macd(self._p, self._ws, self._wf, self._wm)
         # macd, signal, hist, fast_ema, slow_ema
 
-        cross = np.where(res[2] > 0, 1, 0)  # res[0] > res[1]
-        cross[1:] = np.diff(cross)
-        cross[0] = 0
-
-        mask_unf = cross != 0
+        cross = np.diff(np.where(sig[2] > 0, 1, 0))
+        cross[:self._ws - 1] = 0
+        mask = cross != 0
 
         # Filter signals: if the sign of the histogram does not hold longer
         # than the filtering length the signal is removed
-        mask = np.copy(mask_unf)
-        for i in np.nonzero(mask_unf)[0]:
-            if np.any(cross[i + 1:i + self._filter]):
-                mask[i] = False
+        # mask = np.copy(mask_unf)
+        # idx_prefilter = np.nonzero(mask)[0]
+        # idx = []
+        # for i in idx_prefilter:
+        #     if np.any(cross[i + 1:i + self._filter]):
+        #         mask[i] = False
+        #     else:
+        #         idx.append(i+1)
+        # idx = np.array(idx)
 
-        dt = dt[mask]
+        idx = np.nonzero(mask)[0] + 1
+        dt = self._dt[1:][mask]
         signals = cross[mask]
-        # dt_unf = dt[mask_unf]
-        # signals_unf = cross[mask_unf]
 
-        return StrategyResult(dt, signals, None), \
-               {self._wf: res[3], self._ws: res[4], 'macd': res[0],
-                self._wm: res[1], 'histogram': res[3]}
+        self._macd = sig[0]
+        self._signal = sig[1]
+        self._histogram = sig[2]
+        self._ma_fast = sig[3]
+        self._ma_slow = sig[4]
+        return StrategyResult(idx, dt, signals)
 
 
-class ATRStrategy(BaseStrategy):
+class SRBreachStrategy(BaseStrategy):
 
-    def __init__(self, w: int, full_out: bool = None):
-        super().__init__(full_out)
-        self._w = w
+    def __init__(self, dt: np.ndarray, p: np.ndarray, w_fast: int, w_slow: int,
+                 sr_mult: float, confidence: float, npc: Optional[int] = 0):
+        super().__init__(dt, p, npc)
+        self._wf = w_fast
+        self._ws = w_slow
+        self._srm = sr_mult
+        self._cnf = confidence
 
-    def _f(self, dt: np.ndarray, p: np.ndarray) -> tuple:
-        atr = Sig.atr(p, self._w)
+    @property
+    def min_length(self) -> int:
+        return self._ws + self._num_p_conf
 
-        mask = np.empty(len(atr))
-        mask[1:] = p[1:] > atr[:-1]
-        mask[0] = False
+    def _calculate_sr(self, dt: np.ndarray, p: np.ndarray) \
+            -> Generator[np.ndarray, Any, None]:
+        return (
+            Tr.search_maxmin(
+                dt[-int(w * self._srm):],
+                p[-int(w * self._srm):],
+                w=w, tol=1.
+            )
+            for w in (self._ws, self._wf)
+        )
 
-        dt = dt[mask]
-        signals = np.zeros(len(atr), dtype=np.int)
-        signals[mask] = 1
+    def check_order_validity(self, order: list) -> str:
+        return 'execute'
 
-        return StrategyResult(dt, signals, None), {self._w: atr}
+    def _bulk(self) -> StrategyResult:
+        vola = float(np.nanstd(
+            Math.ret(self._p)[-self._num_p_conf:]
+        ))
+
+        # Calculate S/R lines
+        sr_list = np.sort(
+            np.concatenate(
+                Tr.merge_sr(
+                    list(self._calculate_sr(self._dt, self._p)),
+                    vola
+                )
+            )
+        )
+
+        # Get the min and max value of the price series over the cross window
+        p_c = self._p[-self._num_p_conf:]
+        p_min = np.nanmin(p_c)
+        p_max = np.nanmax(p_c)
+        vola *= self._cnf
+
+        # Run over S/R lines and search for lines in the price range
+        idx = np.searchsorted(
+            sr_list,
+            (
+                p_min * (1. - vola),
+                p_max * (1. + vola)
+            )
+        )
+        sr_list = sr_list[range(*idx)]
+        if sr_list.shape[0] > 0:
+            final = np.where(
+                sr_list <= Math.next_valid_value(p_c)[0],
+                sr_list / p_min - 1.,
+                p_max / sr_list - 1.
+            )
+            breach = sr_list[np.where(final > vola)[0]]
+            # testing = sr_list[np.where((-vola < final) & (final < vola))[0]]
+        else:
+            breach = np.empty(0)
+
+        return StrategyResult(idx, self._dt, None)
+        # return breach

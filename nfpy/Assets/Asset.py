@@ -8,7 +8,7 @@ import pandas as pd
 from typing import (TypeVar, Union)
 
 import nfpy.Calendar as Cal
-import nfpy.Financial.Math as Math
+import nfpy.Math as Math
 from nfpy.Tools import (Exceptions as Ex, Utilities as Ut)
 
 from .FinancialItem import FinancialItem
@@ -32,6 +32,14 @@ class Asset(FinancialItem):
         else:
             raise Ex.CalendarError("Calendar not initialized as required!!!")
         self._cal = c
+        # self._df = None
+        # self._cal = Cal.get_calendar_glob()
+        # self.new_df()
+
+    # def reset_df(self):
+    #     if self._cal is None:
+    #         raise Ex.CalendarError("Calendar not initialized as required!!!")
+    #     self._df = pd.DataFrame(index=self._cal.calendar)
 
     @property
     def ts_table(self) -> str:
@@ -181,11 +189,15 @@ class Asset(FinancialItem):
 
     def calc_returns(self) -> pd.Series:
         """ Calculates the returns from the series of the prices. """
-        return Math.ret(self.prices)
+        return self.prices \
+            .pct_change(1, fill_method='pad')
 
     def calc_log_returns(self) -> pd.Series:
         """ Calculates the log returns from the series of the prices. """
-        return Math.logret(self.prices)
+        return self.prices \
+            .pct_change(1, fill_method='pad') \
+            .add(1.) \
+            .log()
 
     def write_dtype(self, dt: str) -> None:
         """ Writes a time series to the DB. The content of the column 'datatype'

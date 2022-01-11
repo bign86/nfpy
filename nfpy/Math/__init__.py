@@ -3,7 +3,8 @@ from .DiscountFactor import *
 from .EquityMath import *
 from .PortfolioMath import *
 from .Returns import *
-from .TSUtils import *
+from .TSStats_ import *
+from .TSUtils_ import *
 
 
 __all__ = [
@@ -13,16 +14,17 @@ __all__ = [
     # DiscountFactor
     'ccdf', 'cdf', 'dcf', 'df', 'rate_interpolate',
     # Equity
-    'adj_factors', 'beta', 'capm_beta', 'correlation', 'fv', 'sharpe',
-    'sml', 'tev',
+    'capm_beta', 'fv', 'tev',
     # Portfolio
     'price_returns', 'ptf_corr', 'ptf_cov', 'ptf_value', 'weights',
     # Returns
     'comp_ret', 'compound', 'e_ret', 'logret', 'ret', 'tot_ret',
-    # TSUtils
-    'drawdown', 'dropna', 'ffill_cols', 'fillna', 'kurtosis',
-    'last_valid_index', 'last_valid_value', 'next_valid_index',
-    'next_valid_value', 'next_valid_value_date', 'rolling_mean',
-    'rolling_sum', 'rolling_window', 'series_momenta', 'skewness',
+    # TSStats_
+    'beta', 'correlation', 'drawdown', 'kurtosis', 'series_momenta', 'sharpe',
+    'skewness', 'sml',
+    # TSUtils_
+    'dropna', 'ffill_cols', 'fillna', 'last_valid_index',
+    'last_valid_value', 'next_valid_index', 'next_valid_value',
+    'next_valid_value_date', 'rolling_mean', 'rolling_sum', 'rolling_window',
     'trim_ts', 'ts_yield',
 ]

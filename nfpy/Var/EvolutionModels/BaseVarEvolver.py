@@ -8,8 +8,8 @@ import numpy as np
 import pandas as pd
 
 from nfpy.Assets import Asset
-from nfpy.Assets.FinancialItem import FinancialItem
-from nfpy.Tools.Exceptions import MissingData
+# from nfpy.Assets.FinancialItem import FinancialItem
+# from nfpy.Tools.Exceptions import MissingData
 
 
 class BaseVarEvolver(metaclass=ABCMeta):

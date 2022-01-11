@@ -6,7 +6,7 @@
 
 import numpy as np
 
-import nfpy.Financial.Math as Math
+import nfpy.Math as Math
 
 
 def _smooth(ts: np.ndarray, w: int) -> np.ndarray:

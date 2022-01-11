@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 from jinja2 import FileSystemLoader, Environment
 import os
 import shutil
-from typing import (Generator, Iterable, Union)
+from typing import (Generator, Sequence, Union)
 
 from nfpy import NFPY_ROOT_DIR
 import nfpy.Calendar as Cal
@@ -79,7 +79,7 @@ class ReportingEngine(metaclass=Singleton):
         else:
             print(f'Successfully created the directory {new_path}')
 
-    def list(self, ids: [str] = (), active: bool = None) \
+    def list(self, ids: Sequence[str] = (), active: bool = None) \
             -> Generator[Rep.ReportData, Rep.ReportData, None]:
         """ List reports matching the given input. """
         where = ''
@@ -120,14 +120,19 @@ class ReportingEngine(metaclass=Singleton):
         outf = open(
             os.path.join(
                 self._curr_report_dir,
-                ''.join([res.id, os.path.splitext(res.template)])
+                ''.join(
+                    [
+                        res.id,
+                        os.path.splitext(res.template)[1]
+                    ]
+                )
             ),
             mode='w'
         )
         outf.write(out)
         outf.close()
 
-    def _run(self, call_list: Union[Iterable, Generator]) -> None:
+    def _run(self, call_list: Union[Sequence, Generator]) -> None:
         """ Run the report engine. """
         # Create a new report directory
         self._create_new_directory()
@@ -137,7 +142,7 @@ class ReportingEngine(metaclass=Singleton):
         for data in call_list:
             print(f'>>> Generating {data.id} [{data.report}]')
             try:
-                res = globals()[data.report](
+                res = getattr(Rep, data.report)(
                     data,
                     path=self._curr_report_dir
                 ).result
@@ -150,15 +155,15 @@ class ReportingEngine(metaclass=Singleton):
         # Update report index
         self._update_index(done_reports)
 
-    def run(self, names: [str] = (), active: bool = None) -> None:
+    def run(self, names: Sequence[str] = (), active: bool = None) -> None:
         """ Run the report engine. """
         self._run(self.list(names, active))
 
-    def run_custom(self, rep_list: [Rep.ReportData]) -> None:
+    def run_custom(self, rep_list: Sequence[Rep.ReportData]) -> None:
         """ Run the report engine. """
         self._run(rep_list)
 
-    def _update_index(self, done: [Rep.ReportData]) -> None:
+    def _update_index(self, done: Sequence[Rep.ReportData]) -> None:
         # Extract information
         to_print = [
             (d.id, str(d.description))
@@ -181,7 +186,7 @@ class ReportingEngine(metaclass=Singleton):
 
         index = Ut.AttributizedDict()
         index.id = 'index'
-        index.template = 'index'
+        index.template = 'index.html'
         index.title = f"Reports list - {Cal.today(mode='str', fmt='%Y-%m-%d')}"
         index.output = sorted(set(to_print), key=lambda v: v[0])
         self._generate(index)

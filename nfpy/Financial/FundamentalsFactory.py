@@ -3,8 +3,8 @@
 # Class to handle the calculations of fundamental quantities
 #
 
-from typing import Callable
 import pandas as pd
+from typing import Callable
 
 from nfpy.Tools import Exceptions as Ex
 
@@ -15,7 +15,8 @@ class FundamentalsFactory(object):
         self._comp = company
         self._cnst = company.constituents
 
-    def _financial(self, code: str, freq: str, callb: Callable = None) -> pd.Series:
+    def _financial(self, code: str, freq: str,
+                   callb: Callable = None) -> pd.Series:
         """ Base function to return fundamental data. """
         tpl = (freq, code)
         try:
@@ -31,7 +32,7 @@ class FundamentalsFactory(object):
                 self._comp.constituents_uids.append(tpl)
                 return d
 
-    def get_index(self, freq: str):
+    def get_index(self, freq: str) -> pd.Series:
         return self._comp.constituents[(freq, 'ATOT')].index
 
     def net_income(self, freq: str) -> pd.Series:

@@ -6,10 +6,10 @@
 import numpy as np
 from typing import (Union, Sequence)
 
-from nfpy.Assets import get_af_glob
+import nfpy.Assets as Ast
 from nfpy.Calendar import get_calendar_glob
 import nfpy.Financial as Fin
-import nfpy.Financial.Math as Math
+import nfpy.Math as Math
 from nfpy.Tools import (Constants as Cn, Utilities as Ut)
 
 
@@ -31,8 +31,8 @@ class OptimizationEngine(object):
         self._t0 = t0
 
         # Work variables
-        self._af = get_af_glob()
-        self._fx = Fin.get_fx_glob()
+        self._af = Ast.get_af_glob()
+        self._fx = Ast.get_fx_glob()
         self._rf = Fin.get_rf_glob()
         self._cal = get_calendar_glob()
         self._uids = None

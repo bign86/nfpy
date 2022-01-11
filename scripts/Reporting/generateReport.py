@@ -29,7 +29,7 @@ if __name__ == '__main__':
     msg = "Give a list of report names (press Enter to see existing ones): "
     rep_name = inh.input(msg, default=[], is_list=True)
     if not rep_name:
-        fields = ('name', 'report', 'active')
+        fields = ('id', 'title', 'report', 'active')
         q = f"select {', '.join(fields)} from Reports"
         res = db.execute(q).fetchall()
 

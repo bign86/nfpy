@@ -24,6 +24,11 @@ class AssetFactory(metaclass=Singleton):
     @property
     def asset_types(self) -> tuple:
         return self._ASSET_TYPES
+    #
+    # def reset_calendar(self, start, end):
+    #     get_cal_glob().initialize(end, start)
+    #     for a in self._known_assets:
+    #         a.reset_df()
 
     def _fetch_type(self, uid: str) -> str:
         """ Fetch the correct asset type. """

@@ -7,11 +7,10 @@ from abc import (ABCMeta, abstractmethod)
 import pandas as pd
 from typing import (Union, TypeVar)
 
-from nfpy.Assets import get_af_glob
+import nfpy.Assets as Ast
 import nfpy.Calendar as Cal
-from nfpy.Tools import Utilities as Ut
-
 import nfpy.Financial as Fin
+from nfpy.Tools import Utilities as Ut
 
 
 class BaseModelResult(Ut.AttributizedDict):
@@ -29,9 +28,9 @@ class BaseModel(metaclass=ABCMeta):
     def __init__(self, uid: str, date: Union[str, pd.Timestamp] = None,
                  **kwargs):
         # Handlers
-        self._af = get_af_glob()
+        self._af = Ast.get_af_glob()
         self._cal = Cal.get_calendar_glob()
-        self._fx = Fin.get_fx_glob()
+        self._fx = Ast.get_fx_glob()
 
         # Input data objects
         self._uid = uid

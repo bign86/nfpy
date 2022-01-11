@@ -3,12 +3,12 @@
 # Class to calculate a stock fair value using the DDM
 #
 
-from typing import Union
 import numpy as np
 import pandas as pd
+from typing import Union
 
 import nfpy.Financial as Fin
-import nfpy.Financial.Math as Math
+import nfpy.Math as Math
 from nfpy.Tools import (Constants as Cn, Exceptions as Ex)
 
 from .BaseFundamentalModel import BaseFundamentalModel
@@ -28,15 +28,11 @@ class DividendDiscountModel(BaseFundamentalModel):
                  past_horizon: int = 5, future_proj: int = 3,
                  div_conf: float = .1, susp_conf: float = 1., **kwargs):
         super().__init__(uid, date, past_horizon, future_proj)
-        self._div_confidence = max(div_conf, .0)
-        self._suspension = max(susp_conf, .0) + 1.
-
-        self._df = Fin.DividendFactory(self._eq, self._start,
-                                       self._t0, div_conf)
+        self._df = Fin.DividendFactory(self._eq, div_conf, susp_conf)
         self._check_applicability()
 
-        self._res_update(div_conf=self._div_confidence, ccy=self._asset.currency,
-                         suspension=self._suspension, uid=self._uid,
+        self._res_update(div_conf=div_conf, ccy=self._asset.currency,
+                         suspension=susp_conf, uid=self._uid,
                          equity=self._eq.uid, t0=self._t0, start=self._start,
                          past_horizon=self._ph, future_proj=self._fp)
 
@@ -45,22 +41,12 @@ class DividendDiscountModel(BaseFundamentalModel):
             and frequency of dividends is checked.
         """
         # We assume DDM cannot be used if dividends are NOT paid
-        if self._df.num == 0:
+        if not self._df.is_dividend_payer:
             raise Ex.MissingData(f'No dividends for {self._eq.uid}')
-
-        # Days since last dividend
-        div_gap = (self._t0 - self._df.dividends.index[-1]).days
-
-        # Tolerance of days since last dividend with +-20% confidence interval
-        try:
-            limit = self.frequency * Cn.DAYS_IN_1Y * self._suspension
-        except ValueError as ex:
-            # print(str(ex))
-            raise ValueError(f'Dividend frequency error in {self._uid}')
 
         # If the last dividend was outside the tolerance for the inferred
         # frequency, assume the dividend has been suspended
-        if div_gap > limit:
+        if self._df.is_dividend_suspended:
             msg = f'Dividends for {self._uid} [{self._eq.uid}] appear to have been suspended'
             raise Ex.MissingData(msg)
 
@@ -89,37 +75,33 @@ class DividendDiscountModel(BaseFundamentalModel):
 
     def _get_future_dates(self) -> tuple:
         """ Create the stream of future dates. """
-        last_date = self._df.dividends.index[-1]
+        last_date = self._df.dividends[0][-1]
         freq = self.frequency
 
-        t = np.arange(1., self._fp / freq + .001)
-
-        if freq == 1.:
-            ft = [last_date + pd.DateOffset(years=v) for v in t]
-        elif freq == .25:
-            ft = [last_date + pd.DateOffset(months=3 * v) for v in t]
-        elif freq == .5:
-            ft = [last_date + pd.DateOffset(months=6 * v) for v in t]
-        else:
-            raise ValueError(f'Frequency {freq} not supported')
+        t = np.arange(1., round(self._fp * freq) + .001)
+        ft = [
+            # last_date + pd.DateOffset(months=round(12 * v / freq))
+            last_date + np.timedelta64(round(12 * v / freq), 'M').astype('timedelta64[D]')
+            for v in t
+        ]
 
         return t, ft
 
     def _calculate(self):
         last_price = self.get_last_price()
         eq_drift, div_drift = self._calc_drift()
-        div_ts = self._df.dividends
+        dt_ts, div_ts = self._df.dividends
         t, ft = self._get_future_dates()
         fp, freq = self._fp, self.frequency
 
         # Create cash flows sequence and calculate final price
-        cf = div_ts.iat[-1] + np.zeros(len(t))
+        cf = div_ts[-1] + np.zeros(len(t))
         final_price = last_price * (Math.compound(eq_drift, fp) + 1.)
         self._cf_no_growth = np.array([t, cf])
         self._cf_no_growth[1, -1] += final_price
 
         # Calculate the DCF w/ growth
-        cf_compound = cf * (Math.compound(div_drift, t, 1. / freq) + 1.)
+        cf_compound = cf * (Math.compound(div_drift, t, freq) + 1.)
         self._cf_growth = np.array([t, cf_compound])
         self._cf_growth[1, -1] += final_price
 
@@ -128,7 +110,8 @@ class DividendDiscountModel(BaseFundamentalModel):
         cf_gwt = np.array([ft, cf_compound])
 
         # Record results
-        self._res_update(div_ts=div_ts, div_num=self._df.num,
+        self._res_update(div_ts=pd.Series(div_ts, index=dt_ts),
+                         div_num=self._df.num,
                          last_price=last_price, div_freq=freq,
                          price_drift=eq_drift, div_drift=div_drift,
                          final_price=final_price, div_zg=cf_zg,
@@ -144,7 +127,7 @@ class DividendDiscountModel(BaseFundamentalModel):
             dr = kwargs.get('d_rate', .0)
 
         # Obtain the period-rate from the annualized rate
-        dr *= self.frequency
+        dr /= self.frequency
 
         fv_zg = float(np.sum(Math.dcf(self._cf_no_growth, dr)))
         fv_gwt = float(np.sum(Math.dcf(self._cf_growth, dr)))

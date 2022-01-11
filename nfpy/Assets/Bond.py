@@ -10,7 +10,7 @@ from typing import Union
 import warnings
 
 from nfpy.Calendar import get_calendar_glob
-import nfpy.Financial.Math as Math
+import nfpy.Math as Math
 from nfpy.Tools import (Constants as Cn, Exceptions as Ex)
 
 from .Asset import Asset

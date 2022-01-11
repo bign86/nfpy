@@ -243,32 +243,30 @@ class YahooHistoricalBasePage(YahooBasePage):
 
     def _local_initializations(self) -> None:
         """ Local initializations for the single page. """
-        p = {}
+        p = {'events': self.event}
         if self._ext_p:
             for t in [('start', 'period1'), ('end', 'period2')]:
                 if t[0] in self._ext_p:
                     d = self._ext_p[t[0]]
                     p[t[1]] = str(int(pd.to_datetime(d).timestamp()))
-            self.params = p
 
         # self.params = {'crumb': self._fetch_crumb()}
         # print("CRUMB: {}".format(crumb))
-        self.params = {'events': self.event}
+        self.params = p
 
     def _parse_csv(self) -> pd.DataFrame:
-        names = self._COLUMNS
         df = pd.read_csv(
             StringIO(self._robj.text),
             sep=',',
             header=None,
-            names=names,
+            names=self._COLUMNS,
             skiprows=1
         )
 
         # When downloading prices the oldest row is often made of nulls,
         # this is to remove it
         df.replace(to_replace='null', value=np.nan, inplace=True)
-        df.dropna(subset=names[1:], inplace=True)
+        df.dropna(subset=self._COLUMNS[1:], inplace=True)
         df.insert(0, 'ticker', self.ticker)
         return df
 
@@ -338,7 +336,9 @@ class YahooSplits(YahooHistoricalBasePage):
         df.insert(2, 'dtype', self._dt.get('split'))
 
         if not df.empty:
-            Ut.print_wrn(Warning(f' >>> New split found for {self.ticker}!'))
+            msg = f' >>> New split found for {self.ticker}!\n' \
+                  f'{df.to_string}'
+            Ut.print_wrn(Warning(msg))
 
         def _calc(x: str) -> float:
             """ Transform splits in adjustment factors """

@@ -5,12 +5,11 @@
 import json
 import pandas as pd
 import re
-from typing import (Any, Union)
+from typing import Any
 
-from nfpy.Assets import get_af_glob
+import nfpy.Assets as Ast
 import nfpy.Calendar as Cal
 import nfpy.Downloader as Dwn
-import nfpy.Financial as Fin
 from nfpy.Tools import Constants as Cn
 
 
@@ -22,8 +21,8 @@ class InputHandler(object):
     _DEFAULT_SEP = ','
 
     def __init__(self):
-        self._af = get_af_glob()
-        self._ccy = Fin.get_fx_glob()
+        self._af = Ast.get_af_glob()
+        self._ccy = Ast.get_fx_glob()
         self._dwn = Dwn.get_dwnf_glob()
         self._converters = {
             'str': self._to_string, 'float': self._to_float,
@@ -123,8 +122,7 @@ class InputHandler(object):
             return False, 'ISIN malformed'
         return True, 'Ok'
 
-    def _convert(self, vin: str, idesc: str, **kwargs) \
-            -> Union[list, int, float, bool, Cal.TyDate]:
+    def _convert(self, vin: str, idesc: str, **kwargs) -> Any:
         """ Converts the supplied input by cleaning the string and casting to
             the appropriate data type. An exception is cast if casting is
             impossible or if inputs are empty.

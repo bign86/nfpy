@@ -7,11 +7,11 @@ import numpy as np
 from typing import (Any, Generator)
 
 from nfpy.Assets import get_af_glob
-import nfpy.IO as IO
 import nfpy.Financial.Math as Mat
+import nfpy.IO as IO
 from nfpy.Tools import Utilities as Ut
 
-from . import Trends as Tr
+from .SR import Trends as Tr
 
 
 class BreachesResult(Ut.AttributizedDict):
@@ -66,7 +66,7 @@ class BreachesResult(Ut.AttributizedDict):
 class BreachesEngine(object):
     """ Engine to evaluate breaches of trading signals. """
 
-    def __init__(self, w_sr_slow: int, w_sr_fast: int, w_check: int,
+    def __init__(self, w_sr_fast: int, w_sr_slow: int, w_check: int,
                  sr_mult: float = 5., confidence: float = 1.65) -> None:
         # Handlers
         self._af = get_af_glob()
@@ -80,10 +80,10 @@ class BreachesEngine(object):
     def _calculate_sr(self, dt: np.ndarray, p: np.ndarray) \
             -> Generator[np.ndarray, Any, None]:
         return (
-            Tr.search_sr(
+            Tr.search_maxmin(
                 dt[-int(w * self._sr_mult):],
                 p[-int(w * self._sr_mult):],
-                w=w, dump=.75
+                w=w, tol=1.
             )
             for w in self._w_sr
         )
@@ -100,8 +100,8 @@ class BreachesEngine(object):
 
         # Calculate S/R lines
         sr_groups = Tr.merge_sr(
-            vola,
-            list(self._calculate_sr(dt, p))
+            list(self._calculate_sr(dt, p)),
+            vola
         )
         sr_list = np.sort(
             np.concatenate(

@@ -8,11 +8,11 @@ import pandas as pd
 from typing import Union
 
 import nfpy.Calendar as Cal
-import nfpy.Financial.Math as Math
+import nfpy.Math as Math
 from nfpy.Tools import (Exceptions as Ex)
 
+from . import get_af_glob
 from .Asset import Asset
-from .AssetFactory import get_af_glob
 
 
 class Equity(Asset):
@@ -115,12 +115,41 @@ class Equity(Asset):
 
         # If the equity does pay dividends calculate adj_factors
         if div is not None:
-            adj_f = Math.adj_factors(rp.values, rp.index.values,
+            adj_f = self.adj_factors(rp.values, rp.index.values,
                                      div.values, div.index.values)
             adj_p = adj_f * rp
 
         self._df['adj_price'] = adj_p
         self._df['adj_factors'] = adj_f
+
+    @staticmethod
+    def adj_factors(ts: np.ndarray, dt: np.ndarray, div: np.ndarray,
+                    div_dt: np.ndarray) -> np.ndarray:
+        """ Calculate the adjustment factors given a dividend series.
+
+            Input:
+                ts [np.ndarray]: price series to calculate the yield
+                dt [np.ndarray]: price series date index
+                div [np.ndarray]: dividend series
+                div_dt [np.ndarray]: dividend series date index
+
+            Output:
+                adjfc [np.ndarray]: series of adjustment factors
+        """
+        adj = np.ones(ts.shape)
+
+        # Calculate conversion factors
+        idx = np.searchsorted(dt, div_dt)
+        for n, i in enumerate(idx):
+            try:
+                v = Math.last_valid_index(ts, i)
+            except ValueError:
+                pass
+            else:
+                adj[i] -= div[n] / ts[v]
+
+        cp = np.nancumprod(adj)
+        return adj / cp * cp[-1]
 
     def beta(self, benchmark: Asset = None,
              start: Union[np.datetime64, pd.Timestamp] = None,

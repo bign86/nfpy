@@ -4,76 +4,135 @@
 #
 
 import numpy as np
-import pandas as pd
 from typing import Union
 
 import nfpy.Calendar as Cal
+from nfpy.Math import compound
 from nfpy.Tools import (Constants as Cn)
-
-from .Math import (compound, trim_ts, ts_yield)
 
 
 class DividendFactory(object):
-    _DAYS = np.array([30, 90, 180, 365])
-    _FREQ = np.array([.08333, .25, .5, 1.])
 
-    def __init__(self, eq, start: pd.Timestamp = None,
-                 end: pd.Timestamp = None, tol: float = .5):
-        # Input
+    def __init__(self, eq, tolerance: float = .5, suspension: float = 1.):
+        # INPUTS
         self._eq = eq
-        self._start = Cal.pd_2_np64(start)
-        self._t0 = Cal.pd_2_np64(end)
-        self._tol = tol
+        self._tol = max(tolerance, .0)
+        self._suspension = max(suspension, .0) + 1.
 
-        # Working variables
+        # WORKING VARIABLES
+        # Dividends
+        self._is_div_payer = False
+        self._is_div_suspended = False
         self._div = None
         self._dt = None
-        self._div_special = None
-        self._dt_special = None
         self._num = None
-        self._flim = None
-        self._dist = None
 
-        # Results
+        # Special dividends
+        self._special_div = None
+        self._special_dt = None
+
+        # RESULTS
+        # Derived quantities on regular dividends
+        self._dist = None
         self._divret = None
         self._daily_drift = None
         self._ann_drift = None
         self._freq = None
-        self._days = None
+
+        # Annualized dividend quantities
+        self._yearly_div = None
+        self._yearly_dt = None
 
         self._initialize()
+
+    def _initialize(self) -> None:
+        """ Initialize the factory. """
+        if self._tol > 1. or self._tol < 0.:
+            msg = f'Tolerance for dividends should be in [0, 1], given {self._tol}'
+            raise ValueError(msg)
+
+        # Initialize special dividends
+        div = self._eq.dividends_special
+        self._special_div = div.values
+        self._special_dt = div.index.values.astype('datetime64[D]')
+
+        # Initialize dividends
+        div = self._eq.dividends
+        self._div = div.values
+        self._dt = div.index.values.astype('datetime64[D]')
+        self._num = self._div.shape[0]
+        self._is_div_payer = True if self._num > 0 else False
+
+        if not self._is_div_payer:
+            return
+
+        # Calculate frequency
+        self._yearly_dt, idx, counts = np.unique(
+            self._dt.astype('datetime64[Y]').astype(int) + 1970,
+            return_inverse=True,
+            return_counts=True
+        )
+        self._freq = int(np.round(np.mean(counts)))
+
+        # Calculate yearly dividend as a sum
+        divs = np.zeros(self._yearly_dt.shape)
+        for n, i in enumerate(idx):
+            divs[i] += self._div[n]
+
+        # Adjust the first and the last year using the inferred frequency
+        if counts[0] != self._freq:
+            divs[0] *= self._freq / counts[0]
+        if counts[-1] != self._freq:
+            divs[-1] *= self._freq / counts[-1]
+        self._yearly_div = divs
+
+        # Check whether dividend is likely to have been suspended
+        t0 = Cal.get_calendar_glob().t0.asm8.astype('datetime64[D]')
+        div_gap = (t0 - self._dt[-1]).astype(int)
+        limit = Cn.DAYS_IN_1Y * self._suspension / self.frequency
+        if div_gap > limit:
+            self._is_div_suspended = True
 
     def __len__(self) -> int:
         return self._num
 
     @property
-    def dividends(self) -> pd.Series:
-        return pd.Series(self._div, index=self._dt)
+    def is_dividend_payer(self) -> bool:
+        return self._is_div_payer
 
     @property
-    def dividends_special(self) -> Union[pd.Series, None]:
-        if self._div_special is None:
-            self._initialize_special_div()
-        if self._div_special.shape[0] == 0:
+    def is_dividend_suspended(self) -> bool:
+        return self._is_div_suspended
+
+    # FIXME: use only numpy
+    @property
+    def dividends(self) -> Union[tuple[np.ndarray, np.ndarray], None]:
+        if not self._is_div_payer:
             return None
         else:
-            return pd.Series(self._div_special, index=self._dt_special)
+            return self._dt, self._div
+
+    @property
+    def dividends_special(self) -> Union[tuple[np.ndarray, np.ndarray], None]:
+        if not self._is_div_payer:
+            return None
+        else:
+            return self._special_dt, self._special_div
+
+    @property
+    def annual_dividends(self) -> Union[tuple[np.ndarray, np.ndarray], None]:
+        if not self._is_div_payer:
+            return None
+        else:
+            return self._yearly_dt, self._yearly_div
 
     @property
     def num(self) -> int:
         return self.__len__()
 
     @property
-    def frequency(self) -> float:
-        if not self._freq:
-            self._calc_freq()
+    def frequency(self) -> int:
         return self._freq
-
-    @property
-    def days(self) -> int:
-        if not self._days:
-            self._calc_freq()
-        return self._days
 
     @property
     def returns(self) -> np.array:
@@ -100,62 +159,23 @@ class DividendFactory(object):
         return self._ann_drift
 
     @property
-    def last(self) -> []:
+    def last(self) -> tuple[np.datetime64, float]:
         return self._dt[-1], self._div[-1]
 
-    def _initialize(self) -> None:
-        """ Initialize the factory. """
-        if self._tol > 1. or self._tol < 0.:
-            msg = f'Tolerance for dividends should be in [0, 1], given {self._tol}'
-            raise ValueError(msg)
-
-        div = self._eq.dividends
-        ts, dt = trim_ts(div.values, div.index.values, self._start, self._t0)
-        self._num = ts.shape[0]
-        self._div = ts
-        self._dt = dt
-
-    def _initialize_special_div(self) -> None:
-        """ Initialize special dividends. This operation is not part of the
-            standard initialization. Special dividends are evaluated lazyLY.
-        """
-        div = self._eq.dividends_special
-        ts, dt = trim_ts(div.values, div.index.values, self._start, self._t0)
-        self._div_special = ts
-        self._dt_special = dt
-
-    def dyield(self, date: pd.Timestamp = None) -> float:
-        """ Compute the dividend yield at given date.
+    def div_yield(self, date: np.datetime64 = None) -> float:
+        """ Compute the dividend yield as last dividend annualized over
+            the current price.
 
             Inputs:
-                date [pd.Timestamp]: compute date (default None)
+                date [np.datetime64]: compute date (default None)
 
             Output:
                 yield [float]: dividend yield
         """
-        return ts_yield(
-            self._dt, self._div,
-            self._eq.prices.values,
-            Cal.pd_2_np64(date)
-        )
-
-    def _calc_freq(self) -> None:
-        """ Determine the frequency of dividends. The frequency is determined if
-            dividends are a constant number of days apart from each other given
-            a confidence interval. Note that special dividends issued in random
-            days will prevent the determination of the dividend frequency.
-        """
-        if self._num < 2:
-            msg = f'Too few dividends to determine dividend frequency in {self._eq.uid}'
-            raise ValueError(msg)
-
-        idx = np.argmin(
-            np.abs(
-                self._DAYS - np.quantile(self.distance, .75)
-            )
-        )
-        self._freq = self._FREQ[idx]
-        self._days = self._DAYS[idx]
+        if not date:
+            date = Cal.get_calendar_glob().t0
+        pos = np.searchsorted(self._dt, [date])[0]
+        return self._div[pos] * self._freq / self._eq.last_price(date)
 
     def _calc_drift(self) -> None:
         """ Determine the drift of dividends. """
@@ -163,37 +183,42 @@ class DividendFactory(object):
             msg = f'Too few dividends to determine dividend drift in {self._eq.uid}'
             raise ValueError(msg)
 
-        returns, distance = self.returns, self.distance
-        self._daily_drift = np.mean(
-            compound(returns, 1. / distance)
+        ret = np.minimum(
+            compound(self.returns, Cn.BDAYS_IN_1Y / self.distance),
+            1.
         )
-        self._ann_drift = np.mean(
-            compound(returns, Cn.BDAYS_IN_1Y / distance)
-        )
+        returns = ret * (1. - .2 * ret * ret - .2 * np.abs(ret))
+        self._ann_drift = np.mean(returns)
+        self._daily_drift = compound(self._ann_drift, 1. / Cn.BDAYS_IN_1Y)
 
     def _calc_returns(self) -> None:
         """ Calculates the percentage change of dividends. """
         if self._num < 2:
             msg = f'Too few dividends to determine dividend returns in {self._eq.uid}'
             raise ValueError(msg)
+
         self._divret = self._div[1:] / self._div[:-1] - 1.
 
     def _calc_distance(self) -> None:
         """ Calculates the distance in days between paid dividends. """
+        if self._num < 2:
+            msg = f'No distance for a single dividend in {self._eq.uid}'
+            raise ValueError(msg)
+
         idx = self._dt
         self._dist = np.array([
             (idx[i + 1] - idx[i]).astype('timedelta64[D]').astype('int')
             for i in range(self._num - 1)
         ])
 
-    def search_sp_div(self) -> []:
+    def search_sp_div(self) -> tuple:
         """ Function to search for special dividends. Creates a grid of
             plausible dates when to pay a dividend given the inferred frequency.
             The distance between the actual payment date and the theoretical one
             determines whether a dividend is classified as potentially special.
         """
         dt = (self._dt - self._dt[0]).astype('timedelta64[D]').astype('int')
-        days = self.frequency * 365.
+        days = Cn.DAYS_IN_1Y / self.frequency
         grid = np.round(dt / days) * days
         anomaly = 2 * np.abs(dt - grid) / days
 

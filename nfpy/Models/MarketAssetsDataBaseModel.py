@@ -7,8 +7,7 @@ import numpy as np
 import pandas as pd
 from typing import Union
 
-from nfpy.Calendar import get_calendar_glob
-import nfpy.Financial.Math as Math
+import nfpy.Math as Math
 from nfpy.Tools import Constants as Cn
 
 from .BaseModel import (BaseModel, BaseModelResult)
@@ -25,11 +24,23 @@ class MarketAssetsDataBaseModel(BaseModel):
 
     def __init__(self, uid: str, date: Union[str, pd.Timestamp] = None,
                  **kwargs):
+        """
+        Inputs:
+            uid [str]: uid of the asset
+            FIXME: put types
+            date [???]: reference date for the calculation (Default calendar.t0)
+            kwargs:
+                - time_spans [tuple[int]]: windows to calculate the statistics
+                    on (Default: (1M, 3M, 6M, 1Y, 3Y))
+        """
         super().__init__(uid, date)
 
-        self._cal = get_calendar_glob()
-        self._time_spans = (Cn.DAYS_IN_1M, 3 * Cn.DAYS_IN_1M, 6 * Cn.DAYS_IN_1M,
-                            Cn.DAYS_IN_1Y, 3 * Cn.DAYS_IN_1Y)
+        self._time_spans = kwargs.get('time_spans', None)
+        if not self._time_spans:
+            self._time_spans = (
+                Cn.DAYS_IN_1M, 3 * Cn.DAYS_IN_1M, 6 * Cn.DAYS_IN_1M,
+                Cn.DAYS_IN_1Y, 3 * Cn.DAYS_IN_1Y
+            )
 
         self._res_update(date=self._t0, uid=self._uid)
 

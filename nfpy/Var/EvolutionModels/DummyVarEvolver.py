@@ -5,8 +5,8 @@
 
 import numpy as np
 
-from nfpy.Var.EvolutionModels.BaseVarEvolver import BaseVarEvolver
 from nfpy.Assets import Asset
+from nfpy.Var.EvolutionModels.BaseVarEvolver import BaseVarEvolver
 
 
 class DummyVarEvolver(BaseVarEvolver):

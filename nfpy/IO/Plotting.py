@@ -16,9 +16,14 @@ plt.style.use('seaborn')
 class Plotter(object):
     """ New plotting class. """
 
-    _RC = {'linestyle': '-', 'marker': ''}
-    _RC_AXIS = {'c': 'k', 'linewidth': .5}
-    _RC_TEXT = {'fontsize': 8, 'fontvariant': 'small-caps'}
+    _RC = {
+        'plot': {'linestyle': '-', 'marker': ''},
+        'scatter': {'linestyle': '-', 'marker': 'o'},
+        'hist': {'linestyle': '-', 'marker': ''},
+        'bar': {'linestyle': '-'},
+        'annotations': {'fontsize': 8, 'fontvariant': 'small-caps'},
+        'axis': {'c': 'k', 'linewidth': .5},
+    }
 
     def __init__(self, nrows: int = 1, ncols: int = 1, figsize: [float] = None,
                  xl: [str] = (), yl: [str] = (),
@@ -133,6 +138,18 @@ class Plotter(object):
         self._plots.append((axid, 'hist', x, y, kwargs))
         return self
 
+    def bar(self, axid: int, x: Union[pd.Series, np.ndarray],
+            y: np.ndarray = None, **kwargs):
+        if isinstance(x, pd.Series):
+            _v = x
+            x, y = _v.index, _v.values
+        self._plots.append((axid, 'bar', x, y, kwargs))
+        return self
+
+    # TODO: add to class
+    def stem(self):
+        pass
+
     def annotate(self, axid: int, x: Union[pd.Series, np.ndarray],
                  y: np.ndarray = None, labels: [str] = (), **kwargs):
         if isinstance(x, pd.Series):
@@ -161,7 +178,7 @@ class Plotter(object):
             secondary = kw.pop('secondary_y', False)
             ax = self._get_axes(axid, secondary)
 
-            rc = self._RC.copy()
+            rc = self._RC[call].copy()
             rc.update(kw)
             leg = getattr(ax, call)(x, y, **rc)
 
@@ -213,17 +230,17 @@ class Plotter(object):
 
         # Run over axis lines
         for ax, xz, yz in zip(self._ax, self._x_zero, self._y_zero):
-            ax.axvline(xz, **self._RC_AXIS)
-            ax.axhline(yz, **self._RC_AXIS)
+            ax.axvline(xz, **self._RC['axis'])
+            ax.axhline(yz, **self._RC['axis'])
 
         # Run over annotations
         for axid, x, y, l, kw in self._annotations:
             ax = self._get_axes(axid, False)
-            rc = self._RC.copy()
+            rc = self._RC['scatter'].copy()
             rc.update(kw)
             ax.scatter(x, y, **rc)
             for i, k in enumerate(l):
-                ax.annotate(k, (x[i], y[i]), **self._RC_TEXT)
+                ax.annotate(k, (x[i], y[i]), **self._RC['annotations'])
 
         # Create legend
         for n, v in enumerate(zip(add_legend, label_legend)):
@@ -253,7 +270,7 @@ class PtfOptimizationPlot(Plotter):
     """ Creates a variance/return plot from a OptimizerResult object. """
 
     # FIXME: remove this subclass and delegate to the optimizerResult obj
-    # def add(self, axid: int, call: str, res: OptimizerResult, **kwargs):
+        # def add(self, axid: int, call: str, res: OptimizerResult, **kwargs):
     def add(self, axid: int, call: str, res, **kwargs):
         """ Add more plots to be plotted. """
         x = np.array(res.ptf_variance)

@@ -35,4 +35,7 @@ DAY_COUNT = {
     '30/360': (30, 360)
 }
 
-KNOWN_COUNTRIES = ['IT', 'DE', 'GB', 'FR', 'CH', 'US', 'JP', 'CN', 'EU']
+KNOWN_COUNTRIES = ['CH', 'CN', 'DE', 'EU', 'FR', 'GB', 'IT', 'JP', 'US']
+KNOWN_CCY = ['ARS', 'AUD', 'CAD', 'CNY', 'CHF', 'EUR', 'GBP', 'HKD', 'JPY',
+             'NZD', 'NWK', 'RUB', 'TRY', 'USD', 'ZAR']
+# BASE_CCY = ['CHF', 'EUR', 'GBP', 'USD']

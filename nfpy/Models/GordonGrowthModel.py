@@ -7,7 +7,7 @@ import pandas as pd
 from typing import Union
 
 import nfpy.Financial as Fin
-import nfpy.Financial.Math as Math
+import nfpy.Math as Math
 from nfpy.Tools import Exceptions as Ex
 
 from .BaseFundamentalModel import BaseFundamentalModel
@@ -27,11 +27,9 @@ class GordonGrowthModel(BaseFundamentalModel):
                  **kwargs):
         super().__init__(uid, date)
 
-        self._df = Fin.DividendFactory(self._eq, self._start, self._t0)
+        self._df = Fin.DividendFactory(self._eq)
         self._check_applicability()
-        self._record_inputs()
 
-    def _record_inputs(self):
         self._res_update(ccy=self._asset.currency, uid=self._uid,
                          equity=self._eq.uid, t0=self._t0, start=self._start)
 
@@ -40,7 +38,7 @@ class GordonGrowthModel(BaseFundamentalModel):
             and frequency of dividends is checked.
         """
         # We assume DDM cannot be used if dividends are NOT paid
-        if self._df.num == 0:
+        if not self._df.is_dividend_payer:
             raise Ex.MissingData(f'No dividends for {self._eq.uid}')
 
     def _calc_freq(self):
@@ -62,7 +60,7 @@ class GordonGrowthModel(BaseFundamentalModel):
         _, div = self._df.last
 
         # Create cash flows sequence and calculate final price
-        fut_div = div * (div_drift + 1.) / self.frequency
+        fut_div = div * (div_drift + 1.) * self.frequency
         self._fut_div = fut_div
 
         # Record results

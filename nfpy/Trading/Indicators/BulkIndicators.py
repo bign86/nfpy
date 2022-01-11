@@ -7,7 +7,7 @@
 import numpy as np
 from typing import (Callable, Optional)
 
-import nfpy.Financial.Math as Math
+import nfpy.Math as Math
 from nfpy.Tools import Exceptions as Ex
 
 

@@ -8,52 +8,14 @@ import numpy as np
 from typing import Union
 
 
-def skewness(ts: np.ndarray, axis: int = 0) -> float:
-    """ Calculates the third standard moment. """
-    ts_zm = ts - np.nanmean(ts, axis=axis)
-    return np.power(ts_zm, 3) / (np.nanstd(ts, axis=axis) ** 3)
-
-
-def kurtosis(ts: np.ndarray, axis: int = 0) -> float:
-    """ Calculates the fourth standard moment. """
-    ts_zm = ts - np.nanmean(ts, axis=axis)
-    return np.power(ts_zm, 4) / (np.nanstd(ts, axis=axis) ** 4)
-
-
-def series_momenta(ts: np.ndarray, axis: int = 0) -> tuple:
-    """ Calculates first 4 momenta of the input series
-
-        Output:
-            mu [float]: mean
-            var [float]: variance
-            skewness [float]: skewness (third momentum)
-            kurtosis [float]: kurtosis (fourth momentum)
-    """
-    mu = np.nanmean(ts, axis=axis)
-
-    std = np.nanstd(ts, axis=axis)
-    var = std * std
-    ts_zm = ts - np.nanmean(ts, axis=axis)
-
-    ts_exp = np.power(ts_zm, 3)
-    std_exp = var * std
-    skew = np.nanmean(ts_exp, axis=axis) / std_exp
-
-    ts_exp = ts_exp * ts_zm
-    std_exp = std_exp * std
-    kurt = np.nanmean(ts_exp, axis=axis) / std_exp
-
-    return mu, var, skew, kurt
-
-
-def rolling_window(v: np.ndarray, w: int):
+def rolling_window(v: np.ndarray, w: int) -> np.ndarray:
     """ Generate strides that simulate the rolling() function from pandas. """
     shape = v.shape[:-1] + (v.shape[-1] - w + 1, w)
     strides = v.strides + (v.strides[-1],)
     return np.lib.stride_tricks.as_strided(v, shape=shape, strides=strides)
 
 
-def rolling_sum(v: np.ndarray, w: int):
+def rolling_sum(v: np.ndarray, w: int) -> np.ndarray:
     """ Compute the rolling sum of the input array.
 
         Input:
@@ -70,7 +32,7 @@ def rolling_sum(v: np.ndarray, w: int):
     return ret[w - 1:]
 
 
-def rolling_mean(v: np.ndarray, w: int):
+def rolling_mean(v: np.ndarray, w: int) -> np.ndarray:
     """ Compute the rolling mean of the input array.
 
         Input:
@@ -88,7 +50,7 @@ def rolling_mean(v: np.ndarray, w: int):
 
 def trim_ts(v: Union[None, np.ndarray], dt: np.ndarray,
             start: np.datetime64 = None, end: np.datetime64 = None,
-            axis: int = 0) -> ():
+            axis: int = 0) -> tuple[np.ndarray, np.ndarray]:
     """ Replicates the use of Pandas .loc[] to slice a time series on a given
         pair of dates. Returns the sliced values array and dates array.
 
@@ -173,7 +135,7 @@ def last_valid_index(v: np.ndarray, start: int = None) -> int:
 
 
 def last_valid_value(v: np.ndarray, dt: np.ndarray = None,
-                     t0: np.datetime64 = None) -> ():
+                     t0: np.datetime64 = None) -> tuple[float, int]:
     """ Find the last valid value at a date <= t0.
 
         Input:
@@ -211,7 +173,7 @@ def next_valid_index(v: np.ndarray, start: int = 0) -> int:
     return i
 
 
-def next_valid_value(v: np.ndarray, start: int = 0) -> ():
+def next_valid_value(v: np.ndarray, start: int = 0) -> tuple[float, int]:
     """ Find the next valid value starting from the given index.
 
         Input:
@@ -227,7 +189,7 @@ def next_valid_value(v: np.ndarray, start: int = 0) -> ():
 
 
 def next_valid_value_date(v: np.ndarray, dt: np.ndarray,
-                          t0: np.datetime64) -> ():
+                          t0: np.datetime64) -> tuple[float, np.ndarray]:
     """ Find the next valid value at a date >= t0.
 
         Input:
@@ -244,8 +206,8 @@ def next_valid_value_date(v: np.ndarray, dt: np.ndarray,
     return float(v[pos + idx]), pos + idx
 
 
-def dropna(v: np.ndarray, axis: int = 0) -> ():
-    """ Drop NA from 2D input array. """
+def dropna(v: np.ndarray, axis: int = 0) -> tuple:
+    """ Drop NA from 2D input array. NOT inplace. """
     if len(v.shape) == 1:
         mask = ~np.isnan(v)
         _v = v[mask]
@@ -273,14 +235,15 @@ def fillna(v: np.ndarray, n: float, inplace=False) -> np.ndarray:
     return v
 
 
-# TODO: this one should really have a inplace option
-def ffill_cols(v: np.ndarray, n: float = 0):
+# TODO: implement the inplace option
+def ffill_cols(v: np.ndarray, n: float = 0, inplace=False) -> np.ndarray:
     """ Forward fill nan with the last valid value column-wise.
 
         Input:
             v [np.ndarray]: input array either 1-D or 2-D
             n [float]: fill up value for NaNs appearing at the beginning
                        of the data series.
+            inplace [bool]: do it in-place (Default: False)
 
         Output:
             out [np.ndarray]: array with NaNs filled column-wise
@@ -324,27 +287,3 @@ def ts_yield(dt: np.ndarray, ts: np.ndarray, base: np.ndarray,
     idx_ts = last_valid_index(ts)
     idx_base = last_valid_index(base)
     return ts[idx_ts] / base[idx_base]
-
-
-def drawdown(ts: np.ndarray, w: int) -> ():
-    """ Calculate the maximum drawdown in the given time window.
-
-        Input:
-            ts [np.ndarray]: time series
-            w [int]: window size
-
-        Output:
-            dd [np.ndarray]: drawdown
-            mdd [np.ndarray]: max drowdown in the window
-    """
-    w = abs(int(w))
-    idx_max = np.nanargmax(
-        rolling_window(ts, w),
-        axis=1
-    )
-    idx_max += np.arange(len(idx_max))
-    dd = np.take(ts, idx_max) / ts[w - 1:] - 1.
-    mdd = np.empty_like(dd)
-    mdd[:w] = np.maximum.accumulate(fillna(dd[:w], -1., inplace=True))
-    mdd[w-1:] = np.nanmax(rolling_window(dd, w), axis=1)
-    return dd, mdd

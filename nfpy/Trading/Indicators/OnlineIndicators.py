@@ -51,7 +51,7 @@ class BaseOnlineIndicator(object):
         return self
 
     @abstractmethod
-    def __next__(self) -> []:
+    def __next__(self) -> tuple:
         """ Instruction to calculate next point. """
 
 
@@ -68,7 +68,7 @@ class Sma(BaseOnlineIndicator):
     def __iter__(self):
         return self
 
-    def __next__(self) -> []:
+    def __next__(self) -> tuple:
         i = self._i
         ma = self._res
         if i < self._max - 1:
@@ -101,7 +101,7 @@ class Smstd(BaseOnlineIndicator):
     def __iter__(self):
         return self
 
-    def __next__(self) -> []:
+    def __next__(self) -> tuple:
         i = self._i
         std, ma = self._res, self._ma
         v, w = self._v, self._w
@@ -136,7 +136,7 @@ class Csma(BaseOnlineIndicator):
     def __iter__(self):
         return self
 
-    def __next__(self) -> []:
+    def __next__(self) -> tuple:
         i = self._i
         ma = self._res
         if i < self._max - 1:
@@ -168,7 +168,7 @@ class Ewma(BaseOnlineIndicator):
     def __iter__(self):
         return self
 
-    def __next__(self) -> []:
+    def __next__(self) -> tuple:
         i = self._i
         ma = self._res
         if i < self._max - 1:
@@ -221,7 +221,7 @@ class Smd(BaseOnlineIndicator):
     def __iter__(self):
         return self
 
-    def __next__(self) -> []:
+    def __next__(self) -> tuple:
         i, med = self._i, self._res
         if i < self._max - 1:
             self._i += 1
@@ -282,7 +282,7 @@ class Bollinger(BaseOnlineIndicator):
     def __iter__(self):
         return self
 
-    def __next__(self) -> []:
+    def __next__(self) -> tuple:
         i, bol = self._i, self._res
         if i < self._max - 1:
             self._i += 1
@@ -340,7 +340,7 @@ class Macd(BaseOnlineIndicator):
     def __iter__(self):
         return self
 
-    def __next__(self) -> []:
+    def __next__(self) -> tuple:
         i, res = self._i, self._res
         if i < self._max - 1:
             self._i += 1

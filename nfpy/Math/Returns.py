@@ -6,50 +6,34 @@
 from typing import Union
 
 import numpy as np
-import pandas as pd
 
-from .TSUtils import (ffill_cols, trim_ts)
+from .TSUtils_ import (ffill_cols, trim_ts)
 
 
-def ret(v: Union[np.ndarray, pd.Series], fillna: str = 'pad', w: int = 1) \
-        -> Union[np.ndarray, pd.Series]:
+def ret(v: np.ndarray) -> np.ndarray:
     """ Compute returns for the series using the pandas function pct_change()
 
         Inputs:
-            df [pd.Series]: input DataFrame
-            w [int]: window length (default 1)
-            fillna [str]: method to deal with missing data (default 'pad')
+            v [np.ndarray]: input series
 
         Output:
-            _r [pd.Series]: indexed series of simple returns
+            _r [np.ndarray]: indexed series of simple returns
     """
-    if isinstance(v, pd.Series):
-        return v.pct_change(w, fill_method=fillna)
-    else:
-        vf = ffill_cols(v)
-        return vf[1:] / vf[:-1] - 1.
+    vf = ffill_cols(v)
+    return vf[1:] / vf[:-1] - 1.
 
 
-def logret(v: Union[np.ndarray, pd.Series], fillna: str = 'pad', w: int = 1) \
-        -> Union[np.ndarray, pd.Series]:
+def logret(v: np.ndarray) -> np.ndarray:
     """ Compute is_log returns from the series of simple returns or prices
 
         Inputs:
-            df [pd.Series]: input DataFrame
-            w [int]: window length, used only for prices (default 1)
-            fillna [str]: method to deal with missing data, used only for
-                    prices (default 'pad')
+            v [np.ndarray]: input series
 
         Output:
-            _r [pd.Series]: indexed series of is_log returns
+            _r [np.ndarray]: indexed series of log returns
     """
-    if isinstance(v, pd.Series):
-        return ret(v, fillna, w) \
-            .add(1.) \
-            .log()
-    else:
-        vf = ffill_cols(v)
-        return np.log(vf[1:] / vf[:-1])
+    vf = ffill_cols(v)
+    return np.log(vf[1:] / vf[:-1])
 
 
 def tot_ret(ts: np.ndarray, dt: np.ndarray = None, start: np.datetime64 = None,
@@ -80,7 +64,7 @@ def tot_ret(ts: np.ndarray, dt: np.ndarray = None, start: np.datetime64 = None,
 
 def comp_ret(ts: np.ndarray, dt: np.ndarray = None, start: np.datetime64 = None,
              end: np.datetime64 = None, base: float = 1., is_log: bool = False
-             ) -> ():
+             ) -> tuple:
     """ Calculates the series of total returns by compounding. Identical to
         tot_ret() but returns the compounded series instead of the last value
         only.

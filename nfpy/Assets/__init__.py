@@ -1,4 +1,5 @@
 from .AssetFactory import get_af_glob
+from .CurrencyFactory import get_fx_glob
 
 # Type[U] -> U
 from .AggregationMixin import TyAggregation
@@ -7,5 +8,9 @@ from .FinancialItem import TyFI
 
 
 __all__ = [
-    'get_af_glob', 'TyFI', 'TyAsset', 'TyAggregation',
+    # Factories
+    'get_af_glob', 'get_fx_glob',
+
+    # Types
+    'TyAggregation', 'TyAsset', 'TyFI',
 ]

@@ -8,7 +8,7 @@ import pandas as pd
 import numpy.random as rnd
 from numpy.linalg import cholesky
 
-from nfpy.Tools.TSUtils import dropna, trim_ts
+from nfpy.Financial.Math import TSUtils as Tu
 
 
 class RandomEngine(object):
@@ -72,12 +72,12 @@ class RandomEngine(object):
         for k, rf in rf_dict.items():
             index.append(k)
             r = rf.returns
-            v, _ = trim_ts(r.values, r.index.values, start, end)
+            v, _ = Tu.trim_ts(r.values, r.index.values, start, end)
             mat[i, :] = r[-obs:]
             i = i + 1
 
         # calculate covariance matrix
-        mat, _ = dropna(mat)
+        mat, _ = Tu.dropna(mat)
         sigma = np.cov(mat)
         choly = cholesky(sigma)
 

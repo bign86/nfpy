@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from typing import Union
 
-import nfpy.Financial.Math as Math
+import nfpy.Math as Math
 from nfpy.Tools import (Constants as Cn)
 
 from .MarketAssetsDataBaseModel import (MADMResult, MarketAssetsDataBaseModel)
@@ -75,7 +75,14 @@ class MarketEquityDataModel(MarketAssetsDataBaseModel):
             total_ret = last_price / p_start - 1.
             stats[2, i] = Math.compound(total_ret, Cn.BDAYS_IN_1Y / real_n)
 
-            beta_results = asset.beta(start=start, end=t0)
+            returns = asset.returns
+            beta_results = Math.beta(
+                returns.index.values,
+                returns.values,
+                index.returns.values,
+                start=start.asm8,
+                end=t0.asm8
+            )
             betas.append(beta_results[1:])
             stats[3:5, i] = beta_results[1:3]
 

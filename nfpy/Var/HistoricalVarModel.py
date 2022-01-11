@@ -8,8 +8,8 @@ import pandas as pd
 import numpy as np
 
 from nfpy.Assets import Portfolio
-from nfpy.Handlers.Calendar import get_calendar_glob
-from nfpy.Tools.Utilities import AttributizedDict
+from nfpy.Calendar import get_calendar_glob
+from nfpy.Tools import Utilities as Ut
 from nfpy.Var.RandomEngine import RandomEngine
 from nfpy.Var.EvolutionModels.BaseVarEvolver import BaseVarEvolver
 from nfpy.Var.EvolutionModels.DummyVarEvolver import DummyVarEvolver
@@ -22,7 +22,7 @@ from nfpy.Var.EvolutionModels.GBMEvolver import GBMEvolver
 #       a reasonable amount of used memory
 
 
-class VarResult(AttributizedDict):
+class VarResult(Ut.AttributizedDict):
     """ Object containing the results of the VAR calculation. """
 
     def __init__(self):
@@ -202,7 +202,7 @@ class HistoricalVarModel(object):
             factors and the final portfolio.
             1. take the var for each asset (not rf) and aggregate
         """
-        from nfpy.Handlers.Plotting import PlotTS
+        from nfpy.IO.Plotting import PlotTS
         import matplotlib.pylab as plt
         series = []
 

@@ -7,7 +7,7 @@ from abc import (ABCMeta, abstractmethod)
 import numpy as np
 from typing import (Optional, TypeVar, Union)
 
-import nfpy.Financial.Math as Math
+import nfpy.Math as Math
 import nfpy.Tools.Utilities as Ut
 
 
@@ -47,7 +47,7 @@ class StrategyResIterator(object):
     def __iter__(self):
         return self
 
-    def __next__(self) -> []:
+    def __next__(self) -> tuple:
         i = self._i
         if i < self._max:
             self._i += 1
@@ -77,6 +77,8 @@ class BaseStrategy(metaclass=ABCMeta):
     """
 
     _LABEL = ''
+    NAME = ''
+    DESCRIPTION = ''
 
     def __init__(self, dt: np.ndarray, p: np.ndarray, npc: Optional[int] = 0):
         self._dt = dt
@@ -96,9 +98,14 @@ class BaseStrategy(metaclass=ABCMeta):
     @abstractmethod
     def min_length(self) -> int:
         """ Return the minimum amount of data required for a single signal
-            generation. This represents the minumum amount of data necessary to
+            generation. This represents the minimum amount of data necessary to
             run the strategy.
         """
+
+    @property
+    def max_length(self) -> int:
+        """ Returns the max time series index. """
+        return self._max_i
 
     def check_length(self) -> None:
         useful_length = self._p.shape[0] - self.min_length
@@ -113,18 +120,17 @@ class BaseStrategy(metaclass=ABCMeta):
 
     # Apply the strategy day-by-day
     def set_timer(self, start: Union[int, np.datetime64] = None) -> None:
-        """ Set the timer to <dt> for the day-by-day execution. """
+        """ Set the timer to <dt> for the period-by-period execution. """
         if isinstance(start, np.datetime64):
-            start = max(
+            self._i = max(
                 np.searchsorted(self._dt, [start])[0],
                 self.min_length
             )
         elif isinstance(start, int):
-            start = max(start, self.min_length)
+            self._i = max(start, self.min_length)
         else:
             raise TypeError('The <date> in Strategy.set_timer() is not correct')
 
-        self._i = max(start, self.min_length)
         self._start_time = self._dt[self._i]
         self._is_timer_set = True
 
@@ -141,13 +147,13 @@ class BaseStrategy(metaclass=ABCMeta):
         if not self._is_timer_set:
             self._set_min_timer()
 
-        # We need to headstart the first part of the strategy to create the
+        # We need to jumpstart the first part of the strategy to create the
         # first data point of the strategy
 
     def __iter__(self):
         return self
 
-    def __next__(self) -> []:
+    def __next__(self) -> tuple:
         i = self._i
         if i < self._max_i:
             self._i += 1
@@ -156,8 +162,16 @@ class BaseStrategy(metaclass=ABCMeta):
             raise StopIteration
 
     @abstractmethod
-    def _f(self, i: int) -> []:
+    def _f(self, i: int) -> tuple:
         """ Strategy day-by-day calculation function. """
+
+    @abstractmethod
+    def check_order_validity(self, order: list) -> str:
+        """ Return the validity of a pending order.
+             - 'execute': if the order can be executed immediately
+             - 'keep': if the order cannot be executed and remains pending
+             - None: if the order is not valid anymore and should be cancelled
+        """
 
     # Apply the strategy in bulk
     def bulk_exec(self) -> StrategyResult:

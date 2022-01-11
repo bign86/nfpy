@@ -66,7 +66,7 @@ class ReportMarket(BaseReport):
         ),
     }
 
-    def _init_input(self, type_: str) -> dict:
+    def _init_input(self, type_: str) -> dict[str, Any]:
         """ Prepare and validate the the input parameters for the model. This
             includes verifying the parameters are correct for the models in the
             report. Takes the default parameters if any, applies the values from
@@ -153,7 +153,7 @@ class ReportMarket(BaseReport):
 
         return outputs
 
-    def _calc_generic(self, uid: str, p: {}) -> Any:
+    def _calc_generic(self, uid: str, p: dict[str, Any]) -> Any:
         mod = Mod.MarketAssetsDataBaseModel(uid, **p['baseData'])
         return self._render_out_generic(mod.result(**p['baseData']))
 
@@ -168,7 +168,6 @@ class ReportMarket(BaseReport):
             .plot() \
             .save(fig_full[0]) \
             .close(True) \
-            # pl.close(True)
 
         # Render dataframes
         df = res.stats.T
@@ -184,7 +183,7 @@ class ReportMarket(BaseReport):
 
         return res
 
-    def _calc_equity(self, uid: str, p: {}) -> Any:
+    def _calc_equity(self, uid: str, p: dict[str, Any]) -> Any:
         mod = Mod.MarketEquityDataModel(uid, **p)
         return self._render_out_equity(mod.result(**p))
 
@@ -203,7 +202,6 @@ class ReportMarket(BaseReport):
             .plot() \
             .save(fig_full[0]) \
             .close(True)
-        # pl.clf()
 
         # Performance plot
         IO.TSPlot() \
@@ -212,7 +210,6 @@ class ReportMarket(BaseReport):
             .plot() \
             .save(fig_full[1]) \
             .close(True)
-        # pl.clf()
 
         # Beta plot
         start = self._cal.shift(res.date, -Cn.DAYS_IN_1Y, 'D')
@@ -236,7 +233,6 @@ class ReportMarket(BaseReport):
             .plot() \
             .save(fig_full[2]) \
             .close(True)
-        # pl.clf()
 
         # Render dataframes
         df = res.stats.T
@@ -257,7 +253,7 @@ class ReportMarket(BaseReport):
 
         return res
 
-    def _calc_bond(self, uid: str, p: {}) -> Any:
+    def _calc_bond(self, uid: str, p: dict[str, Any]) -> Any:
         mod = Mod.MarketBondDataModel(uid, **p)
         return self._render_out_bond(mod.result(**p))
 
@@ -275,7 +271,6 @@ class ReportMarket(BaseReport):
             .plot() \
             .save(fig_full[0]) \
             .close(True)
-        # pl.clf()
 
         # YTM plot
         data = res.yields_array
@@ -299,7 +294,6 @@ class ReportMarket(BaseReport):
             .plot() \
             .save(fig_full[1]) \
             .close(True)
-        # pl.clf()
 
         # Render dataframes
         df = res.stats.T
@@ -322,12 +316,10 @@ class ReportMarket(BaseReport):
 
         return res
 
-    def _calc_ptf(self, uid: str, p: {}) -> Any:
+    def _calc_ptf(self, uid: str, p: dict[str, Any]) -> Any:
         mod = Mod.MarketPortfolioDataModel(uid, **p)
         mkt_res = mod.result(**p)
         oe = Mod.OptimizationEngine(uid, **p['portfolioOptimization'])
-        # oe_res = oe.result
-        # res.update(oe.result)
         return self._render_out_ptf((mkt_res, oe.result))
 
     def _render_out_ptf(self, res: Any) -> Any:
@@ -383,7 +375,6 @@ class ReportMarket(BaseReport):
         pl.plot() \
             .save(fig_full[0]) \
             .close(True)
-        # pl.clf()
 
         # Create correlation matrix
         corr_df = pd.DataFrame(res[1].corr, index=res[1].uids,
@@ -392,7 +383,6 @@ class ReportMarket(BaseReport):
             .format('{:,.0%}') \
             .set_table_attributes('class="matrix"') \
             .render()
-        # .background_gradient(cmap='RdYlGn', axis=None) \
 
         # Create results table
         wgt_df = pd.DataFrame(np.vstack(weights).T,
@@ -405,7 +395,7 @@ class ReportMarket(BaseReport):
 
         return final_res
 
-    def _calc_trading(self, uid: str, p: {}) -> Any:
+    def _calc_trading(self, uid: str, p: dict[str, Any]) -> Any:
         mod = Mod.TradingModel(uid, **p['alerts'])
         return self._render_out_trd(mod.result(**p['alerts']))
 
@@ -476,7 +466,7 @@ class ReportMarket(BaseReport):
 
         return res
 
-    def _calc_company(self, uid: str, p: {}) -> Any:
+    def _calc_company(self, uid: str, p: dict[str, Any]) -> Any:
         dcf_res = None
         try:
             mod = Mod.DiscountedCashFlowModel(uid, **p)
@@ -507,7 +497,8 @@ class ReportMarket(BaseReport):
             final_res.fair_value_no_growth = ddm_res.fair_value_no_growth
             final_res.fair_value_with_growth = ddm_res.fair_value_with_growth
 
-            fig_full, fig_rel = self._get_image_paths((ddm_res.uid,))
+            labels = ((ddm_res.uid,), ('DDM',), ('div',))
+            fig_full, fig_rel = self._get_image_paths(labels)
             final_res.div_fig = fig_rel[0]
 
             # Save out figure

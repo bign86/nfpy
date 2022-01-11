@@ -75,11 +75,11 @@ class Configuration(metaclass=Singleton):
     def __getitem__(self, k: str) -> str:
         return getattr(self, k, None)
 
-    def __setitem__(self, k: str, v: Any):
+    def __setitem__(self, k: str, v: Any) -> None:
         setattr(self, k, v)
 
     @staticmethod
-    def get_conf_full_path() -> [str]:
+    def get_conf_full_path() -> tuple[str, str]:
         """ Return the full path of the nfpyConf.ini file by interrogating the
             current position of this very module.
         """
@@ -140,7 +140,7 @@ def get_conf_glob() -> Configuration:
     return Configuration()
 
 
-def create_new(parameters: {}) -> None:
+def create_new(parameters: dict[str, Any]) -> None:
     """ Creates a new empty configuration file in the standard position. """
     conf_written = False
     for path in Configuration.get_conf_full_path():
