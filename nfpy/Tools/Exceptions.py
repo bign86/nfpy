@@ -38,6 +38,10 @@ class ConfigurationError(RuntimeError):
     """ Thrown when errors happen with the Configuration module. """
 
 
+class ShapeError(RuntimeError):
+    """ Thrown when an array has the wrong shape. """
+
+
 class MissingDataWarn(RuntimeWarning):
     """ Thrown when something non-critical is not found in the database. """
 

@@ -7,20 +7,7 @@ from typing import Union
 
 import numpy as np
 
-from .TSUtils_ import (ffill_cols, trim_ts)
-
-
-def ret(v: np.ndarray) -> np.ndarray:
-    """ Compute returns for the series using the pandas function pct_change()
-
-        Inputs:
-            v [np.ndarray]: input series
-
-        Output:
-            _r [np.ndarray]: indexed series of simple returns
-    """
-    vf = ffill_cols(v)
-    return vf[1:] / vf[:-1] - 1.
+from .TSUtils_ import ffill_cols
 
 
 def logret(v: np.ndarray) -> np.ndarray:
@@ -36,24 +23,29 @@ def logret(v: np.ndarray) -> np.ndarray:
     return np.log(vf[1:] / vf[:-1])
 
 
-def tot_ret(ts: np.ndarray, dt: np.ndarray = None, start: np.datetime64 = None,
-            end: np.datetime64 = None, is_log: bool = False) -> float:
+def ret(v: np.ndarray) -> np.ndarray:
+    """ Compute returns for the series using the pandas function pct_change()
+
+        Inputs:
+            v [np.ndarray]: input series
+
+        Output:
+            _r [np.ndarray]: indexed series of simple returns
+    """
+    vf = ffill_cols(v)
+    return vf[1:] / vf[:-1] - 1.
+
+
+def tot_ret(ts: np.ndarray, is_log: bool = False) -> float:
     """ Calculates the total return from a series by compounding the returns.
-        Useful to save memory if only the last value is needed.
 
         Input:
             ts [np.ndarray]: return series
-            dt [np.ndarray]: date series (default: None)
-            start [np.datetime64]: start date of the series (default: None)
-            end [np.datetime64]: end date of the series excluded (default: None)
             is_log [bool]: set True for logarithmic returns (default: False)
 
         Output:
             ret [float]: expected return
     """
-    if dt is not None:
-        ts, _ = trim_ts(ts, dt, start=start, end=end)
-
     if is_log:
         r = np.nansum(ts, axis=0)
     else:
@@ -62,18 +54,14 @@ def tot_ret(ts: np.ndarray, dt: np.ndarray = None, start: np.datetime64 = None,
     return r
 
 
-def comp_ret(ts: np.ndarray, dt: np.ndarray = None, start: np.datetime64 = None,
-             end: np.datetime64 = None, base: float = 1., is_log: bool = False
-             ) -> tuple:
+def comp_ret(ts: np.ndarray, base: float = 1., is_log: bool = False) \
+        -> np.ndarray:
     """ Calculates the series of total returns by compounding. Identical to
         tot_ret() but returns the compounded series instead of the last value
         only.
 
         Input:
             ts [np.ndarray]: return series
-            dt [np.ndarray]: date series (default: None)
-            start [np.datetime64]: start date of the series (default: None)
-            end [np.datetime64]: end date of the series excluded (default: None)
             base [float]: base level (default: 1.)
             is_log [bool]: set True for logarithmic returns (default: False)
 
@@ -81,39 +69,29 @@ def comp_ret(ts: np.ndarray, dt: np.ndarray = None, start: np.datetime64 = None,
             res [np.ndarray]: compounded returns series
             dt [np.ndarray]: trimmed dates series
     """
-    if dt is not None:
-        ts, dt = trim_ts(ts, dt, start=start, end=end)
-
     if is_log:
         res = base * np.exp(np.nancumsum(ts, axis=0))
     else:
         res = base * np.nancumprod((1. + ts), axis=0)
 
-    return res, dt
+    return res
 
 
-def e_ret(ts: np.ndarray, dt: np.ndarray = None, start: np.datetime64 = None,
-          end: np.datetime64 = None, is_log: bool = False) -> float:
+def e_ret(ts: np.ndarray, is_log: bool = False) -> float:
     """ Expected return for the series in input. It corresponds to the geometric
         mean for standard returns, and to the simple mean for log returns.
 
         Input:
             ts [np.ndarray]: values of the series under analysis
-            dt [np.ndarray]: dates of the series under analysis (default: None)
-            start [np.datetime64]: start date of the series (default: None)
-            end [np.datetime64]: end date of the series excluded (default: None)
-            is_log [bool]: set True for logarithmic returns (default: False)
+            is_log [bool]: set True for logarithmic returns (Default: False)
 
         Output:
             exp_ret [float]: expected value of the return
     """
-    if dt is not None:
-        ts, _ = trim_ts(ts, dt, start=start, end=end)
-
     if is_log:
         exp_r = np.nanmean(ts, axis=0)
     else:
-        exp_r = compound(tot_ret(ts, dt), 1. / ts.shape[0])
+        exp_r = compound(tot_ret(ts), 1. / ts.shape[0])
 
     return exp_r
 

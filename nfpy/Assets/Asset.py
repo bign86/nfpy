@@ -5,7 +5,7 @@
 
 import numpy as np
 import pandas as pd
-from typing import (TypeVar, Union)
+from typing import (TypeVar, Optional, Union)
 
 import nfpy.Calendar as Cal
 import nfpy.Math as Math
@@ -229,8 +229,8 @@ class Asset(FinancialItem):
             iter_df__
         )
 
-    def expct_return(self, start: Union[np.datetime64, pd.Timestamp] = None,
-                     end: Union[np.datetime64, pd.Timestamp] = None,
+    def expct_return(self, start: Optional[Cal.TyDate] = None,
+                     end: Optional[Cal.TyDate] = None,
                      is_log: bool = False) -> float:
         """ Expected return for the asset. It corresponds to the geometric mean
             for standard returns, and to the simple mean for log returns.
@@ -246,16 +246,18 @@ class Asset(FinancialItem):
                 mean_ret [float]: expected value for returns
         """
         _ret = self.log_returns if is_log else self.returns
-        return Math.e_ret(
-            _ret.values,
+        slc = Math.search_trim_pos(
             _ret.index.values,
             start=Cal.pd_2_np64(start),
             end=Cal.pd_2_np64(end),
+        )
+        return Math.e_ret(
+            _ret.values[slc],
             is_log=is_log
         )
 
-    def return_volatility(self, start: Union[np.datetime64, pd.Timestamp] = None,
-                          end: Union[np.datetime64, pd.Timestamp] = None,
+    def return_volatility(self, start: Optional[Cal.TyDate] = None,
+                          end: Optional[Cal.TyDate] = None,
                           is_log: bool = False) -> float:
         """ Volatility of asset returns.
 
@@ -270,16 +272,15 @@ class Asset(FinancialItem):
                 vola_ret [float]: expected value for returns
         """
         _ret = self.log_returns if is_log else self.returns
-        _ts, _ = Math.trim_ts(
-            _ret.values,
+        slc = Math.search_trim_pos(
             _ret.index.values,
             start=Cal.pd_2_np64(start),
             end=Cal.pd_2_np64(end)
         )
-        return float(np.nanstd(_ts))
+        return float(np.nanstd(_ret.values[slc]))
 
-    def total_return(self, start: Union[np.datetime64, pd.Timestamp] = None,
-                     end: Union[np.datetime64, pd.Timestamp] = None,
+    def total_return(self, start: Optional[Cal.TyDate] = None,
+                     end: Optional[Cal.TyDate] = None,
                      is_log: bool = False) -> float:
         """ Total return over the period for the asset.
 
@@ -294,40 +295,45 @@ class Asset(FinancialItem):
                 tot_ret [float]: expected value for returns
         """
         _ret = self.log_returns if is_log else self.returns
-        return Math.tot_ret(
-            _ret.values,
+        slc = Math.search_trim_pos(
             _ret.index.values,
             start=Cal.pd_2_np64(start),
             end=Cal.pd_2_np64(end),
+        )
+        return Math.tot_ret(
+            _ret.values[slc],
             is_log=is_log
         )
 
-    def performance(self, start: Union[np.datetime64, pd.Timestamp] = None,
-                    end: Union[np.datetime64, pd.Timestamp] = None,
+    def performance(self, start: Optional[Cal.TyDate] = None,
+                    end: Optional[Cal.TyDate] = None,
                     is_log: bool = False, base: float = 1.) -> pd.Series:
         """ Compounded returns of the asset from a base value.
 
             Input:
                 start [Union[np.datetime64, pd.Timestamp]]:
-                    start date of the series (default: None)
+                    start date of the series (Default: None)
                 end [Union[np.datetime64, pd.Timestamp]]:
-                    end date of the series excluded (default: None)
-                is_log [bool]: it set to True use is_log returns (default: False)
-                base [float]: base value (default: 1.)
+                    end date of the series excluded (Default: None)
+                is_log [bool]: it set to True use is_log returns (Default: False)
+                base [float]: base value (Default: 1.)
 
             Output:
                 perf [pd.Series]: Compounded returns series
         """
         r = self.returns
-        p, dt = Math.comp_ret(
-            r.values,
-            r.index.values,
+        dt = r.index.values
+        slc = Math.search_trim_pos(
+            dt,
             start=Cal.pd_2_np64(start),
             end=Cal.pd_2_np64(end),
+        )
+        p = Math.comp_ret(
+            r.values[slc],
             base=base,
             is_log=is_log
         )
-        return pd.Series(p, index=dt)
+        return pd.Series(p, index=dt[slc])
 
 
 TyAsset = TypeVar('TyAsset', bound=Asset)
