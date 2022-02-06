@@ -7,7 +7,7 @@ import numpy as np
 from scipy.interpolate import splrep, splev
 from typing import Union
 
-from .Returns import compound
+from .Returns_ import compound
 
 
 def df(r: float, t: int, n: int = 1, mode: str = 'simple') -> float:

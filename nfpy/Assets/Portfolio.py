@@ -15,7 +15,7 @@ from nfpy.Tools import Exceptions as Ex
 from .AggregationMixin import AggregationMixin
 from .Asset import Asset
 from .AssetFactory import get_af_glob
-from .CurrencyFactory import get_fx_glob
+from .FxFactory import get_fx_glob
 from .Position import Position
 
 

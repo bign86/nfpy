@@ -54,7 +54,7 @@ def tot_ret(ts: np.ndarray, is_log: bool = False) -> float:
     return r
 
 
-def comp_ret(ts: np.ndarray, base: float = 1., is_log: bool = False) \
+def comp_ret(ts: np.ndarray, is_log: bool = False) \
         -> np.ndarray:
     """ Calculates the series of total returns by compounding. Identical to
         tot_ret() but returns the compounded series instead of the last value
@@ -62,7 +62,6 @@ def comp_ret(ts: np.ndarray, base: float = 1., is_log: bool = False) \
 
         Input:
             ts [np.ndarray]: return series
-            base [float]: base level (default: 1.)
             is_log [bool]: set True for logarithmic returns (default: False)
 
         Output:
@@ -70,9 +69,9 @@ def comp_ret(ts: np.ndarray, base: float = 1., is_log: bool = False) \
             dt [np.ndarray]: trimmed dates series
     """
     if is_log:
-        res = base * np.exp(np.nancumsum(ts, axis=0))
+        res = np.exp(np.nancumsum(ts, axis=0))
     else:
-        res = base * np.nancumprod((1. + ts), axis=0)
+        res = np.nancumprod((1. + ts), axis=0)
 
     return res
 

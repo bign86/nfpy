@@ -1,10 +1,9 @@
 #
-# Handler of currency changes
+# Handler of currency exchange rates
 #
 
 import pandas as pd
 
-from nfpy.Assets import get_af_glob
 import nfpy.DB as DB
 from nfpy.Tools import (
     Constants as Cn,
@@ -12,6 +11,8 @@ from nfpy.Tools import (
     get_conf_glob,
     Singleton,
 )
+
+from . import get_af_glob
 
 
 # TODO: This makes the inversion every time, we could store two different
@@ -76,21 +77,17 @@ class DummyConversion(Conversion):
         return 1.
 
 
-class CurrencyFactory(metaclass=Singleton):
-    """ Handles currency exchanges. """
+class FxFactory(metaclass=Singleton):
+    """ Handles currency exchange rates. """
 
-    _TABLE = 'Currency'
-
-    # _KNOWN_CCY = ['ARS', 'AUD', 'CAD', 'CNY', 'CHF', 'EUR', 'GBP', 'HKD', 'JPY',
-    #               'NZD', 'NWK', 'RUB', 'TRY', 'USD', 'ZAR']
-    # _BASE_CCY = ['CHF', 'EUR', 'GBP', 'USD']
+    _TABLE = 'Fx'
 
     def __init__(self):
         self._af = get_af_glob()
         self._qb = DB.get_qb_glob()
         self._db = DB.get_db_glob()
 
-        self._dict_ccy = {}
+        self._dict_fx = {}
 
         self._q_fetch = self._qb.select(
             self._TABLE,
@@ -135,10 +132,10 @@ class CurrencyFactory(metaclass=Singleton):
 
         selection = (src_ccy, tgt_ccy)
         try:
-            fxc = self._dict_ccy[selection]
+            fxc = self._dict_fx[selection]
         except KeyError:
             self._fetch_obj_fx(*selection)
-            fxc = self._dict_ccy[selection]
+            fxc = self._dict_fx[selection]
         return fxc
 
     # TODO: to be implemented
@@ -177,10 +174,10 @@ class CurrencyFactory(metaclass=Singleton):
 
         uid = res[0][0]
         obj_fx = self._af.get(uid)
-        self._dict_ccy[(src_ccy, tgt_ccy)] = Conversion(uid, obj_fx, invert)
-        self._dict_ccy[(tgt_ccy, src_ccy)] = Conversion(uid, obj_fx, not invert)
+        self._dict_fx[(src_ccy, tgt_ccy)] = Conversion(uid, obj_fx, invert)
+        self._dict_fx[(tgt_ccy, src_ccy)] = Conversion(uid, obj_fx, not invert)
 
 
-def get_fx_glob() -> CurrencyFactory:
-    """ Returns the pointer to the global Currency Handler """
-    return CurrencyFactory()
+def get_fx_glob() -> FxFactory:
+    """ Returns the pointer to the global Fx Factory. """
+    return FxFactory()

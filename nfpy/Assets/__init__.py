@@ -1,5 +1,5 @@
 from .AssetFactory import get_af_glob
-from .CurrencyFactory import get_fx_glob
+from .FxFactory import get_fx_glob
 
 # Type[U] -> U
 from .AggregationMixin import TyAggregation

@@ -44,8 +44,6 @@ def beta(dt: np.ndarray, ts: np.ndarray, proxy: np.ndarray,
         # scipy.linregress() is not robust against nans, therefore we clean them
         # and keep the dates series consistent.
         v, mask = dropna(v)
-        # TODO: remove by reshaping in dropna
-        mask = mask.flatten()
         dts = dts[mask]
         slope, intercept, _, _, std_err = stats.linregress(v[1, :], v[0, :])
 

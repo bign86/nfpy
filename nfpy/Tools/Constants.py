@@ -38,4 +38,3 @@ DAY_COUNT = {
 KNOWN_COUNTRIES = ['CH', 'CN', 'DE', 'EU', 'FR', 'GB', 'IT', 'JP', 'US']
 KNOWN_CCY = ['ARS', 'AUD', 'CAD', 'CNY', 'CHF', 'EUR', 'GBP', 'HKD', 'JPY',
              'NZD', 'NWK', 'RUB', 'TRY', 'USD', 'ZAR']
-# BASE_CCY = ['CHF', 'EUR', 'GBP', 'USD']

@@ -330,10 +330,9 @@ class Asset(FinancialItem):
         )
         p = Math.comp_ret(
             r.values[slc],
-            base=base,
             is_log=is_log
         )
-        return pd.Series(p, index=dt[slc])
+        return pd.Series(p * base, index=dt[slc])
 
 
 TyAsset = TypeVar('TyAsset', bound=Asset)

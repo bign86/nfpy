@@ -59,16 +59,9 @@ TABLES_TO_CREATE = [
     ),
     (
         'Currency',
-        """create table Currency (uid TEXT, description TEXT, price_country TEXT,
-            base_country TEXT, price_ccy TEXT NOT NULL, base_ccy TEXT NOT NULL,
-            primary key (uid)) without rowid;"""
-    ),
-    (
-        'CurrencyTS',
-        """create table CurrencyTS (uid TEXT, dtype INTEGER NOT NULL,
-            date DATETIME NOT NULL, value REAL NOT NULL,
-            primary key (uid,dtype,date), foreign key (uid)
-            references Currency(uid)) without rowid;"""
+        """create table Currency (name TEXT, symbol TEXT, country TEXT,
+            primary key (symbol)) without rowid;"""
+
     ),
     (
         'Curve',
@@ -111,6 +104,19 @@ TABLES_TO_CREATE = [
             date DATETIME NOT NULL, value REAL NOT NULL,
             primary key (uid, dtype, date),
             foreign key (uid) references Equity(uid)) without rowid;"""
+    ),
+    (
+        'Fx',
+        """create table Fx (uid TEXT, description TEXT, price_country TEXT,
+            base_country TEXT, price_ccy TEXT NOT NULL, base_ccy TEXT NOT NULL,
+            primary key (uid)) without rowid;"""
+    ),
+    (
+        'FxTS',
+        """create table FxTS (uid TEXT, dtype INTEGER NOT NULL,
+            date DATETIME NOT NULL, value REAL NOT NULL,
+            primary key (uid,dtype,date), foreign key (uid)
+            references Currency(uid)) without rowid;"""
     ),
     (
         'IBFinancials',

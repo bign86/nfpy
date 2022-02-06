@@ -20,6 +20,7 @@ def dropna(v: np.ndarray, axis: int = 0) -> tuple:
         tile_sh = (v.shape[axis], 1) if axis == 0 else (1, v.shape[axis])
         _v = v[np.tile(mask, tile_sh)]
         n = len(_v) // v.shape[axis]
+        mask = mask.reshape((len(mask)))
         if axis == 0:
             _v = _v.reshape((v.shape[axis], n))
         else:
@@ -177,10 +178,6 @@ def rolling_mean(v: np.ndarray, w: int) -> np.ndarray:
         Output:
             ret [np.ndarray]: rolling mean output array
     """
-    # FIXME: shouldn't nanmean() take care of the nans problem?
-    v = v.copy()
-    d, idx = last_valid_value(v)
-    v[idx + 1:] = d
     return np.nanmean(rolling_window(v, w), axis=1)
 
 
