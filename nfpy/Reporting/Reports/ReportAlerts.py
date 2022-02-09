@@ -56,7 +56,7 @@ class ReportAlerts(BaseReport):
                 asset = self._af.get(uid)
                 type_ = asset.type
                 params = self._init_input(type_)
-                if type_ == 'Currency':
+                if type_ == 'Fx':
                     res1 = self._calc_generic(uid, params)
                     fields = ('uid', 'description', 'price_country', 'base_country',
                               'price_ccy', 'base_ccy')
@@ -77,7 +77,7 @@ class ReportAlerts(BaseReport):
 
         return outputs
 
-    def _calc_generic(self, uid: str, p: {}) -> Any:
+    def _calc_generic(self, uid: str, p: dict) -> Any:
         mod = Mod.MarketAssetsDataBaseModel(uid, **p['baseData'])
         return self._render_out_generic(mod.result(**p['baseData']))
 
@@ -108,7 +108,7 @@ class ReportAlerts(BaseReport):
 
         return res
 
-    def _calc_equity(self, uid: str, p: {}) -> Any:
+    def _calc_equity(self, uid: str, p: dict) -> Any:
         mod = Mod.MarketEquityDataModel(uid, **p['baseData'])
         return self._render_out_equity(mod.result(**p['baseData']))
 
@@ -148,7 +148,7 @@ class ReportAlerts(BaseReport):
 
         return res
 
-    def _calc_bond(self, uid: str, p: {}) -> Any:
+    def _calc_bond(self, uid: str, p: dict) -> Any:
         mod = Mod.MarketBondDataModel(uid, **p['baseData'])
         return self._render_out_bond(mod.result(**p['baseData']))
 
@@ -213,7 +213,7 @@ class ReportAlerts(BaseReport):
 
         return res
 
-    def _calc_trading(self, uid: str, p: {}) -> Any:
+    def _calc_trading(self, uid: str, p: dict) -> Any:
         mod = Mod.TradingModel(uid, **p['alerts'])
         return self._render_out_trd(mod.result(**p['alerts']))
 

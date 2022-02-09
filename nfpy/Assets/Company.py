@@ -18,7 +18,7 @@ class Company(AggregationMixin, FinancialItem):
     _BASE_TABLE = 'Company'
     _CONSTITUENTS_TABLE = 'CompanyFundamentals'
 
-    def _load_cnsts(self):
+    def _load_cnsts(self) -> None:
         """ Fetch from the database the fundamentals. """
         # Get the fundamental data form the database
         res = self._db.execute(

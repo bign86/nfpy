@@ -5,14 +5,14 @@
 
 import numpy as np
 import pandas as pd
-from typing import Union
+from typing import Optional
 
 import nfpy.Calendar as Cal
 import nfpy.Math as Math
 from nfpy.Tools import (Exceptions as Ex)
 
 from . import get_af_glob
-from .Asset import Asset
+from .Asset import (Asset, TyAsset)
 
 
 class Equity(Asset):
@@ -151,21 +151,19 @@ class Equity(Asset):
         cp = np.nancumprod(adj)
         return adj / cp * cp[-1]
 
-    def beta(self, benchmark: Asset = None,
-             start: Union[np.datetime64, pd.Timestamp] = None,
-             end: Union[np.datetime64, pd.Timestamp] = None,
-             w: int = None, log: bool = False) -> tuple:
+    def beta(self, benchmark: Optional[TyAsset] = None,
+             start: Optional[Cal.TyDate] = None,
+             end: Optional[Cal.TyDate] = None,
+             w: Optional[int] = None, log: bool = False) -> tuple:
         """ Returns the beta between the equity and the benchmark index given
             as input. If dates are specified, the beta is calculated on the
             resulting interval (end date excluded). If a window is given, beta
             is calculated rolling.
 
             Input:
-                benchmark [Asset]: usually an index (default: reference index)
-                start [Union[np.datetime64, pd.Timestamp]]:
-                    start date of the series (default: None)
-                end [Union[np.datetime64, pd.Timestamp]]:
-                    end date of the series (default: None)
+                benchmark [TyAsset]: usually an index (default: reference index)
+                start [TyDate]: start date of the series (default: None)
+                end [TyDate]: end date of the series (default: None)
                 w [int]: window size for rolling calculation (default: None)
                 is_log [bool]: it set to True use is_log returns (default: False)
 
@@ -193,30 +191,23 @@ class Equity(Asset):
             w=w
         )
 
-    def correlation(self, benchmark: Asset = None,
-                    start: Union[np.datetime64, pd.Timestamp] = None,
-                    end: Union[np.datetime64, pd.Timestamp] = None,
-                    w: int = None, log: bool = False) \
-            -> tuple:
+    def correlation(self, benchmark: Optional[TyAsset] = None,
+                    start: Optional[Cal.TyDate] = None,
+                    end: Optional[Cal.TyDate] = None,
+                    log: bool = False) -> np.ndarray:
         """ Returns the beta between the equity and the benchmark index given
             as input. If dates are specified, the beta is calculated on the
             resulting interval (end date excluded). If a window is given, beta
             is calculated rolling.
 
             Input:
-                benchmark [Asset]: usually an index (default: reference index)
-                start [Union[np.datetime64, pd.Timestamp]]:
-                    start date of the series (default: None)
-                end [Union[np.datetime64, pd.Timestamp]]:
-                    end date of the series excluded (default: None)
-                w [int]: window size for rolling calculation (default: None)
+                benchmark [TyAsset]: usually an index (default: reference index)
+                start [TyDate]: start date of the series (default: None)
+                end [TyDate]: end date of the series excluded (default: None)
                 is_log [bool]: it set to True use is_log returns (default: False)
 
             Output:
-                dt [Union[float, pd.Series]]: dates of the regression (None if
-                                              not rolling)
-                beta [Union[float, pd.Series]]: beta of the regression
-                intercept [Union[float, pd.Series]]: intercept of the regression
+                corcoeff [np.ndarray]: matrix of the correlation coefficients
         """
         if benchmark is None:
             benchmark = get_af_glob().get(self.index)
@@ -232,5 +223,4 @@ class Equity(Asset):
             idx.values,
             start=Cal.pd_2_np64(start),
             end=Cal.pd_2_np64(end),
-            w=w
         )

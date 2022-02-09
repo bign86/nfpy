@@ -3,10 +3,10 @@
 #
 
 import pandas as pd
+from typing import Optional
 
 import nfpy.DB as DB
 from nfpy.Tools import (
-    Constants as Cn,
     Exceptions as Ex,
     get_conf_glob,
     Singleton,
@@ -15,9 +15,8 @@ from nfpy.Tools import (
 from . import get_af_glob
 
 
-# TODO: This makes the inversion every time, we could store two different
-#       series with inversion already performed for speed at the expense
-#       of more memory usage
+# TODO: This makes the inversion every time, but we could store two series
+#       with inversion performed for speed at the expense of memory usage.
 class Conversion(object):
     """ Object that wraps the currency asset for conversions. """
 
@@ -89,6 +88,11 @@ class FxFactory(metaclass=Singleton):
 
         self._dict_fx = {}
 
+        self._known_ccy = [
+            ccy[0] for ccy in
+            self._db.execute('select symbol from Currency')
+                .fetchall()
+        ]
         self._q_fetch = self._qb.select(
             self._TABLE,
             fields=('uid',),
@@ -106,17 +110,17 @@ class FxFactory(metaclass=Singleton):
     def base_ccy(self, v: str):
         self._base_ccy = self._validate_ccy(v)
 
-    @staticmethod
-    def is_ccy(v: str) -> bool:
-        return v in Cn.KNOWN_CCY
+    # @staticmethod
+    def is_ccy(self, v: str) -> bool:
+        return v in self._known_ccy
 
-    @staticmethod
-    def _validate_ccy(v: str) -> str:
-        if v not in Cn.KNOWN_CCY:
+    # @staticmethod
+    def _validate_ccy(self, v: str) -> str:
+        if v not in self._known_ccy:
             raise ValueError(f'Currency {v} not recognized')
         return v
 
-    def get(self, src_ccy: str, tgt_ccy: str = None) -> Conversion:
+    def get(self, src_ccy: str, tgt_ccy: Optional[str] = None) -> Conversion:
         """ Get the conversion object.
 
             Input:

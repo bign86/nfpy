@@ -4,7 +4,7 @@
 #
 
 import numpy as np
-from typing import (Union, Sequence)
+from typing import (Optional, Sequence, Union)
 
 import nfpy.Assets as Ast
 from nfpy.Calendar import get_calendar_glob
@@ -21,8 +21,9 @@ class OptimizationEngine(object):
     """ Main engine for portfolio optimization """
 
     def __init__(self, uid: str, algorithms: Union[dict, Sequence[dict]],
-                 iterations: int = None, start: np.datetime64 = None,
-                 t0: np.datetime64 = None, **kwargs):
+                 iterations: Optional[int] = None,
+                 start: Optional[np.datetime64] = None,
+                 t0: Optional[np.datetime64] = None, **kwargs):
         # Inputs
         self._uid = uid
         self._algo = algorithms
@@ -51,7 +52,7 @@ class OptimizationEngine(object):
             self.run()
         return self._res
 
-    def _initialize(self):
+    def _initialize(self) -> None:
         """ Calculates the relevant variables for the optimization routines. """
         # Variables
         ptf = self._af.get(self._uid)
@@ -82,8 +83,9 @@ class OptimizationEngine(object):
             ret[:, i] = r
 
         # Cut the arrays to the right dates and clean
-        ret, dt = Math.trim_ts(ret, cal.values, self._start, self._t0)
-        ret, _ = Math.dropna(ret, axis=1)
+        # ret, dt = Math.trim_ts(ret, cal.values, self._start, self._t0)
+        slc = Math.search_trim_pos(cal.values, self._start, self._t0)
+        ret, _ = Math.dropna(ret[slc], axis=1)
 
         self._uids = uids
         self._ret = Math.compound(

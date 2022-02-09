@@ -16,15 +16,16 @@ def dropna(v: np.ndarray, axis: int = 0) -> tuple:
         mask = ~np.isnan(v)
         _v = v[mask]
     elif len(v.shape) == 2:
-        mask = ~np.any(np.isnan(v), axis=axis, keepdims=True)
-        tile_sh = (v.shape[axis], 1) if axis == 0 else (1, v.shape[axis])
+        mask = ~np.any(np.isnan(v), axis=axis, keepdims=False)
+
+        tile_sh = [1, 1]
+        tile_sh[axis] = v.shape[axis]
         _v = v[np.tile(mask, tile_sh)]
         n = len(_v) // v.shape[axis]
-        mask = mask.reshape((len(mask)))
-        if axis == 0:
-            _v = _v.reshape((v.shape[axis], n))
-        else:
-            _v = _v.reshape((n, v.shape[axis]))
+
+        v_sh = [n, n]
+        v_sh[axis] = v.shape[axis]
+        _v = _v.reshape(v_sh)
     else:
         raise Ex.ShapeError('3D+ arrays not supported')
 
@@ -205,8 +206,8 @@ def rolling_window(v: np.ndarray, w: int) -> np.ndarray:
     return np.lib.stride_tricks.as_strided(v, shape=shape, strides=strides)
 
 
-def search_trim_pos(dt: np.ndarray, start: np.datetime64 = None,
-                    end: np.datetime64 = None) -> Optional[slice]:
+def search_trim_pos(dt: np.ndarray, start: Optional[np.datetime64] = None,
+                    end: Optional[np.datetime64] = None) -> Optional[slice]:
     if len(dt.shape) > 1:
         raise Ex.ShapeError('Only 1D arrays supported')
 

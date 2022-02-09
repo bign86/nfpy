@@ -5,7 +5,7 @@
 
 import numpy as np
 import pandas as pd
-from typing import (TypeVar, Optional, Union)
+from typing import (TypeVar, Optional)
 
 import nfpy.Calendar as Cal
 import nfpy.Math as Math
@@ -15,7 +15,7 @@ from .FinancialItem import FinancialItem
 
 
 class Asset(FinancialItem):
-    """ Base class to hold information on a single asset """
+    """ Base class to hold information on a single asset. """
 
     _TS_TABLE = ''
     _TS_ROLL_KEY_LIST = ()
@@ -96,12 +96,11 @@ class Asset(FinancialItem):
         """ Returns the full DataFrame for the asset. """
         return self._df
 
-    def last_price(self, dt: Union[np.datetime64, pd.Timestamp] = None) \
-            -> tuple:
+    def last_price(self, dt: Optional[Cal.TyDate] = None) -> tuple:
         """ Returns the last valid price at date.
 
             Input:
-                dt Union[np.datetime64, pd.Timestamp]: reference date (default: None)
+                dt [TyDate]: reference date (default: None)
 
             Output:
                 v [flaot]: last valid price
@@ -236,10 +235,8 @@ class Asset(FinancialItem):
             for standard returns, and to the simple mean for log returns.
 
             Input:
-                start [Union[np.datetime64, pd.Timestamp]]:
-                    start date of the series (default: None)
-                end [Union[np.datetime64, pd.Timestamp]]:
-                    end date of the series excluded (default: None)
+                start [TyDate]: start date of the series (default: None)
+                end [TyDate]: end date of the series excluded (default: None)
                 is_log [bool]: it set to True use is_log returns (default: False)
 
             Output:
@@ -262,10 +259,8 @@ class Asset(FinancialItem):
         """ Volatility of asset returns.
 
             Input:
-                start [Union[np.datetime64, pd.Timestamp]]:
-                    start date of the series (default: None)
-                end [Union[np.datetime64, pd.Timestamp]]:
-                    end date of the series excluded (default: None)
+                start [TyDate]: start date of the series (default: None)
+                end [TyDate]: end date of the series excluded (default: None)
                 is_log [bool]: it set to True use is_log returns (default: False)
 
             Output:
@@ -285,10 +280,8 @@ class Asset(FinancialItem):
         """ Total return over the period for the asset.
 
             Input:
-                start [Union[np.datetime64, pd.Timestamp]]:
-                    start date of the series (default: None)
-                end [Union[np.datetime64, pd.Timestamp]]:
-                    end date of the series excluded (default: None)
+                start [TyDate]: start date of the series (default: None)
+                end [TyDate]: end date of the series excluded (default: None)
                 is_log [bool]: it set to True use is_log returns (default: False)
 
             Output:
@@ -311,12 +304,10 @@ class Asset(FinancialItem):
         """ Compounded returns of the asset from a base value.
 
             Input:
-                start [Union[np.datetime64, pd.Timestamp]]:
-                    start date of the series (Default: None)
-                end [Union[np.datetime64, pd.Timestamp]]:
-                    end date of the series excluded (Default: None)
-                is_log [bool]: it set to True use is_log returns (Default: False)
-                base [float]: base value (Default: 1.)
+                start [TyDate]: start date of the series (default: None)
+                end [TyDate]: end date of the series excluded (default: None)
+                is_log [bool]: if True uses log returns (default: False)
+                base [float]: base value (default: 1.)
 
             Output:
                 perf [pd.Series]: Compounded returns series

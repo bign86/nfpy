@@ -5,11 +5,10 @@
 
 from abc import (ABCMeta, abstractmethod)
 import pandas as pd
-from typing import (Union, TypeVar)
+from typing import (Optional, TypeVar, Union)
 
 import nfpy.Assets as Ast
 import nfpy.Calendar as Cal
-import nfpy.Financial as Fin
 from nfpy.Tools import Utilities as Ut
 
 
@@ -63,10 +62,10 @@ class BaseModel(metaclass=ABCMeta):
         """ Perform main calculations. """
 
     @abstractmethod
-    def _otf_calculate(self, **kwargs) -> {}:
+    def _otf_calculate(self, **kwargs) -> dict:
         """ Perform on-the-fly calculations. """
 
-    def _create_output(self, outputs: {} = None) -> TyModelResult:
+    def _create_output(self, outputs: Optional[dict] = None) -> TyModelResult:
         res = self._RES_OBJ()
         for k, v in self._dt.items():
             setattr(res, k, v)

@@ -235,14 +235,14 @@ VIEWS_TO_CREATE = [
         'Assets',
         """CREATE VIEW Assets AS SELECT uid, type, description FROM
             (
-                SELECT uid, 'Equity' as type, description FROM Equity union
                 SELECT uid, 'Bond' as type, description FROM Bond union
-                SELECT uid, 'Rate' as type, description FROM Rate union
+                SELECT uid, 'Company' as type, description FROM Company union
                 SELECT uid, 'Curve' as type, description FROM Curve union
-                SELECT uid, 'Currency' as type, description FROM Currency union
+                SELECT uid, 'Equity' as type, description FROM Equity union
+                SELECT uid, 'Fx' as type, description FROM Fx union
                 SELECT uid, 'Indices' as type, description FROM Indices union
                 SELECT uid, 'Portfolio' as type, description FROM Portfolio union
-                SELECT uid, 'Company' as type, description FROM Company
+                SELECT uid, 'Rate' as type, description FROM Rate
             ) AS src;"""
     ),
 ]

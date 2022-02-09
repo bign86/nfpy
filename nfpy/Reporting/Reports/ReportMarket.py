@@ -117,7 +117,7 @@ class ReportMarket(BaseReport):
                     res1.info = {k: getattr(asset, k) for k in fields}
                     # self._jinja_filters['Company'] = None
                     outputs[type_][uid] = (res1,)
-                elif type_ == 'Currency':
+                elif type_ == 'Fx':
                     res1 = self._calc_generic(uid, params)
                     fields = ('uid', 'description', 'price_country',
                               'base_country', 'price_ccy', 'base_ccy')

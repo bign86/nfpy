@@ -5,8 +5,9 @@
 
 import numpy as np
 import pandas as pd
-from typing import Union
+from typing import Optional
 
+from nfpy.Calendar import TyDate
 import nfpy.Math as Math
 from nfpy.Tools import (Constants as Cn)
 
@@ -22,18 +23,17 @@ class MarketEquityDataModel(MarketAssetsDataBaseModel):
 
     _RES_OBJ = MEDMResult
 
-    def __init__(self, uid: str, date: Union[str, pd.Timestamp] = None,
-                 **kwargs):
+    def __init__(self, uid: str, date: Optional[TyDate] = None, **kwargs):
         super().__init__(uid, date, **kwargs)
         self._index = self._af.get(self._asset.index)
 
-    def _calculate(self):
+    def _calculate(self) -> None:
         super()._calculate()
 
         # Performance
         self._calc_performance()
 
-    def _calc_price_res(self):
+    def _calc_price_res(self) -> None:
         asset, index = self._asset, self._index
         t0 = self._t0
 
@@ -48,7 +48,7 @@ class MarketEquityDataModel(MarketAssetsDataBaseModel):
                          last_price_date=last_p_date, returns=returns,
                          index_returns=index.returns)
 
-    def _calc_statistics(self):
+    def _calc_statistics(self) -> None:
         asset, index = self._asset, self._index
         t0 = self._t0
         length = len(self._time_spans)
@@ -86,7 +86,7 @@ class MarketEquityDataModel(MarketAssetsDataBaseModel):
             betas.append(beta_results[1:])
             stats[3:5, i] = beta_results[1:3]
 
-            stats[5, i] = asset.correlation(start=start, end=t0)[1][0, 1]
+            stats[5, i] = asset.correlation(start=start, end=t0)[0, 1]
 
             mean_index_ret = index.expct_return(start, t0)
             rt, delta = Math.sml(mean_ret, beta_results[1], .0, mean_index_ret)
@@ -105,7 +105,7 @@ class MarketEquityDataModel(MarketAssetsDataBaseModel):
             beta_params=betas[3]
         )
 
-    def _calc_performance(self):
+    def _calc_performance(self) -> None:
         t0 = self._t0
         start = self._cal.shift(t0, -2 * Cn.DAYS_IN_1Y, 'D')
 
@@ -115,6 +115,6 @@ class MarketEquityDataModel(MarketAssetsDataBaseModel):
         )
 
 
-def MEDModel(uid: str, date: Union[str, pd.Timestamp] = None) -> MEDMResult:
+def MEDModel(uid: str, date: Optional[TyDate] = None) -> MEDMResult:
     """ Shortcut for the calculation. Intermediate results are lost. """
     return MarketEquityDataModel(uid, date).result()

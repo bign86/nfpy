@@ -7,13 +7,13 @@ from bisect import bisect_left
 from datetime import timedelta
 from itertools import groupby
 import pandas as pd
-from typing import Any
+from typing import (Any, Optional)
 
 import nfpy.Math as Math
 from nfpy.Tools import Exceptions as Ex
 
 from .AggregationMixin import AggregationMixin
-from .Asset import Asset
+from .Asset import (Asset, TyAsset)
 from .AssetFactory import get_af_glob
 from .FxFactory import get_fx_glob
 from .Position import Position
@@ -37,12 +37,12 @@ class Portfolio(AggregationMixin, Asset):
     _TS_ROLL_KEY_LIST = ['date']  # NOTE: not in use
     _TRADES_TABLE = 'Trades'
 
-    def __init__(self, uid: str, date: pd.Timestamp = None):
+    def __init__(self, uid: str):
         super().__init__(uid)
         # self._fx = Fin.get_fx_glob()
 
         self._weights = pd.DataFrame()
-        self._date = date
+        self._date = None
         self._tot_value = None
         self._inception_date = None
         self._benchmark = None
@@ -367,7 +367,7 @@ class Portfolio(AggregationMixin, Asset):
             index=pos.index.values
         )
 
-    def tev(self, benchmark: Asset, w: int = None) -> pd.Series:
+    def tev(self, benchmark: Asset, w: Optional[int] = None) -> pd.Series:
         """ Calculates Tracking Error Volatility of the portfolio against a
             benchmark.
 
@@ -381,11 +381,11 @@ class Portfolio(AggregationMixin, Asset):
             index=r.index
         )
 
-    def sharpe_ratio(self, rf: Asset, w: int = None) -> pd.Series:
+    def sharpe_ratio(self, rf: TyAsset) -> pd.Series:
         """ Calculates the Sharpe Ratio. """
         r = self.returns
         return pd.Series(
-            Math.sharpe(r.index.values, r.values, br=rf.returns.values, w=w),
+            Math.sharpe(r.index.values, r.values, br=rf.returns.values),
             index=r.index
         )
 
@@ -442,7 +442,7 @@ class Portfolio(AggregationMixin, Asset):
         )
 
         return {
-            'uid': self._uid, 'currency': self._currency, 'date': self._date,
+            'uid': self._uid, 'currency': self._currency,
             'inception': self._inception_date, 'tot_value': pos_value.sum(),
             'constituents_data': cnsts,
         }
