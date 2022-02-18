@@ -60,7 +60,9 @@ class DividendFactory(object):
             end=Cal.pd_2_np64(Cal.get_calendar_glob().t0)
         )
         self._div = div.values[slc]
-        self._div_dt = div.index.values[slc]  # .astype('datetime64[D]')
+        self._div_dt = div.index \
+            .values[slc] \
+            .astype('datetime64[D]')
 
         self._num = len(self._div)
         self._is_div_payer = True if self._num > 0 else False

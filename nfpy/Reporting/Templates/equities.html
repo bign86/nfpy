@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <title>Report NFPY</title>
+  </head>
+  <body>
+    <!-- TITLE -->
+    <h1><a name="pageTop"></a>{{ title }}</h1>
+    <a href="index.html">Index</a>
+    <hr class="shadow">
+
+    <!-- UIDs list -->
+    <h3>List of UIDs</h3>
+    {%- for ticker, val in res.items()|sort -%}
+      <a href="#{{ ticker }}">{{ ticker }}</a> - {{ val.info["description"] }}<br>
+    {% endfor -%}
+    <hr>
+
+    <!-- REPORTS -->
+    <h2>Reports</h2>
+
+    <!-- Equities -->
+    {%- for ticker, val in res.items()|sort -%}
+      <hr class="light">
+      <a name="{{ ticker }}"></a><h4><a href="#pageTop">Top</a> - {{ val.info["description"] }}</h4>
+
+      <!-- Market model -->
+      <table>
+        <tr>
+          <td class='anag-prop'>Isin</td><td class='anag-value'>{{ val["info"]["isin"] }}</td>
+          <td class='anag-prop'>Country</td><td class='anag-value'>{{ val["info"]["country"] }}</td>
+        </tr>
+        <tr>
+          <td class='anag-prop'>Index</td><td class='anag-value'><a href="#{{ val['info']['index'] }}">{{ val["info"]["index"] }}</a></td>
+          <td class='anag-prop'>Currency</td><td class='anag-value'>{{ val["info"]["currency"] }}</td>
+        </tr>
+      </table>
+
+      <img src="{{ val.img_prices_long }}" alt="Full history of prices" class="price-full-h">
+      <img src="{{ val.img_performance }}" alt="Last 1 year performance" class="perf-vs-idx">
+      <img src="{{ val.img_beta }}" alt="Beta scatter" class="beta-scatter">
+
+      <p>Last price: {{ '%.3f' | format(val.last_price|float) }} {{ val["info"]["currency"] }} @ {{ val.last_price_date }}</p>
+      {{ val.stats }}
+
+      <!-- Trading model -->
+      <img src="{{ val.prices_long }}" alt="S/R slow MA" class="SR-slow">
+      <img src="{{ val.prices_short }}" alt="S/R FAST MA" class="SR-fast">
+      {{ val.signals }}
+
+      <p>Table of raised manual alerts</p>
+      {{ val.alerts_table }}
+
+      <p>Table of S/R lines breaches</p>
+      {{ val.breach_table }}
+
+    {%- endfor -%}
+    <hr>
+
+  </body>
+</html>

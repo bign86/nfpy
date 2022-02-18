@@ -108,7 +108,7 @@ class Equity(Asset):
             res = self._df["price"]
         return res
 
-    def _adjust_prices(self):
+    def _adjust_prices(self) -> None:
         div = self.dividends
         rp = self.raw_prices
         adj_p, adj_f = rp, 1.
@@ -154,7 +154,7 @@ class Equity(Asset):
     def beta(self, benchmark: Optional[TyAsset] = None,
              start: Optional[Cal.TyDate] = None,
              end: Optional[Cal.TyDate] = None,
-             w: Optional[int] = None, log: bool = False) -> tuple:
+             w: Optional[int] = None, is_log: bool = False) -> tuple:
         """ Returns the beta between the equity and the benchmark index given
             as input. If dates are specified, the beta is calculated on the
             resulting interval (end date excluded). If a window is given, beta
@@ -168,11 +168,9 @@ class Equity(Asset):
                 is_log [bool]: it set to True use is_log returns (default: False)
 
             Output:
-                dt [Union[float, pd.Series]]: dates of the regression (None if
-                                              not rolling)
-                beta [Union[float, pd.Series]]: beta of the regression
-                adj_beta [Union[float, pd.Series]]: adjusted beta
-                intercept [Union[float, pd.Series]]: intercept of the regression
+                beta [pd.Series]: beta of the regression
+                adj_beta [pd.Series]: adjusted beta
+                intercept [pd.Series]: intercept of the regression
         """
         if benchmark is None:
             benchmark = get_af_glob().get(self.index)
@@ -180,9 +178,9 @@ class Equity(Asset):
             ty = type(benchmark).__name__
             raise TypeError(f'Objects of type {ty} cannot be used as benchmarks')
 
-        eq = self.log_returns if log else self.returns
-        idx = benchmark.log_returns if log else benchmark.returns
-        return Math.beta(
+        eq = self.log_returns if is_log else self.returns
+        idx = benchmark.log_returns if is_log else benchmark.returns
+        dts, beta, adj_b, itc = Math.beta(
             eq.index.values,
             eq.values,
             idx.values,
@@ -190,15 +188,19 @@ class Equity(Asset):
             end=Cal.pd_2_np64(end),
             w=w
         )
+        return (
+            pd.Series(beta, index=dts),
+            pd.Series(adj_b, index=dts),
+            pd.Series(itc, index=dts)
+        )
 
     def correlation(self, benchmark: Optional[TyAsset] = None,
                     start: Optional[Cal.TyDate] = None,
                     end: Optional[Cal.TyDate] = None,
-                    log: bool = False) -> np.ndarray:
-        """ Returns the beta between the equity and the benchmark index given
-            as input. If dates are specified, the beta is calculated on the
-            resulting interval (end date excluded). If a window is given, beta
-            is calculated rolling.
+                    is_log: bool = False) -> float:
+        """ Returns the correlation between the equity and the benchmark given
+            as input. If dates are specified, the correlation is calculated on
+            the resulting interval (end date excluded).
 
             Input:
                 benchmark [TyAsset]: usually an index (default: reference index)
@@ -207,7 +209,7 @@ class Equity(Asset):
                 is_log [bool]: it set to True use is_log returns (default: False)
 
             Output:
-                corcoeff [np.ndarray]: matrix of the correlation coefficients
+                corcoeff [float]: correlation coefficient
         """
         if benchmark is None:
             benchmark = get_af_glob().get(self.index)
@@ -215,12 +217,12 @@ class Equity(Asset):
             ty = type(benchmark).__name__
             raise TypeError(f'Objects of type {ty} cannot be used as benchmarks')
 
-        eq = self.log_returns if log else self.returns
-        idx = benchmark.log_returns if log else benchmark.returns
+        eq = self.log_returns if is_log else self.returns
+        idx = benchmark.log_returns if is_log else benchmark.returns
         return Math.correlation(
             eq.index.values,
             eq.values,
             idx.values,
             start=Cal.pd_2_np64(start),
             end=Cal.pd_2_np64(end),
-        )
+        )[0, 1]

@@ -4,7 +4,7 @@
 
 from collections import OrderedDict
 from operator import itemgetter
-from typing import Any, Generator, KeysView
+from typing import (Any, Generator, KeysView, Optional, Sequence)
 
 from nfpy.Tools import (Singleton, Exceptions as Ex)
 
@@ -101,9 +101,11 @@ class QueryBuilder(metaclass=Singleton):
         """ Return the alter table query to rename a table. """
         return f"alter table {table} rename to {table + '_old'};"
 
-    def select(self, table: str, fields: [str] = None, rolling: [str] = (),
-               keys: [str] = None, partial_keys: [str] = (), where: str = "",
-               order: str = None) -> str:
+    def select(self, table: str, fields: Optional[Sequence[str]] = None,
+               rolling: Sequence[str] = (),
+               keys: Optional[Sequence[str]] = None,
+               partial_keys: Sequence[str] = (), where: str = "",
+               order: Optional[str] = None) -> str:
         """ Builds a select query for input table:
 
             Input:
@@ -158,7 +160,8 @@ class QueryBuilder(metaclass=Singleton):
 
         return query + ';'
 
-    def insert(self, ins_table: str, ins_fields: [str] = (), **kwargs) -> str:
+    def insert(self, ins_table: str, ins_fields: Sequence[str] = (),
+               **kwargs) -> str:
         """ Builds an insert query for input table:
             Input:
                 ins_table [str]: for the from clause
@@ -170,7 +173,8 @@ class QueryBuilder(metaclass=Singleton):
         """
         return self._get_insert(ins_table, ins_fields, 'insert', **kwargs)
 
-    def merge(self, ins_table: str, ins_fields: [str] = (), **kwargs) -> str:
+    def merge(self, ins_table: str, ins_fields: Sequence[str] = (),
+              **kwargs) -> str:
         """ Builds an insert or replace query for input table:
             Input:
                 ins_table [str]: for the from clause
@@ -183,7 +187,7 @@ class QueryBuilder(metaclass=Singleton):
         return self._get_insert(ins_table, ins_fields,
                                 'insert or replace', **kwargs)
 
-    def _get_insert(self, ins_table: str, ins_fields: [str],
+    def _get_insert(self, ins_table: str, ins_fields: Sequence[str],
                     command: str, **kwargs) -> str:
         """ Creates an insert like query. """
         keys = self.get_keys(ins_table)
@@ -206,8 +210,8 @@ class QueryBuilder(metaclass=Singleton):
 
         return query
 
-    def update(self, table: str, fields: [str] = (), keys: [str] = (),
-               where: str = "") -> str:
+    def update(self, table: str, fields: Sequence[str] = (),
+               keys: Sequence[str] = (), where: str = "") -> str:
         """ Builds an insert query the for input table. The where condition is
             applied by default on the primary key of the table:
             
@@ -236,7 +240,8 @@ class QueryBuilder(metaclass=Singleton):
 
         return query + ';'
 
-    def upsert(self, table: str, fields: [str] = None, where: str = "") -> str:
+    def upsert(self, table: str, fields: Optional[Sequence[str]] = None,
+               where: str = "") -> str:
         """ Builds an upsert query for the input table. The where condition is
             applied by default on the primary key of the table:
 
@@ -262,7 +267,7 @@ class QueryBuilder(metaclass=Singleton):
         return query + ';'
 
     @staticmethod
-    def selectall(table: str, fields: [str] = None) -> str:
+    def selectall(table: str, fields: Optional[Sequence[str]] = None) -> str:
         """ Builds a select query for input table. """
         f_str = '*'
         if fields:
@@ -271,7 +276,7 @@ class QueryBuilder(metaclass=Singleton):
         return f'select {f_str} from {table};'
 
     @staticmethod
-    def delete(table: str, fields: [str] = None) -> str:
+    def delete(table: str, fields: Optional[Sequence[str]] = None) -> str:
         """ Builds a delete query for input table:
             Input:
                 table [str]: for the from clause
@@ -334,7 +339,8 @@ class QueryBuilder(metaclass=Singleton):
         return query
 
     @staticmethod
-    def add_column(table: str, col_name: str, col_prop: [str]) -> str:
+    def add_column(table: str, col_name: str,
+                   col_prop: Optional[Sequence[str]]) -> str:
         """ Builds a add column query for the given table. """
         return f"alter table {table} add {col_name} {' '.join(col_prop)};"
 

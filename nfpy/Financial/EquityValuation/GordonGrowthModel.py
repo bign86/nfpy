@@ -3,18 +3,17 @@
 # Class to calculate a stock fair value using the DDM
 #
 
-import pandas as pd
-from typing import Union
+from typing import Optional
 
+from nfpy.Calendar import TyDate
 import nfpy.Financial as Fin
 import nfpy.Math as Math
 from nfpy.Tools import Exceptions as Ex
 
-from .BaseFundamentalModel import BaseFundamentalModel
-from .BaseModel import BaseModelResult
+from .BaseFundamentalModel import (BaseFundamentalModel, FundamentalModelResult)
 
 
-class GGMResult(BaseModelResult):
+class GGMResult(FundamentalModelResult):
     """ Object containing the results of the Gordon Growth Model. """
 
 
@@ -23,8 +22,7 @@ class GordonGrowthModel(BaseFundamentalModel):
 
     _RES_OBJ = GGMResult
 
-    def __init__(self, uid: str, date: Union[str, pd.Timestamp] = None,
-                 **kwargs):
+    def __init__(self, uid: str, date: Optional[TyDate] = None, **kwargs):
         super().__init__(uid, date)
 
         self._df = Fin.DividendFactory(self._eq)
@@ -33,7 +31,7 @@ class GordonGrowthModel(BaseFundamentalModel):
         self._res_update(ccy=self._asset.currency, uid=self._uid,
                          equity=self._eq.uid, t0=self._t0, start=self._start)
 
-    def _check_applicability(self):
+    def _check_applicability(self) -> None:
         """ Check applicability of the DDM model to the equity. The presence
             and frequency of dividends is checked.
         """
@@ -41,7 +39,7 @@ class GordonGrowthModel(BaseFundamentalModel):
         if not self._df.is_dividend_payer:
             raise Ex.MissingData(f'No dividends for {self._eq.uid}')
 
-    def _calc_freq(self):
+    def _calc_freq(self) -> None:
         """ Calculates model frequency. """
         self._freq = self._df.frequency
 
@@ -55,7 +53,7 @@ class GordonGrowthModel(BaseFundamentalModel):
 
         return div_drift
 
-    def _calculate(self):
+    def _calculate(self) -> None:
         div_drift = self._calc_drift()
         _, div = self._df.last
 
@@ -89,6 +87,6 @@ class GordonGrowthModel(BaseFundamentalModel):
         return {'d_rate': d_rate, 'fair_value': fv}
 
 
-def GGModel(uid: str, date: Union[str, pd.Timestamp] = None) -> GGMResult:
+def GGModel(uid: str, date: Optional[TyDate] = None) -> GGMResult:
     """ Shortcut for the calculation. Intermediate results are lost. """
     return GordonGrowthModel(uid, date).result()

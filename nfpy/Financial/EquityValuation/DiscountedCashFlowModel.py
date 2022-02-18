@@ -5,18 +5,17 @@
 
 import numpy as np
 import pandas as pd
-from typing import (Any, Union)
+from typing import (Any, Optional)
 
 from nfpy.Calendar import TyDate
 import nfpy.Financial as Fin
 import nfpy.Math as Math
 from nfpy.Tools import Constants as Cn
 
-from .BaseFundamentalModel import BaseFundamentalModel
-from .BaseModel import BaseModelResult
+from .BaseFundamentalModel import (BaseFundamentalModel, FundamentalModelResult)
 
 
-class DCFResult(BaseModelResult):
+class DCFResult(FundamentalModelResult):
     """ Object containing the results of the Discounted Cash Flow Model. """
 
     @property
@@ -84,7 +83,7 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
     _MIN_DEPTH_DATA = 3
     _MIN_DEBT_COST = .05
 
-    def __init__(self, uid: str, date: Union[str, pd.Timestamp] = None,
+    def __init__(self, uid: str, date: Optional[TyDate] = None,
                  past_horizon: int = 5, future_proj: int = 3,
                  perpetual_rate: float = 0., **kwargs):
         super().__init__(uid, date, past_horizon, future_proj)
@@ -297,7 +296,7 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
         )
 
 
-def DCFModel(uid: str, date: TyDate = None, past_horizon: int = 5,
+def DCFModel(uid: str, date: Optional[TyDate] = None, past_horizon: int = 5,
              future_proj: int = 3, perpetual_rate: float = 0.) -> DCFResult:
     """ Shortcut for the calculation. Intermediate results are lost. """
     return DiscountedCashFlowModel(

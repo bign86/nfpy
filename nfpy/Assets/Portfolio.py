@@ -7,13 +7,11 @@ from bisect import bisect_left
 from datetime import timedelta
 from itertools import groupby
 import pandas as pd
-from typing import (Any, Optional)
 
-import nfpy.Math as Math
 from nfpy.Tools import Exceptions as Ex
 
 from .AggregationMixin import AggregationMixin
-from .Asset import (Asset, TyAsset)
+from .Asset import Asset
 from .AssetFactory import get_af_glob
 from .FxFactory import get_fx_glob
 from .Position import Position
@@ -48,6 +46,17 @@ class Portfolio(AggregationMixin, Asset):
         self._benchmark = None
 
     @property
+    def benchmark(self) -> str:
+        return self._benchmark
+
+    @benchmark.setter
+    def benchmark(self, v: str) -> None:
+        self._benchmark = v
+
+    def calc_log_returns(self) -> None:
+        raise NotImplementedError("Log returns not available for portfolios!")
+
+    @property
     def date(self) -> pd.Timestamp:
         return self._date
 
@@ -59,43 +68,12 @@ class Portfolio(AggregationMixin, Asset):
     def inception_date(self, v: str) -> None:
         self._inception_date = pd.Timestamp(v)
 
-    @property
-    def benchmark(self) -> str:
-        return self._benchmark
-
-    @benchmark.setter
-    def benchmark(self, v: str) -> None:
-        self._benchmark = v
-
-    @property
-    def weights(self) -> pd.DataFrame:
-        """ Return the weights. """
-        if self._weights.empty:
-            self._calc_weights()
-        return self._weights
-
-    @property
-    def total_value(self) -> pd.Series:
-        """ Return the total value series of the portfolio. """
-        try:
-            res = self._df["tot_value"]
-        except KeyError:
-            res = self._calc_total_value()
-            self._df["tot_value"] = res
-        return res
-
-    @property
-    def prices(self) -> pd.Series:
-        """ Calculates the performance series for the portfolio. """
-        try:
-            res = self._df["price"]
-        except KeyError:
-            res = self.performance()
-            self._df["price"] = res
-        return res
-
     def load(self) -> None:
         super(Portfolio, self).load()
+
+    @property
+    def performance(self, *args):
+        raise NotImplementedError("Portfolio does not have performance()!")
 
     def _load_cnsts(self) -> None:
         """ Fetch from the database the portfolio constituents. """
@@ -168,7 +146,7 @@ class Portfolio(AggregationMixin, Asset):
             df.loc[date, pos_uid] = 0
 
         # Load the trades from the database and apply to positions
-        positions, df = self._load_trades(date, positions, df)
+        self._load_trades(date, positions, df)
 
         df.fillna(method='ffill', inplace=True)
         df.fillna(0, inplace=True)
@@ -181,7 +159,7 @@ class Portfolio(AggregationMixin, Asset):
         self._cnsts_loaded = True
 
     def _load_trades(self, start: pd.Timestamp, positions: dict[str, Position],
-                     df: pd.DataFrame) -> tuple[dict, pd.DataFrame]:
+                     df: pd.DataFrame) -> None:
         """ Updates the portfolio positions by adding the pending trades. """
         # Fetch trades from the database
         # These parameters should catch also the trades in the same day
@@ -195,7 +173,7 @@ class Portfolio(AggregationMixin, Asset):
 
         # If there are no trades just exit
         if not trades:
-            return positions, df
+            return
 
         af, fx = get_af_glob(), get_fx_glob()
 
@@ -287,8 +265,6 @@ class Portfolio(AggregationMixin, Asset):
         positions[self._currency].date = self._cal.t0
         df.sort_index(inplace=True)
 
-        return positions, df
-
     def _write_cnsts(self) -> None:
         """ Writes to the database the constituents. """
         fields = tuple(self._qb.get_fields(self._CONSTITUENTS_TABLE))
@@ -310,139 +286,3 @@ class Portfolio(AggregationMixin, Asset):
 
         q = self._qb.merge(self._CONSTITUENTS_TABLE, ins_fields=fields)
         self._db.executemany(q, data, commit=True)
-
-    def calc_log_returns(self) -> None:
-        raise NotImplementedError("Log returns not available for portfolios!")
-
-    def _calc_weights(self) -> None:
-        """ Calculates constituents weights starting from portfolio positions. """
-        if not self._cnsts_loaded:
-            self._load_cnsts()
-
-        pos = self._cnsts_df
-        uids = self._cnsts_uids
-        self._weights = pd.DataFrame(
-            Math.weights(uids, self._currency, pos.values),
-            index=pos.index.values,
-            columns=uids
-        )
-
-    def _calc_total_value(self) -> pd.Series:
-        """ Calculates the times series of the total value of the portfolio. """
-        if not self._cnsts_loaded:
-            self._load_cnsts()
-
-        pos = self._cnsts_df
-        return pd.Series(
-            Math.ptf_value(self._cnsts_uids, self._currency, pos.values)[0],
-            index=pos.index.values
-        )
-
-    def positions_value(self) -> pd.DataFrame:
-        """ Calculates the times series of the value of each position in base
-            currency. The sum across positions at each date is the portfolio
-            total value at that date.
-        """
-        if not self._cnsts_loaded:
-            self._load_cnsts()
-
-        pos = self._cnsts_df
-        return pd.DataFrame(
-            Math.ptf_value(self._cnsts_uids, self._currency, pos.values)[1],
-            columns=self._cnsts_uids,
-            index=pos.index.values
-        )
-
-    def calc_returns(self) -> pd.Series:
-        if not self._cnsts_loaded:
-            self._load_cnsts()
-
-        pos = self._cnsts_df
-        wgt = self.weights
-        return pd.Series(
-            Math.price_returns(
-                self._cnsts_uids, self._currency,
-                pos.values, wgt.values
-            ),
-            index=pos.index.values
-        )
-
-    def tev(self, benchmark: Asset, w: Optional[int] = None) -> pd.Series:
-        """ Calculates Tracking Error Volatility of the portfolio against a
-            benchmark.
-
-            Input:
-                benchmark [Asset]: asset to be used as benchmark
-                w [int]: size of the rolling window
-        """
-        r = self.returns
-        return pd.Series(
-            Math.tev(r.index.values, r.values, benchmark.returns.values, w=w),
-            index=r.index
-        )
-
-    def sharpe_ratio(self, rf: TyAsset) -> pd.Series:
-        """ Calculates the Sharpe Ratio. """
-        r = self.returns
-        return pd.Series(
-            Math.sharpe(r.index.values, r.values, br=rf.returns.values),
-            index=r.index
-        )
-
-    def covariance(self) -> pd.DataFrame:
-        """ Get the covariance matrix for the underlying constituents. """
-        uids = list(self._cnsts_uids)
-        try:
-            uids.remove(self._currency)
-        except ValueError:
-            pass
-
-        return pd.DataFrame(
-            Math.ptf_cov(uids),
-            columns=uids,
-            index=uids
-        )
-
-    def correlation(self) -> pd.DataFrame:
-        """ Get the correlation matrix for the underlying constituents. """
-        uids = list(self._cnsts_uids)
-        try:
-            uids.remove(self._currency)
-        except ValueError:
-            pass
-
-        return pd.DataFrame(
-            Math.ptf_corr(uids),
-            columns=uids,
-            index=uids
-        )
-
-    def summary(self) -> dict[str, Any]:
-        """ Show the portfolio summary in the portfolio base currency. """
-        # Run through positions and collect data for the summary
-        pos_value = self.positions_value().loc[self._date]
-        data = [
-            (
-                p.type, p.uid,
-                p.date.strftime('%Y-%m-%d'),
-                p.currency,
-                p.alp, p.quantity,
-                p.alp * p.quantity,
-                float(pos_value[k])
-            )
-            for k, p in self._dict_cnsts.items()
-        ]
-
-        # Sort accordingly to the key <type, uid>
-        data.sort(key=lambda _t: (_t[0], _t[1]))
-        cnsts = pd.DataFrame(
-            data,
-            columns=('type', 'uid', 'date', 'currency', 'alp', 'quantity',
-                     'cost (FX)', f'value ({self._currency})')
-        )
-
-        return {
-            'uid': self._uid, 'currency': self._currency,
-            'inception': self._inception_date, 'tot_value': pos_value.sum(),
-            'constituents_data': cnsts,
-        }

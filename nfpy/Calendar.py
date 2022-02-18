@@ -157,7 +157,8 @@ class Calendar(metaclass=Singleton):
         """ Get a DateOffset object dependent on the frequency """
         return _FREQ_LABELS[freq][1]
 
-    def run_len(self, start: pd.Timestamp, end: pd.Timestamp) -> int:
+    def run_len(self, start: TyDatetime, end: TyDatetime) -> int:
+        """ Returns the number of periods between the two datetimes in input. """
         s_idx = self._calendar.get_loc(start, method='nearest')
         e_idx = self._calendar.get_loc(end, method='nearest')
         return e_idx - s_idx

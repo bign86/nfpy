@@ -5,17 +5,17 @@
 
 import numpy as np
 import pandas as pd
-from typing import Union
+from typing import Optional
 
+from nfpy.Calendar import TyDate
 import nfpy.Financial as Fin
 import nfpy.Math as Math
 from nfpy.Tools import (Constants as Cn, Exceptions as Ex)
 
-from .BaseFundamentalModel import BaseFundamentalModel
-from .BaseModel import BaseModelResult
+from .BaseFundamentalModel import (BaseFundamentalModel, FundamentalModelResult)
 
 
-class DDMResult(BaseModelResult):
+class DDMResult(FundamentalModelResult):
     """ Object containing the results of the Dividend Discount Model. """
 
 
@@ -24,7 +24,7 @@ class DividendDiscountModel(BaseFundamentalModel):
 
     _RES_OBJ = DDMResult
 
-    def __init__(self, uid: str, date: Union[str, pd.Timestamp] = None,
+    def __init__(self, uid: str, date: Optional[TyDate] = None,
                  past_horizon: int = 5, future_proj: int = 3,
                  div_conf: float = .1, susp_conf: float = 1., **kwargs):
         super().__init__(uid, date, past_horizon, future_proj)
@@ -36,7 +36,7 @@ class DividendDiscountModel(BaseFundamentalModel):
                          equity=self._eq.uid, t0=self._t0, start=self._start,
                          past_horizon=self._ph, future_proj=self._fp)
 
-    def _check_applicability(self):
+    def _check_applicability(self) -> None:
         """ Check applicability of the DDM model to the equity. The presence
             and frequency of dividends is checked.
         """
@@ -50,7 +50,7 @@ class DividendDiscountModel(BaseFundamentalModel):
             msg = f'Dividends for {self._uid} [{self._eq.uid}] appear to have been suspended'
             raise Ex.MissingData(msg)
 
-    def _calc_freq(self):
+    def _calc_freq(self) -> None:
         """ Calculates model frequency. """
         self._freq = self._df.frequency
 
@@ -87,7 +87,7 @@ class DividendDiscountModel(BaseFundamentalModel):
 
         return t, ft
 
-    def _calculate(self):
+    def _calculate(self) -> None:
         last_price = self.get_last_price()
         eq_drift, div_drift = self._calc_drift()
         dt_ts, div_ts = self._df.dividends
@@ -141,7 +141,7 @@ class DividendDiscountModel(BaseFundamentalModel):
                 'ret_with_growth': ret_gwt}
 
 
-def DDModel(company: str, d_rate: float, date: Union[str, pd.Timestamp] = None,
+def DDModel(company: str, d_rate: float, date: Optional[TyDate] = None,
             past_horizon: int = 5, future_proj: int = 3,
             div_conf: float = .2) -> DDMResult:
     """ Shortcut for the calculation. Intermediate results are lost. """

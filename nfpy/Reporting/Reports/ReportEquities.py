@@ -1,6 +1,6 @@
 #
-# Alerts Report
-# Report class for the Market Alerts
+# Report Equities
+# Report class for the Equities Data
 #
 
 from collections import defaultdict
@@ -13,7 +13,11 @@ from nfpy.Assets import TyAsset
 from nfpy.Calendar import today
 import nfpy.IO as IO
 import nfpy.Math as Math
-from nfpy.Tools import (Constants as Cn, Utilities as Ut)
+from nfpy.Tools import (
+    Constants as Cn,
+    Exceptions as Ex,
+    Utilities as Ut
+)
 import nfpy.Trading as Trd
 from nfpy.Trading import (Indicators as Ind, Strategies as Str)
 
@@ -26,13 +30,13 @@ else:
     PD_STYLE_PROP = {'na_rep': "-"}
 
 
-class ReportAlerts(BaseReport):
+class ReportEquities(BaseReport):
 
     def __init__(self, data: ReportData, path: Optional[str] = None, **kwargs):
         super().__init__(data, path)
         self._time_spans = (
-            Cn.DAYS_IN_1W, 2 * Cn.DAYS_IN_1W, Cn.DAYS_IN_1M,
-            2 * Cn.DAYS_IN_1M, 3 * Cn.DAYS_IN_1M
+            Cn.DAYS_IN_1M, 3 * Cn.DAYS_IN_1M, 6 * Cn.DAYS_IN_1M,
+            Cn.DAYS_IN_1Y, 2 * Cn.DAYS_IN_1Y, 5 * Cn.DAYS_IN_1Y
         )
 
     def _init_input(self, type_: Optional[str] = None) -> None:
@@ -57,98 +61,19 @@ class ReportAlerts(BaseReport):
             print(f'  > {uid}')
             try:
                 asset = self._af.get(uid)
-                type_ = asset.type
+                if asset.type != 'Equity':
+                    msg = f'{uid} is not an equity'
+                    raise Ex.AssetTypeError(msg)
 
                 res = Ut.AttributizedDict()
-                res.uid = uid
-                if type_ == 'Fx':
-                    self._calc_fx(asset, res)
-                    self._calc_trading(asset, res)
-                elif type_ == 'Equity':
-                    self._calc_equity(asset, res)
-                    self._calc_trading(asset, res)
-                else:
-                    msg = f'Asset type {type_} not supported by this model'
-                    raise RuntimeError(msg)
+                self._calc_equity(asset, res)
+                self._calc_trading(asset, res)
+                outputs[asset.ticker] = res
 
-                outputs[type_][uid] = res
-            except (RuntimeError, KeyError, ValueError) as ex:
+            except (RuntimeError, Ex.AssetTypeError) as ex:
                 Ut.print_exc(ex)
 
         return outputs
-
-    def _calc_fx(self, asset: TyAsset, res: Ut.AttributizedDict) -> None:
-        # General infos
-        res.info = {
-            k: getattr(asset, k)
-            for k in ('uid', 'description', 'price_country',
-                      'base_country', 'price_ccy', 'base_ccy')
-        }
-
-        # Relative path in results object
-        fig_full, fig_rel = self._get_image_paths(
-            (
-                (asset.uid,), ('MA',), ('p_price',)
-            )
-        )
-        res.img_prices = fig_rel[0]
-
-        t0 = self._cal.t0
-
-        # Prices: full history plot
-        prices = asset.prices
-        v_p = prices.values
-        dt_p = prices.index.values
-
-        start = self._cal.shift(t0, Cn.DAYS_IN_1Y, 'D')
-        slc = Math.search_trim_pos(
-            dt_p,
-            start=start.asm8,
-            end=t0.asm8
-        )
-        IO.TSPlot() \
-            .lplot(0, prices[slc], label='Price') \
-            .plot() \
-            .save(fig_full[0]) \
-            .close(True) \
-
-        # Returns
-        v_r = asset.returns.values
-
-        # Last price
-        last_price, idx = Math.last_valid_value(v_p, dt_p, t0.asm8)
-        res.last_price = last_price
-        res.last_price_date = dt_p[idx]
-
-        # Statistics table and betas
-        stats = np.empty((2, len(self._time_spans)))
-
-        for i, span in enumerate(self._time_spans):
-            start = self._cal.shift(t0, -span, 'D')
-            slc_sp = Math.search_trim_pos(
-                dt_p,
-                start=start.asm8,
-                end=t0.asm8
-            )
-
-            stats[0, i] = float(np.nanstd(v_r[slc_sp]))
-            first_price = Math.next_valid_value(v_p[slc_sp])[0]
-            stats[1, i] = last_price / first_price - 1.
-
-        # Render dataframes
-        df = pd.DataFrame(
-            stats.T,
-            index=self._time_spans,
-            columns=('volatility', 'mean return', 'tot. return')
-        )
-        res.stats = df.style.format(
-            formatter={
-                'volatility': '{:,.1%}'.format,
-                'tot. return': '{:,.1%}'.format,
-            },
-            **PD_STYLE_PROP) \
-            .set_table_attributes('class="dataframe"') \
-            .render()
 
     def _calc_equity(self, asset: TyAsset, res: Ut.AttributizedDict) -> None:
         # General infos
@@ -175,14 +100,8 @@ class ReportAlerts(BaseReport):
         v_p = prices.values
         dt_p = prices.index.values
 
-        start = self._cal.shift(t0, Cn.DAYS_IN_1Y, 'D')
-        slc = Math.search_trim_pos(
-            dt_p,
-            start=start.asm8,
-            end=t0.asm8
-        )
         IO.TSPlot() \
-            .lplot(0, prices[slc], label='Price') \
+            .lplot(0, prices, label='Price') \
             .plot() \
             .save(fig_full[0]) \
             .close(True)
@@ -195,10 +114,29 @@ class ReportAlerts(BaseReport):
         # Last price
         last_price, idx = Math.last_valid_value(v_p, dt_p, t0.asm8)
         res.last_price = last_price
-        res.last_price_date = dt_p[idx]
+        res.last_price_date = str(dt_p[idx])[:10]
+
+        # Performance and plot
+        start = self._cal.shift(t0, -2. * Cn.DAYS_IN_1Y, 'D')
+        slc = Math.search_trim_pos(
+            dt_p,
+            start=start.asm8,
+            end=t0.asm8
+        )
+        perf = Math.comp_ret(v_r[slc], is_log=False)
+        bench_perf = Math.comp_ret(bench_r[slc], is_log=False)
+
+        IO.TSPlot() \
+            .lplot(0, dt_p[slc], perf, color='C0', linewidth=1.5, label=asset.uid) \
+            .lplot(0, dt_p[slc], bench_perf, color='C2',
+                   linewidth=1.5, label='Index') \
+            .plot() \
+            .save(fig_full[1]) \
+            .close(True)
 
         # Statistics table and betas
-        stats = np.empty((4, len(self._time_spans)))
+        stats = np.empty((8, len(self._time_spans)))
+        betas = []
 
         for i, span in enumerate(self._time_spans):
             start = self._cal.shift(t0, -span, 'D')
@@ -209,14 +147,21 @@ class ReportAlerts(BaseReport):
             )
 
             stats[0, i] = float(np.nanstd(v_r[slc_sp]))
+            mean_ret = Math.e_ret(v_r[slc_sp], is_log=False)
+            stats[1, i] = mean_ret
+
             first_price = Math.next_valid_value(v_p[slc_sp])[0]
-            stats[1, i] = last_price / first_price - 1.
+            stats[2, i] = last_price / first_price - 1.
 
             beta_results = Math.beta(
                 dt_p[slc_sp], v_r[slc_sp], bench_r[slc_sp],
             )
+            betas.append(beta_results[1:])
+            stats[3:5, i] = beta_results[1:3]
+            stats[5, i] = Math.correlation(
+                dt_p[slc_sp], v_r[slc_sp], bench_r[slc_sp],
+            )[0, 1]
 
-            mean_ret = Math.e_ret(v_r[slc_sp], is_log=False)
             mean_index_ret = Math.e_ret(bench_r[slc_sp], is_log=False)
             rt, delta = Math.sml(
                 mean_ret,
@@ -224,25 +169,53 @@ class ReportAlerts(BaseReport):
                 .0,
                 mean_index_ret
             )
-            stats[2, i] = rt
-            stats[3, i] = delta
+            stats[6, i] = rt
+            stats[7, i] = delta
 
         # Render dataframes
         df = pd.DataFrame(
             stats.T,
             index=self._time_spans,
-            columns=('\u03C3', 'tot. return', 'SML ret', '\u0394 pricing')
+            columns=(
+                '\u03C3', 'mean return', 'tot. return', '\u03B2',
+                'adj. \u03B2', 'correlation', 'SML ret', '\u0394 pricing'
+            )
         )
         res.stats = df.style.format(
             formatter={
                 '\u03C3': '{:,.1%}'.format,
+                'mean return': '{:,.1%}'.format,
                 'tot. return': '{:,.1%}'.format,
+                '\u03B2': '{:,.2f}'.format,
+                'adj. \u03B2': '{:,.2f}'.format,
+                'correlation': '{:,.2f}'.format,
                 'SML ret': '{:,.1%}'.format,
                 '\u0394 pricing': '{:,.1%}'.format
             },
             **PD_STYLE_PROP) \
             .set_table_attributes('class="dataframe"') \
             .render()
+
+        # Beta plot
+        ir = bench_r[slc]
+        beta = betas[3]
+        xg = np.linspace(
+            min(
+                float(np.nanmin(ir)),
+                .0
+            ),
+            float(np.nanmax(ir)),
+            2
+        )
+        yg = beta[0] * xg + beta[2]
+
+        IO.Plotter(x_zero=(.0,), y_zero=(.0,)) \
+            .scatter(0, ir, v_r[slc], color='C0', linewidth=.0,
+                     marker='o', alpha=.5) \
+            .lplot(0, xg, yg, color='C0') \
+            .plot() \
+            .save(fig_full[2]) \
+            .close(True)
 
     def _calc_trading(self, asset: TyAsset, res: Ut.AttributizedDict) -> None:
         fig_full, fig_rel = self._get_image_paths(
@@ -262,6 +235,8 @@ class ReportAlerts(BaseReport):
         ae = Trd.AlertsEngine()
         alerts = ae.trigger(
             [asset.uid],
+            # TODO: this should be run with the number of days since the last
+            #       execution. IO a date on the DB?
             date_checked=today(mode='datetime') - timedelta(days=10)
         )
         ae.update_db()
@@ -313,12 +288,12 @@ class ReportAlerts(BaseReport):
 
             df = pd.DataFrame(
                 index=signals.dates,
-                columns=['signal', 'price', 'return', 'delta days']
+                columns=['signal', 'price', 'return', '\u0394 days']
             )
+            df['signal'] = signals.signals
             df['price'] = sig_price
             df['return'] = trade_ret
-            df['delta days'] = (t0 - df.index).days
-            df['signal'] = signals.signals
+            df['\u0394 days'] = (t0 - df.index).days
             df.replace(
                 to_replace={
                     'signal': {1: 'buy', -1: 'sell'}
@@ -328,7 +303,7 @@ class ReportAlerts(BaseReport):
             df.index = df.index.strftime("%Y-%m-%d")
 
         else:
-            df = pd.DataFrame(columns=['signal', 'price', 'return', 'delta days'])
+            df = pd.DataFrame(columns=['signal', 'price', 'return', '\u0394 days'])
 
         res.signals = df.style.format(
             formatter={

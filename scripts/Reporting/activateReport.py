@@ -1,6 +1,6 @@
 #
-# Activate/Deactivate report
-# Script to change the status in Reports.
+# Activate/Deactivate reports
+# Script to change the activation status in Reports.
 #
 
 from operator import itemgetter
@@ -9,10 +9,12 @@ from tabulate import tabulate
 import nfpy.DB as DB
 import nfpy.IO as IO
 
-_TABLE = 'ReportItems'
+_TABLE = 'Reports'
 
-__version__ = '0.3'
-_TITLE_ = "<<< Activate/Deactivate financial instruments >>>"
+__version__ = '0.4'
+_TITLE_ = "<<< Activate/Deactivate reports >>>"
+
+_SELECT_COLS = ('id', 'title', 'description', 'report', 'active')
 
 
 if __name__ == '__main__':
@@ -24,29 +26,29 @@ if __name__ == '__main__':
 
     params = {}
 
-    msg = "Give a report name(%) (default None): "
-    params['report'] = inh.input(msg, idesc='str', default=None, optional=True)
+    msg = "Give a id(%) (default None): "
+    params['id'] = inh.input(msg, idesc='str', default=None, optional=True)
 
-    msg = "Give a uid(%) (default None): "
-    params['uid'] = inh.input(msg, idesc='str', default=None, optional=True)
+    msg = "Give a title(%) (default None): "
+    params['title'] = inh.input(msg, idesc='str', default=None, optional=True)
 
-    msg = "Give a model(%) (default None): "
-    params['model'] = inh.input(msg, idesc='str', default=None, optional=True)
+    msg = "Give a description(%) (default None): "
+    params['description'] = inh.input(msg, idesc='str', default=None, optional=True)
 
     select_keys = tuple(k for k, v in params.items() if v is not None)
     select_data = tuple(params[k] for k in select_keys)
 
     if not select_keys:
-        print('All done!')
-        exit()
+        res = db.execute(
+            qb.selectall(_TABLE, _SELECT_COLS)
+        ).fetchall()
+    else:
+        q = qb.select(_TABLE, _SELECT_COLS, partial_keys=select_keys)
+        res = db.execute(q, select_data).fetchall()
 
-    q = qb.select(_TABLE, partial_keys=select_keys)
-    res = db.execute(q, select_data).fetchall()
-
-    fields = tuple(qb.get_fields(_TABLE))
     print(f'\n-------------------------------------------------------------\n'
           f'          {_TABLE}\n\n',
-          f'{tabulate(res, fields, showindex=True)}',
+          f'{tabulate(res, _SELECT_COLS, showindex=True)}',
           end='\n\n')
 
     msg = "Choose the indices to modify (default None): "
@@ -64,8 +66,8 @@ if __name__ == '__main__':
     op = inh.input(msg, idesc='bool', optional=False)
 
     update_keys = tuple(qb.get_keys(_TABLE))
-    fields_pos = tuple(fields.index(f) for f in update_keys)
-    update_data = tuple((op,) + itemgetter(*fields_pos)(v) for v in filtered)
+    fields_pos = tuple(_SELECT_COLS.index(f) for f in update_keys)
+    update_data = tuple((op, itemgetter(*fields_pos)(v)) for v in filtered)
 
     q = qb.update(_TABLE, fields=('active',), keys=update_keys)
     db.executemany(q, update_data, commit=True)

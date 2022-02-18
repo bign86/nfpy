@@ -5,9 +5,10 @@
 
 import numpy as np
 import pandas as pd
-from typing import (Any, Sequence)
+from typing import (Any, Optional, Sequence)
 
 import nfpy.IO as IO
+import nfpy.Math as Math
 import nfpy.Tools.Utilities as Ut
 import nfpy.Trading as Trd
 
@@ -33,7 +34,7 @@ class ReportBacktester(BaseReport):
         "sizer_params": {'buy': .2, 'sell': .3}
     }
 
-    def _init_input(self, type_: str) -> dict:
+    def _init_input(self, type_: Optional[str] = None) -> None:
         """ Prepare and validate the the input parameters for the model. This
             includes verifying the parameters are correct for the models in the
             report. Takes the default parameters if any, applies the values from
@@ -42,7 +43,7 @@ class ReportBacktester(BaseReport):
             the self._p symbol are NOT altered for later usage by making copies
             if required.
         """
-        return self._p
+        pass
 
     def _calculate(self) -> Any:
         """ Calculate the required models.
@@ -50,7 +51,7 @@ class ReportBacktester(BaseReport):
             modified so that the database parameters in self._p are not
             changed from one asset to the next.
         """
-        bk = Trd.Backtester(self.uids, self._p['start_amount'], False)
+        bk = Trd.Backtester(self._uids, self._p['start_amount'], False)
         symbol = '.'.join(['nfpy.Trading.Strategies', self._p['strategy']])
         bk.strategy = Ut.import_symbol(symbol)
         bk.parameters = self._p['strategy_params']
@@ -72,7 +73,7 @@ class ReportBacktester(BaseReport):
 
     def _render_results(self, res_dict: Any, strategy: Trd.TyStrategy,
                         strategy_p: dict, sizer_p: Sequence) -> Any:
-        outputs = {}
+        outputs = Ut.AttributizedDict()
 
         # Aggregated measures
         avg_return = .0
@@ -138,7 +139,7 @@ class ReportBacktester(BaseReport):
 
             _shares_val = prices * _shares
             _total_val = _shares_val + _cash
-            _perf = asset.performance()
+            _perf = Math.comp_ret(prices, is_log=False)
 
             # Plotting
             pl = IO.Plotter(4, 1, figsize=(15, 12.8)) \
@@ -157,9 +158,9 @@ class ReportBacktester(BaseReport):
 
             for i in range(sig_dates.shape[0]):
                 color = 'C2' if signals[i] == -1 else 'C1'
-                pl.line(0, 'xv', sig_dates[i], color=color, linewidth=.6)
-                pl.line(1, 'xv', sig_dates[i], color=color, linewidth=.6)
-                pl.line(3, 'xv', sig_dates[i], color=color, linewidth=.6)
+                pl.line(0, 'xv', sig_dates[i], color=color, linewidth=.6) \
+                    .line(1, 'xv', sig_dates[i], color=color, linewidth=.6) \
+                    .line(3, 'xv', sig_dates[i], color=color, linewidth=.6)
 
             pl.plot() \
                 .save(fig_full[0]) \

@@ -56,9 +56,10 @@ class AggregationMixin(object):
 
     @property
     def cnsts_df(self) -> pd.DataFrame:
+        if not self._cnsts_loaded:
+            self._load_cnsts()
         return self._cnsts_df
 
-    # FIXME: better to return None?
     @property
     def prices(self):
         raise NotImplementedError("Aggregations do not have price levels!")
@@ -75,11 +76,9 @@ class AggregationMixin(object):
         """ Save to the database the constituents of the aggregation. """
         self._write_cnsts()
 
-    # FIXME: better to pass?
     def calc_returns(self):
         raise NotImplementedError('To be implemented in child classes')
 
-    # FIXME: better to pass?
     def calc_log_returns(self):
         raise NotImplementedError('To be implemented in child classes')
 

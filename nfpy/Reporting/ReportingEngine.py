@@ -23,9 +23,11 @@ class ReportingEngine(metaclass=Singleton):
     _TBL_REPORTS = 'Reports'
     _DT_FMT = '%Y%m%d'
     _REPORTS = {
-        Rep.ReportMarket,
         Rep.ReportAlerts,
-        Rep.ReportBacktester
+        Rep.ReportBacktester,
+        Rep.ReportCompanies,
+        Rep.ReportEquities,
+        Rep.ReportPortfolio,
     }
     _TMPL_PATH = os.path.join(NFPY_ROOT_DIR, 'Reporting/Templates')
 

@@ -16,7 +16,7 @@ def dropna(v: np.ndarray, axis: int = 0) -> tuple:
         mask = ~np.isnan(v)
         _v = v[mask]
     elif len(v.shape) == 2:
-        mask = ~np.any(np.isnan(v), axis=axis, keepdims=False)
+        mask = ~np.any(np.isnan(v), axis=axis, keepdims=True)
 
         tile_sh = [1, 1]
         tile_sh[axis] = v.shape[axis]
@@ -26,6 +26,7 @@ def dropna(v: np.ndarray, axis: int = 0) -> tuple:
         v_sh = [n, n]
         v_sh[axis] = v.shape[axis]
         _v = _v.reshape(v_sh)
+        mask = mask.reshape((max(mask.shape),))
     else:
         raise Ex.ShapeError('3D+ arrays not supported')
 
@@ -49,7 +50,7 @@ def ffill_cols(v: np.ndarray, n: float = 0, inplace=False) -> np.ndarray:
             v [np.ndarray]: input array either 1-D or 2-D
             n [float]: fill up value for NaNs appearing at the beginning
                        of the data series.
-            inplace [bool]: do it in-place (Default: False)
+            inplace [bool]: do it in-place (default: False)
 
         Output:
             out [np.ndarray]: array with NaNs filled column-wise
@@ -73,7 +74,39 @@ def ffill_cols(v: np.ndarray, n: float = 0, inplace=False) -> np.ndarray:
     return out
 
 
-def last_valid_index(v: np.ndarray, start: int = None) -> int:
+# TODO: implement the inplace option
+def ffill_rows(v: np.ndarray, n: float = 0, inplace=False) -> np.ndarray:
+    """ Forward fill nan with the last valid value row-wise.
+
+        Input:
+            v [np.ndarray]: input array either 1-D or 2-D
+            n [float]: fill up value for NaNs appearing at the beginning
+                       of the data series.
+            inplace [bool]: do it in-place (default: False)
+
+        Output:
+            out [np.ndarray]: array with NaNs filled column-wise
+    """
+    # FIXME: this involves a copy in np.flatten(). In general, bad way to take
+    #        into account dimensionality.
+    flatten = False
+    if len(v.shape) == 1:
+        v = v[None, :]
+        flatten = True
+    mask = np.isnan(v)
+    tmp = v[0].copy()
+    v[0][mask[0]] = n
+    mask[0] = False
+    idx = np.where(~mask, np.arange(mask.shape[1])[None, :], 0)
+    out = np.take_along_axis(v, np.maximum.accumulate(idx, axis=1), axis=1)
+    v[0] = tmp
+
+    if flatten:
+        out = out.flatten()
+    return out
+
+
+def last_valid_index(v: np.ndarray, start: Optional[int] = None) -> int:
     """ Find the index of the last non-nan value. Similar to the Pandas method
         last_valid_index(). It can be used with 1D arrays only.
 
@@ -98,15 +131,15 @@ def last_valid_index(v: np.ndarray, start: int = None) -> int:
     return i
 
 
-def last_valid_value(v: np.ndarray, dt: np.ndarray = None,
-                     t0: np.datetime64 = None) -> tuple[float, int]:
+def last_valid_value(v: np.ndarray, dt: Optional[np.ndarray] = None,
+                     t0: Optional[np.datetime64] = None) -> tuple[float, int]:
     """ Find the last valid value at a date <= t0. It can be used with 1D arrays
         only.
 
         Input:
             v [np.ndarray]: series of prices
-            dt [np.ndarray]: series of price dates (default None)
-            t0 [np.datetime64]: reference date (default None)
+            dt [np.ndarray]: series of price dates (default: None)
+            t0 [np.datetime64]: reference date (default: None)
 
         Output:
             val [float]: value of the series at or before t0
@@ -117,7 +150,7 @@ def last_valid_value(v: np.ndarray, dt: np.ndarray = None,
 
     if t0:
         pos = np.searchsorted(dt, t0, side='right')
-        v = v[:pos]
+        v = v[:pos+1]
     idx = last_valid_index(v)
     return float(v[idx]), idx
 
@@ -128,7 +161,7 @@ def next_valid_index(v: np.ndarray, start: int = 0) -> int:
 
         Input:
             v [np.ndarray]: input series
-            start [int]: starting index (default 0)
+            start [int]: starting index (default: 0)
 
         Output:
             i [int]: next valid index
@@ -145,15 +178,15 @@ def next_valid_index(v: np.ndarray, start: int = 0) -> int:
     return i
 
 
-def next_valid_value(v: np.ndarray, dt: np.ndarray = None,
-                     t0: np.datetime64 = None) -> tuple[float, int]:
+def next_valid_value(v: np.ndarray, dt: Optional[np.ndarray] = None,
+                     t0: Optional[np.datetime64] = None) -> tuple[float, int]:
     """ Find the next valid value starting from the given index. It can be used
         with 1D arrays only.
 
         Input:
             v [np.ndarray]: series of prices
-            dt [np.ndarray]: series of price dates (Default None)
-            t0 [np.datetime64]: reference date (Default None)
+            dt [np.ndarray]: series of price dates (default: None)
+            t0 [np.datetime64]: reference date (default: None)
 
         Output:
             val [float]: value of the series at or after t0
@@ -164,8 +197,8 @@ def next_valid_value(v: np.ndarray, dt: np.ndarray = None,
 
     if t0:
         pos = np.searchsorted(dt, t0, side='right')
-        v = v[:pos]
-    idx = next_valid_index(v)
+        v = v[pos:]
+    idx = next_valid_index(v, 0)
     return float(v[idx]), idx
 
 
@@ -208,6 +241,18 @@ def rolling_window(v: np.ndarray, w: int) -> np.ndarray:
 
 def search_trim_pos(dt: np.ndarray, start: Optional[np.datetime64] = None,
                     end: Optional[np.datetime64] = None) -> Optional[slice]:
+    """ Replicates the use of Pandas .loc[] to slice a time series on a given
+        pair of dates. Returns the sliced values array and dates array NOT in
+        place.
+
+        Input:
+            dt [np.ndarray]: dates series to trim
+            start [np.datetime64]: trimming start date (default: None)
+            end [np.datetime64]: trimming end date (default: None)
+
+        Output:
+            slc [slice]: slice object
+    """
     if len(dt.shape) > 1:
         raise Ex.ShapeError('Only 1D arrays supported')
 
@@ -245,8 +290,8 @@ def trim_ts(v: Optional[np.ndarray], dt: np.ndarray,
         Input:
             v [np.ndarray]: value series to trim
             dt [np.ndarray]: dates series to trim
-            start [np.datetime64]: trimming start date (Default None)
-            end [np.datetime64]: trimming end date (Default None)
+            start [np.datetime64]: trimming start date (default: None)
+            end [np.datetime64]: trimming end date (default: None)
             axis [int]: axis along which to cut
 
         Output:
@@ -262,13 +307,11 @@ def trim_ts(v: Optional[np.ndarray], dt: np.ndarray,
     if slice_obj is None:
         return None, np.array([])
 
-    # Do not modify the input
-    if v is not None:
-        v = deepcopy(v)
+    # Do not modify the input and perform the slicing
     dt = deepcopy(dt)
 
-    # Perform the slicing
     if v is not None:
+        v = deepcopy(v)
         slc_list = [slice(None)] * len(v.shape)
         slc_list[axis] = slice_obj
         v = v[tuple(slc_list)]

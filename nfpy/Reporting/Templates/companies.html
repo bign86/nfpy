@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <title>Report NFPY</title>
+  </head>
+  <body>
+    <!-- TITLE -->
+    <h1><a name="pageTop"></a>{{ title }}</h1>
+    <a href="index.html">Index</a>
+    <hr class="shadow">
+
+    <!-- UIDs list -->
+    <h3><a name="uidList"></a>List of UIDs</h3>
+    {%- for uid, val in res.items()|sort -%}
+      <a href="#{{ uid }}">{{ uid }}</a> - {{ val.info["name"] }}<br>
+    {% endfor -%}
+    <hr>
+
+    <!-- REPORTS -->
+    <h2>Reports</h2>
+
+    <!-- Companies -->
+    <h3>Companies</h3>
+
+    {%- for uid, val in res.items()|sort -%}
+      <hr class="light">
+      <a name="{{ uid }}"></a><h4><a href="#uidList">Top</a> - {{ uid }}</h4>
+
+      <!-- Market model -->
+      <table>
+        <tr>
+          <td class='anag-prop'>Name</td><td class='anag-value'>{{ val.info["name"] }}</td>
+          <td class='anag-prop'>Industry</td><td class='anag-value'>{{ val.info["industry"] }}</td>
+          <td class='anag-prop'>Country</td><td class='anag-value'>{{ val.info["country"] }}</td>
+        </tr>
+        <tr>
+          <td class='anag-prop'>Description</td><td class='anag-value'>{{ val.info["description"] }}</td>
+          <td class='anag-prop'>Sector</td><td class='anag-value'>{{ val.info["sector"] }}</td>
+          <td class='anag-prop'>Currency</td><td class='anag-value'>{{ val.info["currency"] }}</td>
+        </tr>
+        <tr>
+          <td class='anag-prop'>Equity</td><td class='anag-value'><a href="#{{ val.info['equity'] }}">{{ val.info["equity"] }}</a></td>
+        </tr>
+      </table>
+
+      <!-- Discounted Cash Flows model -->
+      {%- if val.has_dcf -%}
+        <h5>Discounted Cash Flows Model</h5>
+        {{ val.df }}
+        <p></p>
+        <table>
+          <tr>
+            <td>Last Price</td>
+            <td>Fair Value</td>
+          </tr>
+          <tr>
+            <td>{{ '%0.2f'| format(val.last_price|float) }} {{ val.ccy }}</td>
+            <td>{{ '%0.2f'| format(val.fair_value|float) }} {{ val.ccy }}</td>
+          </tr>
+        </table>
+      {%- endif -%}
+
+      <!-- Dividend Discount model -->
+      {%- if val.has_ddm -%}
+        <h5>Dividend Discount Model</h5>
+        <table>
+          <tr>
+            <td>Last Price</td>
+            <td>No Growth</td>
+            <td>w/ growth</td>
+          </tr>
+          <tr>
+            <td>{{ '%0.2f'| format(val.last_price|float) }} {{ val.ccy }}</td>
+            <td>{{ '%0.2f'| format(val.fair_value_no_growth|float) }} {{ val.ccy }}</td>
+            <td>{{ '%0.2f'| format(val.fair_value_with_growth|float) }} {{ val.ccy }}</td>
+          </tr>
+          <tr>
+            <td></td>
+            <td>{{ '%0.2f'| format(val.ret_zg|float) }}%</td>
+            <td>{{ '%0.2f'| format(val.ret_wg|float) }}%</td>
+          </tr>
+        </table>
+        <img src="{{ val.div_fig }}" alt="Dividends plot" class="dividends-prj">
+
+        <p>Last price: {{ '%.3f' | format(val.last_price|float) }} {{ val.info["currency"] }} @ {{ val.last_price_date }}</p>
+        {{ val.stats }}
+        <img src="{{ val.img_prices }}" alt="Full history of prices" class="price-full-h">
+
+      {%- endif -%}
+    {%- endfor -%}
+    <hr>
+
+  </body>
+</html>

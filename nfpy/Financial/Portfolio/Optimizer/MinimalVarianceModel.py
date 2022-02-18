@@ -24,15 +24,9 @@ class MinimalVarianceModel(BaseOptimizer):
             r.success = True
             r.len = 1
             r.weights = [opt.x]
-            # r.const_ret = [self._ret]
             r.ptf_variance = [opt.fun]
             _ptf_ret = np.sum(self._ret * opt.x)
             r.ptf_return = [_ptf_ret]
             r.sharpe = [_ptf_ret / np.sqrt(opt.fun)]
-            # r.incl_coupons = self._i0.incl_coupons
-            # r.coupons = self._coupons
 
-        # r.model = self._LABEL
-        # r.label = self._LABEL
-        # r.uids = self._uids
         return r

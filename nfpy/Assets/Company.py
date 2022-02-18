@@ -18,6 +18,18 @@ class Company(AggregationMixin, FinancialItem):
     _BASE_TABLE = 'Company'
     _CONSTITUENTS_TABLE = 'CompanyFundamentals'
 
+    def __init__(self, uid: str):
+        super().__init__(uid)
+        self._equity = None
+
+    @property
+    def equity(self) -> str:
+        return self._equity
+
+    @equity.setter
+    def equity(self, v: str):
+        self._equity = v
+
     def _load_cnsts(self) -> None:
         """ Fetch from the database the fundamentals. """
         # Get the fundamental data form the database

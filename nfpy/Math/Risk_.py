@@ -44,7 +44,7 @@ def beta(dt: np.ndarray, ts: np.ndarray, proxy: np.ndarray,
         # scipy.linregress() is not robust against nans, therefore we clean them
         # and keep the dates series consistent.
         v, mask = dropna(v)
-        dts = dts[mask]
+        dts = dts[-1:]
         slope, intercept, _, _, std_err = stats.linregress(v[1, :], v[0, :])
 
     else:
@@ -91,7 +91,7 @@ def capm_beta(dt: np.ndarray, ts: np.ndarray, idx: np.ndarray,
     return covar[0, 1] / prx_var
 
 
-def drawdown(ts: np.ndarray, w: int) -> tuple:
+def drawdown(ts: np.ndarray, w: int) -> tuple[np.ndarray, np.ndarray]:
     """ Calculate the maximum drawdown in the given time window.
 
         Input:
@@ -111,13 +111,13 @@ def drawdown(ts: np.ndarray, w: int) -> tuple:
     dd = np.take(ts, idx_max) / ts[w - 1:] - 1.
     mdd = np.empty_like(dd)
     mdd[:w] = np.maximum.accumulate(fillna(dd[:w], -1., inplace=True))
-    mdd[w-1:] = np.nanmax(rolling_window(dd, w), axis=1)
+    mdd[w - 1:] = np.nanmax(rolling_window(dd, w), axis=1)
     return dd, mdd
 
 
 def sharpe(dt: np.ndarray, xc: np.ndarray, br: Optional[np.ndarray] = None,
            start: Optional[np.datetime64] = None,
-           end: Optional[np.datetime64] = None) -> tuple:
+           end: Optional[np.datetime64] = None) -> float:
     """ Calculates the Sharpe ratio for the given return series. If the return
         series contains returns instead of excess returns, the base rate series
         must also be given to compute excess returns.
@@ -130,7 +130,7 @@ def sharpe(dt: np.ndarray, xc: np.ndarray, br: Optional[np.ndarray] = None,
             end [np.datetime64]: end date of the series excluded (Default: None)
 
         Output:
-            sharpe [pd.Series]: Sharpe ratio series
+            sharpe [float]: Sharpe ratio
     """
     if (dt.shape != xc.shape != br.shape) and len(dt.shape) > 1:
         raise Ex.ShapeError('The series must have the same length')
@@ -142,10 +142,7 @@ def sharpe(dt: np.ndarray, xc: np.ndarray, br: Optional[np.ndarray] = None,
     if br is not None:
         v = v - br[slc]
 
-    return (
-        dt[slc],
-        np.nanmean(v) / np.nanstd(v)
-    )
+    return np.nanmean(v) / np.nanstd(v)
 
 
 def sml(r: float, exposure: float, rf: float, rm: float) -> tuple[float, float]:
@@ -166,12 +163,12 @@ def sml(r: float, exposure: float, rf: float, rm: float) -> tuple[float, float]:
     return rt, (r - rt)
 
 
-def tev(dt: np.ndarray, r: np.ndarray, bkr: np.ndarray,
-        start: Optional[np.datetime64] = None,
-        end: Optional[np.datetime64] = None, w: int = None) \
+def te(dt: np.ndarray, r: np.ndarray, bkr: np.ndarray,
+       start: Optional[np.datetime64] = None,
+       end: Optional[np.datetime64] = None, w: Optional[int] = None) \
         -> tuple[np.ndarray, np.ndarray]:
-    """ Calculates the Tracking Error Volatility (TEV) between a series of
-        returns and a benchmark one.
+    """ Calculates the Tracking Error (TE) between a the returns of an asset and
+        its benchmark.
 
         Input:
             dt [np.ndarray]: dates series
@@ -192,11 +189,15 @@ def tev(dt: np.ndarray, r: np.ndarray, bkr: np.ndarray,
     dts = dt[slc]
 
     if not w:
-        res = np.nanstd(r[slc] - bkr[slc])
+        res = np.sqrt(
+            np.nanstd(r[slc] - bkr[slc])
+        )
     else:
-        res = np.nanstd(
-            rolling_window((r[slc] - bkr[slc]), w),
-            axis=1
+        res = np.sqrt(
+            np.nanstd(
+                rolling_window((r[slc] - bkr[slc]), w),
+                axis=1
+            )
         )
         dts = dts[w - 1:]
 

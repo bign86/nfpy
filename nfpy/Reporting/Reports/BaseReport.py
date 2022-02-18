@@ -7,9 +7,9 @@ from abc import (ABCMeta, abstractmethod)
 from collections import namedtuple
 import itertools
 import os.path
-from typing import (Any, Type)
+from typing import (Any, Optional, Sequence, Type)
 
-from nfpy.Assets import get_af_glob
+import nfpy.Assets as Ast
 import nfpy.Calendar as Cal
 from nfpy.Tools import Utilities as Ut
 
@@ -27,7 +27,12 @@ class BaseReport(metaclass=ABCMeta):
     _DIR_IMG = 'img'
     DEFAULT_P = {}
 
-    def __init__(self, data: ReportData, path: str = None):
+    def __init__(self, data: ReportData, path: Optional[str] = None):
+        # Factories
+        self._af = Ast.get_af_glob()
+        self._cal = Cal.get_calendar_glob()
+        self._fx = Ast.get_fx_glob()
+
         # Inputs
         self._id = data.id
         self._uids = data.uids
@@ -40,18 +45,15 @@ class BaseReport(metaclass=ABCMeta):
         self._img_rel_path = None
 
         # Work & Output variables
-        self._af = get_af_glob()
-        self._cal = Cal.get_calendar_glob()
         self._is_calculated = False
         # self._jinja_filters = {}
-
         self._res = ReportResult()
         self._res.id = data.id
         self._res.template = data.template
         self._res.title = f"{data.title} - {Cal.today(mode='str')}"
 
     @property
-    def uids(self) -> [str]:
+    def uids(self) -> Sequence[str]:
         return self._uids
 
     # @property
@@ -112,8 +114,9 @@ class BaseReport(metaclass=ABCMeta):
         self._res.output = self._calculate()
         self._is_calculated = True
 
+    # FIXME: we may want to make this a non-returning thing
     @abstractmethod
-    def _init_input(self, uid: str) -> dict:
+    def _init_input(self, uid: Optional[str] = None) -> None:
         """ Prepare and validate the the input parameters for the model. This
             includes verifying the parameters are correct for the models in the
             report. Takes the default parameters if any, applies the values from
@@ -131,7 +134,7 @@ class BaseReport(metaclass=ABCMeta):
             changed from one asset to the next.
         """
 
-    def _get_image_paths(self, labels: []) -> [[], []]:
+    def _get_image_paths(self, labels: Sequence) -> tuple[tuple, tuple]:
         fig_full_name, fig_rel_name = [], []
         for l in itertools.product(*labels):
             name = f'{"_".join(l)}.png'
