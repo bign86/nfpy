@@ -232,10 +232,11 @@ class YahooHistoricalBasePage(YahooBasePage):
         ld = self._fetch_last_data_point(
             (self.ticker, self._dt.get(self.event))
         )
-        start = pd.to_datetime(ld) + pd.DateOffset(days=1)
+        # We add 2 days instead of 1 since with 1 day of offset the previous
+        # split is downloaded again
+        start = pd.to_datetime(ld) + pd.DateOffset(days=2)
         self._p.update(
             {
-                # TODO: pd.to_datetime(ld).strftime('%s') yields a different output
                 'period1': str(int(start.timestamp())),
                 'period2': today(mode='str', fmt='%s')
             }

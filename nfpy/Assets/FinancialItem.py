@@ -3,7 +3,7 @@
 # Base class for financial items with biographical data
 #
 
-from typing import (Any, TypeVar)
+from typing import (Any, Optional, Sequence, TypeVar)
 
 from nfpy.DatatypeFactory import get_dt_glob
 import nfpy.DB as DB
@@ -44,14 +44,15 @@ class FinancialItem(object):
         data = tuple(getattr(self, k) for k in keys)
         return data
 
-    def _fill_anag(self, res: [Any], table: str, cols: [str] = None):
+    def _fill_anag(self, res: Sequence[Any], table: str,
+                   cols: Optional[Sequence[str]] = None) -> None:
         """ Cycle through all fields setting the properties
         
             Input:
-                res [[Any]]]: results from query
+                res [Sequence[Any]]: results from query
                 table [str]: source table
-                cols [[str]]: list of columns used for the select. If None
-                    all table columns are assumed
+                cols [Sequence[str]]: list of columns used for the select.
+                    If None all table columns are assumed.
 
             Exception:
                 AttributeError: if the attribute already exists. That may mean
@@ -70,7 +71,7 @@ class FinancialItem(object):
                 continue
             setattr(self, f, res[i])
 
-    def load(self):
+    def load(self) -> None:
         """ Load asset data from base table. Primary keys data must be known. """
         if self._is_loaded:
             return
@@ -86,7 +87,7 @@ class FinancialItem(object):
         self._fill_anag(res[0], self.base_table)
         self._is_loaded = True
 
-    def write(self):
+    def write(self) -> None:
         """ Write asset data to base table. """
         t = self.base_table
 

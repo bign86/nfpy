@@ -21,7 +21,7 @@ TyDate = TypeVar('TyDate', bound=Union[str, datetime.date])
 TyTime = Union[TyDate, TyDatetime, DatetimeScalar]
 TyTimeSequence = Union[pd.DatetimeIndex, Sequence[TyTime]]
 
-_HOLIDAYS_MASK_ = ((1, 1), (5, 1), (6, 2), (8, 15), (12, 24), (12, 25), (12, 26))
+_HOLIDAYS_MASK_ = ((1, 1), (5, 1), (12, 25))
 _WEEKEND_MASK_INT_ = (5, 6)
 _WEEKEND_MASK_STR_ = ('Sat', 'Sun')
 _WEEK_MASK_INT_ = (0, 1, 2, 3, 4)

@@ -6,9 +6,11 @@
 from bisect import bisect_left
 from datetime import timedelta
 from itertools import groupby
+
+import numpy as np
 import pandas as pd
 
-from nfpy.Tools import Exceptions as Ex
+from nfpy.Tools import (Exceptions as Ex)
 
 from .AggregationMixin import AggregationMixin
 from .Asset import Asset
@@ -31,19 +33,20 @@ class Portfolio(AggregationMixin, Asset):
     _TYPE = 'Portfolio'
     _BASE_TABLE = 'Portfolio'
     _CONSTITUENTS_TABLE = 'PortfolioPositions'
-    _TS_TABLE = 'PortfolioTS'  # NOTE: not in use
-    _TS_ROLL_KEY_LIST = ['date']  # NOTE: not in use
+    # _TS_TABLE = 'PortfolioTS'  # NOTE: not in use
+    # _TS_ROLL_KEY_LIST = ['date']  # NOTE: not in use
     _TRADES_TABLE = 'Trades'
 
     def __init__(self, uid: str):
         super().__init__(uid)
-        # self._fx = Fin.get_fx_glob()
 
         self._weights = pd.DataFrame()
-        self._date = None
+        # self._date = None
         self._tot_value = None
         self._inception_date = None
         self._benchmark = None
+
+        self._divs_received = pd.DataFrame(index=self._cal.calendar)
 
     @property
     def benchmark(self) -> str:
@@ -56,9 +59,13 @@ class Portfolio(AggregationMixin, Asset):
     def calc_log_returns(self) -> None:
         raise NotImplementedError("Log returns not available for portfolios!")
 
+    # @property
+    # def date(self) -> pd.Timestamp:
+    #     return self._date
+
     @property
-    def date(self) -> pd.Timestamp:
-        return self._date
+    def dividends_received(self) -> pd.DataFrame:
+        return self._divs_received
 
     @property
     def inception_date(self) -> pd.Timestamp:
@@ -75,25 +82,62 @@ class Portfolio(AggregationMixin, Asset):
     def performance(self, *args):
         raise NotImplementedError("Portfolio does not have performance()!")
 
+    def _add_dividends(self, start: pd.Timestamp, positions: dict[str, Position],
+                       df: pd.DataFrame) -> None:
+        """ Updates the portfolio cash positions by adding the value of the
+            dividends received.
+
+            WARNING: the current methodology does NOT take into account the
+            ex-dividend date. Therefore, it is assumed that at the payment date
+            all the shares are paid the dividend. This is NOT accurate if some
+            of the shares were acquired after the ex-dividend date.
+        """
+        af = get_af_glob()
+
+        for pos in positions.values():
+            if pos.type != 'Equity':
+                continue
+
+            eq = af.get(pos.uid)
+            dividends = pd.concat([eq.dividends, eq.dividends_special])
+            dividends = dividends.loc[dividends.index >= start]
+            if len(dividends) == 0:
+                continue
+
+            # Take the location of the dividend payments on the calendar
+            idx = np.searchsorted(
+                df.index.values, dividends.index.values, side='left'
+            )
+
+            div_ts = np.zeros(len(df.index), dtype=float)
+            div_ts.put(idx, dividends.values)
+
+            # Here we multiply the dividend by the number of shares in the
+            # position. The ex-dividend date is not considered.
+            div_total = div_ts * df[pos.uid].values
+            self._divs_received[pos.currency] = div_total
+
+            df[pos.currency] += np.nancumsum(div_total)
+
     def _load_cnsts(self) -> None:
         """ Fetch from the database the portfolio constituents. """
 
         # If inception_date > start load from inception_date
         start_date = self._cal.start
-        date = self._inception_date
+        inception = self._inception_date
         flag_snapshot = False
 
         # If the inception is before the calendar start, search for a snapshot
         # before the calendar start to be used for loading. If no snapshot
         # before start is available, the inception date will be used for loading
-        if date < start_date:
+        if inception < start_date:
             dt = self._db.execute(
                 f'select distinct date from {self._CONSTITUENTS_TABLE}'
                 f' where ptf_uid = ? order by date',
                 (self._uid,)
             ).fetchall()
 
-            dt = [date.to_pydatetime()] + [d[0] for d in dt]
+            dt = [inception.to_pydatetime()] + [d[0] for d in dt]
             idx = bisect_left(dt, start_date)
 
             # If the required loading date is before the start of the calendar
@@ -107,7 +151,7 @@ class Portfolio(AggregationMixin, Asset):
                 )
 
             # If a snapshot in the future is available just use it
-            date = pd.Timestamp(dt[idx])
+            inception = pd.Timestamp(dt[idx])
             flag_snapshot = True
 
         # Initialize needed variables
@@ -122,7 +166,7 @@ class Portfolio(AggregationMixin, Asset):
                     keys=('ptf_uid', 'date'),
                     order='pos_uid'
                 ),
-                (self._uid, date.strftime('%Y-%m-%d'))
+                (self._uid, inception.strftime('%Y-%m-%d'))
             ).fetchall()
 
             # Create new uid list and constituents dict to ensure any previous
@@ -134,24 +178,27 @@ class Portfolio(AggregationMixin, Asset):
                                currency=r[4], alp=r[6], quantity=r[5])
 
                 positions[pos_uid] = pos
-                df.loc[date, pos_uid] = r[5]
+                df.loc[inception, pos_uid] = r[5]
 
         # If we load since inception, create a new position
         else:
             # Create an empty base cash position
             pos_uid = self._currency
-            pos = Position(pos_uid=pos_uid, date=date, atype='Cash',
+            pos = Position(pos_uid=pos_uid, date=inception, atype='Cash',
                            currency=self._currency, alp=1., quantity=0)
             positions[pos_uid] = pos
-            df.loc[date, pos_uid] = 0
+            df.loc[inception, pos_uid] = 0
 
         # Load the trades from the database and apply to positions
-        self._load_trades(date, positions, df)
-
+        self._load_trades(inception, positions, df)
         df.fillna(method='ffill', inplace=True)
         df.fillna(0, inplace=True)
+
+        # Create a history of dividends paid and add them to the cash positions
+        self._add_dividends(inception, positions, df)
+
         self._cnsts_df = df
-        self._date = self._cal.t0
+        # self._date = self._cal.t0
         self._cnsts_uids = df.columns.tolist()
         self._dict_cnsts = positions
 
@@ -268,7 +315,8 @@ class Portfolio(AggregationMixin, Asset):
     def _write_cnsts(self) -> None:
         """ Writes to the database the constituents. """
         fields = tuple(self._qb.get_fields(self._CONSTITUENTS_TABLE))
-        curr_date = self._date.to_pydatetime().date()
+        # curr_date = self._date.to_pydatetime().date()
+        curr_date = self._cal.t0.to_pydatetime().date()
         data = []
         for c in self._dict_cnsts.values():
             d = []
@@ -284,5 +332,7 @@ class Portfolio(AggregationMixin, Asset):
                 d.append(v)
             data.append(tuple(d))
 
-        q = self._qb.merge(self._CONSTITUENTS_TABLE, ins_fields=fields)
-        self._db.executemany(q, data, commit=True)
+        self._db.executemany(
+            self._qb.merge(self._CONSTITUENTS_TABLE, ins_fields=fields),
+            data, commit=True
+        )

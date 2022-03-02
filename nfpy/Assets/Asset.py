@@ -287,14 +287,14 @@ class Asset(FinancialItem):
             Output:
                 tot_ret [float]: expected value for returns
         """
-        _ret = self.log_returns if is_log else self.returns
+        _p = self.prices
         slc = Math.search_trim_pos(
-            _ret.index.values,
+            _p.index.values,
             start=Cal.pd_2_np64(start),
             end=Cal.pd_2_np64(end),
         )
         return Math.tot_ret(
-            _ret.values[slc],
+            _p.values[slc],
             is_log=is_log
         )
 

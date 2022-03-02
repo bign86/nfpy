@@ -27,7 +27,7 @@ if __name__ == '__main__':
     uid = inh.input("Give a portfolio uid: ", idesc='str', checker='uid')
     ptf = af.get(uid)
 
-    print(f'Portfolio @ {ptf.date}'
+    print(f'Portfolio @ {cal.t0}'
           f'Portfolio constituents [{ptf.num_constituents}]:\n{ptf.constituents_uids}'
           f'Portfolio value: {ptf.total_value.iat[-1]:.2f} {ptf.currency}',
           end='\n\n')

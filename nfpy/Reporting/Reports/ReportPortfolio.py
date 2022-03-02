@@ -91,10 +91,14 @@ class ReportPortfolio(BaseReport):
         t0 = self._cal.t0
         start = pd.Timestamp(year=(t0.year - 2), month=t0.month, day=t0.day)
 
-        opt_p = getattr(self._p, 'portfolioOptimization', {})
+        opt_p = self._p.get('portfolioOptimization', {})
         opt_p.update({'start': start.asm8, 't0': t0.asm8})
 
-        self._p.update(opt_p)
+        self._p['portfolioOptimization'] = opt_p
+
+    def _one_off_calculations(self) -> None:
+        """ Perform all non-uid dependent calculations for efficiency. """
+        pass
 
     def _calculate(self) -> Any:
         """ Calculate the required models.
@@ -110,18 +114,21 @@ class ReportPortfolio(BaseReport):
                 if asset.type != 'Portfolio':
                     msg = f'{uid} is not a portfolio'
                     raise Ex.AssetTypeError(msg)
-                self._init_input(None)
+                self._init_input()
 
                 res = Ut.AttributizedDict()
-                self._calc_ptf(asset, res)
+                pe = Ptf.PortfolioEngine(asset)
+                self._calc_ptf(asset, res, pe)
+                self._calc_optimization(asset, res, pe)
                 outputs[uid] = res
 
-            except (RuntimeError, KeyError, ValueError) as ex:
+            except (RuntimeError, Ex.AssetTypeError) as ex:
                 Ut.print_exc(ex)
 
         return outputs
 
-    def _calc_ptf(self, asset: TyAsset, res: Ut.AttributizedDict) -> None:
+    def _calc_ptf(self, asset: TyAsset, res: Ut.AttributizedDict,
+                  pe: Ptf.PortfolioEngine) -> None:
         # General infos
         res.info = {
             k: getattr(asset, k)
@@ -132,22 +139,19 @@ class ReportPortfolio(BaseReport):
         # Relative path in results object
         fig_full, fig_rel = self._get_image_paths(
             (
-                (asset.uid,), ('ME',), ('p_price', 'perf', 'beta')
+                (asset.uid,), ('ME',), ('p_price',)
             )
         )
-        res.img_prices_long = fig_rel[0]
-        res.img_performance = fig_rel[1]
-        res.img_beta = fig_rel[2]
+        res.img_value_hist = fig_rel[0]
 
         t0 = self._cal.t0
-        pe = Ptf.PortfolioEngine(asset)
 
         # Prices: full history plot
         dt_p, v_p = pe.total_value
         _, v_r = pe.returns
 
         IO.TSPlot() \
-            .lplot(0, dt_p, v_p, label='Price') \
+            .lplot(0, dt_p, v_p, label='Value') \
             .plot() \
             .save(fig_full[0]) \
             .close(True)
@@ -167,22 +171,23 @@ class ReportPortfolio(BaseReport):
                 end=t0.asm8
             )
 
-            stats[0, i] = float(np.nanstd(v_r[slc_sp]))
-            stats[1, i] = Math.e_ret(v_r[slc_sp], is_log=False)
-
             first_price = Math.next_valid_value(v_p[slc_sp])[0]
-            stats[2, i] = last_price / first_price - 1.
+            tot_ret = last_price / first_price - 1.
+
+            stats[0, i] = float(np.nanstd(v_r[slc_sp]))
+            stats[1, i] = Math.compound(tot_ret, Cn.BDAYS_IN_1Y / span)
+            stats[2, i] = tot_ret
 
         # Render dataframes
         df = pd.DataFrame(
             stats.T,
             index=self._time_spans,
-            columns=('\u03C3', 'mean return', 'tot. return')
+            columns=('\u03C3', 'yearly return', 'tot. return')
         )
         res.stats = df.style.format(
             formatter={
                 '\u03C3': '{:,.1%}'.format,
-                'mean return': '{:,.1%}'.format,
+                'yearly return': '{:,.1%}'.format,
                 'tot. return': '{:,.1%}'.format,
             },
             **PD_STYLE_PROP) \
@@ -216,6 +221,12 @@ class ReportPortfolio(BaseReport):
             .set_table_attributes('class="dataframe"') \
             .render()
 
+        # Dividends received
+        res.div_ttm = pe.dividends_received_ttm()
+        res.div_history = pe.dividends_received_yearly()
+
+    def _calc_optimization(self, asset: TyAsset, res: Ut.AttributizedDict,
+                           pe: Ptf.PortfolioEngine) -> None:
         # Plot portfolio data
         fig_full, fig_rel = self._get_image_paths(
             ((asset.uid,), ('PtfOpt',), ('ptf_opt_res',))

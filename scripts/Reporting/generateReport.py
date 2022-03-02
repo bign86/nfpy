@@ -11,7 +11,7 @@ import nfpy.DB as DB
 import nfpy.IO as IO
 from nfpy.Reporting import get_re_glob
 
-__version__ = '0.2'
+__version__ = '0.3'
 _TITLE_ = "<<< Report generation script >>>"
 
 if __name__ == '__main__':
@@ -29,7 +29,7 @@ if __name__ == '__main__':
     msg = "Give a list of report names (press Enter to see existing ones): "
     rep_name = inh.input(msg, default=[], is_list=True)
     if not rep_name:
-        fields = ('id', 'title', 'report', 'active')
+        fields = ('id', 'title', 'description', 'active')
         q = f"select {', '.join(fields)} from Reports"
         res = db.execute(q).fetchall()
 

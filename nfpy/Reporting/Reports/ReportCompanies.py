@@ -4,7 +4,6 @@
 #
 
 from collections import defaultdict
-import numpy as np
 import pandas as pd
 from typing import (Any, Optional)
 
@@ -30,49 +29,7 @@ else:
 
 
 class ReportCompanies(BaseReport):
-    DEFAULT_P = {
-        "d_rate": 0.00,
-        "baseData": {"time_spans": None},
-        "portfolioOptimization": {
-            "algorithms": {
-                "MarkowitzModel": {"gamma": .0},
-                "MinimalVarianceModel": {"gamma": .0},
-                "MaxSharpeModel": {"gamma": .0},
-                "RiskParityModel": {}
-            },
-            "iterations": 30,
-            "start": None,
-            "t0": None
-        },
-        "alerts": {
-            "w_ma_slow": 120,
-            "w_ma_fast": 21,
-            "w_sr_slow": 120,
-            "w_sr_fast": 21,
-            "sr_mult": 5.0
-        }
-    }
-    _PTF_PLT_STYLE = {
-        'Markowitz': (
-            'plot',
-            {
-                'linestyle': '-', 'linewidth': 2., 'marker': '',
-                'color': 'C0', 'label': 'EffFrontier'
-            }
-        ),
-        'MaxSharpe': (
-            'scatter',
-            {'marker': 'o', 'color': 'C1', 'label': 'MaxSharpe'}
-        ),
-        'MinVariance': (
-            'scatter',
-            {'marker': 'o', 'color': 'C2', 'label': 'MinVariance'}
-        ),
-        'RiskParity': (
-            'scatter',
-            {'marker': 'o', 'color': 'C4', 'label': 'RiskParity'}
-        ),
-    }
+    DEFAULT_P = {'years_price_hist': 2.}
 
     def __init__(self, data: ReportData, path: Optional[str] = None, **kwargs):
         super().__init__(data, path)
@@ -80,6 +37,8 @@ class ReportCompanies(BaseReport):
             Cn.DAYS_IN_1M, 6 * Cn.DAYS_IN_1M, Cn.DAYS_IN_1Y,
             2 * Cn.DAYS_IN_1Y, 3 * Cn.DAYS_IN_1Y, 5 * Cn.DAYS_IN_1Y
         )
+        self._hist_slc = None
+        self._span_slc = None
 
     def _init_input(self, type_: Optional[str] = None) -> None:
         """ Prepare and validate the the input parameters for the model. This
@@ -92,6 +51,29 @@ class ReportCompanies(BaseReport):
         """
         pass
 
+    def _one_off_calculations(self) -> None:
+        """ Perform all non-uid dependent calculations for efficiency. """
+        # Calculate price history length and save the slice object for later use
+        t0 = self._cal.t0
+        hist_y = -self._p['years_price_hist'] * Cn.DAYS_IN_1Y
+        start = self._cal.shift(t0, hist_y, 'D')
+        self._hist_slc = Math.search_trim_pos(
+            self._cal.calendar.values,
+            start=start.asm8,
+            end=t0.asm8
+        )
+
+        # Calculate time span length and save the list of slices
+        self._span_slc = []
+        for i, span in enumerate(self._time_spans):
+            start = self._cal.shift(t0, -span, 'D')
+            slc_sp = Math.search_trim_pos(
+                self._cal.calendar.values,
+                start=start.asm8,
+                end=t0.asm8
+            )
+            self._span_slc.append(slc_sp)
+
     def _calculate(self) -> Any:
         """ Calculate the required models.
             MUST ensure that the model parameters passed in <args> are not
@@ -99,6 +81,7 @@ class ReportCompanies(BaseReport):
             changed from one asset to the next.
         """
         outputs = defaultdict(dict)
+        self._one_off_calculations()
         for uid in self.uids:
             print(f'  > {uid}')
             try:
@@ -108,8 +91,8 @@ class ReportCompanies(BaseReport):
                     raise Ex.AssetTypeError(msg)
 
                 res = Ut.AttributizedDict()
-                self._calc_company(asset, res)
                 self._calc_equity(asset, res)
+                self._calc_company(asset, res)
                 outputs[uid] = res
 
             except (RuntimeError, Ex.AssetTypeError) as ex:
@@ -118,13 +101,6 @@ class ReportCompanies(BaseReport):
         return outputs
 
     def _calc_equity(self, asset: TyAsset, res: Ut.AttributizedDict) -> None:
-        # General infos
-        res.info = {
-            k: getattr(asset, k)
-            for k in ('uid', 'description', 'name', 'sector', 'industry',
-                      'equity', 'currency', 'country')
-        }
-
         # Relative path in results object
         fig_full, fig_rel = self._get_image_paths(
             (
@@ -140,17 +116,10 @@ class ReportCompanies(BaseReport):
         prices = equity.prices
         v_p = prices.values
         dt_p = prices.index.values
-        v_r = equity.returns.values
-
-        start = self._cal.shift(t0, -2. * Cn.DAYS_IN_1Y, 'D')
-        slc = Math.search_trim_pos(
-            dt_p,
-            start=start.asm8,
-            end=t0.asm8
-        )
+        # v_r = equity.returns.values
 
         IO.TSPlot() \
-            .lplot(0, prices[slc], label='Price') \
+            .lplot(0, prices[self._hist_slc], label=asset.uid) \
             .plot() \
             .save(fig_full[0]) \
             .close(True)
@@ -160,49 +129,24 @@ class ReportCompanies(BaseReport):
         res.last_price = last_price
         res.last_price_date = str(dt_p[idx])[:10]
 
-        # Statistics table and betas
-        stats = np.empty((2, len(self._time_spans)))
-
-        for i, span in enumerate(self._time_spans):
-            start = self._cal.shift(t0, -span, 'D')
-            slc_sp = Math.search_trim_pos(
-                dt_p,
-                start=start.asm8,
-                end=t0.asm8
-            )
-
-            stats[0, i] = float(np.nanstd(v_r[slc_sp]))
-            first_price = Math.next_valid_value(v_p[slc_sp])[0]
-            stats[1, i] = last_price / first_price - 1.
-
-        # Render dataframes
-        df = pd.DataFrame(
-            stats.T,
-            index=self._time_spans,
-            columns=('\u03C3', 'tot. return')
-        )
-        res.stats = df.style.format(
-            formatter={
-                '\u03C3': '{:,.1%}'.format,
-                'tot. return': '{:,.1%}'.format,
-            },
-            **PD_STYLE_PROP) \
-            .set_table_attributes('class="dataframe"') \
-            .render()
-
     def _calc_company(self, asset: TyAsset, res: Ut.AttributizedDict) -> None:
-        uid = asset.uid
+        # General infos
+        res.info = {
+            k: getattr(asset, k)
+            for k in ('uid', 'description', 'name', 'sector', 'industry',
+                      'equity', 'currency', 'country')
+        }
 
         dcf_res = None
         try:
-            dcf_res = DiscountedCashFlowModel(uid, **self._p) \
+            dcf_res = DiscountedCashFlowModel(asset.uid, **self._p) \
                 .result(**self._p)
         except Exception as ex:
             Ut.print_exc(ex)
 
         ddm_res = None
         try:
-            ddm_res = DividendDiscountModel(uid, **self._p) \
+            ddm_res = DividendDiscountModel(asset.uid, **self._p) \
                 .result(**self._p)
         except Exception as ex:
             Ut.print_exc(ex)
@@ -210,8 +154,6 @@ class ReportCompanies(BaseReport):
         # Render DDM
         if ddm_res is not None:
             res.has_ddm = True
-            res.ccy = ddm_res.ccy
-            res.last_price = ddm_res.last_price
             res.ret_zg = ddm_res.ret_no_growth * 100.
             res.ret_wg = ddm_res.ret_with_growth * 100.
             res.fair_value_no_growth = ddm_res.fair_value_no_growth
@@ -237,14 +179,13 @@ class ReportCompanies(BaseReport):
         # Render DCF
         if dcf_res is not None:
             res.has_dcf = True
-            res.ccy = dcf_res.ccy
-            res.last_price = dcf_res.last_price
-            res.fair_value = dcf_res.fair_value
+            res.ret_dcf = (dcf_res.fair_value / res.last_price - 1.) * 100.
+            res.fair_value_dcf = dcf_res.fair_value
 
             df = dcf_res.df
             df.index = df.index.strftime("%Y-%m-%d")
             res.df = df.T.style \
-                .format("{:.2f}", **PD_STYLE_PROP) \
+                .format('{:,.2f}', **PD_STYLE_PROP) \
                 .set_table_attributes('class="dataframe"') \
                 .render()
         else:

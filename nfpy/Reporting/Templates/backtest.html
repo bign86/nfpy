@@ -1,119 +1,150 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
+  <head>
     <meta charset="UTF-8">
     <link rel="stylesheet" type="text/css" href="style.css">
     <title>Report Backtest NFPY</title>
-</head>
-<body>
-<!-- TITLE -->
-<h1>{{ title }}</h1>
-<a href="index.html">Index</a>
-<hr class="shadow">
+  </head>
+  <body>
+    <!-- TITLE -->
+    <div class="header">
+      <div class="titleBox">
+        <h1>{{ title }}</h1>
+        <a name="main_title" href="index.html">Index</a>
+        <hr>
+      </div>
 
-<!-- UIDs list -->
-<h3><a name="uidList"></a>List of UIDs</h3>
-<h4>Instruments:</h4>
-{%- for uid in res.keys() if not uid == '__aggregated_results__' -%}
-<a href="#{{ uid }}">{{ uid }}</a><br>
-{% endfor -%}
-<hr>
-
-<!-- AGGREGATED RESULTS -->
-
-<h2>Summary</h2>
-{%- set summary = res.pop('__aggregated_results__') -%}
-<div>
-    <h4>Strategy</h4>
-    <p>Strategy --- {{ summary.name }}</p>
-    <p>Description</p>
-    <p>{{ summary.description }}</p>
-    <table>
-        {%- for k, p in summary.parameters.items() -%}
-        <tr>
-            {%- if loop.index == 1 -%}
-            <td style="vertical-align: middle;" rowspan="{{ summary.parameters | length }}">Strategy parameters:</td>
-            {%- endif -%}
-            <td style="vertical-align: middle;">{{ k }}</td>
-            <td style="text-align: right; vertical-align: middle;">{{ p }}</td>
-        </tr>
-        {%- endfor -%}
-        {%- for k, p in summary.sizer.items() -%}
-        <tr>
-            {%- if loop.index == 1 -%}
-            <td style="vertical-align: middle;" rowspan="{{ summary.sizer | length }}">Sizer parameters:</td>
-            {%- endif -%}
-            <td style="vertical-align: middle;">{{ k }}</td>
-            <td style="text-align: right; vertical-align: middle;">{{ p }}</td>
-        </tr>
-        {%- endfor -%}
-    </table>
-</div>
-<div>
-    <h4>Summary of results</h4>
-    <table>
-        <tr>
-            <td style="vertical-align: middle;">Total number of tests performed</td>
-            <td style="text-align: right; vertical-align: middle;">{{ summary.tests_performed }}</td>
-        </tr>
-        <tr>
-            <td style="vertical-align: middle;">Average return</td>
-            <td style="text-align: right; vertical-align: middle;">{{ '%.2f' | format(summary.avg_return|float) }} %</td>
-        </tr>
-        <tr>
-            <td style="vertical-align: middle;">Average number of buy</td>
-            <td style="text-align: right; vertical-align: middle;">{{ '%.2f' | format(summary.avg_buy|float) }}</td>
-        </tr>
-        <tr>
-            <td style="vertical-align: middle;">Average number of sell</td>
-            <td style="text-align: right; vertical-align: middle;">{{ '%.2f' | format(summary.avg_sell|float) }}</td>
-        </tr>
-    </table>
-</div>
-
-<!-- UID RESULTS  -->
-<h2>Detailed results</h2>
-
-<!-- Running through instruments -->
-{%- for uid, asset in res.items()|sort -%}
-<hr class="light">
-<a name="{{ uid }}"></a><h4><a href="#uidList">Top</a> - {{ uid }}</h4>
-
-<div>
-    <table>
-        <tr>
-            <td style="vertical-align: middle;">Portfolio value</td>
-            <td style="vertical-align: middle;">{{ '%.2f' | format(asset.initial_value|float) }}</td>
-            <td style="text-align: center; vertical-align: middle;">&#8594;</td>
-            <td style="vertical-align: middle;">{{ '%.2f' | format(asset.final_value|float) }}</td>
-        </tr>
-        <tr>
-            <td style="vertical-align: middle;">Strategy return</td>
-            <td></td>
-            <td></td>
-            <td style="vertical-align: middle;">{{ '%.2f' | format(asset.tot_return|float) }} %</td>
-        </tr>
-        <tr>
-            <td style="vertical-align: middle;">Total trades</td>
-            <td style="vertical-align: middle;">buy {{ asset.buy }}</td>
-            <td style="vertical-align: middle;">sell {{ asset.sell }}</td>
-        </tr>
-    </table>
-</div>
-
-<!-- Market model -->
-<div>
-    <div>
-        <img src="{{ asset.img_results }}" alt="backtest results" class="backtest-res">
+      <!-- UIDs list -->
+      <div class="uidList">
+        <h3><a name="uidList_link"></a>List of UIDs</h3>
+        <div class="uidListMultiCol">
+          {%- for uid in res.keys() if not uid == '__aggregated_results__' -%}
+          <a href="#{{ uid }}">{{ uid }}</a><br>
+          {% endfor -%}
+        </div>
+        <hr>
+      </div>
     </div>
-    <div>
-        <h5>Executed trades</h5>
-        {{ asset.trades_table }}
+
+    <!-- AGGREGATED RESULTS -->
+    <div class="reportBody">
+      <div class="titleReport">
+        <h2>Summary</h2>
+      </div>
+
+      <div class="base-container">
+        <div class="container-huge">
+          {%- set summary = res.pop('__aggregated_results__') -%}
+          <h3>Strategy</h3>
+          <p>Strategy --- {{ summary.name }}</p>
+          <p>Description</p>
+          {{ summary.description }}
+          <table class="simple">
+            <thead>
+              <tr>
+                <th colspan="3">Strategy</th>
+              </tr>
+            </thead>
+            <tbody>
+            {%- for k, p in summary.parameters.items() -%}
+              <tr>
+                {%- if loop.index == 1 -%}
+                  <td class='anag-prop' rowspan="{{ summary.parameters | length }}">Strategy parameters</td>
+                {%- endif -%}
+                <td class='anag-value'>{{ k }}</td>
+                <td class='anag-value'>{{ p }}</td>
+              </tr>
+            {%- endfor -%}
+            {%- for k, p in summary.sizer.items() -%}
+              <tr>
+                {%- if loop.index == 1 -%}
+                  <td class='anag-prop' rowspan="{{ summary.sizer | length }}">Sizer parameters</td>
+                {%- endif -%}
+                <td class='anag-value'>{{ k }}</td>
+                <td class='anag-value'>{{ p }}</td>
+              </tr>
+            {%- endfor -%}
+            </tbody>
+          </table>
+        </div>
+        <div class="container-tiny">
+          <h3>Summary of results</h3>
+          <table class="simple">
+            <thead>
+              <tr>
+                <th>#</th><th>UID</th><th>Return</th><th># BUY</th><th># SELL</th>
+              </tr>
+            </thead>
+            <tbody>
+              {%- for uid, asset in res.items()|sort -%}
+              <tr>
+                <td class='anag-prop'>{{ loop.index }}</td>
+                <td class='anag-value'><a href="#{{ uid }}">{{ uid }}</a><br></td>
+                <td class='anag-value'>{{ '%.2f' | format(asset.tot_return|float) }} %</td>
+                <td class='anag-value'>{{ asset.buy }}</td>
+                <td class='anag-value'>{{ asset.sell }}</td>
+              </tr>
+              {%- endfor -%}
+              <tr>
+                <td class='anag-prop'>-</td>
+                <td class='anag-value'>Averages</td>
+                <td class='anag-value'>{{ '%.2f' | format(summary.avg_return|float) }} %</td>
+                <td class='anag-value'>{{ '%.2f' | format(summary.avg_buy|float) }}</td>
+                <td class='anag-value'>{{ '%.2f' | format(summary.avg_sell|float) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- DETAILED RESULTS  -->
+      <div class="base-container">
+        <h2>Detailed results</h2>
+
+        <!-- Running through instruments -->
+        {%- for uid, asset in res.items()|sort -%}
+        <div class="base-container">
+          <div class="container-link">
+            <hr class="light">
+            <h4><a name="{{ uid }}"></a><a href="#main_title">Top</a> - {{ uid }}</h4>
+          </div>
+
+          <div class="container-small">
+            <table class="simple">
+              <thead>
+                <tr>
+                  <th colspan="3">General data</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class='anag-prop'>Final value</td>
+                  <td style="text-align: center; vertical-align: middle;">&#8594;</td>
+                  <td class='anag-value'>{{ '%.2f' | format(asset.final_value|float) }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Strategy return</td>
+                  <td class='anag-value'></td>
+                  <td class='anag-value'>{{ '%.2f' | format(asset.tot_return|float) }} %</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Total trades</td>
+                  <td class='anag-value'>buy {{ asset.buy }}</td>
+                  <td class='anag-value'>sell {{ asset.sell }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <br><br>
+            <h5>Executed trades</h5>
+            {{ asset.trades_table }}
+          </div>
+          <div class="container-large">
+            <img src="{{ asset.img_results }}" alt="Backtest results" class="normal-plot">
+          </div>
+        </div>
+        {%- endfor -%}
+      </div>
     </div>
-</div>
 
-{%- endfor -%}
-<hr>
-
-</body>
+  </body>
 </html>

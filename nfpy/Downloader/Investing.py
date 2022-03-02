@@ -94,7 +94,7 @@ class InvestingBasePage(BasePage):
         """ Return the base url for the page. """
         return self._BASE_URL + self._URL_SUFFIX
 
-    def _local_initializations(self):
+    def _local_initializations(self) -> None:
         """ Local initializations for the single page. """
         pass
 
@@ -197,7 +197,7 @@ class InvestingDividends(InvestingBasePage):
             'last_timestamp': today(fmt='%s')
         })
 
-    def _parse(self):
+    def _parse(self) -> None:
         if self._robj.text == '':
             raise Ex.MissingData('No data found in downloaded response')
 
@@ -241,7 +241,7 @@ class InvestingFinancialsBasePage(InvestingBasePage):
             'report_type': self._REPORT_TYPE
         })
 
-    def _parse(self):
+    def _parse(self) -> None:
         """ Parse the fetched object. """
         soup = BeautifulSoup(self._robj.text, "html.parser")
         t = soup.find('table', {'class': "genTbl reportTbl"})

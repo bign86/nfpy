@@ -5,7 +5,7 @@
 from abc import (ABCMeta, abstractmethod)
 import os
 from pathlib import Path
-from typing import Union
+from typing import (Any, Optional, Sequence, Union)
 
 import pandas as pd
 import requests
@@ -60,11 +60,11 @@ class BasePage(metaclass=ABCMeta):
         return self._ticker
 
     @property
-    def params(self) -> dict[str, Union[str, int]]:
+    def params(self) -> dict[str, Any]:
         return self._p
 
     @params.setter
-    def params(self, v: dict[str, Union[str, int]]) -> None:
+    def params(self, v: dict[str, Any]) -> None:
         """ Filter out unwanted parameters, update the dictionary, downloaded
             page is deleted to allow for a new download.
         """
@@ -139,7 +139,7 @@ class BasePage(metaclass=ABCMeta):
         _ = self.data
         self._write_to_db()
 
-    def dump(self, fname: str = None) -> None:
+    def dump(self, fname: Optional[str] = None) -> None:
         """ Dump the downloaded page on a file.
 
             Input:
@@ -148,7 +148,8 @@ class BasePage(metaclass=ABCMeta):
         _ = self.data
         self._write_to_file(fname)
 
-    def initialize(self, fname: Union[str, Path] = None, params: dict = None):
+    def initialize(self, fname: Optional[Union[str, Path]] = None,
+                   params: Optional[dict] = None):
         """ Parameters are checked before download, encoding is set, parsed
             object is deleted if present.
 
@@ -242,7 +243,7 @@ class BasePage(metaclass=ABCMeta):
                   f"[{r.status_code}] {r.reason}"
             raise RuntimeWarning(msg)
 
-    def _write_to_file(self, fname: str = None) -> None:
+    def _write_to_file(self, fname: Optional[str] = None) -> None:
         """ Write to a text file. """
         if not fname:
             now_ = now(mode='str', fmt='%Y%m%d_%H%M')
@@ -301,7 +302,7 @@ class BasePage(metaclass=ABCMeta):
             print(repr(self.data))
 
     # FIXME: shouldn't this one return a parsed date (datetime or Timestamp)?
-    def _fetch_last_data_point(self, data: ()) -> str:
+    def _fetch_last_data_point(self, data: Sequence) -> str:
         """ Calculates the last available data point in the database for
             incremental downloads.
         """

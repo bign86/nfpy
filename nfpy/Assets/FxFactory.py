@@ -79,7 +79,8 @@ class DummyConversion(Conversion):
 class FxFactory(metaclass=Singleton):
     """ Handles currency exchange rates. """
 
-    _TABLE = 'Fx'
+    _T_FX = 'Fx'
+    _T_CURRENCIES = 'Currency'
 
     def __init__(self):
         self._af = get_af_glob()
@@ -90,11 +91,11 @@ class FxFactory(metaclass=Singleton):
 
         self._known_ccy = [
             ccy[0] for ccy in
-            self._db.execute('select symbol from Currency')
+            self._db.execute(f'select symbol from {self._T_CURRENCIES}')
                 .fetchall()
         ]
         self._q_fetch = self._qb.select(
-            self._TABLE,
+            self._T_FX,
             fields=('uid',),
             keys=('price_ccy', 'base_ccy')
         )
@@ -110,14 +111,12 @@ class FxFactory(metaclass=Singleton):
     def base_ccy(self, v: str):
         self._base_ccy = self._validate_ccy(v)
 
-    # @staticmethod
     def is_ccy(self, v: str) -> bool:
         return v in self._known_ccy
 
-    # @staticmethod
     def _validate_ccy(self, v: str) -> str:
         if v not in self._known_ccy:
-            raise ValueError(f'Currency {v} not recognized')
+            raise Ex.MissingData(f'Currency {v} not recognized')
         return v
 
     def get(self, src_ccy: str, tgt_ccy: Optional[str] = None) -> Conversion:

@@ -61,7 +61,7 @@ class BaseReport(metaclass=ABCMeta):
     #     return self._jinja_filters
 
     @property
-    def result(self):
+    def result(self) -> ReportResult:
         if not self._is_calculated:
             self._run()
         return self._res
@@ -98,23 +98,10 @@ class BaseReport(metaclass=ABCMeta):
         # Create the report folder
         self._create_new_directory()
 
-        # Run uids
-        # outputs = defaultdict(dict)
-        # for uid in self.uids:
-        #     print(f'  > {uid}')
-        #     try:
-        #         type_ = self._af.get_type(uid)
-        #         outputs[type_][uid] = self._calculate(
-        #             uid,
-        #             self._init_input(type_)
-        #         )
-        #     except (RuntimeError, KeyError, ValueError) as ex:
-        #         Ut.print_exc(ex)
-        # self._res.output = outputs
+        # Run
         self._res.output = self._calculate()
         self._is_calculated = True
 
-    # FIXME: we may want to make this a non-returning thing
     @abstractmethod
     def _init_input(self, uid: Optional[str] = None) -> None:
         """ Prepare and validate the the input parameters for the model. This
@@ -127,6 +114,10 @@ class BaseReport(metaclass=ABCMeta):
         """
 
     @abstractmethod
+    def _one_off_calculations(self) -> None:
+        """ Perform all non-uid dependent calculations for efficiency. """
+
+    @abstractmethod
     def _calculate(self) -> Any:
         """ Calculate the required models.
             MUST ensure that the model parameters passed in <args> are not
@@ -134,10 +125,11 @@ class BaseReport(metaclass=ABCMeta):
             changed from one asset to the next.
         """
 
-    def _get_image_paths(self, labels: Sequence) -> tuple[tuple, tuple]:
+    def _get_image_paths(self, labels: Sequence[Sequence]) \
+            -> tuple[tuple, tuple]:
         fig_full_name, fig_rel_name = [], []
-        for l in itertools.product(*labels):
-            name = f'{"_".join(l)}.png'
+        for label in itertools.product(*labels):
+            name = f'{"_".join(label)}.png'
             fig_full_name.append(os.path.join(self._img_path, name))
             fig_rel_name.append(os.path.join(self._img_rel_path, name))
 

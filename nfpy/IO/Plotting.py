@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import numpy as np
 import pandas as pd
-from typing import (TypeVar, Union)
+from typing import (Optional, Sequence, TypeVar, Union)
 
 plt.style.use('seaborn')
 
@@ -17,17 +17,19 @@ class Plotter(object):
     """ New plotting class. """
 
     _RC = {
-        'plot': {'linestyle': '-', 'marker': ''},
-        'scatter': {'linestyle': '-', 'marker': 'o'},
-        'hist': {'linestyle': '-', 'marker': ''},
-        'bar': {'linestyle': '-'},
         'annotations': {'fontsize': 8, 'fontvariant': 'small-caps'},
         'axis': {'c': 'k', 'linewidth': .5},
+        'bar': {'linestyle': '-'},
+        'hist': {'linestyle': '-', 'marker': ''},
+        'plot': {'linestyle': '-', 'marker': ''},
+        'scatter': {'linestyle': '-', 'marker': 'o'},
+        'stem': {'linefmt': '-', 'markerfmt': 'o'},
     }
 
-    def __init__(self, nrows: int = 1, ncols: int = 1, figsize: [float] = None,
-                 xl: [str] = (), yl: [str] = (),
-                 x_zero: [float] = (), y_zero: [float] = ()):
+    def __init__(self, nrows: int = 1, ncols: int = 1,
+                 figsize: Optional[Sequence[float]] = None,
+                 xl: Sequence[str] = (), yl: Sequence[str] = (),
+                 x_zero: Sequence[float] = (), y_zero: Sequence[float] = ()):
         # Inputs variables
         self._ncols = int(ncols)
         self._nrows = int(nrows)
@@ -40,9 +42,10 @@ class Plotter(object):
         # Working variables
         self._length = ncols * nrows
         self._annotations = []
-        self._plots = []
-        self._lines = []
         self._fills = []
+        self._lines = []
+        self._plots = []
+        self._titles = []
         self._xlim = {}
         self._ylim = {}
         self._fig = None
@@ -69,12 +72,6 @@ class Plotter(object):
     def __del__(self):
         self.close()
 
-    def save(self, f_name: str, fmt: str = 'png'):
-        """ Call the savefig() method. """
-        self._fig.tight_layout()
-        self._fig.savefig(f_name, format=fmt)
-        return self
-
     def _get_axes(self, axid: int, secondary: bool):
         if secondary:
             ax = self._ax2[axid]
@@ -84,6 +81,77 @@ class Plotter(object):
         else:
             ax = self._ax[axid]
         return ax
+
+    def annotate(self, axid: int, x: Union[pd.Series, np.ndarray],
+                 y: Optional[np.ndarray] = None,
+                 labels: Sequence[str] = (), **kwargs):
+        if isinstance(x, pd.Series):
+            _v = x
+            x, y = _v.index, _v.values
+        self._annotations.append((axid, x, y, labels, kwargs))
+        return self
+
+    def bar(self, axid: int, x: Union[pd.Series, np.ndarray],
+            y: Optional[np.ndarray] = None, **kwargs):
+        if isinstance(x, pd.Series):
+            _v = x
+            x, y = _v.index, _v.values
+        self._plots.append((axid, 'bar', x, y, kwargs))
+        return self
+
+    @staticmethod
+    def cla() -> None:
+        """ Call plt.cla(). """
+        plt.cla()
+
+    def clf(self) -> None:
+        """ Call plt.clf(). """
+        self._fig.clf()
+
+    def close(self, close_all: bool = False) -> None:
+        """ Call plt.close(). """
+        s = 'all' if close_all else self._fig
+        plt.close(s)
+
+    def fill(self, axid: int, type_: str, v: Sequence[float], **kwargs):
+        self._fills.append((axid, type_, v, kwargs))
+        return self
+
+    def hist(self, axid: int, x: Union[pd.Series, np.ndarray],
+             y: Optional[np.ndarray] = None, **kwargs):
+        if isinstance(x, pd.Series):
+            _v = x
+            x, y = _v.index, _v.values
+        self._plots.append((axid, 'hist', x, y, kwargs))
+        return self
+
+    def line(self, axid: int, type_: str, v: Union[float, np.ndarray],
+             range_: tuple = (), **kwargs):
+        self._lines.append((axid, type_, v, range_, kwargs))
+        return self
+
+    def lplot(self, axid: int, x: Union[pd.Series, np.ndarray],
+              y: Optional[np.ndarray] = None, **kwargs):
+        if isinstance(x, pd.Series):
+            _v = x
+            x, y = _v.index, _v.values
+        self._plots.append((axid, 'plot', x, y, kwargs))
+        return self
+
+    def save(self, f_name: str, fmt: str = 'png'):
+        """ Call the savefig() method. """
+        self._fig.tight_layout()
+        self._fig.savefig(f_name, format=fmt)
+        return self
+
+    def scatter(self, axid: int, x: Union[pd.Series, np.ndarray],
+                y: Optional[np.ndarray] = None, **kwargs):
+        """ Add more plots to be plotted. """
+        if isinstance(x, pd.Series):
+            _v = x
+            x, y = _v.index, _v.values
+        self._plots.append((axid, 'scatter', x, y, kwargs))
+        return self
 
     def set_limits(self, axid: int, axis: str, bottom: float, top: float):
         if axis == 'x':
@@ -99,72 +167,16 @@ class Plotter(object):
         self._fig.tight_layout()
         plt.show()
 
-    def clf(self) -> None:
-        """ Call plt.clf(). """
-        self._fig.clf()
-
-    @staticmethod
-    def cla() -> None:
-        """ Call plt.cla(). """
-        plt.cla()
-
-    def close(self, close_all: bool = False) -> None:
-        """ Call plt.close(). """
-        s = 'all' if close_all else self._fig
-        plt.close(s)
-
-    def lplot(self, axid: int, x: Union[pd.Series, np.ndarray],
-              y: np.ndarray = None, **kwargs):
+    def stem(self, axid: int, x: Union[pd.Series, np.ndarray],
+              y: Optional[np.ndarray] = None, **kwargs):
         if isinstance(x, pd.Series):
             _v = x
             x, y = _v.index, _v.values
-        self._plots.append((axid, 'plot', x, y, kwargs))
+        self._plots.append((axid, 'stem', x, y, kwargs))
         return self
 
-    def scatter(self, axid: int, x: Union[pd.Series, np.ndarray],
-                y: np.ndarray = None, **kwargs):
-        """ Add more plots to be plotted. """
-        if isinstance(x, pd.Series):
-            _v = x
-            x, y = _v.index, _v.values
-        self._plots.append((axid, 'scatter', x, y, kwargs))
-        return self
-
-    def hist(self, axid: int, x: Union[pd.Series, np.ndarray],
-             y: np.ndarray = None, **kwargs):
-        if isinstance(x, pd.Series):
-            _v = x
-            x, y = _v.index, _v.values
-        self._plots.append((axid, 'hist', x, y, kwargs))
-        return self
-
-    def bar(self, axid: int, x: Union[pd.Series, np.ndarray],
-            y: np.ndarray = None, **kwargs):
-        if isinstance(x, pd.Series):
-            _v = x
-            x, y = _v.index, _v.values
-        self._plots.append((axid, 'bar', x, y, kwargs))
-        return self
-
-    # TODO: add to class
-    def stem(self):
-        pass
-
-    def annotate(self, axid: int, x: Union[pd.Series, np.ndarray],
-                 y: np.ndarray = None, labels: [str] = (), **kwargs):
-        if isinstance(x, pd.Series):
-            _v = x
-            x, y = _v.index, _v.values
-        self._annotations.append((axid, x, y, labels, kwargs))
-        return self
-
-    def line(self, axid: int, type_: str, v: Union[float, np.ndarray],
-             range_: tuple = (), **kwargs):
-        self._lines.append((axid, type_, v, range_, kwargs))
-        return self
-
-    def fill(self, axid: int, type_: str, v: [float], **kwargs):
-        self._fills.append((axid, type_, v, kwargs))
+    def title(self, axid: int, label: str, **kwargs):
+        self._titles.append((axid, label, kwargs))
         return self
 
     def plot(self):
@@ -248,6 +260,11 @@ class Plotter(object):
             if flag:
                 self._ax[n].legend(leg, (l.get_label() for l in leg))
 
+        # Create titles
+        for axid, label, kw in self._titles:
+            ax = self._get_axes(axid, False)
+            ax.set_title(label, **kw)
+
         # Adjust limits
         for k, v in self._xlim.items():
             self._get_axes(k, False).set_xlim(*v)
@@ -260,9 +277,10 @@ class Plotter(object):
 class TSPlot(Plotter):
     """ Creates a time series plot. """
 
-    def __init__(self, ncols: int = 1, nrows: int = 1, figsize: [float] = None,
-                 xl: [str] = ('Date',), yl: [str] = ('Price',),
-                 x_zero: [float] = (), y_zero: [float] = ()):
+    def __init__(self, ncols: int = 1, nrows: int = 1,
+                 figsize: Optional[Sequence[float]] = None,
+                 xl: Sequence[str] = ('Date',), yl: Sequence[str] = ('Price',),
+                 x_zero: Sequence[float] = (), y_zero: Sequence[float] = ()):
         super().__init__(ncols, nrows, figsize, xl, yl, x_zero, y_zero)
 
 
@@ -270,7 +288,7 @@ class PtfOptimizationPlot(Plotter):
     """ Creates a variance/return plot from a OptimizerResult object. """
 
     # FIXME: remove this subclass and delegate to the optimizerResult obj
-        # def add(self, axid: int, call: str, res: OptimizerResult, **kwargs):
+    # def add(self, axid: int, call: str, res: OptimizerResult, **kwargs):
     def add(self, axid: int, call: str, res, **kwargs):
         """ Add more plots to be plotted. """
         x = np.array(res.ptf_variance)

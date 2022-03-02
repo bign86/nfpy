@@ -7,70 +7,127 @@
   </head>
   <body>
     <!-- TITLE -->
-    <h1><a name="pageTop"></a>{{ title }}</h1>
-    <a href="index.html">Index</a>
-    <hr class="shadow">
+    <div class="header">
+      <div class="titleBox">
+        <h1><a name="pageTop"></a>{{ title }}</h1>
+        <a name="main_title" href="index.html">Index</a>
+        <hr>
+      </div>
 
     <!-- UIDs list -->
-    <h3>List of UIDs</h3>
-    {%- for uid, val in res.items()|sort -%}
-      <a href="#{{ uid }}">{{ uid }}</a> - {{ val.info["description"] }}<br>
-    {% endfor -%}
-    <hr>
+      <div class="uidList">
+        <h3><a name="uidList_link"></a>List of UIDs</h3>
+        <div class="uidListMultiCol">
+          {%- for uid, val in res.items()|sort -%}
+          <a href="#{{ uid }}">{{ uid }}</a> - {{ val.info["description"] }}<br>
+          {% endfor -%}
+        </div>
+      </div>
+    </div>
 
     <!-- REPORTS -->
-    <h2>Reports</h2>
+    <div class="reportBody">
 
-    <!-- Portfolios -->
-    {%- for uid, val in res.items()|sort -%}
-      <hr class="light">
-      <a name="{{ uid }}"></a><h4><a href="#uidList">Top</a> - {{ uid }}</h4>
+      <!-- Portfolios -->
+      {%- for uid, val in res.items()|sort -%}
+      <div class="base-container">
+        <div class="container-link">
+          <hr class="light">
+          <h4><a name="{{ uid }}"></a><a href="#main_title">Top</a> - {{ uid }}</h4>
+        </div>
 
-      <!-- Portfolio performance -->
-      <table>
-        <tr>
-          <td>Name: {{ val.info["name"] }}</td>
-          <td>Currency: {{ val.info["currency"] }}</td>
-          <td>Benchmark: {{ val.info["benchmark"] }}</td>
-        </tr>
-        <tr>
-          <td>Description: {{ val.info["description"] }}</td>
-          <td>Inception: {{ val.info["inception_date"].strftime('%Y-%m-%d') }}</td>
-          <td># Constituents: {{ val.info["num_constituents"] }}</td>
-        </tr>
-      </table>
+        <!-- Portfolio performance -->
+        <div class="base-container">
+          <div class="container-tiny">
+            <table class="simple">
+              <thead>
+                <tr>
+                  <th colspan="2">General data</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class='anag-prop'>Name</td><td class='anag-value'>{{ val.info["name"] }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Description</td><td class='anag-value'>{{ val.info["description"] }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Currency</td><td class='anag-value'>{{ val.info["currency"] }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Benchmark</td><td class='anag-value'>{{ val.info["benchmark"] }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Inception</td><td class='anag-value'>{{ val.info["inception_date"].strftime('%Y-%m-%d') }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'># Constituents</td><td class='anag-value'>{{ val.info["num_constituents"] }}</td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="font-weight:bold;text-align:center;padding-top:5px;">Dividends</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Date</td><td class='anag-value'>{{ val.last_price_date }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Value</td><td class='anag-value'>{{ '%.2f' | format(val.last_price|float) }} {{ val.info["currency"] }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>TTM dividends</td><td class='anag-value'>{{ '%.2f' | format(val.div_ttm|float) }} {{ val.info["currency"] }}</td>
+                </tr>
+                {% set n_years = val.div_history[0]|length %}
+                {%- if n_years > 0 -%}
+                <tr>
+                  <td colspan="2" style="font-weight:bold;text-align:center;padding-top:5px;">Dividends received per year</td>
+                </tr>
+                {%- for i in range(n_years) -%}
+                  <tr>
+                    <td class='anag-prop'>{{ val.div_history[0][i] }}</td><td class='anag-value'>{{ '%.2f' | format(val.div_history[1][i]|float) }} {{ val.info["currency"] }}</td>
+                  </tr>
+                {%- endfor -%}
+                {%- endif -%}
+              </tbody>
+            </table>
+          </div>
 
-      <div>
-        <img src="{{ val.img_prices }}" alt="Full history of prices" class="price-full-h">
+          <!-- Portfolio performance and dividends -->
+          <div class="container-huge">
+            <div class="container-small">
+              <img src="{{ val.img_value_hist }}" alt="History of portfolio value" class="normal-plot">
+              {{ val.stats }}
+            </div>
+            <div class="container-large">
+              {{ val.cnsts_data }}
+              <div style="text-align:center">
+                Cost (FX): cost in the currency of the position calculated as alp * quantity<br>
+                Value (Base Currency): value of the position at the current date in the base currency
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Portfolio optimization -->
+        <div class="base-container">
+          <div class="container-large">
+            <h5>Portfolio Optimization</h5>
+            {{ val.weights }}
+            <div style="text-align:center">Weights obtained in the optimization and relative variation wrt to the actual weights</div>
+          </div>
+          <div class="container-small">
+            <img src="{{ val.var_ret_plot }}" alt="Portfolio optimization" class="normal-plot">
+          </div>
+        </div>
+
+        <!-- Portfolio optimization -->
+        <div class="base-container">
+          <div style="text-align:center">{{ val.corr }}</div>
+          <div style="text-align:center">Correlation matrix of the constituents over the period considered for the optimization</div>
+        </div>
+
       </div>
-
-      <div>
-        <p>Last price: {{ '%.3f' | format(val.last_price|float) }} {{ val.info["currency"] }} @ {{ val.last_price_date }}</p>
-        <p>{{ val.stats }}</p>
-      </div>
-      <div>
-        <p>Note:<br>cost (FX): cost in the currency of the position calculated as alp * quantity<br>
-        value (Base Currency): value of the position at the current date in the base currency </p>
-        <p>{{ val.cnsts_data }}</p>
-      </div>
-
-      <!-- Portfolio optimization -->
-      <h5>Portfolio Optimization</h5>
-      <div>
-        <img src="{{ val.var_ret_plot }}" alt="Portfolio optimization" class="ptf-opt">
-      </div>
-
-      <div>
-        <p>Weights obtained in the optimization and relative variation wrt to the actual weights</p>
-        <p>{{ val.weights }}</p>
-      </div>
-      <div>
-        <p>Correlation matrix of the constituents over the period considered for the optimization</p>
-        <p>{{ val.corr }}</p>
-      </div>
-
-    {%- endfor -%}
-    <hr>
+      {%- endfor -%}
+    </div>
 
   </body>
 </html>

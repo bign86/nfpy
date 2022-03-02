@@ -5,7 +5,7 @@
 #
 
 from requests import RequestException
-from typing import KeysView
+from typing import (KeysView, Iterable, Generator, Optional, Sequence, Union)
 
 import nfpy.Calendar as Cal
 import nfpy.DB as DB
@@ -51,7 +51,7 @@ class DownloadFactory(metaclass=Singleton):
         return self._splits
 
     @splits.setter
-    def splits(self, v: tuple):
+    def splits(self, v: tuple) -> None:
         self._splits.append(v)
 
     @staticmethod
@@ -78,15 +78,17 @@ class DownloadFactory(metaclass=Singleton):
     def get_provider(self, v: str) -> BaseProvider:
         return self._PROVIDERS[v]
 
-    def fetch_downloads(self, provider: str = None, page: str = None,
-                        ticker: str = None, active: bool = True) -> tuple:
+    def fetch_downloads(self, provider: Optional[str] = None,
+                        page: Optional[str] = None,
+                        ticker: Optional[str] = None, active: bool = True) \
+            -> tuple[list, Iterable]:
         """ Fetch and filter download entries.
 
             Input:
-                provider [str]: filter by provider
-                page [str]: filter by page
-                ticker [str]: filter by ticker
-                active [bool]: consider only automatic downloads
+                provider [Optional[str]]: filter by provider (default: None)
+                page [Optional[str]]: filter by page (default: None)
+                ticker [Optional[str]]: filter by ticker (default: None)
+                active [bool]: consider only automatic downloads (default: True)
 
             Output:
                 data [list]: list of tuples, each one a fetched row
@@ -98,15 +100,17 @@ class DownloadFactory(metaclass=Singleton):
             **{'provider': provider, 'page': page, 'ticker': ticker}
         )
 
-    def fetch_imports(self, uid: str = None, provider: str = None,
-                      item: str = None, active: bool = True) -> tuple:
+    def fetch_imports(self, uid: Optional[str] = None,
+                      provider: Optional[str] = None,
+                      item: Optional[str] = None, active: bool = True) \
+            -> tuple[list, Iterable]:
         """ Filter imports entries.
 
             Input:
-                uid [str]: uid to import for (default None)
-                provider [str]: filter by provider (default None)
-                item [str]: filter by import item (default None)
-                active [bool]: consider only active imports (default True)
+                uid [Optional[str]]: uid to import for (default: None)
+                provider [Optional[str]]: filter by provider (default: None)
+                item [Optional[str]]: filter by import item (default: None)
+                active [bool]: consider only active imports (default: True)
 
             Output:
                 data [list]: list of tuples, each one a fetched row
@@ -118,7 +122,11 @@ class DownloadFactory(metaclass=Singleton):
             **{'uid': uid, 'provider': provider, 'item': item}
         )
 
-    def _filter(self, table: str, active: bool, **kwargs) -> tuple:
+    def _filter(self, table: str, active: bool, **kwargs) \
+            -> tuple[list, Iterable]:
+        """ Filters the Downloads or Imports table to return the items selected
+            using the available filters.
+        """
         keys = tuple(k for k, v in kwargs.items() if v is not None)
         fields = self._qb.get_fields(table)
 
@@ -160,20 +168,20 @@ class DownloadFactory(metaclass=Singleton):
         imp_item.run()
 
     def run_download(self, do_save: bool = True, override_date: bool = False,
-                     provider: str = None, page: str = None,
-                     ticker: str = None, override_active: bool = False) -> None:
+                     provider: Optional[str] = None, page: Optional[str] = None,
+                     ticker: Optional[str] = None,
+                     override_active: bool = False) -> None:
         """ Performs a bulk update of the system based on the 'auto' flag in the
             Downloads table. The entries are updated only in case the last
             last update has been done at least 'frequency' days ago.
 
             Input:
-                do_save [bool]: save in database (default True)
-                override_date [bool]: disregard last update date (default False)
-                uid [uid]: download for a uid (default None)
-                provider [str]: download for a provider (default None)
-                page [str]: download for a page (default None)
-                ticker [str]: download for a ticker (default None)
-                override_active [bool]: disregard 'active' (default False)
+                do_save [bool]: save in database (default: True)
+                override_date [bool]: disregard last update date (default: False)
+                provider [Optional[str]]: download for a provider (default: None)
+                page [Optional[str]]: download for a page (default: None)
+                ticker [Optional[str]]: download for a ticker (default: None)
+                override_active [bool]: disregard 'active' (default: False)
         """
         active = not override_active
         upd_list, _ = self.fetch_downloads(provider=provider, page=page,
@@ -220,18 +228,19 @@ class DownloadFactory(metaclass=Singleton):
                     data_upd = (today_dt, provider, page_name, ticker)
                     self._db.execute(q_upd, data_upd, commit=True)
 
-    def run_import(self, uid: str = None, provider: str = None,
-                   item: str = None, override_active: bool = False,
+    def run_import(self, uid: Optional[str] = None,
+                   provider: Optional[str] = None,
+                   item: Optional[str] = None, override_active: bool = False,
                    incremental: bool = False) -> None:
         """ Performs a bulk import of the system based on the 'auto' flag in the
             Imports table.
 
             Input:
-                uid [str]: import for an uid (default None)
-                provider [str]: import for a provider (default None)
-                item [str]: import for the item (default None)
-                override_active [bool]: disregard 'active' (default False)
-                incremental [bool]: do an incremental import (default False)
+                uid [Optional[str]]: import for an uid (default: None)
+                provider [Optional[str]]: import for a provider (default: None)
+                item [Optional[str]]: import for the item (default: None)
+                override_active [bool]: disregard 'active' (default: False)
+                incremental [bool]: do an incremental import (default: False)
         """
         active = not override_active
         import_list, fields = self.fetch_imports(provider=provider, item=item,

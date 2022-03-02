@@ -18,7 +18,7 @@ __all__ = [
 
     # MATH FUNCTIONS
     # Returns_
-    'comp_ret', 'compound', 'e_ret', 'logret', 'ret', 'tot_ret',
+    'comp_ret', 'compound', 'cumulate_ret', 'e_ret', 'logret', 'ret', 'tot_ret',
     # Risk_
     'beta', 'capm_beta', 'drawdown', 'sharpe', 'sml', 'te',
     # TSStats_

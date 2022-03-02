@@ -17,8 +17,8 @@ from .SR import Trends as Tr
 class MAStrategy(BaseStrategy):
 
     @staticmethod
-    def _cross_sig_(dt: np.ndarray, v1: np.ndarray,
-                    v2: np.ndarray, w: int) -> tuple:
+    def _cross_sig_(dt: np.ndarray, v1: np.ndarray, v2: np.ndarray, w: int) \
+            -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         v1 = Math.ffill_cols(v1)
         cross = np.diff(np.where(v1 > v2, 1, 0))
         cross[:w - 1] = 0

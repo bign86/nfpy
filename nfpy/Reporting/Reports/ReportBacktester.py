@@ -45,6 +45,10 @@ class ReportBacktester(BaseReport):
         """
         pass
 
+    def _one_off_calculations(self) -> None:
+        """ Perform all non-uid dependent calculations for efficiency. """
+        pass
+
     def _calculate(self) -> Any:
         """ Calculate the required models.
             MUST ensure that the model parameters passed in <args> are not
@@ -139,7 +143,7 @@ class ReportBacktester(BaseReport):
 
             _shares_val = prices * _shares
             _total_val = _shares_val + _cash
-            _perf = Math.comp_ret(prices, is_log=False)
+            _perf = Math.comp_ret(asset.returns.values, is_log=False)
 
             # Plotting
             pl = IO.Plotter(4, 1, figsize=(15, 12.8)) \
@@ -151,10 +155,18 @@ class ReportBacktester(BaseReport):
                 .lplot(1, dates, _total_val, label='total value') \
                 .lplot(1, dates, _shares_val, label='equity value') \
                 .lplot(1, dates, _cash, label='cash value') \
+                .lplot(3, dates, _total_val / bt_res.initial,
+                       label='ptf perf.', color='C0') \
                 .lplot(3, dates, _perf, label='price perf.', color='C5') \
-                .lplot(3, dates, _total_val / bt_res.initial, label='ptf perf.', color='C0') \
-                .scatter(2, sell_dates, returns, label='returns') \
                 .line(2, 'xh', .0)
+
+            pos_ret_mask = returns >= .0
+            if np.sum(pos_ret_mask) > 0:
+                pl.stem(2, sell_dates[pos_ret_mask], returns[pos_ret_mask],
+                        linefmt='C1--', markerfmt='C1o', label='gain')
+            if np.sum(~pos_ret_mask) > 0:
+                pl.stem(2, sell_dates[~pos_ret_mask], returns[~pos_ret_mask],
+                        linefmt='C2--', markerfmt='C2o', label='loss')
 
             for i in range(sig_dates.shape[0]):
                 color = 'C2' if signals[i] == -1 else 'C1'
@@ -172,6 +184,7 @@ class ReportBacktester(BaseReport):
                 columns=('date', 'signal', 'price', 'shares',
                          'd_cash', 'base cost', 'P&L', 'R')
             )
+            df['date'] = df['date'].dt.strftime('%Y-%m-%d')
             res.trades_table = df.style.format(
                 formatter={
                     'price': '{:,.2f}'.format,

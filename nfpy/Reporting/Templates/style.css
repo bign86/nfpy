@@ -1,4 +1,15 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+html {
+    background-color: #fff;
+}
 body {
+    min-height: 100vh;
+    max-width: 80%;
+    margin: auto;
     background-color: #fff;
     position: relative;
     font-family: "Inter-Regular",system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Helvetica,Arial,sans-serif;
@@ -16,22 +27,23 @@ h1 {
 }
 h2 { 
     display: block;
-    font-size: 2em;
-    margin-top: 1em;
-    margin-bottom: 0.67em;
-    margin-left: 0;
-    margin-right: 0;
-    font-weight: bold;
-    color: #4c72b0
-}
-h3 { 
-    display: block;
     font-size: 1.5em;
     margin-top: 1em;
     margin-bottom: 0.67em;
     margin-left: 0;
     margin-right: 0;
     font-weight: bold;
+    color: #162743
+}
+h3 { 
+    display: block;
+    font-size: 1.2em;
+    margin-top: 1em;
+    margin-bottom: 0.67em;
+    margin-left: 0;
+    margin-right: 0;
+    font-weight: bold;
+    color: #162743
 }
 a {
     color: #4c72b0;
@@ -45,22 +57,30 @@ a:visited {
     text-decoration: none;
 }
 td.anag-prop {
-    padding: 2px 4px;
-    text-align: left;
-}
-td.anag-value {
-    padding: 2px 2px;
-    padding-right: 50px;
+    padding: 3px;
+    padding-right: 20px;
+    vertical-align: middle;
     text-align: left;
     font-style: italic;
+}
+td.anag-value {
+    padding: 3px;
+    vertical-align: middle;
+    text-align: right;
+}
+table {
+    margin-left: auto;
+    margin-right: auto;
 }
 .dataframe {
     border-collapse: collapse;
     border: 1px solid #808080;
     margin: 25px 0;
     font-size: 0.9em;
-    min-width: 400px;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+    display: compact;
+    margin-left: auto;
+    margin-right: auto;
 }
 .dataframe thead tr {
     background-color: #4c72b0;
@@ -81,19 +101,29 @@ td.anag-value {
     color: #303030;
     /*color: #177d02;*/
 }
-.dataframe tbody td span.nval {
+table.dataframe tbody td span.nval {
     color: #9d2c1d;
     text-decoration: none;
 }
 img {
-    width: 25%;
-    min-width: 600px;
-    height: auto;    
+    /*width: 25%;
+    min-width: 600px;*/
+    object-fit: contain;
+    /*overflow: hidden;*/
+    display: block;
+    /*position: relative;*/
 }
-img.backtest-res {
-    min-width: 1200px;
-    max-width: 3600px;
-    height: auto;
+img.normal-plot {
+    width: 100%;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+img.small-plot {
+    width: 70%;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
 }
 .matrix {
     border-collapse: collapse;
@@ -102,6 +132,9 @@ img.backtest-res {
     font-size: 0.9em;
     min-width: 400px;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+    display: compact;
+    margin-left: auto;
+    margin-right: auto;
 }
 .matrix thead tr,
 .matrix tbody th {
@@ -118,7 +151,7 @@ img.backtest-res {
     font-weight: bold;
 }
 hr {
-    /*display: block;*/
+    display: block;
     border-top: 1px solid #4c72b0;
     border-bottom: 1px solid #4c72b0;
     /*margin-block-start: 0.5em;*/
@@ -127,10 +160,66 @@ hr {
     /*margin-inline-end: auto;*/
     /*border-top-style: inset;*/
     /*border-top-width: 1px;*/
-    /*box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);*/
+    margin-top: 20px;
+    margin-bottom: 20px;
 }
 hr.shadow {
 	height: 10px;
 	border: 0;
 	box-shadow: 0 10px 10px -10px #4c72b0 inset;
+}
+div.uidListMultiCol {
+    column-count: 5;
+    column-gap: 20px;
+}
+div.base-container {
+    display: inline-block;
+    width: 100%;
+}
+div.container-link {
+    max-width: 100%;
+    position: relative;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+div.container-tiny {
+    width: 25%;
+    max-width: 25%;
+    margin 10px;
+    float: left;
+}
+div.container-small {
+    width: 33.3%;
+    max-width: 33.3%;
+    margin 10px;
+    float: left;
+}
+div.container-normal {
+    width: 50%;
+    max-width: 50%;
+    margin 10px;
+    float: left;
+}
+div.container-large {
+    width: 66.6%;
+    max-width: 66.6%;
+    margin 10px;
+    float: left;
+}
+div.container-huge {
+    width: 75%;
+    max-width: 75%;
+    margin 10px;
+    float: left;
+}
+table.simple {
+  border: 1px solid #4c72b0;
+  border-collapse: collapse;
+  display: compact;
+  margin: 5px;
+  margin-left: auto;
+  margin-right: auto;
+}
+table.simple th, tr {
+  border: 0px;
 }

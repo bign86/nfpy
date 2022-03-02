@@ -4,10 +4,10 @@
 #
 
 from bs4 import BeautifulSoup
-from jinja2 import FileSystemLoader, Environment
+from jinja2 import (FileSystemLoader, Environment)
 import os
 import shutil
-from typing import (Generator, Sequence, Union)
+from typing import (Generator, Optional, Sequence, Union)
 
 from nfpy import NFPY_ROOT_DIR
 import nfpy.Calendar as Cal
@@ -40,6 +40,13 @@ class ReportingEngine(metaclass=Singleton):
         self._curr_report_dir = ''
         self._rep_path = ''
 
+    def exists(self, report_id: str) -> bool:
+        """ Report yes if a report with the input name exists. """
+        if len(list(self.list((report_id,)))) > 0:
+            return True
+        else:
+            return False
+
     @staticmethod
     def get_report_obj(r: str) -> Rep.TyReport:
         """ Return the report object given the report name. """
@@ -49,39 +56,7 @@ class ReportingEngine(metaclass=Singleton):
     def report_obj_exist(r: str) -> bool:
         return hasattr(Rep, r)
 
-    def exists(self, report_id: str) -> bool:
-        """ Report yes if a report with the input name exists. """
-        if len(list(self.list((report_id,)))) > 0:
-            return True
-        else:
-            return False
-
-    def _create_new_directory(self) -> None:
-        """ Create a new directory for the today's reports. """
-        new_folder = f'Reports_{Cal.today(mode="str", fmt=self._DT_FMT)}'
-        new_path = os.path.join(
-            self._conf.report_path,
-            new_folder
-        )
-        self._curr_report_dir = new_path
-
-        # If directory exists exit
-        if os.path.exists(new_path):
-            return
-
-        try:
-            os.makedirs(new_path)
-            shutil.copyfile(
-                os.path.join(self._TMPL_PATH, "style.css"),
-                os.path.join(new_path, "style.css")
-            )
-        except OSError as ex:
-            print(f'Creation of the directory {new_path} failed')
-            raise ex
-        else:
-            print(f'Successfully created the directory {new_path}')
-
-    def list(self, ids: Sequence[str] = (), active: bool = None) \
+    def list(self, ids: Sequence[str] = (), active: Optional[bool] = None) \
             -> Generator[Rep.ReportData, Rep.ReportData, None]:
         """ List reports matching the given input. """
         where = ''
@@ -108,6 +83,40 @@ class ReportingEngine(metaclass=Singleton):
                 ).fetchall()
             )
         )
+
+    def run(self, names: Sequence[str] = (), active: Optional[bool] = None) \
+            -> None:
+        """ Run the report engine. """
+        self._run(self.list(names, active))
+
+    def run_custom(self, rep_list: Sequence[Rep.ReportData]) -> None:
+        """ Run the report engine. """
+        self._run(rep_list)
+
+    def _create_new_directory(self) -> None:
+        """ Create a new directory for the today's reports. """
+        new_folder = f'Reports_{Cal.today(mode="str", fmt=self._DT_FMT)}'
+        new_path = os.path.join(
+            self._conf.report_path,
+            new_folder
+        )
+        self._curr_report_dir = new_path
+
+        # If directory exists exit
+        if os.path.exists(new_path):
+            return
+
+        try:
+            os.makedirs(new_path)
+            shutil.copyfile(
+                os.path.join(self._TMPL_PATH, "style.css"),
+                os.path.join(new_path, "style.css")
+            )
+        except OSError as ex:
+            print(f'Creation of the directory {new_path} failed')
+            raise ex
+        else:
+            print(f'Successfully created the directory {new_path}')
 
     def _generate(self, res: Union[dict, Rep.ReportResult]) -> None:
         """ Generates the actual report. """
@@ -156,14 +165,6 @@ class ReportingEngine(metaclass=Singleton):
 
         # Update report index
         self._update_index(done_reports)
-
-    def run(self, names: Sequence[str] = (), active: bool = None) -> None:
-        """ Run the report engine. """
-        self._run(self.list(names, active))
-
-    def run_custom(self, rep_list: Sequence[Rep.ReportData]) -> None:
-        """ Run the report engine. """
-        self._run(rep_list)
 
     def _update_index(self, done: Sequence[Rep.ReportData]) -> None:
         # Extract information

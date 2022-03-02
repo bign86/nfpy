@@ -7,57 +7,100 @@
   </head>
   <body>
     <!-- TITLE -->
-    <h1><a name="pageTop"></a>{{ title }}</h1>
-    <a href="index.html">Index</a>
-    <hr class="shadow">
+    <div class="header">
+      <div class="titleBox">
+        <h1>{{ title }}</h1>
+        <a name="main_title" href="index.html">Index</a>
+        <hr>
+      </div>
 
-    <!-- UIDs list -->
-    <h3>List of UIDs</h3>
-    {%- for ticker, val in res.items()|sort -%}
-      <a href="#{{ ticker }}">{{ ticker }}</a> - {{ val.info["description"] }}<br>
-    {% endfor -%}
-    <hr>
+      <!-- UIDs list -->
+      <div class="uidList">
+        <h3><a name="uidList_link"></a>List of UIDs</h3>
+        <div class="uidListMultiCol">
+          {%- for ticker, val in res.items()|sort -%}
+          <a href="#{{ ticker }}">{{ ticker }}</a> - {{ val.info["description"] }}<br>
+          {%- endfor -%}
+        </div>
+        <hr>
+      </div>
+    </div>
 
     <!-- REPORTS -->
-    <h2>Reports</h2>
+    <div class="reportBody">
+      <div class="titleReport">
+        <h3>Report</h3>
+      </div>
 
-    <!-- Equities -->
-    {%- for ticker, val in res.items()|sort -%}
-      <hr class="light">
-      <a name="{{ ticker }}"></a><h4><a href="#pageTop">Top</a> - {{ val.info["description"] }}</h4>
+      <!-- Equities -->
+      {%- for ticker, val in res.items()|sort -%}
+      <div class="base-container">
+        <div class="container-link">
+          <hr class="light">
+          <h4><a name="{{ ticker }}"></a><a href="#main_title">Top</a> - {{ val.info["description"] }}</h4>
+        </div>
 
-      <!-- Market model -->
-      <table>
-        <tr>
-          <td class='anag-prop'>Isin</td><td class='anag-value'>{{ val["info"]["isin"] }}</td>
-          <td class='anag-prop'>Country</td><td class='anag-value'>{{ val["info"]["country"] }}</td>
-        </tr>
-        <tr>
-          <td class='anag-prop'>Index</td><td class='anag-value'><a href="#{{ val['info']['index'] }}">{{ val["info"]["index"] }}</a></td>
-          <td class='anag-prop'>Currency</td><td class='anag-value'>{{ val["info"]["currency"] }}</td>
-        </tr>
-      </table>
-
-      <img src="{{ val.img_prices_long }}" alt="Full history of prices" class="price-full-h">
-      <img src="{{ val.img_performance }}" alt="Last 1 year performance" class="perf-vs-idx">
-      <img src="{{ val.img_beta }}" alt="Beta scatter" class="beta-scatter">
-
-      <p>Last price: {{ '%.3f' | format(val.last_price|float) }} {{ val["info"]["currency"] }} @ {{ val.last_price_date }}</p>
-      {{ val.stats }}
-
-      <!-- Trading model -->
-      <img src="{{ val.prices_long }}" alt="S/R slow MA" class="SR-slow">
-      <img src="{{ val.prices_short }}" alt="S/R FAST MA" class="SR-fast">
-      {{ val.signals }}
-
-      <p>Table of raised manual alerts</p>
-      {{ val.alerts_table }}
-
-      <p>Table of S/R lines breaches</p>
-      {{ val.breach_table }}
-
-    {%- endfor -%}
-    <hr>
+        <!-- Market model -->
+        <div class="container-small">
+          <div class="container-normal">
+            <table class="simple">
+              <thead>
+                <tr>
+                  <th colspan="2">General data</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class='anag-prop'>Isin</td><td class='anag-value'>{{ val.info["isin"] }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Company</td><td class='anag-value'>{{ val.info["company"] }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Name</td><td class='anag-value'>{{ val.info["description"] }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Index</td><td class='anag-value'>{{ val.info["index"] }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Country</td><td class='anag-value'>{{ val.info["country"] }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Currency</td><td class='anag-value'>{{ val.info["currency"] }}</td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="font-weight:bold;text-align:center;padding-top:5px;">Performance</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Date</td><td class='anag-value'>{{ val.last_price_date }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Last price</td><td class='anag-value'>{{ '%.3f'| format(val.last_price|float) }} {{ val.info["currency"] }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Dividends TTM</td><td class='anag-value'>{{ '%.2f'| format(val.ttm_div|float) }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Dividends Yield TTM</td><td class='anag-value'>{{ '%.2f'| format(val.ttm_yield|float) }}%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="container-normal">
+            <img src="{{ val.img_beta }}" alt="Beta scatter" class="normal-plot">
+          </div>
+        </div>
+        <div class="container-small">
+          <img src="{{ val.img_prices_long }}" alt="Price history vs benchmark" class="normal-plot">
+          {{ val.stats }}
+        </div>
+        <div class="container-small">
+          <img src="{{ val.img_ma_plot }}" alt="MA crosses" class="normal-plot">
+          {{ val.signals }}
+        </div>
+      </div>
+      {%- endfor -%}
+    </div>
 
   </body>
 </html>
