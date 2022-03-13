@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 from pandas.core.tools.datetimes import DatetimeScalar
 import pandas.tseries.offsets as off
-from typing import (Union, Sequence, TypeVar)
+from typing import (Optional, Sequence, TypeVar, Union)
 
 from nfpy.Tools import (get_conf_glob, Singleton)
 
@@ -96,10 +96,11 @@ class Calendar(metaclass=Singleton):
         return self._initialized
 
     def __contains__(self, dt: TyDate) -> bool:
-        return dt in self._calendar
+        return pd.Timestamp(dt) in self._calendar
 
-    def initialize(self, end: TyDate, start: TyDate = None,
-                   periods: int = None, fmt: str = '%Y-%m-%d') -> None:
+    def initialize(self, end: TyDate, start: Optional[TyDate] = None,
+                   periods: Optional[int] = None, fmt: str = '%Y-%m-%d') \
+            -> None:
         if self._initialized:
             return
 
@@ -163,7 +164,7 @@ class Calendar(metaclass=Singleton):
         e_idx = self._calendar.get_loc(end, method='nearest')
         return e_idx - s_idx
 
-    def shift(self, dt: pd.Timestamp, n: int, freq: str = None,
+    def shift(self, dt: pd.Timestamp, n: int, freq: Optional[str] = None,
               method: str = 'nearest') -> pd.Timestamp:
         """ Shift the <end> date by <n> periods forward or backwards.
 
@@ -302,8 +303,7 @@ def shift(dt: pd.Timestamp, n: int, freq: str) -> pd.Timestamp:
     return dt + offset(int(n))
 
 
-def pd_2_np64(dt: Union[None, TyDate]) \
-        -> Union[None, np.datetime64]:
+def pd_2_np64(dt: Optional[TyDate]) -> Optional[np.datetime64]:
     return dt.asm8 if isinstance(dt, pd.Timestamp) else dt
 
 

@@ -4,7 +4,7 @@
 
 import os
 import atexit
-from typing import Iterable
+from typing import (Iterable, Optional)
 
 # from ..DB import logger
 from nfpy.Tools import (Singleton, Exceptions as Ex,
@@ -39,12 +39,12 @@ class DBHandler(metaclass=Singleton):
         return self._db_path
 
     @db_path.setter
-    def db_path(self, v: str):
+    def db_path(self, v: str) -> None:
         self._db_path = str(v)
         self._create_connection()
 
     @db_path.deleter
-    def db_path(self):
+    def db_path(self) -> None:
         self._db_path = None
         self._close_connection()
 
@@ -53,7 +53,7 @@ class DBHandler(metaclass=Singleton):
         return self._conn
 
     @connection.deleter
-    def connection(self):
+    def connection(self) -> None:
         self._close_connection()
 
     @property
@@ -71,7 +71,7 @@ class DBHandler(metaclass=Singleton):
             msg = f'{ex}\n{q}\n{repr(p)}'
             Ut.print_exc(Ex.DatabaseError(msg))
             self.connection.rollback()
-            raise
+            raise ex
         return c
 
     def executemany(self, q: str, p: Iterable, commit: bool = False) \
@@ -85,20 +85,20 @@ class DBHandler(metaclass=Singleton):
             msg = f'{ex}\n{q}\n{repr(p)}'
             Ut.print_exc(Ex.DatabaseError(msg))
             self.connection.rollback()
-            raise
+            raise ex
         return c
 
-    def commit(self):
+    def commit(self) -> None:
         try:
             self._conn.commit()
-        except sqlite3.Error:
+        except sqlite3.Error as ex:
             self._conn.rollback()
-            raise
+            raise ex
 
-    def rollback(self):
+    def rollback(self) -> None:
         self._conn.rollback()
 
-    def _create_connection(self):
+    def _create_connection(self) -> None:
         """ Creates the DB connection """
         self._conn = sqlite3.connect(
             self.db_path,
@@ -117,7 +117,7 @@ class DBHandler(metaclass=Singleton):
         # logger.info('DB version {}'.format(v))
         self._is_connected = True
 
-    def _close_connection(self):
+    def _close_connection(self) -> None:
         """ Close the DB connection """
         if self._is_connected:
             try:
@@ -133,7 +133,7 @@ class DBHandler(metaclass=Singleton):
                 self._conn = None
                 self._is_connected = False
 
-    def backup(self, f_name: str = None) -> None:
+    def backup(self, f_name: Optional[str] = None) -> None:
         """ Backup the connected database into the destination. """
         # Create new backup filename
         path, file = os.path.split(self._db_path)
@@ -161,7 +161,7 @@ class DBHandler(metaclass=Singleton):
         print(f"Database backup'd in: {new_file}")
 
 
-def get_db_glob(db_path: str = None) -> DBHandler:
+def get_db_glob(db_path: Optional[str] = None) -> DBHandler:
     """ Returns the pointer to the global DB """
     if not db_path:
         db_path = get_conf_glob().db_path
@@ -171,7 +171,8 @@ def get_db_glob(db_path: str = None) -> DBHandler:
     return DBHandler(db_path)
 
 
-def backup_db(db_path: str = None, f_name: str = None):
+def backup_db(db_path: Optional[str] = None,
+              f_name: Optional[str] = None) -> None:
     from shutil import copyfile
 
     conf = get_conf_glob()

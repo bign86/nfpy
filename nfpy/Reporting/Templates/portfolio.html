@@ -68,10 +68,10 @@
                   <td colspan="2" style="font-weight:bold;text-align:center;padding-top:5px;">Dividends</td>
                 </tr>
                 <tr>
-                  <td class='anag-prop'>Date</td><td class='anag-value'>{{ val.last_price_date }}</td>
+                  <td class='anag-prop'>Date</td><td class='anag-value'>{{ val.last_tot_date }}</td>
                 </tr>
                 <tr>
-                  <td class='anag-prop'>Value</td><td class='anag-value'>{{ '%.2f' | format(val.last_price|float) }} {{ val.info["currency"] }}</td>
+                  <td class='anag-prop'>Total Value</td><td class='anag-value'>{{ '%.2f' | format(val.last_tot_value|float) }} {{ val.info["currency"] }}</td>
                 </tr>
                 <tr>
                   <td class='anag-prop'>TTM dividends</td><td class='anag-value'>{{ '%.2f' | format(val.div_ttm|float) }} {{ val.info["currency"] }}</td>
@@ -87,15 +87,25 @@
                   </tr>
                 {%- endfor -%}
                 {%- endif -%}
+                <tr>
+                  <td colspan="2" style="font-weight:bold;text-align:center;padding-top:5px;">Cash operations</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Deposits</td><td class='anag-value'>{{ '%.2f' | format(val.tot_deposits|float) }} {{ val.info["currency"] }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Withdrawals</td><td class='anag-value'>{{ '%.2f' | format(val.tot_withdrawals|float) }} {{ val.info["currency"] }}</td>
+                </tr>
               </tbody>
             </table>
+            {{ val.stats }}
           </div>
 
           <!-- Portfolio performance and dividends -->
           <div class="container-huge">
             <div class="container-small">
               <img src="{{ val.img_value_hist }}" alt="History of portfolio value" class="normal-plot">
-              {{ val.stats }}
+              <img src="{{ val.img_divs_hist }}" alt="History of dividends received" class="normal-plot">
             </div>
             <div class="container-large">
               {{ val.cnsts_data }}

@@ -7,9 +7,11 @@ import json
 import os
 import pickle
 from pathlib import Path
+from typing import Optional
 
 from nfpy import NFPY_ROOT_DIR
 import nfpy.DB as DB
+from nfpy.DB.DB import DBHandler
 from nfpy.Tools import get_conf_glob
 
 __version__ = '0.6'
@@ -186,12 +188,6 @@ TABLES_TO_CREATE = [
             primary key (uid, dtype, date), foreign key (uid)
             references Rate(uid)) without rowid;"""
     ),
-    # (
-    #     'ReportItems',
-    #     """create table ReportItems (report TEXT, uid TEXT, model TEXT,
-    #         parameters TEXT, active BOOL NOT NULL,
-    #         primary key (report, uid, model)) without rowid;"""
-    # ),
     (
         'Reports',
         """create table Reports (id TEXT, title TEXT, description TEXT,
@@ -248,24 +244,25 @@ VIEWS_TO_CREATE = [
 ]
 
 
-def get_db_handler():
-    db_path = get_conf_glob().db_dir
-    if not os.path.isfile(db_path):
-        raise ValueError('Cannot create database.')
+def get_db_handler(db_path: Optional[str] = None) -> DBHandler:
+    if db_path is None:
+        db_path = get_conf_glob().db_dir
+        if not os.path.isfile(db_path):
+            raise ValueError('Cannot create database.')
 
     # database creation
     print('Creating the new database...')
-    db_ = DB.get_db_glob()
+    db_ = DB.get_db_glob(db_path)
 
     if not db_:
-        msg = 'I can not connect to the database... Sorry, but I got to stop here :('
+        msg = 'I cannot connect to the database... Sorry, I must stop here :('
         raise RuntimeError(msg)
     print(f"New database created in {db_.db_path}")
 
     return db_
 
 
-def create_database(db_):
+def create_database(db_: DBHandler) -> None:
     # create tables
     print('Creating tables...')
     for t, q in TABLES_TO_CREATE:
@@ -285,17 +282,17 @@ def create_database(db_):
     print("--- Views created! ---")
 
 
-def populate_database(db_):
+def populate_database(db_: DBHandler) -> None:
     """ Populate database """
 
     try:
         data_file = Path(os.path.join(NFPY_ROOT_DIR, PKL_FILE))
         data_dict = pickle.load(data_file.open('rb'))
-    except Exception as ex1:
+    except RuntimeError:
         try:
             data_file = Path(os.path.join(NFPY_ROOT_DIR, JSN_FILE))
             data_dict = json.load(data_file.open('rb'))
-        except Exception as ex2:
+        except RuntimeError as ex2:
             raise ex2
 
     # data_file.close()
@@ -307,8 +304,8 @@ def populate_database(db_):
     print("--- Setup completed! ---")
 
 
-def new_database():
-    db = get_db_handler()
+def new_database(db_path: Optional[str] = None) -> None:
+    db = get_db_handler(db_path)
     create_database(db)
     populate_database(db)
 
@@ -316,4 +313,8 @@ def new_database():
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
-    new_database()
+    new_database(
+        input('Give a path and name for the new database: ')
+    )
+
+    print('All done!')

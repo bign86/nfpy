@@ -5,7 +5,7 @@
 import json
 import pandas as pd
 import re
-from typing import Any
+from typing import (Any, Optional)
 
 import nfpy.Assets as Ast
 import nfpy.Calendar as Cal
@@ -169,7 +169,8 @@ class InputHandler(object):
         return valf(value)
 
     def input(self, msg: str, idesc: str = 'str', optional: bool = False,
-              default: Any = None, checker: str = None, **kwargs) -> Any:
+              default: Optional[Any] = None, checker: Optional[str] = None,
+              **kwargs) -> Any:
         """ Validates the supplied input by cleaning the string and casting to
             the appropriate data type. An exception is cast if casting is
             impossible or if inputs are empty.

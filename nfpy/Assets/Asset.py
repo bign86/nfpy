@@ -96,14 +96,15 @@ class Asset(FinancialItem):
         """ Returns the full DataFrame for the asset. """
         return self._df
 
-    def last_price(self, dt: Optional[Cal.TyDate] = None) -> tuple:
+    def last_price(self, dt: Optional[Cal.TyDate] = None) \
+            -> tuple[float, pd.Timestamp, int]:
         """ Returns the last valid price at date.
 
             Input:
                 dt [TyDate]: reference date (default: None)
 
             Output:
-                v [flaot]: last valid price
+                v [float]: last valid price
                 date [pd.Timestamp]: date of the last valid price
                 idx [int]: index of the last valid price
         """
@@ -116,7 +117,8 @@ class Asset(FinancialItem):
             pos = np.searchsorted(date, [dt])[0]
         idx = Math.last_valid_index(ts, pos)
 
-        return ts[idx], date[idx], idx
+        dt_ts = self.prices.index[idx]
+        return ts[idx], dt_ts, idx
 
     def load_returns(self):
         self.load_dtype_in_df("return")

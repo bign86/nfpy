@@ -4,7 +4,7 @@
 
 from collections import OrderedDict
 from operator import itemgetter
-from typing import (Any, Generator, KeysView, Optional, Sequence)
+from typing import (Any, Generator, KeysView, Optional, Sequence, Union)
 
 from nfpy.Tools import (Singleton, Exceptions as Ex)
 
@@ -101,7 +101,8 @@ class QueryBuilder(metaclass=Singleton):
         """ Return the alter table query to rename a table. """
         return f"alter table {table} rename to {table + '_old'};"
 
-    def select(self, table: str, fields: Optional[Sequence[str]] = None,
+    def select(self, table: str,
+               fields: Optional[Union[KeysView, Sequence[str]]] = None,
                rolling: Sequence[str] = (),
                keys: Optional[Sequence[str]] = None,
                partial_keys: Sequence[str] = (), where: str = "",

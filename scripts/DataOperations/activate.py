@@ -10,7 +10,7 @@ import nfpy.DB as DB
 import nfpy.Tools.Exceptions as Ex
 import nfpy.IO as IO
 
-__version__ = '0.4'
+__version__ = '0.5'
 _TITLE_ = "<<< Activate/Deactivate financial instruments >>>"
 
 
@@ -64,7 +64,10 @@ if __name__ == '__main__':
     inh = IO.InputHandler()
 
     # Give inputs
-    uid = inh.input('Give a UID: ', checker='uid')
+    # We do not perform sanity checks on the UID. Such check would make it
+    # impossible to operate on Downloads/Imports of assets already removed
+    # from the elaboration tables.
+    uid = inh.input('Give a UID: ', optional=False)
     tblNt = namedtuple('tblNt', qb.get_fields('Imports'))
     imports = list(
         map(

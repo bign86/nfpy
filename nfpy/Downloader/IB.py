@@ -24,13 +24,15 @@ class FinancialsItem(BaseImportItem):
     _Q_INCR = """ and date > ifnull((select max(date) from {dst_table}
     where uid = '{uid}'), '1900-01-01')"""
 
-    def _get_params(self) -> tuple:
+    def _get_params(self) -> tuple[str]:
         """ Return the correct parameters for the read query. """
         return self._d['ticker'].split('/')[0],
 
     @staticmethod
-    def _clean_eoy_dates(data: [tuple]) -> []:
+    def _clean_eoy_dates(data: list[tuple]) -> list:
         """ Moves EOY results to the actual end of the year. """
+        # FIXME: for some reason the 'Q' data end up being datetimes, not dates.
+        #        The 'A' data are fine.
         data_ins = []
         for idx in range(len(data) - 1, -1, -1):
             item = data[idx]
@@ -56,13 +58,14 @@ class FinancialsItem(BaseImportItem):
             qr += self._Q_INCR
         qr = qr.format(**self._d) + ';'
 
-        self._db.executemany(
-            self._Q_WRITE.format(**self._d),
-            self._clean_eoy_dates(
-                self._db.execute(qr, params).fetchall()
-            ),
-            commit=True
-        )
+        data = self._db.execute(qr, params).fetchall()
+
+        if len(data) > 0:
+            self._db.executemany(
+                self._Q_WRITE.format(**self._d),
+                self._clean_eoy_dates(data),
+                commit=True
+            )
 
 
 class IBProvider(BaseProvider):

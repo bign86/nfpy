@@ -28,10 +28,16 @@ class PortfolioEngine(object):
         )
         self._dt = self._cal.calendar.values[self._slc]
 
+        self._cum_divs = None
+        self._dt_cum_divs = None
         self._pos_val = None
+        self._ret = None
         self._tot_val = None
         self._wgt = None
-        self._ret = None
+
+    @property
+    def portfolio(self) -> Ast.Asset:
+        return self._ptf
 
     @property
     def positions_value(self) -> tuple[np.ndarray, np.ndarray]:
@@ -57,8 +63,21 @@ class PortfolioEngine(object):
             self._calc_weights()
         return self._wgt
 
-    def _calc_dividends_paid(self) -> np.ndarray:
-        pass
+    def _calc_cumulated_dividends(self) -> None:
+        df_divs = self._ptf.dividends_received
+        cum_divs = np.zeros(len(df_divs.index), dtype=float)
+
+        base_ccy = self._ptf.currency
+        for ccy in df_divs.columns:
+            d = df_divs[ccy] * self._fx.get(ccy, base_ccy).prices
+            cum_divs += d.values
+
+        slc = Math.search_trim_pos(
+            df_divs.index.values,
+            self._ptf.inception_date.asm8
+        )
+        self._cum_divs = cum_divs[slc]
+        self._dt_cum_divs = df_divs.index.values[slc]
 
     def _calc_returns(self) -> None:
         """ Get the portfolio price returns by consolidating constituents
@@ -176,10 +195,21 @@ class PortfolioEngine(object):
             )[0]
         )
 
+    def dividends_received_history(self) -> tuple[np.ndarray, np.ndarray]:
+        """ Returns the series of the total dividends received in the base
+            currency of the portfolio.
+        """
+        if self._cum_divs is None:
+            self._calc_cumulated_dividends()
+        return self._dt_cum_divs, np.nancumsum(self._cum_divs)
+
     def dividends_received_yearly(self) -> tuple[np.ndarray, np.ndarray]:
         """ Returns the series of the total dividends received annually in the
             base currency of the portfolio.
         """
+        if self._cum_divs is None:
+            self._calc_cumulated_dividends()
+
         # Create the list of years
         years = np.unique(
             self._cal
@@ -191,36 +221,44 @@ class PortfolioEngine(object):
         inception_year = inception.asm8.astype('datetime64[Y]')
         years = years[years >= inception_year]
 
-        df_divs = self._ptf.dividends_received
-        cum_divs = np.zeros(len(df_divs.index), dtype=float)
-
-        base_ccy = self._ptf.currency
-        for ccy in df_divs.columns:
-            d = df_divs[ccy] * self._fx.get(ccy, base_ccy).prices
-            cum_divs += d.values
-
         dividends = np.zeros(years.shape[0])
-        y_dt = df_divs.index.values.astype('datetime64[Y]')
+        y_dt = self._dt_cum_divs.astype('datetime64[Y]')
 
         for n, y in enumerate(years):
-            dividends[n] += np.nansum(cum_divs[y_dt == y])
+            dividends[n] += np.nansum(self._cum_divs[y_dt == y])
 
         return years, dividends
 
     def dividends_received_ttm(self) -> float:
         """ Returns the dividends received in the last 365 days. """
+        if self._cum_divs is None:
+            self._calc_cumulated_dividends()
+
         start = self._cal.t0.asm8.astype('datetime64[Y]') - \
                 np.timedelta64(Cn.DAYS_IN_1Y, 'D')
-        base_ccy = self._ptf.currency
+        slc = Math.search_trim_pos(self._dt_cum_divs, start=start)
 
-        df_divs = self._ptf.dividends_received
-        cum_divs = np.zeros(len(df_divs.index), dtype=float)
-        for ccy in df_divs.columns:
-            d = df_divs[ccy] * self._fx.get(ccy, base_ccy).prices
-            cum_divs += d.values
+        return np.nansum(self._cum_divs[slc])
 
-        slc = Math.search_trim_pos(df_divs.index.values, start=start)
-        return np.nansum(cum_divs[slc])
+    # FIXME: add portfolio performance. For this to work is necessary to
+    #        clean from deposits/withdrawals and rebase on 1.
+    def performance(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """ Returns the financial performance of the portfolio without the
+            effect of deposits and withdrawals.
+        """
+        dt, value = self.total_value
+        cash_ops = self._ptf.cash_ops
+
+        idx = np.searchsorted(dt, cash_ops.index.values)
+        cash_v = np.zeros(value.shape[0], dtype=float)
+        np.put(cash_v, idx, cash_ops.values)
+
+        # This is necessary to copy over the data of the total_value without
+        # overwriting it
+        cash_v = value - np.cumsum(cash_v)
+        _, divs = self.dividends_received_history()
+
+        return dt, cash_v, cash_v - divs
 
     def te(self, bmk: Optional[Ast.TyAsset] = None,
            start: Optional[Cal.TyDate] = None,
@@ -270,10 +308,16 @@ class PortfolioEngine(object):
                      'cost (FX)', f'value ({self._ptf.currency})')
         )
 
+        # Calculate total deposits/withdrawals
+        cash_ops = self._ptf.cash_ops.values
+        tot_deposits = np.sum(cash_ops[cash_ops > 0])
+        tot_withdrawals = - np.sum(cash_ops[cash_ops < 0])
+
         return {
             'uid': self._ptf.uid, 'currency': self._ptf.currency,
             'inception': self._ptf.inception_date,
             'tot_value': ptf_total, 'constituents_data': cnsts,
+            'tot_deposits': tot_deposits, 'tot_withdrawals': tot_withdrawals
         }
 
     # def sector_aggregation(self):

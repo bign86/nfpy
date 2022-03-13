@@ -27,6 +27,7 @@ class ReportingEngine(metaclass=Singleton):
         Rep.ReportBacktester,
         Rep.ReportCompanies,
         Rep.ReportEquities,
+        Rep.ReportMarketShort,
         Rep.ReportPortfolio,
     }
     _TMPL_PATH = os.path.join(NFPY_ROOT_DIR, 'Reporting/Templates')

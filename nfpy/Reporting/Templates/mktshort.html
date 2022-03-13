@@ -87,17 +87,19 @@
             </table>
           </div>
           <div class="container-normal">
-            <img src="{{ val.img_beta }}" alt="Beta scatter" class="normal-plot">
+            {{ val.stats }}
+            <div style="text-align:center">
+              {{ val.alerts_table }}
+            </div>
           </div>
         </div>
-        <div class="container-small">
-          <img src="{{ val.img_ma_plot }}" alt="MA crosses" class="normal-plot">
-          {{ val.signals }}
-        </div>
-        <div class="container-small">
-          <img src="{{ val.img_prices_long }}" alt="Price history vs benchmark" class="normal-plot">
-          {{ val.stats }}
-        </div>
+        <div class="container-large">
+          <div class="container-normal">
+            <img src="{{ val.img_ma_plot }}" alt="MA crosses" class="normal-plot">
+          </div>
+          <div class="container-normal">
+            <img src="{{ val.img_prices_long }}" alt="Price history vs benchmark" class="normal-plot">
+          </div>
       </div>
       {%- endfor -%}
     </div>

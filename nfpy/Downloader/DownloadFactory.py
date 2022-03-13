@@ -5,7 +5,7 @@
 #
 
 from requests import RequestException
-from typing import (KeysView, Iterable, Generator, Optional, Sequence, Union)
+from typing import (KeysView, Iterable, Optional)
 
 import nfpy.Calendar as Cal
 import nfpy.DB as DB
@@ -192,6 +192,9 @@ class DownloadFactory(metaclass=Singleton):
         today_dt = Cal.today(mode='date')
         q_upd = self._qb.update(self._DWN_TABLE, fields=('last_update',))
 
+        count_done = 0
+        count_skipped = 0
+        count_failed = 0
         for item in upd_list:
             provider, page_name, ticker, ccy, _, upd_freq, last_upd = item
 
@@ -202,6 +205,7 @@ class DownloadFactory(metaclass=Singleton):
                     msg = f'[{provider}: {page_name}] -> ' \
                           f'{ticker} updated {delta_days} days ago'
                     print(msg)
+                    count_skipped += 1
                     continue
 
             # If the last update check is passed go on with the update
@@ -223,10 +227,18 @@ class DownloadFactory(metaclass=Singleton):
             except (Ex.MissingData, Ex.IsNoneError, RuntimeError,
                     RequestException, ValueError) as e:
                 print(e)
+                count_failed += 1
             else:
+                count_done += 1
                 if do_save is True:
                     data_upd = (today_dt, provider, page_name, ticker)
                     self._db.execute(q_upd, data_upd, commit=True)
+
+        print(
+            f'\nItems downloaded: {count_done:>4}'
+            f'\nItems skipped:    {count_skipped:>4}'
+            f'\nItems failed:     {count_failed:>4}\n'
+        )
 
     def run_import(self, uid: Optional[str] = None,
                    provider: Optional[str] = None,

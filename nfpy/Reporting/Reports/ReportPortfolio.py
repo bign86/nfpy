@@ -72,11 +72,10 @@ class ReportPortfolio(BaseReport):
         ),
     }
 
-    def __init__(self, data: ReportData, path: Optional[str] = None, **kwargs):
+    def __init__(self, data: ReportData, path: Optional[str] = None):
         super().__init__(data, path)
         self._time_spans = (
-            Cn.DAYS_IN_1M, 3 * Cn.DAYS_IN_1M, 6 * Cn.DAYS_IN_1M,
-            Cn.DAYS_IN_1Y  # , 2 * Cn.DAYS_IN_1Y, 5 * Cn.DAYS_IN_1Y
+            Cn.DAYS_IN_1M, 3 * Cn.DAYS_IN_1M, 6 * Cn.DAYS_IN_1M, Cn.DAYS_IN_1Y
         )
 
     def _init_input(self, type_: Optional[str] = None) -> None:
@@ -139,30 +138,37 @@ class ReportPortfolio(BaseReport):
         # Relative path in results object
         fig_full, fig_rel = self._get_image_paths(
             (
-                (asset.uid,), ('ME',), ('p_price',)
+                (asset.uid,), ('Ptf',), ('p_price', 'divs')
             )
         )
         res.img_value_hist = fig_rel[0]
+        res.img_divs_hist = fig_rel[1]
 
         t0 = self._cal.t0
 
-        # Prices: full history plot
-        dt_p, v_p = pe.total_value
+        # Prices: full performance
+        dt_p, v_p, v_no_divs = pe.performance()
         _, v_r = pe.returns
 
-        IO.TSPlot() \
-            .lplot(0, dt_p, v_p, label='Value') \
+        last_price = Math.last_valid_value(v_p, dt_p, t0.asm8)[0]
+
+        IO.TSPlot(yl=(f'Performance ({asset.currency})',)) \
+            .lplot(0, dt_p, v_p, label='Capital + Divs.') \
+            .lplot(0, dt_p, v_no_divs, color='C2', label='Capital only') \
             .plot() \
             .save(fig_full[0]) \
             .close(True)
 
-        # Last price
-        last_price, idx = Math.last_valid_value(v_p, dt_p, t0.asm8)
-        res.last_price = last_price
-        res.last_price_date = str(dt_p[idx])[:10]
+        # Last total value
+        last_tot_value, idx = Math.last_valid_value(
+            pe.total_value[1],
+            dt_p, t0.asm8
+        )
+        res.last_tot_value = last_tot_value
+        res.last_tot_date = str(dt_p[idx])[:10]
 
         # Statistics table and betas
-        stats = np.empty((3, len(self._time_spans)))
+        stats = np.empty((2, len(self._time_spans)))
         for i, span in enumerate(self._time_spans):
             start = self._cal.shift(t0, -span, 'D')
             slc_sp = Math.search_trim_pos(
@@ -171,23 +177,19 @@ class ReportPortfolio(BaseReport):
                 end=t0.asm8
             )
 
-            first_price = Math.next_valid_value(v_p[slc_sp])[0]
-            tot_ret = last_price / first_price - 1.
-
             stats[0, i] = float(np.nanstd(v_r[slc_sp]))
-            stats[1, i] = Math.compound(tot_ret, Cn.BDAYS_IN_1Y / span)
-            stats[2, i] = tot_ret
+            first_price = Math.next_valid_value(v_p[slc_sp])[0]
+            stats[1, i] = last_price / first_price - 1.
 
         # Render dataframes
         df = pd.DataFrame(
             stats.T,
             index=self._time_spans,
-            columns=('\u03C3', 'yearly return', 'tot. return')
+            columns=('\u03C3', 'tot. return')
         )
         res.stats = df.style.format(
             formatter={
                 '\u03C3': '{:,.1%}'.format,
-                'yearly return': '{:,.1%}'.format,
                 'tot. return': '{:,.1%}'.format,
             },
             **PD_STYLE_PROP) \
@@ -197,6 +199,8 @@ class ReportPortfolio(BaseReport):
         # Portfolio summary
         summary = pe.summary()
         res.tot_value = summary['tot_value'],
+        res.tot_deposits = summary['tot_deposits']
+        res.tot_withdrawals = summary['tot_withdrawals']
 
         merged = pd.merge(
             summary['constituents_data'],
@@ -224,6 +228,12 @@ class ReportPortfolio(BaseReport):
         # Dividends received
         res.div_ttm = pe.dividends_received_ttm()
         res.div_history = pe.dividends_received_yearly()
+
+        IO.TSPlot(yl=(f'Dividends ({asset.currency})',)) \
+            .lplot(0, *pe.dividends_received_history()) \
+            .plot() \
+            .save(fig_full[1]) \
+            .close(True)
 
     def _calc_optimization(self, asset: TyAsset, res: Ut.AttributizedDict,
                            pe: Ptf.PortfolioEngine) -> None:
