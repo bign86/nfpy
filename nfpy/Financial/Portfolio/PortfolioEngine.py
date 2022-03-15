@@ -72,12 +72,8 @@ class PortfolioEngine(object):
             d = df_divs[ccy] * self._fx.get(ccy, base_ccy).prices
             cum_divs += d.values
 
-        slc = Math.search_trim_pos(
-            df_divs.index.values,
-            self._ptf.inception_date.asm8
-        )
-        self._cum_divs = cum_divs[slc]
-        self._dt_cum_divs = df_divs.index.values[slc]
+        self._cum_divs = cum_divs[self._slc]
+        self._dt_cum_divs = df_divs.index.values[self._slc]
 
     def _calc_returns(self) -> None:
         """ Get the portfolio price returns by consolidating constituents
@@ -199,9 +195,24 @@ class PortfolioEngine(object):
         """ Returns the series of the total dividends received in the base
             currency of the portfolio.
         """
-        if self._cum_divs is None:
-            self._calc_cumulated_dividends()
-        return self._dt_cum_divs, np.nancumsum(self._cum_divs)
+        df_divs = self._ptf.dividends_received
+        cum_divs = np.zeros(len(df_divs.index), dtype=float)
+
+        base_ccy = self._ptf.currency
+        for ccy in df_divs.columns:
+            fx = 1.
+            if ccy != base_ccy:
+                fx = Math.ffill_cols(
+                    self._fx.get(ccy, base_ccy)
+                        .prices
+                        .values
+                )
+            cum_divs += np.nancumsum(df_divs[ccy].values) * fx
+
+        cum_divs = cum_divs[self._slc]
+        dt_cum_divs = df_divs.index.values[self._slc]
+
+        return dt_cum_divs, cum_divs
 
     def dividends_received_yearly(self) -> tuple[np.ndarray, np.ndarray]:
         """ Returns the series of the total dividends received annually in the
@@ -210,19 +221,9 @@ class PortfolioEngine(object):
         if self._cum_divs is None:
             self._calc_cumulated_dividends()
 
-        # Create the list of years
-        years = np.unique(
-            self._cal
-                .calendar
-                .values
-                .astype('datetime64[Y]')
-        )
-        inception = self._ptf.inception_date
-        inception_year = inception.asm8.astype('datetime64[Y]')
-        years = years[years >= inception_year]
-
-        dividends = np.zeros(years.shape[0])
         y_dt = self._dt_cum_divs.astype('datetime64[Y]')
+        years = np.unique(y_dt)
+        dividends = np.zeros(years.shape[0])
 
         for n, y in enumerate(years):
             dividends[n] += np.nansum(self._cum_divs[y_dt == y])
@@ -240,8 +241,6 @@ class PortfolioEngine(object):
 
         return np.nansum(self._cum_divs[slc])
 
-    # FIXME: add portfolio performance. For this to work is necessary to
-    #        clean from deposits/withdrawals and rebase on 1.
     def performance(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """ Returns the financial performance of the portfolio without the
             effect of deposits and withdrawals.
@@ -264,7 +263,19 @@ class PortfolioEngine(object):
            start: Optional[Cal.TyDate] = None,
            end: Optional[Cal.TyDate] = None, w: Optional[int] = None) \
             -> tuple[np.ndarray, np.ndarray]:
+        """ Calculates the Tracking Error of the portfolio relative to a
+            benchmark.
 
+            Input:
+                bmk [np.ndarray]: benchmark return series
+                start [np.datetime64]: start date of the series (default: None)
+                end [np.datetime64]: end date of the series excluded (default: None)
+                w [int]: rolling window size (default: None)
+
+            Output:
+                dt [np.ndarray]: TEV dates series
+                tev [np.ndarray]: series of TEV
+        """
         if bmk is None:
             if self._ptf.benchmark is None:
                 raise ValueError('')
@@ -320,16 +331,103 @@ class PortfolioEngine(object):
             'tot_deposits': tot_deposits, 'tot_withdrawals': tot_withdrawals
         }
 
-    # def sector_aggregation(self):
-    #     for uid in self._ptf.constituents_uids:
-    #         if self._fx.is_ccy(uid):
-    #             continue
-    #
-    #         asset = self._af.get(uid)
-    #
-    #         if asset.type == 'Equity':
-    #             dt, div = DividendFactory(asset).dividends
-    #             y_dt = dt.astype('datetime64[Y]')
-    #
-    #             for n, y in enumerate(years):
-    #                 dividends[n] += np.sum(div[y_dt == y])
+    def country_concentration(self, date: Optional[Cal.TyDate] = None) \
+            -> tuple[list[str], np.ndarray]:
+        """ Returns the weights of the country exposures at the given date.
+
+            Input:
+                date [TyDate]: date at which get exposures
+
+            Output:
+                countries [list[str]]: list of countries
+                res [np.ndarray]: weights array
+        """
+        if self._pos_val is None:
+            self._calc_total_value()
+
+        data = []
+        for uid in self._ptf.constituents_uids:
+            p = self._ptf.constituents[uid]
+            if p.type in ('Equity', 'Bond'):
+                country = self._af.get(uid).country
+            elif p.type == 'Cash':
+                country = self._fx.get_ccy(uid)[2]
+            else:
+                raise NotImplementedError(f'{p.type} not implemented, please check!')
+            data.append(country)
+
+        countries = sorted(set(data))
+
+        aggregated_v = np.zeros(len(countries))
+        dt_idx = -1 if date is None else np.searchsorted(self._dt, date)
+
+        for n, d in enumerate(data):
+            idx = countries.index(d)
+            aggregated_v[idx] += self._pos_val[dt_idx, n]
+
+        return countries, aggregated_v/self._tot_val[dt_idx]
+
+    def currency_concentration(self, date: Optional[Cal.TyDate] = None) \
+            -> tuple[list[str], np.ndarray]:
+        """ Returns the weights of the currency exposures at the given date.
+
+            Input:
+                date [TyDate]: date at which get exposures
+
+            Output:
+                ccys [list[str]]: list of currencies
+                res [np.ndarray]: weights array
+        """
+        if self._pos_val is None:
+            self._calc_total_value()
+
+        ccys = [
+            k for k, p in self._ptf.constituents.items()
+            if p.type == 'Cash'
+        ]
+        aggregated_v = np.zeros(len(ccys))
+        dt_idx = -1 if date is None else np.searchsorted(self._dt, date)
+
+        for n, uid in enumerate(self._ptf.constituents_uids):
+            p = self._ptf.constituents[uid]
+            idx = ccys.index(p.currency)
+            aggregated_v[idx] += self._pos_val[dt_idx, n]
+
+        return ccys, aggregated_v/self._tot_val[dt_idx]
+
+    def sector_concentration(self, date: Optional[Cal.TyDate] = None) \
+            -> tuple[list[str], np.ndarray]:
+        """ Returns the weights of the sector exposures at the given date.
+
+            Input:
+                date [TyDate]: date at which get exposures
+
+            Output:
+                ind [list[str]]: list of sectors
+                res [np.ndarray]: weights array
+        """
+        if self._pos_val is None:
+            self._calc_total_value()
+
+        data = []
+        for uid in self._ptf.constituents_uids:
+            p = self._ptf.constituents[uid]
+            if p.type == 'Equity':
+                company = self._af.get(uid).company
+                sector = self._af.get(company).sector
+            elif p.type == 'Cash':
+                sector = 'Cash'
+            else:
+                raise NotImplementedError(f'{p.type} not implemented, please check!')
+            data.append(sector)
+
+        sectors = sorted(set(data))
+
+        aggregated_v = np.zeros(len(sectors))
+        dt_idx = -1 if date is None else np.searchsorted(self._dt, date)
+
+        for n, d in enumerate(data):
+            idx = sectors.index(d)
+            aggregated_v[idx] += self._pos_val[dt_idx, n]
+
+        return sectors, aggregated_v/self._tot_val[dt_idx]

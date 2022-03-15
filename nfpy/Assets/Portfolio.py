@@ -5,7 +5,6 @@
 
 from bisect import bisect_left
 from datetime import timedelta
-# from itertools import groupby
 
 import numpy as np
 import pandas as pd

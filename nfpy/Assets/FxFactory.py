@@ -89,11 +89,11 @@ class FxFactory(metaclass=Singleton):
 
         self._dict_fx = {}
 
-        self._known_ccy = [
-            ccy[0] for ccy in
-            self._db.execute(f'select symbol from {self._T_CURRENCIES}')
+        self._known_ccy = {
+            ccy[1]: ccy for ccy in
+            self._db.execute(f'select * from {self._T_CURRENCIES}')
                 .fetchall()
-        ]
+        }
         self._q_fetch = self._qb.select(
             self._T_FX,
             fields=('uid',),
@@ -108,48 +108,10 @@ class FxFactory(metaclass=Singleton):
         return self._base_ccy
 
     @base_ccy.setter
-    def base_ccy(self, v: str):
+    def base_ccy(self, v: str) -> None:
         self._base_ccy = self._validate_ccy(v)
 
-    def is_ccy(self, v: str) -> bool:
-        return v in self._known_ccy
-
-    def _validate_ccy(self, v: str) -> str:
-        if v not in self._known_ccy:
-            raise Ex.MissingData(f'Currency {v} not recognized')
-        return v
-
-    def get(self, src_ccy: str, tgt_ccy: Optional[str] = None) -> Conversion:
-        """ Get the conversion object.
-
-            Input:
-                src_ccy [str]: starting currency
-                tgt_ccy [str]: target currency (default Base currency)
-
-            Output:
-                fxc [Conversion]: Conversion object
-        """
-        tgt_ccy = self._base_ccy if tgt_ccy is None else tgt_ccy
-        if src_ccy == tgt_ccy:
-            return DummyConversion()
-
-        selection = (src_ccy, tgt_ccy)
-        try:
-            fxc = self._dict_fx[selection]
-        except KeyError:
-            self._fetch_obj_fx(*selection)
-            fxc = self._dict_fx[selection]
-        return fxc
-
-    # TODO: to be implemented
-    @staticmethod
-    def apply(v: pd.Series, src_ccy: str, tgt_ccy: str) -> pd.Series:
-        RuntimeWarning('Not implemented')
-        if src_ccy == tgt_ccy:
-            return v
-        return v
-
-    def _fetch_obj_fx(self, src_ccy: str, tgt_ccy: str):
+    def _fetch_obj_fx(self, src_ccy: str, tgt_ccy: str) -> None:
         """ Fetch the exchange object for the given currencies. """
         # Search for the currency direct
         invert = False
@@ -179,6 +141,48 @@ class FxFactory(metaclass=Singleton):
         obj_fx = self._af.get(uid)
         self._dict_fx[(src_ccy, tgt_ccy)] = Conversion(uid, obj_fx, invert)
         self._dict_fx[(tgt_ccy, src_ccy)] = Conversion(uid, obj_fx, not invert)
+
+    def _validate_ccy(self, v: str) -> str:
+        if v not in self._known_ccy:
+            raise Ex.MissingData(f'Currency {v} not recognized')
+        return v
+
+    # TODO: to be implemented
+    @staticmethod
+    def apply(v: pd.Series, src_ccy: str, tgt_ccy: str) -> pd.Series:
+        RuntimeWarning('Not implemented')
+        if src_ccy == tgt_ccy:
+            return v
+        return v
+
+    def get_ccy(self, v: str) -> tuple[str]:
+        """ Get a currency information. """
+        return self._known_ccy[v]
+
+    def get(self, src_ccy: str, tgt_ccy: Optional[str] = None) -> Conversion:
+        """ Get the conversion object.
+
+            Input:
+                src_ccy [str]: starting currency
+                tgt_ccy [str]: target currency (default Base currency)
+
+            Output:
+                fxc [Conversion]: Conversion object
+        """
+        tgt_ccy = self._base_ccy if tgt_ccy is None else tgt_ccy
+        if src_ccy == tgt_ccy:
+            return DummyConversion()
+
+        selection = (src_ccy, tgt_ccy)
+        try:
+            fxc = self._dict_fx[selection]
+        except KeyError:
+            self._fetch_obj_fx(*selection)
+            fxc = self._dict_fx[selection]
+        return fxc
+
+    def is_ccy(self, v: str) -> bool:
+        return v in self._known_ccy
 
 
 def get_fx_glob() -> FxFactory:

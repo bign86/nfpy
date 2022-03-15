@@ -172,6 +172,12 @@ div.uidListMultiCol {
     column-count: 5;
     column-gap: 20px;
 }
+div.spacer {
+    display: inline-block;
+    width: 100%;
+    margin-top: 30px;
+    margin-bottom: 15px;
+}
 div.base-container {
     display: inline-block;
     width: 100%;

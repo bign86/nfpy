@@ -13,16 +13,6 @@
         <a name="main_title" href="index.html">Index</a>
         <hr>
       </div>
-
-    <!-- UIDs list -->
-      <div class="uidList">
-        <h3><a name="uidList_link"></a>List of UIDs</h3>
-        <div class="uidListMultiCol">
-          {%- for uid, val in res.items()|sort -%}
-          <a href="#{{ uid }}">{{ uid }}</a> - {{ val.info["description"] }}<br>
-          {% endfor -%}
-        </div>
-      </div>
     </div>
 
     <!-- REPORTS -->
@@ -32,13 +22,12 @@
       {%- for uid, val in res.items()|sort -%}
       <div class="base-container">
         <div class="container-link">
-          <hr class="light">
-          <h4><a name="{{ uid }}"></a><a href="#main_title">Top</a> - {{ uid }}</h4>
+          <h4><a href="#main_title">Top</a> - {{ uid }}</h4>
         </div>
 
         <!-- Portfolio performance -->
         <div class="base-container">
-          <div class="container-tiny">
+          <div style="text-align:center" class="container-tiny">
             <table class="simple">
               <thead>
                 <tr>
@@ -103,24 +92,46 @@
 
           <!-- Portfolio performance and dividends -->
           <div class="container-huge">
-            <div class="container-small">
+            <div style="text-align:center" class="container-small">
+              <h4>Portfolio Performance</h4>
               <img src="{{ val.img_value_hist }}" alt="History of portfolio value" class="normal-plot">
               <img src="{{ val.img_divs_hist }}" alt="History of dividends received" class="normal-plot">
             </div>
             <div class="container-large">
-              {{ val.cnsts_data }}
-              <div style="text-align:center">
-                Cost (FX): cost in the currency of the position calculated as alp * quantity<br>
-                Value (Base Currency): value of the position at the current date in the base currency
+              <div style="text-align:center" class="base-containers">
+                <h4>Portfolio Constituents</h4>
+                {{ val.cnsts_data }}
+                <div style="text-align:center">
+                  Cost (FX): cost in the currency of the position calculated as alp * quantity<br>
+                  Value (Base Currency): value of the position at the current date in the base currency
+                </div>
+              </div>
+              <div class="base-containers">
+                <div style="text-align:center" class="spacer">
+                  <h4>Portfolio Constituents</h4>
+                </div>
+                <div style="text-align:center" class="container-small">
+                  Exposures towards currencies<br>
+                  {{ val.currency_conc }}
+                </div>
+                <div style="text-align:center" class="container-small">
+                  Exposures towards countries<br>
+                  {{ val.country_conc }}
+                </div>
+                <div style="text-align:center" class="container-small">
+                  Exposures towards sectors<br>
+                  {{ val.sector_conc }}
+                </div>
               </div>
             </div>
+
           </div>
         </div>
 
         <!-- Portfolio optimization -->
         <div class="base-container">
           <div class="container-large">
-            <h5>Portfolio Optimization</h5>
+            <h3>Portfolio Optimization</h3>
             {{ val.weights }}
             <div style="text-align:center">Weights obtained in the optimization and relative variation wrt to the actual weights</div>
           </div>

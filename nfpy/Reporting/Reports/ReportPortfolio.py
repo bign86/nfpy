@@ -169,6 +169,7 @@ class ReportPortfolio(BaseReport):
 
         # Statistics table and betas
         stats = np.empty((2, len(self._time_spans)))
+        ann_vola = np.sqrt(250)
         for i, span in enumerate(self._time_spans):
             start = self._cal.shift(t0, -span, 'D')
             slc_sp = Math.search_trim_pos(
@@ -177,7 +178,7 @@ class ReportPortfolio(BaseReport):
                 end=t0.asm8
             )
 
-            stats[0, i] = float(np.nanstd(v_r[slc_sp]))
+            stats[0, i] = float(np.nanstd(v_r[slc_sp])) * ann_vola
             first_price = Math.next_valid_value(v_p[slc_sp])[0]
             stats[1, i] = last_price / first_price - 1.
 
@@ -185,11 +186,11 @@ class ReportPortfolio(BaseReport):
         df = pd.DataFrame(
             stats.T,
             index=self._time_spans,
-            columns=('\u03C3', 'tot. return')
+            columns=('\u03C3 (Y)', 'tot. return')
         )
         res.stats = df.style.format(
             formatter={
-                '\u03C3': '{:,.1%}'.format,
+                '\u03C3 (Y)': '{:,.1%}'.format,
                 'tot. return': '{:,.1%}'.format,
             },
             **PD_STYLE_PROP) \
@@ -234,6 +235,38 @@ class ReportPortfolio(BaseReport):
             .plot() \
             .save(fig_full[1]) \
             .close(True)
+
+        # Concentration measures
+        res.currency_conc = pd.DataFrame(
+            zip(*pe.currency_concentration()),
+            columns=['Currency', 'Exposure']
+        ).style \
+            .format(
+                formatter={'Exposure': '{:,.1%}'.format, },
+            **PD_STYLE_PROP) \
+            .hide_index() \
+            .set_table_attributes('class="dataframe"') \
+            .render()
+        res.country_conc = pd.DataFrame(
+            zip(*pe.country_concentration()),
+            columns=['Country', 'Exposure']
+        ).style \
+            .format(
+                formatter={'Exposure': '{:,.1%}'.format, },
+            **PD_STYLE_PROP) \
+            .hide_index() \
+            .set_table_attributes('class="dataframe"') \
+            .render()
+        res.sector_conc = pd.DataFrame(
+            zip(*pe.sector_concentration()),
+            columns=['Sector', 'Exposure']
+        ).style \
+            .format(
+                formatter={'Exposure': '{:,.1%}'.format, },
+            **PD_STYLE_PROP) \
+            .hide_index() \
+            .set_table_attributes('class="dataframe"') \
+            .render()
 
     def _calc_optimization(self, asset: TyAsset, res: Ut.AttributizedDict,
                            pe: Ptf.PortfolioEngine) -> None:

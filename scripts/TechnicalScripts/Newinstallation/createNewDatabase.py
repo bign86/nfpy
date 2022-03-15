@@ -34,8 +34,8 @@ TABLES_TO_CREATE = [
     (
         'Bond',
         """create table Bond (uid TEXT, isin TEXT NOT NULL, issuer TEXT NOT NULL,
-            currency TEXT NOT NULL, description TEXT, asset_class TEXT,
-            inception_date DATETIME, maturity DATETIME NOT NULL,
+            currency TEXT NOT NULL, country TEXT, description TEXT,
+            asset_class TEXT, inception_date DATETIME, maturity DATETIME NOT NULL,
             rate_type TEXT NOT NULL, coupon REAL, c_per_year INTEGER,
             day_count INTEGER, callable BOOL NOT NULL,
             primary key (uid)) without rowid;"""
@@ -55,7 +55,7 @@ TABLES_TO_CREATE = [
     ),
     (
         'CompanyFundamentals',
-        """create table CompanyFundamentals (uid TEXT, code TEXT, date DATETIME,
+        """create table CompanyFundamentals (uid TEXT, code TEXT, date DATE,
             freq TEXT, value REAL, primary key (uid, code, date, freq),
             foreign key (uid) references Company(uid)) without rowid;"""
     ),
@@ -122,7 +122,7 @@ TABLES_TO_CREATE = [
     ),
     (
         'IBFinancials',
-        """create table IBFinancials (ticker TEXT, freq TEXT, date DATETIME,
+        """create table IBFinancials (ticker TEXT, freq TEXT, date DATE,
             currency TEXT, statement TEXT, code TEXT, value REAL,
             primary key (ticker, freq, date, statement, code)) without rowid;"""
     ),

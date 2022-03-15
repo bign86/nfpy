@@ -4,7 +4,7 @@
 #
 
 import pandas as pd
-from typing import TypeVar
+from typing import (Any, TypeVar)
 
 from nfpy.Calendar import get_calendar_glob
 
@@ -31,23 +31,23 @@ class AggregationMixin(object):
         return self._CONSTITUENTS_TABLE
 
     @property
-    def constituents(self) -> dict:
+    def constituents(self) -> dict[Any]:
         """ Return the dictionary of constituents. """
         return self._dict_cnsts
 
     @constituents.setter
-    def constituents(self, cnst: dict):
+    def constituents(self, cnst: dict[Any]) -> None:
         self._dict_cnsts = cnst
 
     @property
-    def constituents_uids(self) -> list:
+    def constituents_uids(self) -> list[str]:
         """ Return the sorted list of constituents uids. The sorting must
             be defined by the child object.
         """
         return self._cnsts_uids
 
     @constituents_uids.setter
-    def constituents_uids(self, uids: list):
+    def constituents_uids(self, uids: list[str]) -> None:
         self._cnsts_uids = uids
 
     @property
@@ -64,7 +64,7 @@ class AggregationMixin(object):
     def prices(self):
         raise NotImplementedError("Aggregations do not have price levels!")
 
-    def load(self):
+    def load(self) -> None:
         """ Load the portfolio from base table and load the constituents.
             Overrides the one in Asset.
         """
