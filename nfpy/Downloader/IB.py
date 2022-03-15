@@ -29,26 +29,18 @@ class FinancialsItem(BaseImportItem):
         return self._d['ticker'].split('/')[0],
 
     @staticmethod
-    def _clean_eoy_dates(data: list[tuple]) -> list:
+    def _clean_eoy_dates(data: list[tuple]) -> list[tuple]:
         """ Moves EOY results to the actual end of the year. """
-        # FIXME: for some reason the 'Q' data end up being datetimes, not dates.
-        #        The 'A' data are fine.
         data_ins = []
-        for idx in range(len(data) - 1, -1, -1):
-            item = data[idx]
-            if item[3] == 'A':
-                # old_date = datetime.datetime.strptime(item[2], '%Y-%m-%d')
-                if item[2].month != 12:
-                    new_date = datetime.date(item[2].year - 1, 12, 31)
-                else:
-                    new_date = item[2].date()
-                data_ins.append((item[0], item[1], new_date, item[3], item[4]))
-                del data[idx]
+        while data:
+            item = data.pop(0)
+            if (item[3] == 'A') & (item[2].month != 12):
+                new_date = datetime.date(item[2].year - 1, 12, 31)
+                item = (item[0], item[1], new_date, item[3], item[4])
 
-        for t in data_ins:
-            data.append(t)
+            data_ins.append(item)
 
-        return data
+        return data_ins
 
     def run(self) -> None:
         params = self._get_params()
@@ -99,7 +91,7 @@ class IBBasePage(BasePage):
     def _set_default_params(self) -> None:
         pass
 
-    def _download(self):
+    def _download(self) -> None:
         """ Run the app instead of downloading. """
         self._app.connect(
             self._conf.ib_interface,

@@ -3,7 +3,7 @@
 # Converters adding support to Python types
 #
 
-from datetime import datetime
+from datetime import (date, datetime)
 import json
 import numpy
 import pandas
@@ -13,7 +13,7 @@ from typing import Any
 
 SQLITE2PY_CONVERSION = {
     'BOOL': 'bool',
-    'DATE': 'datetime',
+    'DATE': 'date',
     'DATETIME': 'datetime',
     'FLOAT': 'float',
     'INT': 'int',
@@ -36,13 +36,12 @@ def adapt_pd_timestamp(val) -> str:
     """ Operates on pandas.Timestamp() to obtain a representation to be used
         in sqlite3.
     """
-
     return val.isoformat(' ')
 
 
 def convert_datetime(val) -> datetime:
     """ Converts from DATETIME to datetime.datetime. Taken from the function
-        convert_timestamp() in the Python implementation od sqlite3.
+        convert_timestamp() in the Python implementation of sqlite3.
     """
     hours, minutes, seconds, microseconds = 0, 0, 0, 0
     parts = val.split(b" ")
@@ -54,6 +53,14 @@ def convert_datetime(val) -> datetime:
             microseconds = int('{:0<6.6}'.format(timepart_full[1].decode()))
 
     return datetime(year, month, day, hours, minutes, seconds, microseconds)
+
+
+def convert_date(val) -> date:
+    """ Converts from DATE to datetime.date. Taken from the function
+        convert_timestamp() in the Python implementation of sqlite3.
+    """
+    year, month, day = map(int, val.split(b"-"))
+    return date(year, month, day)
 
 
 def adapt_parameters(val) -> Any:
@@ -74,4 +81,5 @@ sqlite3.register_adapter(dict, adapt_parameters)
 
 # Register the converters
 sqlite3.register_converter("DATETIME", convert_datetime)
+sqlite3.register_converter("DATE", convert_date)
 sqlite3.register_converter("PARAMETERS", convert_parameters)
