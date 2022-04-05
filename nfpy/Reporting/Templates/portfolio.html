@@ -97,41 +97,33 @@
               <img src="{{ val.img_value_hist }}" alt="History of portfolio value" class="normal-plot">
               <img src="{{ val.img_divs_hist }}" alt="History of dividends received" class="normal-plot">
             </div>
-            <div class="container-large">
-              <div style="text-align:center" class="base-containers">
-                <h4>Portfolio Constituents</h4>
-                {{ val.cnsts_data }}
-                <div style="text-align:center">
-                  Cost (FX): cost in the currency of the position calculated as alp * quantity<br>
-                  Value (Base Currency): value of the position at the current date in the base currency
-                </div>
-              </div>
-              <div class="base-containers">
-                <div style="text-align:center" class="spacer">
-                  <h4>Portfolio Constituents</h4>
-                </div>
-                <div style="text-align:center" class="container-small">
-                  Exposures towards currencies<br>
-                  {{ val.currency_conc }}
-                </div>
-                <div style="text-align:center" class="container-small">
-                  Exposures towards countries<br>
-                  {{ val.country_conc }}
-                </div>
-                <div style="text-align:center" class="container-small">
-                  Exposures towards sectors<br>
-                  {{ val.sector_conc }}
-                </div>
+            <div style="text-align:center" class="container-large">
+              <h4>Portfolio Constituents</h4>
+              {{ val.cnsts_data }}
+              <div style="text-align:center">
+                Cost (FX): cost in the currency of the position calculated as alp * quantity<br>
+                Value (Base Currency): value of the position at the current date in the base currency
               </div>
             </div>
-
           </div>
+          <hr>
+        </div>
+
+        <!-- Portfolio concentration -->
+        <div style="text-align:center" class="base-containers">
+          <div style="text-align:center" class="spacer">
+            <h3>Portfolio Concentration</h3>
+          </div>
+          <img src="{{ val.img_conc_pies }}" alt="History of portfolio value" class="small-plot">
+          <hr>
         </div>
 
         <!-- Portfolio optimization -->
         <div class="base-container">
-          <div class="container-large">
+          <div style="text-align:center" class="spacer">
             <h3>Portfolio Optimization</h3>
+          </div>
+          <div class="container-large">
             {{ val.weights }}
             <div style="text-align:center">Weights obtained in the optimization and relative variation wrt to the actual weights</div>
           </div>

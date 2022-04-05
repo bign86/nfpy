@@ -19,12 +19,17 @@ __all__ = [
     # MATH FUNCTIONS
     # Returns_
     'comp_ret', 'compound', 'cumulate_ret', 'e_ret', 'logret', 'ret', 'tot_ret',
+
     # Risk_
     'beta', 'capm_beta', 'drawdown', 'sharpe', 'sml', 'te',
+
     # TSStats_
-    'correlation', 'kurtosis', 'series_momenta', 'skewness',
+    'correlation', 'kurtosis', 'rolling_mean', 'rolling_sum', 'rolling_window',
+    'series_momenta', 'skewness',
+
     # TSUtils_
-    'dropna', 'ffill_cols', 'ffill_rows', 'fillna', 'last_valid_index',
-    'last_valid_value', 'next_valid_index', 'next_valid_value', 'rolling_mean',
-    'rolling_sum', 'rolling_window', 'trim_ts', 'search_trim_pos',
+    'dropna', 'ffill_cols', 'ffill_rows', 'fillna', 'find_extrema',
+    'find_relative_extrema',
+    'last_valid_index', 'last_valid_value', 'next_valid_index',
+    'next_valid_value', 'smooth', 'trim_ts', 'search_trim_pos',
 ]

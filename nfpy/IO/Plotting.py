@@ -20,7 +20,7 @@ class Plotter(object):
         'annotations': {'fontsize': 8, 'fontvariant': 'small-caps'},
         'axis': {'c': 'k', 'linewidth': .5},
         'bar': {'linestyle': '-'},
-        'hist': {'linestyle': '-', 'marker': ''},
+        'hist': {},  # {'linestyle': '-'},
         'plot': {'linestyle': '-', 'marker': ''},
         'scatter': {'linestyle': '-', 'marker': 'o'},
         'stem': {'linefmt': '-', 'markerfmt': 'o'},
@@ -192,6 +192,8 @@ class Plotter(object):
 
             rc = self._RC[call].copy()
             rc.update(kw)
+            # pts = (x,) if call == 'hist' else (x, y)
+            # leg = getattr(ax, call)(*pts, **rc)
             leg = getattr(ax, call)(x, y, **rc)
 
             if 'x_label' in rc:

@@ -31,7 +31,7 @@ def comp_ret(ts: np.ndarray, is_log: bool = False) \
 
         Input:
             ts [np.ndarray]: returns series
-            is_log [bool]: set True for logarithmic returns (default: False)
+            is_log [bool]: set True for logarithmic returns (Default: False)
 
         Output:
             res [np.ndarray]: compounded returns series
@@ -51,7 +51,7 @@ def cumulate_ret(ts: np.ndarray, is_log: bool = False) -> float:
 
         Input:
             ts [np.ndarray]: returns series
-            is_log [bool]: set True for logarithmic returns (default: False)
+            is_log [bool]: set True for logarithmic returns (Default: False)
 
         Output:
             ret [float]: expected return
@@ -70,7 +70,7 @@ def e_ret(ts: np.ndarray, is_log: bool = False) -> float:
 
         Input:
             ts [np.ndarray]: values of the series under analysis
-            is_log [bool]: set True for logarithmic returns (default: False)
+            is_log [bool]: set True for logarithmic returns (Default: False)
 
         Output:
             exp_ret [float]: expected value of the return
@@ -114,7 +114,7 @@ def tot_ret(v: np.ndarray, is_log: bool = False) -> float:
 
         Inputs:
             v [np.ndarray]: price series
-            is_log [bool]: set True for logarithmic returns (default: False)
+            is_log [bool]: set True for logarithmic returns (Default: False)
 
         Output:
             _r [np.ndarray]: return over the period

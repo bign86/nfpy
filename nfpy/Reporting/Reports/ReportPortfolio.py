@@ -4,6 +4,7 @@
 #
 
 from collections import defaultdict
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from typing import (Any, Optional)
@@ -138,11 +139,12 @@ class ReportPortfolio(BaseReport):
         # Relative path in results object
         fig_full, fig_rel = self._get_image_paths(
             (
-                (asset.uid,), ('Ptf',), ('p_price', 'divs')
+                (asset.uid,), ('Ptf',), ('p_price', 'divs', 'pies')
             )
         )
         res.img_value_hist = fig_rel[0]
         res.img_divs_hist = fig_rel[1]
+        res.img_conc_pies = fig_rel[2]
 
         t0 = self._cal.t0
 
@@ -237,36 +239,35 @@ class ReportPortfolio(BaseReport):
             .close(True)
 
         # Concentration measures
-        res.currency_conc = pd.DataFrame(
-            zip(*pe.currency_concentration()),
-            columns=['Currency', 'Exposure']
-        ).style \
-            .format(
-                formatter={'Exposure': '{:,.1%}'.format, },
-            **PD_STYLE_PROP) \
-            .hide_index() \
-            .set_table_attributes('class="dataframe"') \
-            .render()
-        res.country_conc = pd.DataFrame(
-            zip(*pe.country_concentration()),
-            columns=['Country', 'Exposure']
-        ).style \
-            .format(
-                formatter={'Exposure': '{:,.1%}'.format, },
-            **PD_STYLE_PROP) \
-            .hide_index() \
-            .set_table_attributes('class="dataframe"') \
-            .render()
-        res.sector_conc = pd.DataFrame(
-            zip(*pe.sector_concentration()),
-            columns=['Sector', 'Exposure']
-        ).style \
-            .format(
-                formatter={'Exposure': '{:,.1%}'.format, },
-            **PD_STYLE_PROP) \
-            .hide_index() \
-            .set_table_attributes('class="dataframe"') \
-            .render()
+        plt.style.use('seaborn')
+        props_plot = {
+            'wedgeprops': dict(width=0.4),
+            'startangle': -40,
+            'textprops': dict(color='w', weight='bold'),
+            'autopct': lambda pct: f'{pct / 100.:.1%}',
+            'pctdistance': .8,
+        }
+        props_leg = {
+            'loc': "center left",
+            'bbox_to_anchor': (1, 0, 0.5, 1)
+        }
+        fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(20, 5),
+                               subplot_kw=dict(aspect="equal"))
+
+        labels, data = pe.currency_concentration()
+        wedges, texts, autotext = ax[0].pie(data, **props_plot)
+        ax[0].legend(wedges, labels, **props_leg)
+
+        labels, data = pe.country_concentration()
+        wedges, texts, autotext = ax[1].pie(data, **props_plot)
+        ax[1].legend(wedges, labels, **props_leg)
+
+        labels, data = pe.sector_concentration()
+        wedges, texts, autotext = ax[2].pie(data, **props_plot)
+        ax[2].legend(wedges, labels, **props_leg)
+
+        fig.tight_layout()
+        fig.savefig(fig_full[2], format='png')
 
     def _calc_optimization(self, asset: TyAsset, res: Ut.AttributizedDict,
                            pe: Ptf.PortfolioEngine) -> None:

@@ -5,7 +5,9 @@
 
 from copy import deepcopy
 import numpy as np
+import scipy.signal as sig
 from typing import Optional
+import warnings
 
 from nfpy.Tools import Exceptions as Ex
 
@@ -33,15 +35,6 @@ def dropna(v: np.ndarray, axis: int = 0) -> tuple:
     return _v, mask
 
 
-def fillna(v: np.ndarray, n: float, inplace=False) -> np.ndarray:
-    """ Fill nan in the input array with the supplied value. """
-    mask = np.where(np.isnan(v))
-    if not inplace:
-        v = v.copy()
-    v[mask] = n
-    return v
-
-
 # TODO: implement the inplace option
 def ffill_cols(v: np.ndarray, n: float = 0, inplace=False) -> np.ndarray:
     """ Forward fill nan with the last valid value column-wise.
@@ -49,7 +42,7 @@ def ffill_cols(v: np.ndarray, n: float = 0, inplace=False) -> np.ndarray:
         Input:
             v [np.ndarray]: input array either 1-D or 2-D
             n [float]: fill up value for NaNs appearing at the beginning
-                       of the data series.
+                of the data series.
             inplace [bool]: do it in-place (default: False)
 
         Output:
@@ -75,13 +68,13 @@ def ffill_cols(v: np.ndarray, n: float = 0, inplace=False) -> np.ndarray:
 
 
 # TODO: implement the inplace option
-def ffill_rows(v: np.ndarray, n: float = 0, inplace=False) -> np.ndarray:
+def ffill_rows(v: np.ndarray, n: float = .0, inplace=False) -> np.ndarray:
     """ Forward fill nan with the last valid value row-wise.
 
         Input:
             v [np.ndarray]: input array either 1-D or 2-D
             n [float]: fill up value for NaNs appearing at the beginning
-                       of the data series.
+                of the data series (default: .0)
             inplace [bool]: do it in-place (default: False)
 
         Output:
@@ -106,13 +99,86 @@ def ffill_rows(v: np.ndarray, n: float = 0, inplace=False) -> np.ndarray:
     return out
 
 
+def fillna(v: np.ndarray, n: float, inplace=False) -> np.ndarray:
+    """ Fill nan in the input array with the supplied value. """
+    mask = np.where(np.isnan(v))
+    if not inplace:
+        v = v.copy()
+    v[mask] = n
+    return v
+
+
+def find_extrema(v: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """ Finds the sorted indexes corresponding to maxima/minima of a series.
+        Note: DEPRECATED! - Use find_relative_extrema() instead
+
+        Input:
+            v [np.ndarray]: Input values series
+
+        Output:
+            idx [np.ndarray]: sorted list of maxima/minima indices
+            flags [np.ndarray]: sorted list of maxima/minima flags.
+                maxima=True, minima=False
+    """
+    warnings.warn(
+        "Math.find_extrema() deprecated, use Math.find_relative_extrema()",
+        DeprecationWarning
+    )
+
+    mask = (np.diff(v) > .0).astype(int)
+    change = np.diff(mask)
+    idx_max = np.nonzero(change == -1)[0]
+    idx_min = np.nonzero(change == 1)[0]
+    idx = np.concatenate((idx_max, idx_min))
+
+    flags = np.empty(idx.shape[0], dtype=bool)
+    flags[:idx_max.shape[0]] = True
+    flags[idx_max.shape[0]:] = False
+
+    # Calculate returned quantities
+    sorting = np.argsort(idx)
+    idx = idx[sorting]
+    flags = flags[sorting]
+
+    idx += 1
+    return idx, flags
+
+
+def find_relative_extrema(v: np.ndarray, order: int) \
+        -> tuple[np.ndarray, np.ndarray]:
+    """ Finds the sorted indexes corresponding to maxima/minima of a series.
+
+        Input:
+            v [np.ndarray]: Input values series
+
+        Output:
+            idx [np.ndarray]: sorted list of maxima/minima indices
+            flags [np.ndarray]: sorted list of maxima/minima flags.
+                maxima=True, minima=False
+    """
+    idx_max = sig.argrelextrema(v, np.greater, order=order, mode='clip')[0]
+    idx_min = sig.argrelextrema(v, np.less, order=order, mode='clip')[0]
+
+    idx = np.concatenate((idx_max, idx_min))
+    flags = np.empty(idx.shape[0], dtype=bool)
+    flags[:idx_max.shape[0]] = True
+    flags[idx_max.shape[0]:] = False
+
+    # Calculate returned quantities
+    sorting = np.argsort(idx)
+    idx = idx[sorting]
+    flags = flags[sorting]
+
+    return idx, flags
+
+
 def last_valid_index(v: np.ndarray, start: Optional[int] = None) -> int:
     """ Find the index of the last non-nan value. Similar to the Pandas method
         last_valid_index(). It can be used with 1D arrays only.
 
         Input:
             v [np.ndarray]: input series
-            start [int]: starting index
+            start [Optional[int]]: starting index (default: None)
 
         Output:
             i [int]: last valid index
@@ -138,8 +204,8 @@ def last_valid_value(v: np.ndarray, dt: Optional[np.ndarray] = None,
 
         Input:
             v [np.ndarray]: series of prices
-            dt [np.ndarray]: series of price dates (default: None)
-            t0 [np.datetime64]: reference date (default: None)
+            dt [Optional[np.ndarray]]: series of price dates (default: None)
+            t0 [Optional[np.datetime64]]: reference date (default: None)
 
         Output:
             val [float]: value of the series at or before t0
@@ -185,8 +251,8 @@ def next_valid_value(v: np.ndarray, dt: Optional[np.ndarray] = None,
 
         Input:
             v [np.ndarray]: series of prices
-            dt [np.ndarray]: series of price dates (default: None)
-            t0 [np.datetime64]: reference date (default: None)
+            dt [Optional[np.ndarray]]: series of price dates (default: None)
+            t0 [Optional[np.datetime64]]: reference date (default: None)
 
         Output:
             val [float]: value of the series at or after t0
@@ -200,43 +266,6 @@ def next_valid_value(v: np.ndarray, dt: Optional[np.ndarray] = None,
         v = v[pos:]
     idx = next_valid_index(v, 0)
     return float(v[idx]), idx
-
-
-def rolling_mean(v: np.ndarray, w: int) -> np.ndarray:
-    """ Compute the rolling mean of the input array.
-
-        Input:
-            v [np.ndarray]: input array
-            w [int]: size of the rolling window
-
-        Output:
-            ret [np.ndarray]: rolling mean output array
-    """
-    return np.nanmean(rolling_window(v, w), axis=1)
-
-
-def rolling_sum(v: np.ndarray, w: int) -> np.ndarray:
-    """ Compute the rolling sum of the input array.
-
-        Input:
-            v [np.ndarray]: input array
-            w [int]: size of the rolling window
-
-        Output:
-            ret [np.ndarray]: rolling sum output array
-    """
-    # ret[:, n:] = ret[:, n:] - ret[:, :-n]
-    # return ret[:, n - 1:]
-    ret = np.nancumsum(v, axis=0, dtype=float)
-    ret[w:] = ret[w:] - ret[:-w]
-    return ret[w - 1:]
-
-
-def rolling_window(v: np.ndarray, w: int) -> np.ndarray:
-    """ Generate strides that simulate the rolling() function from pandas. """
-    shape = v.shape[:-1] + (v.shape[-1] - w + 1, w)
-    strides = v.strides + (v.strides[-1],)
-    return np.lib.stride_tricks.as_strided(v, shape=shape, strides=strides)
 
 
 def search_trim_pos(dt: np.ndarray, start: Optional[np.datetime64] = None,
@@ -277,6 +306,32 @@ def search_trim_pos(dt: np.ndarray, start: Optional[np.datetime64] = None,
         i1 = np.searchsorted(dt, end + np.timedelta64(1, 'D'), side='left')
 
     return slice(i0, i1)
+
+
+def smooth(ts: np.ndarray, w: int) -> np.ndarray:
+    """ Smooth a time series over a window.
+
+        Input:
+            ts [np.ndarray]: time series to smooth
+            w [int]: smoothing window
+
+        Output:
+            smooth [np.ndarray]: smoothed time series
+    """
+    if w < 2:
+        return ts
+    elif ts.shape[0] < w:
+        raise ValueError("Input vector needs to be bigger than window size.")
+
+    if w % 2 == 0:
+        w = w + 1
+    h = w // 2
+
+    s = np.r_[ts[w - 1:0:-1], ts, ts[-2:-w - 1:-1]]
+    wgt = np.hamming(w)
+
+    c = np.convolve(wgt / wgt.sum(), s, mode='valid')
+    return c[h:-h]
 
 
 def trim_ts(v: Optional[np.ndarray], dt: np.ndarray,

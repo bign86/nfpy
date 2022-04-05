@@ -5,7 +5,7 @@
 
 import numpy as np
 from scipy.interpolate import splrep, splev
-from typing import Union
+from typing import (Optional, Union)
 
 from .Returns_ import compound
 
@@ -37,15 +37,17 @@ def ccdf(r: float, t: int) -> float:
     return np.exp(-(1. + r) * t)
 
 
-def dcf(cf: np.ndarray, r: Union[float, np.ndarray], t: np.ndarray = None,
-        n: int = 1) -> np.ndarray:
+def dcf(cf: np.ndarray, r: Union[float, np.ndarray],
+        t: Optional[np.ndarray] = None, n: int = 1) -> np.ndarray:
     """ Discounted cash flow. Cash flow must contain the terminal or repaying value.
         
         Input:
             cf [np.ndarray]: 2D data (periods, value) of cash flows
-            r [Union[float, np.ndarray]]: if float is the rate corresponding to the
-                    yield to maturity. If ndarray calculate from the term structure
-            t [np.ndarray]: array of tenors of the supplied rate term structure
+            r [Union[float, np.ndarray]]: if float is the rate corresponding to
+                the yield to maturity. If np.ndarray calculate from the term
+                structure
+            t [Optional[np.ndarray]]: array of tenors of the supplied rate term
+                structure
             n [int]: frequency of compounding
         
         Output:
@@ -62,8 +64,9 @@ def dcf(cf: np.ndarray, r: Union[float, np.ndarray], t: np.ndarray = None,
 
 
 # TODO: move into the Rate Factory or in another more appropriate place
-def rate_interpolate(r: np.ndarray, t: np.ndarray, maturity: Union[float, np.ndarray],
-                     method: str = 'spline') -> np.ndarray:
+def rate_interpolate(r: np.ndarray, t: np.ndarray,
+                     maturity: Union[float, np.ndarray], method: str = 'spline') \
+        -> np.ndarray:
     """ Interpolate """
     if method == 'spline':
         m = t.shape[0] * .3

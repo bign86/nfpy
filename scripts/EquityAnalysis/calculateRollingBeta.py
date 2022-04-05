@@ -10,7 +10,7 @@ from nfpy.Calendar import (get_calendar_glob, today)
 import nfpy.DB as DB
 import nfpy.IO as IO
 
-__version__ = '0.3'
+__version__ = '0.4'
 _TITLE_ = "<<< Rolling Beta calculation script >>>"
 
 if __name__ == '__main__':
@@ -75,7 +75,7 @@ if __name__ == '__main__':
     for i, uid in enumerate(bmk_uid, start=1):
         bmk = af.get(uid)
         color = f'C{i}'
-        dt, b, _, _ = eq.beta(bmk, w=w)
+        dt, b, _ = eq.beta(bmk, w=w)
         plt.lplot(0, dt, b, label=bmk.uid, color=color)
         plt.lplot(1, bmk.performance(), label=bmk.uid, color=color)
 

@@ -175,7 +175,6 @@ class Asset(FinancialItem):
         if df.empty:
             raise Ex.MissingData(f"{self.uid} {dt} not found in the database!")
 
-        # df.index = pd.to_datetime(df.index)
         df.rename(columns={"value": str(dt)}, inplace=True)
         return df
 
@@ -200,6 +199,7 @@ class Asset(FinancialItem):
             .add(1.) \
             .log()
 
+    # TODO: This has NOT being TESTED!!!
     def write_dtype(self, dt: str) -> None:
         """ Writes a time series to the DB. The content of the column 'datatype'
             of the table containing the time series is given in input.
@@ -219,15 +219,12 @@ class Asset(FinancialItem):
             (self.uid, dtype)
         )
 
-        # iterate over the index and extracting the dtype value
-        def iter_df__():
-            for t in self._df.itertuples(index=True):
-                val = getattr(t, dt)
-                yield self.uid, dtype, t.date, val
+        df = self._df.reset_index(drop=False, inplace=False)
+        data = df.values[:, [0, 3, 1, 2]]
 
         self._db.executemany(
             self._qb.insert(self.ts_table),
-            iter_df__
+            map(tuple, data)
         )
 
     def expct_return(self, start: Optional[Cal.TyDate] = None,

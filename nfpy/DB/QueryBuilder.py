@@ -106,7 +106,11 @@ class QueryBuilder(metaclass=Singleton):
                rolling: Sequence[str] = (),
                keys: Optional[Sequence[str]] = None,
                partial_keys: Sequence[str] = (), where: str = "",
-               order: Optional[str] = None) -> str:
+               order: Optional[str] = None,
+               join_table: Optional[str] = None,
+               join_cond_fields: Optional[Sequence[str]] = None,
+               join_fields: Optional[Union[KeysView, Sequence[str]]] = None,
+               join_keys: Optional[Sequence[str]] = None) -> str:
         """ Builds a select query for input table:
 
             Input:
@@ -129,7 +133,7 @@ class QueryBuilder(metaclass=Singleton):
 
         if not fields:
             fields = t.get_fields()
-        query = f"select [{'],['.join(fields)}] from [{table}]"
+        query = f"select t.[{'], t.['.join(fields)}] from [{table}] as t"
 
         # where on keys
         if keys is None:
@@ -137,14 +141,14 @@ class QueryBuilder(metaclass=Singleton):
                 keys = (k for k in t.get_keys() if k not in rolling)
             else:
                 keys = ()
-        qk = [f"[{k}] = ? " for k in keys]
+        qk = [f"t.[{k}] = ? " for k in keys]
 
         # like conditions
-        qk += [f"[{k}] like ? " for k in partial_keys]
+        qk += [f"t.[{k}] like ? " for k in partial_keys]
 
         # where on rolling
         for r in rolling:
-            qk += [f"[{r}] >= ? ", f"[{r}] <= ? "]
+            qk += [f"t.[{r}] >= ? ", f"t.[{r}] <= ? "]
 
         # handle the external where
         if len(where) > 0:

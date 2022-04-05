@@ -7,8 +7,8 @@ import numpy as np
 from scipy import stats
 from typing import Optional
 
-from .TSUtils_ import (dropna, fillna, rolling_sum,
-                       rolling_window, search_trim_pos)
+from .TSStats_ import (rolling_sum, rolling_window)
+from .TSUtils_ import (dropna, fillna, search_trim_pos)
 from nfpy.Tools import Exceptions as Ex
 
 
@@ -23,9 +23,9 @@ def beta(dt: np.ndarray, ts: np.ndarray, proxy: np.ndarray,
             dt [np.ndarray]: dates time series
             ts [np.ndarray]: equity or other series under analysis
             proxy [np.ndarray]: reference proxy time series
-            start [np.datetime64]: start date of the series (Default: None)
-            end [np.datetime64]: end date of the series excluded (Default: None)
-            w [int]: window size if rolling (Default: None)
+            start [Optional[np.datetime64]]: start date of the series (Default: None)
+            end [Optional[np.datetime64]]: end date of the series excluded (Default: None)
+            w [Optional[int]]: window size if rolling (Default: None)
 
         Output:
             dt [Union[np.ndarray, TyDate]]: date (only if rolling else None)
@@ -71,8 +71,8 @@ def capm_beta(dt: np.ndarray, ts: np.ndarray, idx: np.ndarray,
             dt [np.ndarray]: dates series under analysis
             ts [np.ndarray]: return series under analysis
             idx [np.ndarray]: market proxy return time series
-            start [np.datetime64]: start date of the series (Default: None)
-            end [np.datetime64]: end date of the series excluded (Default: None)
+            start [Optional[np.datetime64]]: start date of the series (Default: None)
+            end [Optional[np.datetime64]]: end date of the series excluded (Default: None)
 
         Output:
             beta [float]: the beta
@@ -123,11 +123,12 @@ def sharpe(dt: np.ndarray, xc: np.ndarray, br: Optional[np.ndarray] = None,
         must also be given to compute excess returns.
 
         Input:
+            dt [np.ndarray]: series of dates
             xc [np.ndarray]: series of excess returns wrt a base return series
-            br [np.ndarray]: base rate series. Subtracted to xc to obtain excess
-                             returns (Default: None)
-            start [np.datetime64]: start date of the series (Default: None)
-            end [np.datetime64]: end date of the series excluded (Default: None)
+            br [Optional[np.ndarray]]: base rate series. Subtracted to xc to
+                obtain excess returns (Default: None)
+            start [Optional[np.datetime64]]: start date of the series (Default: None)
+            end [Optional[np.datetime64]]: end date of the series excluded (Default: None)
 
         Output:
             sharpe [float]: Sharpe ratio
@@ -174,9 +175,9 @@ def te(dt: np.ndarray, r: np.ndarray, bkr: np.ndarray,
             dt [np.ndarray]: dates series
             r [np.ndarray]: returns series
             bkr [np.ndarray]: benchmark return series
-            start [np.datetime64]: start date of the series (Default: None)
-            end [np.datetime64]: end date of the series excluded (Default: None)
-            w [int]: rolling window size (Default: None)
+            start [Optional[np.datetime64]]: start date of the series (Default: None)
+            end [Optional[np.datetime64]]: end date of the series excluded (Default: None)
+            w [Optional[int]]: rolling window size (Default: None)
 
         Output:
             dt [np.ndarray]: TEV dates series
