@@ -14,12 +14,14 @@ import nfpy.DB as DB
 from nfpy.DB.DB import DBHandler
 from nfpy.Tools import get_conf_glob
 
-__version__ = '0.6'
+__version__ = '0.7'
 _TITLE_ = "<<< Database creation script >>>"
 
+Q_CCY = "insert into Currency (name, symbol, country) values (?, ?, ?);"
 Q_DEC = "insert into DecDatatype (datatype, encoding) values (?, ?);"
-Q_SYS = "insert into SystemInfo (field, value) values (?, ?);"
 Q_FMAP = "insert into MapFinancials (short_name, category, long_name) values (?, ?, ?);"
+Q_PROV = "insert into Providers (provider, page, item) values (?, ?, ?);"
+Q_SYS = "insert into SystemInfo (field, value) values (?, ?);"
 
 PKL_FILE = 'db_static_data.p'
 JSN_FILE = 'db_static_data.json'
@@ -177,6 +179,11 @@ TABLES_TO_CREATE = [
             references Portfolio(uid)) without rowid;"""
     ),
     (
+        'Providers',
+        """create table Providers (provider TEXT, page TEXT, item TEXT,
+            primary key (provider, page, item)) without rowid;"""
+    ),
+    (
         'Rate',
         """create table Rate (uid TEXT, description TEXT, currency TEXT,
             tenor REAL, is_rf BOOL NOT NULL, primary key (uid)) without rowid;"""
@@ -229,16 +236,16 @@ TABLES_TO_CREATE = [
 VIEWS_TO_CREATE = [
     (
         'Assets',
-        """CREATE VIEW Assets AS SELECT uid, type, description FROM
+        """CREATE VIEW Assets AS SELECT uid, type, description, currency FROM
             (
-                SELECT uid, 'Bond' as type, description FROM Bond union
-                SELECT uid, 'Company' as type, description FROM Company union
-                SELECT uid, 'Curve' as type, description FROM Curve union
-                SELECT uid, 'Equity' as type, description FROM Equity union
-                SELECT uid, 'Fx' as type, description FROM Fx union
-                SELECT uid, 'Indices' as type, description FROM Indices union
-                SELECT uid, 'Portfolio' as type, description FROM Portfolio union
-                SELECT uid, 'Rate' as type, description FROM Rate
+                SELECT uid, 'Bond' as type, description, currency FROM Bond union
+                SELECT uid, 'Company' as type, description, currency FROM Company union
+                SELECT uid, 'Curve' as type, description, currency FROM Curve union
+                SELECT uid, 'Equity' as type, description, currency FROM Equity union
+                SELECT uid, 'Fx' as type, description, NULL FROM Fx union
+                SELECT uid, 'Indices' as type, description, currency FROM Indices union
+                SELECT uid, 'Portfolio' as type, description, NULL FROM Portfolio union
+                SELECT uid, 'Rate' as type, description, NULL FROM Rate
             ) AS src;"""
     ),
 ]

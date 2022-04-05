@@ -13,7 +13,7 @@ from nfpy.DatatypeFactory import get_dt_glob
 from nfpy.Tools import Exceptions as Ex
 
 from .BaseDownloader import BasePage
-from .BaseProvider import (BaseProvider, BaseImportItem)
+from .BaseProvider import BaseImportItem
 from .DownloadsConf import (InvestingSeriesConf, InvestingCashFlowConf,
                             InvestingBalanceSheetConf, InvestingIncomeStatementConf)
 
@@ -52,24 +52,6 @@ class DividendsItem(BaseImportItem):
             return self._d['ticker'], dt
 
 
-class InvestingProvider(BaseProvider):
-    """ Class for the Investing.com provider. """
-
-    _PROVIDER = 'Investing'
-    _PAGES = {
-        'HistoricalPrices': 'InvestingHistoricalPrices',
-        'Dividends': 'InvestingDividends',
-        'IncomeStatement': 'InvestingIncomeStatement',
-        'BalanceSheet': 'InvestingBalanceSheet',
-        'CashFlow': 'InvestingCashFlow',
-    }
-    _IMPORT_ITEMS = {
-        'ClosePrices': ClosePricesItem,
-        'Dividends': DividendsItem,
-        'Financials': FinancialsItem,
-    }
-
-
 class InvestingBasePage(BasePage):
     """ Base class for all Investing downloads. It cannot be used by itself
         but the derived classes for single download instances should always be
@@ -99,7 +81,7 @@ class InvestingBasePage(BasePage):
         pass
 
 
-class InvestingHistoricalPrices(InvestingBasePage):
+class HistoricalPricesPage(InvestingBasePage):
     """ Base page for historical downloads.
 
         NOTE:
@@ -180,7 +162,7 @@ class InvestingHistoricalPrices(InvestingBasePage):
         self._res = df
 
 
-class InvestingDividends(InvestingBasePage):
+class DividendsPage(InvestingBasePage):
     _PAGE = 'Dividends'
     _COLUMNS = InvestingSeriesConf
     _TABLE = 'InvestingEvents'
@@ -302,19 +284,19 @@ class InvestingFinancialsBasePage(InvestingBasePage):
         self._res = df
 
 
-class InvestingIncomeStatement(InvestingFinancialsBasePage):
+class IncomeStatementPage(InvestingFinancialsBasePage):
     _PAGE = 'IncomeStatement'
     _COLUMNS = InvestingIncomeStatementConf
     _REPORT_TYPE = 'INC'
 
 
-class InvestingBalanceSheet(InvestingFinancialsBasePage):
+class BalanceSheetPage(InvestingFinancialsBasePage):
     _PAGE = 'BalanceSheet'
     _COLUMNS = InvestingBalanceSheetConf
     _REPORT_TYPE = 'BAL'
 
 
-class InvestingCashFlow(InvestingFinancialsBasePage):
+class CashFlowPage(InvestingFinancialsBasePage):
     _PAGE = 'CashFlow'
     _COLUMNS = InvestingCashFlowConf
     _REPORT_TYPE = 'CAS'

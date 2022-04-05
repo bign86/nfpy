@@ -23,12 +23,15 @@ from nfpy.Calendar import today
 from nfpy.Tools import Utilities as Ut
 
 from .BaseDownloader import BasePage
-from .BaseProvider import (BaseProvider, BaseImportItem)
+from .BaseProvider import BaseImportItem
 from .DownloadsConf import (YahooFinancialsConf, YahooHistPricesConf,
                             YahooHistDividendsConf, YahooHistSplitsConf)
 
 
 class ClosePricesItem(BaseImportItem):
+    _Q_READ = "select '{uid}', '1', date, close from YahooPrices where ticker = ?"
+    _Q_WRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
+    values (?,?,?,?)"""
     _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
     select '{uid}', '1', date, close from YahooPrices where ticker = ?"""
     _Q_INCR = """ and date > ifnull((select max(date) from {dst_table}
@@ -73,24 +76,6 @@ class SplitsItem(BaseImportItem):
             return self._d['ticker'], dt
 
 
-class YahooProvider(BaseProvider):
-    """ Class for the Yahoo Finance provider. """
-
-    _PROVIDER = 'Yahoo'
-    _PAGES = {
-        'HistoricalPrices': 'YahooPrices',
-        'Financials': 'YahooFinancials',
-        'Dividends': 'YahooDividends',
-        'Splits': 'YahooSplits',
-    }
-    _IMPORT_ITEMS = {
-        'ClosePrices': ClosePricesItem,
-        'Dividends': DividendsItem,
-        'Splits': SplitsItem,
-        'Financials': FinancialsItem,
-    }
-
-
 class YahooBasePage(BasePage):
     """ Base class for all Yahoo downloads. It cannot be used by itself but the
         derived classes for single download instances should always be used.
@@ -100,41 +85,13 @@ class YahooBasePage(BasePage):
     _PROVIDER = "Yahoo"
     _REQ_METHOD = 'get'
 
-    # _CRUMB_URL = u"https://finance.yahoo.com/quote/{}"
-    # _CRUMB_PATTERN = r'"CrumbStore"\s*:\s*\{\s*"crumb"\s*:\s*"(.*?)"\s*\}'
-
     @property
     def baseurl(self) -> str:
         """ Return the base url for the page. """
         return self._BASE_URL.format(self.ticker)
 
-    # def __init__(self, ticker: str):
-    #     super().__init__(ticker)
-    #     self._crumb = None
-    #
-    # @property
-    # def crumburl(self) -> str:
-    #     """ Return the crumb url for the page. """
-    #     return self._CRUMB_URL.format(self.ticker)  # .replace('.', '&#46;'))
-    #
-    # def _fetch_crumb(self) -> str:
-    #     """ Fetch the crumb from Yahoo. So far this is executed every time a
-    #         new data page is requested.
-    #     """
-    #     res = requests.get(self.crumburl)
-    #     if res.status_code != 200:
-    #         msg = "Error {} in downloading the Yahoo crumb cookie.\n\t{}"
-    #         raise requests.HTTPError(msg.format(res.status_code, self.crumburl))
-    #
-    #     crumb = re.search(self._CRUMB_PATTERN, res.text)
-    #     if crumb is None:
-    #         raise Ex.IsNoneError("Cannot find the crumb cookie from Yahoo")
-    #
-    #     self._jar = res.cookies
-    #     return codecs.decode(crumb.group(1), 'unicode_escape')
 
-
-class YahooFinancials(YahooBasePage):
+class FinancialsPage(YahooBasePage):
     _PAGE = 'Financials'
     _COLUMNS = YahooFinancialsConf
     _JSON_PATTERN = r'\s*root\.App\.main\s*=\s*({.*?});\n'
@@ -167,7 +124,6 @@ class YahooFinancials(YahooBasePage):
                     if _field in ('endDate', 'maxAge'):
                         continue
                     if _entry:
-                        # _row = _p + (_dt, _map[_field], _entry.get('raw'))
                         _row = _p + (_dt, _field, _entry.get('raw'))
                         rows.append(_row)
 
@@ -251,8 +207,6 @@ class YahooHistoricalBasePage(YahooBasePage):
                     d = self._ext_p[t[0]]
                     p[t[1]] = str(int(pd.to_datetime(d).timestamp()))
 
-        # self.params = {'crumb': self._fetch_crumb()}
-        # print("CRUMB: {}".format(crumb))
         self.params = p
 
     def _parse_csv(self) -> pd.DataFrame:
@@ -272,7 +226,7 @@ class YahooHistoricalBasePage(YahooBasePage):
         return df
 
 
-class YahooPrices(YahooHistoricalBasePage):
+class HistoricalPricesPage(YahooHistoricalBasePage):
     """ Download historical prices. """
     _PAGE = 'HistoricalPrices'
     _COLUMNS = YahooHistPricesConf
@@ -300,7 +254,7 @@ class YahooPrices(YahooHistoricalBasePage):
         self._res = self._parse_csv()
 
 
-class YahooDividends(YahooHistoricalBasePage):
+class DividendsPage(YahooHistoricalBasePage):
     """ Download historical dividends. """
     _PAGE = 'Dividends'
     _COLUMNS = YahooHistDividendsConf
@@ -319,7 +273,7 @@ class YahooDividends(YahooHistoricalBasePage):
         self._res = df
 
 
-class YahooSplits(YahooHistoricalBasePage):
+class SplitsPage(YahooHistoricalBasePage):
     """ Download historical splits. """
     _PAGE = 'Splits'
     _COLUMNS = YahooHistSplitsConf

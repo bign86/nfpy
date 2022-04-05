@@ -12,7 +12,7 @@ from nfpy.Calendar import today
 from nfpy.Tools import Exceptions as Ex
 
 from .BaseDownloader import BasePage
-from .BaseProvider import (BaseProvider, BaseImportItem)
+from .BaseProvider import BaseImportItem
 from .DownloadsConf import ECBSeriesConf
 
 
@@ -21,14 +21,6 @@ class ClosePricesItem(BaseImportItem):
     select '{uid}', '1', date, value from ECBSeries where ticker = ?"""
     _Q_INCR = """ and date > ifnull((select max(date) from {dst_table}
     where uid = '{uid}'), '1900-01-01')"""
-
-
-class ECBProvider(BaseProvider):
-    """ Class for the European Central Bank provider. """
-
-    _PROVIDER = 'ECB'
-    _PAGES = {'Series': 'ECBSeries'}
-    _IMPORT_ITEMS = {'ClosePrices': ClosePricesItem}
 
 
 class ECBBasePage(BasePage):
@@ -71,7 +63,7 @@ class ECBBasePage(BasePage):
         return crumb.group(1)
 
 
-class ECBSeries(ECBBasePage):
+class SeriesPage(ECBBasePage):
     _PAGE = 'Series'
     _COLUMNS = ECBSeriesConf
     _PARAMS = {
@@ -105,7 +97,6 @@ class ECBSeries(ECBBasePage):
                     p[t[1]] = pd.to_datetime(d).strftime('%d-%m-%Y')
             self.params = p
         self._crumb = self._fetch_crumb()
-        # print("JsessionId: {}".format(crumb))
 
     def _parse(self) -> None:
         """ Parse the fetched object. """

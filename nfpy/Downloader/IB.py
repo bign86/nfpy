@@ -11,7 +11,7 @@ import xml.etree.ElementTree as ET
 from nfpy.Tools.Configuration import get_conf_glob
 
 from .BaseDownloader import BasePage
-from .BaseProvider import (BaseProvider, BaseImportItem)
+from .BaseProvider import BaseImportItem
 from .DownloadsConf import IBFundamentalsConf
 from .IBApp import *
 
@@ -60,14 +60,6 @@ class FinancialsItem(BaseImportItem):
             )
 
 
-class IBProvider(BaseProvider):
-    """ Class for the Interactive Brokers provider. """
-
-    _PROVIDER = 'IB'
-    _PAGES = {'Financials': 'IBFundamentals'}
-    _IMPORT_ITEMS = {'Financials': FinancialsItem}
-
-
 class IBBasePage(BasePage):
     """ Base class for all Interactive Brokers downloads. It cannot be used by
         itself but the derived classes for single download instances should
@@ -103,7 +95,7 @@ class IBBasePage(BasePage):
         self._robj = self._app.return_data
 
 
-class IBFundamentals(IBBasePage):
+class FundamentalsPage(IBBasePage):
     _PAGE = 'Financials'
     _COLUMNS = IBFundamentalsConf
     _TABLE = 'IBFinancials'

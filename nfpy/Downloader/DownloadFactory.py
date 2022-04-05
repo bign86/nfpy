@@ -4,19 +4,24 @@
 # perform single downloads.
 #
 
+from collections import namedtuple, defaultdict
 from requests import RequestException
-from typing import (KeysView, Iterable, Optional)
+from typing import (KeysView, Optional)
 
+from nfpy.Assets import get_af_glob
 import nfpy.Calendar as Cal
 import nfpy.DB as DB
 from nfpy.Tools import (Singleton, Exceptions as Ex, Utilities as Ut)
 
 from .BaseDownloader import BasePage
-from .BaseProvider import BaseProvider
-from .ECB import ECBProvider
-from .IB import IBProvider
-from .Investing import InvestingProvider
-from .Yahoo import YahooProvider
+
+# Namedtuples holding the data for downloads and imports
+NTDownload = namedtuple(
+    'NTDownload',
+    'provider, page, ticker, currency, active, update_frequency, last_update'
+)
+
+NTImport = namedtuple('NTImport', 'uid, ticker, provider, item, active')
 
 
 class DownloadFactory(metaclass=Singleton):
@@ -26,17 +31,23 @@ class DownloadFactory(metaclass=Singleton):
 
     _DWN_TABLE = 'Downloads'
     _IMP_TABLE = 'Imports'
-    _PROVIDERS = {
-        "ECB": ECBProvider(),
-        "IB": IBProvider(),
-        "Investing": InvestingProvider(),
-        "Yahoo": YahooProvider(),
-    }
+    _PROV_TABLE = 'Providers'
 
     def __init__(self):
+        self._af = get_af_glob()
         self._db = DB.get_db_glob()
         self._qb = DB.get_qb_glob()
         self._splits = []
+
+        objs = self._db.execute(
+            f'select provider, page, item from {self._PROV_TABLE}'
+        ).fetchall()
+        self._dwn_obj = defaultdict(list)
+        for k, v in set((v[0], v[1]) for v in objs):
+            self._dwn_obj[k].append(v)
+        self._imp_obj = defaultdict(list)
+        for k, v in set((v[0], v[2]) for v in objs):
+            self._imp_obj[k].append(v)
 
     @property
     def download_table(self) -> str:
@@ -44,7 +55,7 @@ class DownloadFactory(metaclass=Singleton):
 
     @property
     def providers(self) -> KeysView[str]:
-        return self._PROVIDERS.keys()
+        return self._dwn_obj.keys()
 
     @property
     def splits(self) -> list:
@@ -69,19 +80,16 @@ class DownloadFactory(metaclass=Singleton):
 
     def provider_exists(self, provider: str) -> bool:
         """ Check if the provider is supported. """
-        return provider in self._PROVIDERS
+        return provider in self._dwn_obj
 
     def page_exists(self, provider: str, page: str) -> bool:
         """ Check if the page is supported for the given provider. """
-        return page in self._PROVIDERS[provider].pages
-
-    def get_provider(self, v: str) -> BaseProvider:
-        return self._PROVIDERS[v]
+        return page in self._dwn_obj[provider]
 
     def fetch_downloads(self, provider: Optional[str] = None,
                         page: Optional[str] = None,
                         ticker: Optional[str] = None, active: bool = True) \
-            -> tuple[list, Iterable]:
+            -> tuple[NTDownload]:
         """ Fetch and filter download entries.
 
             Input:
@@ -96,14 +104,15 @@ class DownloadFactory(metaclass=Singleton):
         """
         return self._filter(
             self._DWN_TABLE,
+            NTDownload,
             active,
-            **{'provider': provider, 'page': page, 'ticker': ticker}
+            {'provider': provider, 'page': page, 'ticker': ticker}
         )
 
     def fetch_imports(self, uid: Optional[str] = None,
                       provider: Optional[str] = None,
                       item: Optional[str] = None, active: bool = True) \
-            -> tuple[list, Iterable]:
+            -> tuple[NTImport]:
         """ Filter imports entries.
 
             Input:
@@ -118,31 +127,32 @@ class DownloadFactory(metaclass=Singleton):
         """
         return self._filter(
             self._IMP_TABLE,
+            NTImport,
             active,
-            **{'uid': uid, 'provider': provider, 'item': item}
+            {'uid': uid, 'provider': provider, 'item': item}
         )
 
-    def _filter(self, table: str, active: bool, **kwargs) \
-            -> tuple[list, Iterable]:
+    def _filter(self, table: str, tuple_obj: namedtuple, active: bool,
+                options: dict) -> tuple:
         """ Filters the Downloads or Imports table to return the items selected
             using the available filters.
         """
-        keys = tuple(k for k, v in kwargs.items() if v is not None)
-        fields = self._qb.get_fields(table)
+        keys = tuple(k for k, v in options.items() if v is not None)
 
-        res = self._db.execute(
-            self._qb.select(
-                table,
-                fields=fields,
-                keys=keys,
-                where='active = 1' if active else ''
-            ),
-            tuple(kwargs[k] for k in keys)
-        ).fetchall()
-        if not res:
-            return [], fields
-
-        return res, fields
+        return tuple(
+            map(
+                tuple_obj._make,
+                self._db.execute(
+                    self._qb.select(
+                        table,
+                        fields=tuple_obj._fields,
+                        keys=keys,
+                        where='active = 1' if active else ''
+                    ),
+                    tuple(options[k] for k in keys)
+                ).fetchall()
+            )
+        )
 
     def create_page_obj(self, provider: str, page: str, ticker: str) -> BasePage:
         """ Return an un-initialized page object of the correct type.
@@ -155,16 +165,29 @@ class DownloadFactory(metaclass=Singleton):
             Output:
                 obj [BasePage]: page object to download with
         """
-        try:
-            prov = self._PROVIDERS[provider]
-        except KeyError:
-            raise ValueError(f"Provider {provider} not recognized")
-        return prov.create_page_obj(page, ticker)
+        if page not in self._dwn_obj[provider]:
+            raise ValueError(f"Page {page} not available for {provider}")
 
-    def do_import(self, data: dict, incremental: bool) -> None:
+        symbol = '.' + '.'.join([provider, page+'Page'])
+        class_ = Ut.import_symbol(symbol, pkg='nfpy.Downloader')
+        return class_(ticker)
+
+    def do_import(self, data: NTImport, incremental: bool) -> None:
         """ Take the importing object and runs the import. """
-        prov = data['provider']
-        imp_item = self._PROVIDERS[prov].get_import_item(data, incremental)
+        if data.item not in self._imp_obj[data.provider]:
+            raise ValueError(f"Item {data.item} not available for {data.provider}")
+
+        symbol = '.' + '.'.join([data.provider, data.item+'Item'])
+        class_ = Ut.import_symbol(symbol, pkg='nfpy.Downloader')
+
+        asset = self._af.get(data.uid)
+        data = data._asdict()
+        if asset.type == 'Company':
+            data['dst_table'] = asset.constituents_table
+        else:
+            data['dst_table'] = asset.ts_table
+
+        imp_item = class_(data, incremental)
         imp_item.run()
 
     def run_download(self, do_save: bool = True, override_date: bool = False,
@@ -184,8 +207,9 @@ class DownloadFactory(metaclass=Singleton):
                 override_active [bool]: disregard 'active' (default: False)
         """
         active = not override_active
-        upd_list, _ = self.fetch_downloads(provider=provider, page=page,
-                                           ticker=ticker, active=active)
+        upd_list = self.fetch_downloads(
+            provider=provider, page=page, ticker=ticker, active=active
+        )
         print(f'We are about to download {len(upd_list)} items')
 
         # General variables
@@ -196,25 +220,25 @@ class DownloadFactory(metaclass=Singleton):
         count_skipped = 0
         count_failed = 0
         for item in upd_list:
-            provider, page_name, ticker, ccy, _, upd_freq, last_upd = item
-
             # Check the last update to avoid too frequent updates
-            if last_upd and not override_date:
-                delta_days = (today_dt - last_upd).days
-                if delta_days < int(upd_freq):
-                    msg = f'[{provider}: {page_name}] -> ' \
-                          f'{ticker} updated {delta_days} days ago'
+            if item.last_update and not override_date:
+                delta_days = (today_dt - item.last_update).days
+                if delta_days < int(item.update_frequency):
+                    msg = f'[{item.provider}: {item.page}] -> ' \
+                          f'{item.ticker} updated {delta_days} days ago'
                     print(msg)
                     count_skipped += 1
                     continue
 
             # If the last update check is passed go on with the update
             try:
-                print(f'{ticker} -> {provider}[{page_name}]')
+                print(f'{item.ticker} -> {item.provider}[{item.page}]')
                 try:
-                    page = self.create_page_obj(provider, page_name, ticker) \
-                               .initialize(params={'currency': ccy}) \
-                               .fetch()
+                    page = self.create_page_obj(
+                        item.provider, item.page, item.ticker
+                    ) \
+                        .initialize(params={'currency': item.currency}) \
+                        .fetch()
                 except RuntimeWarning as w:
                     # DownloadFactory throws this error for codes != 200
                     Ut.print_wrn(w)
@@ -231,7 +255,7 @@ class DownloadFactory(metaclass=Singleton):
             else:
                 count_done += 1
                 if do_save is True:
-                    data_upd = (today_dt, provider, page_name, ticker)
+                    data_upd = (today_dt, item.provider, item.page, item.ticker)
                     self._db.execute(q_upd, data_upd, commit=True)
 
         print(
@@ -255,23 +279,19 @@ class DownloadFactory(metaclass=Singleton):
                 incremental [bool]: do an incremental import (default: False)
         """
         active = not override_active
-        import_list, fields = self.fetch_imports(provider=provider, item=item,
-                                                 uid=uid, active=active)
+        import_list = self.fetch_imports(
+            provider=provider, item=item, uid=uid, active=active
+        )
         print(f'We are about to import {len(import_list)} items')
 
         for element in import_list:
-            import_data = dict(zip(fields, element))
-            # print(import_data)
             try:
-                self.do_import(import_data, incremental)
+                self.do_import(element, incremental)
             except Ex.CalendarError as cal:
                 raise cal
             except (Ex.MissingData, Ex.IsNoneError,
                     RuntimeError, RequestException) as e:
                 print(e)
-
-        # TODO: introduce post-import adjustments for special dividends
-        # print('Performing post-import adjustments')
 
 
 def get_dwnf_glob() -> DownloadFactory:
