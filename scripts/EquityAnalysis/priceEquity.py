@@ -9,8 +9,8 @@ from tabulate import tabulate
 from nfpy.Assets import get_af_glob
 from nfpy.Calendar import (get_calendar_glob, today)
 import nfpy.DB as DB
+from nfpy.Financial.EquityValuation import DividendDiscountModel
 import nfpy.IO as IO
-from nfpy.Models import DividendDiscountModel
 from nfpy.Tools import Constants as Cn
 
 __version__ = '0.3'

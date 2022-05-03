@@ -8,6 +8,7 @@ import numpy as np
 from typing import (Optional, TypeVar, Union)
 
 import nfpy.Math as Math
+import nfpy.Tools.Exceptions as Ex
 import nfpy.Tools.Utilities as Ut
 
 
@@ -80,9 +81,16 @@ class BaseStrategy(metaclass=ABCMeta):
     NAME = ''
     DESCRIPTION = ''
 
-    def __init__(self, dt: np.ndarray, p: np.ndarray, npc: Optional[int] = 0):
+    def __init__(self, dt: np.ndarray, ts: np.ndarray, npc: Optional[int] = 0):
         self._dt = dt
-        self._p = p
+
+        if len(ts.shape) == 1:
+            self._ts = ts[None, :]
+        elif len(ts.shape) == 2:
+            self._ts = ts
+        else:
+            msg = 'BaseStrategy(): time series must be either 1D or 2D arrays.'
+            raise Ex.ShapeError(msg)
 
         # Number of periods to confirm a signal
         self._num_p_conf = npc
@@ -94,32 +102,48 @@ class BaseStrategy(metaclass=ABCMeta):
         self._i = None
         self._max_i = len(dt)
 
-    @property
-    @abstractmethod
-    def min_length(self) -> int:
-        """ Return the minimum amount of data required for a single signal
-            generation. This represents the minimum amount of data necessary to
-            run the strategy.
+    def __iter__(self):
+        return self
+
+    def __next__(self) -> tuple:
+        i = self._i
+        if i < self._max_i:
+            self._i += 1
+            return self._f(i)
+        else:
+            raise StopIteration
+
+    def _set_min_timer(self) -> None:
+        """ Set the timer to start at the latest date that makes still possible
+            to generate a single evaluation.
         """
+        self._i = self._ts.shape[1] - self.min_length
+        self._start_time = self._dt[self._i]
+        self._is_timer_set = True
+
+    def bulk_exec(self) -> StrategyResult:
+        """ Apply the strategy to the whole time series in bulk. """
+        self.check_length()
+        return self._bulk()
+
+    def check_length(self) -> None:
+        useful_len = self._ts.shape[1] - self.min_length
+
+        if useful_len < 0:
+            msg = f'{self._LABEL}: The series is {-useful_len} periods too short'
+            raise ValueError(msg)
+
+        if useful_len - Math.next_valid_index(self._ts) < 0:
+            msg = f'{self._LABEL}: The are too many nans at the beginning'
+            raise ValueError(msg)
 
     @property
     def max_length(self) -> int:
         """ Returns the max time series index. """
         return self._max_i
 
-    def check_length(self) -> None:
-        useful_length = self._p.shape[0] - self.min_length
-
-        if useful_length < 0:
-            msg = f'{self._LABEL}: The series is {-useful_length} periods too short'
-            raise ValueError(msg)
-
-        if useful_length - Math.next_valid_index(self._p) < 0:
-            msg = f'{self._LABEL}: The are too many nans at the beginning'
-            raise ValueError(msg)
-
-    # Apply the strategy day-by-day
-    def set_timer(self, start: Union[int, np.datetime64] = None) -> None:
+    def set_timer(self, start: Optional[Union[int, np.datetime64]] = None) \
+            -> None:
         """ Set the timer to <dt> for the period-by-period execution. """
         if isinstance(start, np.datetime64):
             self._i = max(
@@ -134,14 +158,6 @@ class BaseStrategy(metaclass=ABCMeta):
         self._start_time = self._dt[self._i]
         self._is_timer_set = True
 
-    def _set_min_timer(self) -> None:
-        """ Set the timer to start at the latest date that makes still possible
-            to generate a single evaluation.
-        """
-        self._i = self._p.shape[0] - self.min_length
-        self._start_time = self._dt[self._i]
-        self._is_timer_set = True
-
     def start(self) -> None:
         self.check_length()
         if not self._is_timer_set:
@@ -150,20 +166,17 @@ class BaseStrategy(metaclass=ABCMeta):
         # We need to jumpstart the first part of the strategy to create the
         # first data point of the strategy
 
-    def __iter__(self):
-        return self
-
-    def __next__(self) -> tuple:
-        i = self._i
-        if i < self._max_i:
-            self._i += 1
-            return self._f(i)
-        else:
-            raise StopIteration
+    @abstractmethod
+    def _bulk(self) -> StrategyResult:
+        """ Strategy bulk calculation function. """
 
     @abstractmethod
-    def _f(self, i: int) -> tuple:
-        """ Strategy day-by-day calculation function. """
+    def _f(self, i: int) -> Optional[tuple]:
+        """ Strategy day-by-day calculation function. Must return a tuple
+            containing the generated signal in the form:
+                <index, date, signal>
+            If no (new) signal is generated, None is returned instead.
+        """
 
     @abstractmethod
     def check_order_validity(self, order: list) -> str:
@@ -173,39 +186,13 @@ class BaseStrategy(metaclass=ABCMeta):
              - None: if the order is not valid anymore and should be cancelled
         """
 
-    # Apply the strategy in bulk
-    def bulk_exec(self) -> StrategyResult:
-        """ Apply the strategy to the whole time series in bulk. """
-        self.check_length()
-        return self._bulk()
-
+    @property
     @abstractmethod
-    def _bulk(self) -> StrategyResult:
-        """ Strategy bulk calculation function. """
-
-    # def plot(self, label: str, f_dir: str = '', fmt: str = 'png'):
-    #     sig = self._res['sig']
-    #
-    #     buy = sig.signals > 0
-    #     dt_buy = sig.dates[buy]
-    #     dt_sell = sig.dates[~buy]
-    #     idx_buy = sig.indices[buy]
-    #     idx_sell = sig.indices[~buy]
-    #     str_buy = 1000 * np.abs(sig.strength[buy])
-    #     str_sell = 1000 * np.abs(sig.strength[~buy])
-    #
-    #     plt = IO.Plotter()
-    #     plt.lplot(0, self._dt, self._p, color='C0', linewidth=1.)
-    #     plt.scatter(0, dt_buy, self._p[idx_buy], s=str_buy, color='C1', marker='o')
-    #     plt.scatter(0, dt_sell, self._p[idx_sell], s=str_sell, color='C2', marker='o')
-    #     plt.plot()
-    #
-    #     if f_dir:
-    #         img = '.'.join([label, self._LABEL, fmt])
-    #         f_name = os.path.join(f_dir, img)
-    #         plt.save(f_name, fmt)
-    #     else:
-    #         plt.show()
+    def min_length(self) -> int:
+        """ Return the minimum amount of data required for a single signal
+            generation. This represents the minimum amount of data necessary to
+            run the strategy.
+        """
 
 
 TyStrategy = TypeVar('TyStrategy', bound=BaseStrategy)

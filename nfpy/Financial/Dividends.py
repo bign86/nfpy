@@ -50,8 +50,9 @@ class DividendFactory(object):
             msg = f'Too few dividends to determine dividend drift in {self._eq.uid}'
             raise ValueError(msg)
 
+        # The current year is excluded from the calculation
         ret = np.minimum(
-            self._yearly_div[1:] / self._yearly_div[:-1] - 1.,
+            self._yearly_div[1:-1] / self._yearly_div[:-2] - 1.,
             1.
         )
         returns = ret * (1. - .2 * ret * ret - .2 * np.abs(ret))
@@ -100,21 +101,27 @@ class DividendFactory(object):
             self._dist = np.diff(self._div_dt)
 
         # Calculate frequency
-        self._yearly_dt, idx, counts = np.unique(
-            self._div_dt.astype('datetime64[Y]'),  # .astype(int) + 1970,
-            return_inverse=True,
-            return_counts=True
-        )
+        div_dt_y = self._div_dt.astype('datetime64[Y]')
+        counts = np.unique(div_dt_y, return_counts=True)[1]
         self._freq = int(np.round(np.mean(counts)))
+
+        # Get series of years
+        self._yearly_dt = np.arange(
+            str(div_dt_y[0].astype('int') + 1970),
+            str(Cal.today().year + 1),
+            dtype='datetime64[Y]'
+        )
+        years_idx = np.searchsorted(self._div_dt, self._yearly_dt)
+        if years_idx[-1] != self._div_dt.shape[0]:
+            years_idx = np.r_[years_idx, self._div_dt.shape[0]]
 
         # Calculate yearly dividend as a sum
         divs = np.zeros(self._yearly_dt.shape)
-        for n, i in enumerate(idx):
-            divs[i] += self._div[n]
+        for n, i in enumerate(years_idx[:-1]):
+            divs[n] += np.sum(self._div[i:i + 1])
 
-        # Adjust the first and the last year using the inferred frequency
+        # Adjust the first year using the inferred frequency
         divs[0] *= self._freq / counts[0]
-        divs[-1] *= self._freq / counts[-1]
         self._yearly_div = divs
 
         # Check whether dividend is likely to have been suspended
@@ -134,8 +141,8 @@ class DividendFactory(object):
     @property
     def annualized_drift(self) -> float:
         """ Returns the annual drift of dividends calculated from the annual
-            series. If the issuer is not a dividend payer or the dividend is
-            suspended, .0 is returned.
+            series. The result is YTD for the current year. If the issuer is not
+            a dividend payer or the dividend is suspended, .0 is returned.
         """
         if (not self._is_div_payer) | self._is_div_suspended:
             return .0
@@ -174,19 +181,17 @@ class DividendFactory(object):
             return np.array([]), np.array([])
 
         prices = self._eq.prices
-        p = prices.values
-        p_dt = prices.index.values
 
         dt = np.r_[
             self._yearly_dt,
             np.datetime64(str(self._yearly_dt[-1] + 1) + '-01-01')
         ]
-        idx = np.searchsorted(p_dt, dt)
+        idx = np.searchsorted(prices.index.values, dt)
         dy = np.empty(len(idx) - 1)
 
         for i in range(1, idx.shape[0]):
             dy[i - 1] = self._yearly_div[i - 1] / \
-                        np.nanmean(p[idx[i - 1]:idx[i]])
+                        np.nanmean(prices.values[idx[i - 1]:idx[i]])
 
         return self._yearly_dt, dy
 

@@ -54,8 +54,8 @@ class Company(AggregationMixin, FinancialItem):
         # for code, g in groupby(_r, key=lambda f: f[0]):
         for k, g in groupby(res, key=lambda f: f[0]):
             has_a, has_q = False, False
-            s_a = pd.Series(index=id_a)
-            s_q = pd.Series(index=id_q)
+            s_a = pd.Series(index=id_a, dtype=float)
+            s_q = pd.Series(index=id_q, dtype=float)
             for v in list(g):
                 date = pd.to_datetime(v[2])
 

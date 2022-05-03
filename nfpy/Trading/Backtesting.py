@@ -12,9 +12,9 @@ import nfpy.Calendar as Cal
 import nfpy.Math as Math
 from nfpy.Tools import (get_conf_glob, Utilities as Ut)
 
-from .BaseStrategy import TyStrategy
 from .BaseSizer import TySizer
 from .Enums import *
+from .Strategies.BaseStrategy import TyStrategy
 
 
 class Portfolio(object):
@@ -100,13 +100,13 @@ class ConsolidatedResults(Ut.AttributizedDict):
 class Backtester(object):
     _DT_FMT = '%Y%m%d'
 
-    def __init__(self, uids: MutableSequence[str], initial: float, debug: bool):
+    def __init__(self, uids: MutableSequence[str], initial: float, bulk: bool):
         # Handlers
         self._af = Ast.get_af_glob()
         self._conf = get_conf_glob()
 
         # Input variables
-        self._debug = bool(debug)
+        self._bulk = bool(bulk)
         self._initial = float(initial)
         self._uids = tuple(uids)
 
@@ -204,7 +204,10 @@ class Backtester(object):
         dt = eq.prices.index.values
         try:
             strat = self._strat(dt, p, **self._params)
-            ptf = self._apply(dt, p, strat, self._initial)
+            if self._bulk:
+                ptf = self._bulk_apply(dt, p, strat, self._initial)
+            else:
+                ptf = self._online_apply(dt, p, strat, self._initial)
         except (IndexError, TypeError) as ex:
             print(f'Backtest failed for {eq.uid}\n{ex}')
             return
@@ -212,9 +215,9 @@ class Backtester(object):
             ptf.statistics()
             self._res[eq.uid] = ptf
 
-    def _apply(self, dates: np.ndarray, prices: np.ndarray,
-               strat: TyStrategy, initial: float) -> Portfolio:
-        """ Perform the backtesting of a simple strategy. Assumptions:
+    def _bulk_apply(self, dates: np.ndarray, prices: np.ndarray,
+                    strat: TyStrategy, initial: float) -> Portfolio:
+        """ Perform the bulk backtesting of a simple strategy.
 
             Input:
                 dates [np.ndarray]: dates series
@@ -282,6 +285,113 @@ class Backtester(object):
                     # If the order is to be kept do it
                     elif action == 'keep':
                         orders_sublist.append(order)
+
+                # After cycling all orders update the pending list
+                pending = orders_sublist
+
+                if next_signal is None:
+                    t = strat.max_length
+                elif next_signal[0] == t:
+                    pending.append([Order.MKT, *next_signal])
+                    try:
+                        next_signal = sig_iterator.__next__()
+                    except StopIteration:
+                        next_signal = None
+
+            else:
+                t = next_signal[0]
+                pending.append([Order.MKT, *next_signal])
+                try:
+                    next_signal = sig_iterator.__next__()
+                except StopIteration:
+                    next_signal = None
+
+            # Update the time
+            t += 1
+
+        # Sell any residual security at the current market price at the end of
+        # the backtesting period to get the final portfolio value
+        ptf.sell(dates[-1], prices[-1], -1, ptf.shares)
+
+        # Clean up
+        self._sizer.clean()
+
+        return ptf
+
+    def _online_apply(self, dates: np.ndarray, prices: np.ndarray,
+                      strat: TyStrategy, initial: float) -> Portfolio:
+        """ Perform the bulk backtesting of a simple strategy.
+
+            Input:
+                dates [np.ndarray]: dates series
+                price [np.ndarray]: price series of the instrument
+                signals [StrategyResult]: signals to backtest
+                initial [float]: initial cash value
+
+            Output:
+                ptf [Portfolio]: backtested hypothetical portfolio
+
+            TODOs: The following assumptions are valid and must be relaxed:
+                1. No short selling
+                2. No transaction costs
+                3. Fractional ownership of stocks allowed
+                4. Any stock available at the end of the time period is
+                   converted to cash at the last available price
+        """
+        # Make sure to have no nans in prices
+        ptf = Portfolio(initial=initial)
+        prices = Math.ffill_cols(prices)
+        self._sizer.set(prices, ptf)
+
+        # Initialize strategy
+        strat.set_timer(0)
+        strat.start()
+
+        # Initialize working variables
+        pending = []
+        t = 0
+
+        # Cycle until time is over
+        for signal in strat:
+            # If a new signal is generated, append it as a pending order
+            if signal is None:
+                continue
+            else:
+                pending.append(signal)
+
+            # Check if any pending order can be executed. If no pending orders
+            # are present move along.
+            if len(pending) > 0:
+                continue
+
+            # Cycle through pending orders
+            while pending:
+                # Pop the first order
+                order = pending.pop(0)
+
+                # Check what action to take with the order
+                action = strat.check_order_validity(order)
+
+                # If the order is marketable apply it
+                if action == 'execute':
+                    # Calculate order size
+                    signal = order[3]
+                    dt = dates[t]
+                    sz = self._sizer(t, signal)
+                    if sz > 0:
+                        # If size is greater than zero buy/sell
+                        if order[3] == 1:  # BUY
+                            # Calculate buy price and apply
+                            p = max(prices[t], prices[t - 1])
+                            ptf.buy(dt, p, signal, sz)
+                        else:
+                            # Calculate sell price and apply
+                            p = min(prices[t], prices[t - 1])
+                            ptf.sell(dt, p, signal, sz)
+
+                # If the order is to be kept do it
+                elif action == 'keep':
+                    orders_sublist.append(order)
 
                 # After cycling all orders update the pending list
                 pending = orders_sublist

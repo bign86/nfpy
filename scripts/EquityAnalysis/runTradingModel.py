@@ -10,7 +10,7 @@ from nfpy.Assets import get_af_glob
 from nfpy.Calendar import (get_calendar_glob, today)
 import nfpy.DB as DB
 import nfpy.IO as IO
-from nfpy.Trading.BaseStrategy import (BaseStrategy, StrategyResult)
+from nfpy.Trading.Strategies.BaseStrategy import (BaseStrategy, StrategyResult)
 
 __version__ = '0.1'
 _TITLE_ = "<<< Run trading model script >>>"

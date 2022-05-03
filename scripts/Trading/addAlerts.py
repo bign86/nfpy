@@ -10,29 +10,49 @@ import nfpy.Calendar as Cal
 import nfpy.IO as IO
 import nfpy.Trading as Trd
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = '<<< Add manual alerts script >>>'
 
 
-def add_alert():
+def add_alert(_uid):
     # Get uid
-    uid = inh.input('Give an uid for the new alert: ', checker='uid')
     p = inh.input('Give a price: ', idesc='float')
 
     # Search for info
-    lp = lp_dict.get(uid, None)
+    lp = lp_dict.get(_uid, None)
     if not lp:
-        lp = af.get(uid) \
+        lp = af.get(_uid) \
             .last_price()[0]
-        lp_dict[uid] = lp
+        lp_dict[_uid] = lp
 
     # Build Alert tuple
     al = Trd.Alert(
-        uid, end,
+        _uid, end,
         'L' if p < lp else 'G',
         p, False, None, None
     )
     to_write.append(al)
+
+
+def save():
+    if len(to_write) > 0:
+        msg = f'\nAdding {len(to_write)} new alerts:\n'
+        for a in to_write:
+            msg += f'  * {a.uid} @ P {">=" if a.cond == "G" else "<"} {a.value}\n'
+        msg += f'Continue?: '
+        if inh.input(msg, idesc='bool'):
+            print('  * Writing', end='\n\n')
+            ae.add(to_write)
+        else:
+            print('  * Aborted!', end='\n\n')
+    else:
+        print('\nNothing to write', end='\n\n')
+    quit_()
+
+
+def quit_():
+    print('All done!')
+    exit()
 
 
 if __name__ == '__main__':
@@ -51,25 +71,17 @@ if __name__ == '__main__':
     lp_dict = {}
     to_write = []
 
-    # First item
-    add_alert()
-
     # While forever until done
-    while inh.input('\nAdd another?: ', idesc='bool'):
-        add_alert()
-
-    # Save into database
-    if len(to_write) > 0:
-        msg = f'\nAdding {len(to_write)} new alerts:\n'
-        for a in to_write:
-            msg += f'  * {a.uid} @ P {">=" if a.cond=="G" else "<"} {a.value}\n'
-        msg += f'Continue?: '
-        if inh.input(msg, idesc='bool'):
-            print('  * Writing', end='\n\n')
-            ae.add(to_write)
+    print(
+        f"Give a UID for which to add the alert. Input 'save' to save and exit.\n"
+        f"Give 'quit' to exit without saving.",
+        end='\n\n'
+    )
+    while True:
+        command = inh.input('\n>>> ', idesc='str')
+        if command == 'quit':
+            quit_()
+        elif command == 'save':
+            save()
         else:
-            print('  * Aborted!', end='\n\n')
-    else:
-        print('\nNothing to write', end='\n\n')
-
-    print('All done!')
+            add_alert(command)

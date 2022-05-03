@@ -95,7 +95,7 @@ class IBBasePage(BasePage):
         self._robj = self._app.return_data
 
 
-class FundamentalsPage(IBBasePage):
+class FinancialsPage(IBBasePage):
     _PAGE = 'Financials'
     _COLUMNS = IBFundamentalsConf
     _TABLE = 'IBFinancials'

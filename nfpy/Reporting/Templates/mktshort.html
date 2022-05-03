@@ -75,13 +75,22 @@
                   <td class='anag-prop'>Date</td><td class='anag-value'>{{ val.last_price_date }}</td>
                 </tr>
                 <tr>
-                  <td class='anag-prop'>Last price</td><td class='anag-value'>{{ '%.3f'| format(val.last_price|float) }} {{ val.info["currency"] }}</td>
+                  <td class='anag-prop'>Last price</td><td class='anag-value'>{{ '%.2f'| format(val.last_price|float) }} {{ val.info["currency"] }}</td>
                 </tr>
                 <tr>
-                  <td class='anag-prop'>Dividends TTM</td><td class='anag-value'>{{ '%.2f'| format(val.ttm_div|float) }}</td>
+                  <td colspan="2" style="font-weight:bold;text-align:center;padding-top:5px;">Dividends</td>
                 </tr>
                 <tr>
-                  <td class='anag-prop'>Dividends Yield TTM</td><td class='anag-value'>{{ '%.2f'| format(val.ttm_yield|float) }}%</td>
+                  <td class='anag-prop'>YTD</td><td class='anag-value'>{{ '%.2f'| format(val.ytd_yrl_div|float) }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Yield YTD</td><td class='anag-value'>{{ '%.2f'| format(val.ytd_yrl_yield|float) }}%</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Last year</td><td class='anag-value'>{{ '%.2f'| format(val.last_yrl_div|float) }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Yield Last year</td><td class='anag-value'>{{ '%.2f'| format(val.last_yrl_yield|float) }}%</td>
                 </tr>
               </tbody>
             </table>
@@ -100,6 +109,7 @@
           <div class="container-normal">
             <img src="{{ val.img_prices_long }}" alt="Price history vs benchmark" class="normal-plot">
           </div>
+        </div>
       </div>
       {%- endfor -%}
     </div>

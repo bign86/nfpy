@@ -146,8 +146,20 @@ class ReportMarketShort(BaseReport):
 
         # Dividends
         df = DividendFactory(asset)
-        res.ttm_div = df.ttm_div()
-        res.ttm_yield = df.ttm_yield() * 100.
+        _, yrl_div = df.annual_dividends
+        _, yrl_yield = df.div_yields()
+        if len(yrl_yield) > 0:
+            res.ytd_yrl_div = yrl_div[-1]
+            res.ytd_yrl_yield = yrl_yield[-1] * 100.
+        else:
+            res.ytd_yrl_div = 0.
+            res.ytd_yrl_yield = 0.
+        if len(yrl_yield) > 1:
+            res.last_yrl_div = yrl_div[-2]
+            res.last_yrl_yield = yrl_yield[-2] * 100.
+        else:
+            res.last_yrl_div = 0.
+            res.last_yrl_yield = 0.
 
         # Performance and plot
         # Adjust the slice to account for the fact that the history of the

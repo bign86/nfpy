@@ -1,10 +1,9 @@
 from .AlertsEngine import (AlertsEngine, Alert)
 from .Backtesting import (Backtester, Portfolio)
 from .BaseSizer import TySizer
-from .BaseStrategy import TyStrategy
+from nfpy.Trading.Strategies.BaseStrategy import TyStrategy
 # from .BreachesEngine import BreachesEngine
 from .Enums import (Order, Signal)
-from .SR import *
 
 
 __all__ = [
@@ -25,7 +24,4 @@ __all__ = [
 
     # Enum
     'Order', 'Signal',
-
-    # SR
-    'SR',
 ]

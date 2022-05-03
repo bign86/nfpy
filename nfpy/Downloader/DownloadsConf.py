@@ -7,36 +7,119 @@
 # Yahoo
 #
 
-YahooFinancialsConf = [
-    ['date', 'freq'],
-    # ['earningsActual', 'earningsEstimate'],
-    [  # IncomeStatement
-        'researchDevelopment', 'effectOfAccountingCharges',
-        'incomeBeforeTax', 'minorityInterest', 'netIncome', 'sellingGeneralAdministrative',
-        'grossProfit', 'ebit', 'operatingIncome', 'otherOperatingExpenses', 'interestExpense',
-        'extraordinaryItems', 'nonRecurring', 'otherItems', 'incomeTaxExpense',
-        'totalRevenue', 'totalOperatingExpenses', 'costOfRevenue', 'totalOtherIncomeExpenseNet',
-        'discontinuedOperations', 'netIncomeFromContinuingOps', 'netIncomeApplicableToCommonShares'
-    ],
-    [  # BalanceSheet
-        'intangibleAssets', 'totalLiab', 'totalStockholderEquity',
-        'deferredLongTermLiab', 'otherCurrentLiab', 'totalAssets', 'commonStock',
-        'otherCurrentAssets', 'retainedEarnings', 'otherLiab', 'goodWill', 'treasuryStock',
-        'otherAssets', 'cash', 'totalCurrentLiabilities', 'deferredLongTermAssetCharges',
-        'shortLongTermDebt', 'otherStockholderEquity', 'propertyPlantEquipment',
-        'totalCurrentAssets', 'longTermInvestments', 'netTangibleAssets', 'shortTermInvestments',
-        'netReceivables', 'longTermDebt', 'inventory', 'accountsPayable', 'capitalSurplus'
-    ],
-    [  # CashFlow
-        # NOTE: netIncome is renamed CFnetIncome to avoid clashing with Income statement
-        'changeToLiabilities', 'totalCashflowsFromInvestingActivities', 'repurchaseOfStock',
-        'netBorrowings', 'totalCashFromFinancingActivities', 'changeToOperatingActivities',
-        'netIncome', 'changeInCash', 'effectOfExchangeRate', 'totalCashFromOperatingActivities',
-        'depreciation', 'otherCashflowsFromInvestingActivities', 'dividendsPaid',
-        'changeToInventory', 'changeToAccountReceivables', 'otherCashflowsFromFinancingActivities',
-        'changeToNetincome', 'capitalExpenditures', 'investments', 'issuanceOfStock'
-    ]
-]
+# YahooFinancialsConf = [
+#     ['date', 'freq'],
+#     # ['earningsActual', 'earningsEstimate'],
+#     [  # IncomeStatement
+#         'researchDevelopment', 'effectOfAccountingCharges',
+#         'incomeBeforeTax', 'minorityInterest', 'netIncome', 'sellingGeneralAdministrative',
+#         'grossProfit', 'ebit', 'operatingIncome', 'otherOperatingExpenses', 'interestExpense',
+#         'extraordinaryItems', 'nonRecurring', 'otherItems', 'incomeTaxExpense',
+#         'totalRevenue', 'totalOperatingExpenses', 'costOfRevenue', 'totalOtherIncomeExpenseNet',
+#         'discontinuedOperations', 'netIncomeFromContinuingOps', 'netIncomeApplicableToCommonShares'
+#     ],
+#     [  # BalanceSheet
+#         'intangibleAssets', 'totalLiab', 'totalStockholderEquity',
+#         'deferredLongTermLiab', 'otherCurrentLiab', 'totalAssets', 'commonStock',
+#         'otherCurrentAssets', 'retainedEarnings', 'otherLiab', 'goodWill', 'treasuryStock',
+#         'otherAssets', 'cash', 'totalCurrentLiabilities', 'deferredLongTermAssetCharges',
+#         'shortLongTermDebt', 'otherStockholderEquity', 'propertyPlantEquipment',
+#         'totalCurrentAssets', 'longTermInvestments', 'netTangibleAssets', 'shortTermInvestments',
+#         'netReceivables', 'longTermDebt', 'inventory', 'accountsPayable', 'capitalSurplus'
+#     ],
+#     [  # CashFlow
+#         # NOTE: netIncome is renamed CFnetIncome to avoid clashing with Income statement
+#         'changeToLiabilities', 'totalCashflowsFromInvestingActivities', 'repurchaseOfStock',
+#         'netBorrowings', 'totalCashFromFinancingActivities', 'changeToOperatingActivities',
+#         'netIncome', 'changeInCash', 'effectOfExchangeRate', 'totalCashFromOperatingActivities',
+#         'depreciation', 'otherCashflowsFromInvestingActivities', 'dividendsPaid',
+#         'changeToInventory', 'changeToAccountReceivables', 'otherCashflowsFromFinancingActivities',
+#         'changeToNetincome', 'capitalExpenditures', 'investments', 'issuanceOfStock'
+#     ]
+# ]
+
+YahooFinancialsConf = {
+    'INC':
+        {
+            'researchDevelopment': '',
+            'effectOfAccountingCharges': '',
+            'incomeBeforeTax': '',
+            'minorityInterest': '',
+            'netIncome': '',
+            'sellingGeneralAdministrative': '',
+            'grossProfit': '',
+            'ebit': '',
+            'operatingIncome': '',
+            'otherOperatingExpenses': '',
+            'interestExpense': '',
+            'extraordinaryItems': '',
+            'nonRecurring': '',
+            'otherItems': '',
+            'incomeTaxExpense': '',
+            'totalRevenue': '',
+            'totalOperatingExpenses': '',
+            'costOfRevenue': '',
+            'totalOtherIncomeExpenseNet': '',
+            'discontinuedOperations': '',
+            'netIncomeFromContinuingOps': '',
+            'netIncomeApplicableToCommonShares': ''
+        },
+    'BAL':
+        {
+            'intangibleAssets': '',
+            'totalLiab': '',
+            'totalStockholderEquity': '',
+            'deferredLongTermLiab': '',
+            'otherCurrentLiab': '',
+            'totalAssets': '',
+            'commonStock': '',
+            'otherCurrentAssets': '',
+            'retainedEarnings': '',
+            'otherLiab': '',
+            'goodWill': '',
+            'treasuryStock': '',
+            'otherAssets': '',
+            'cash': '',
+            'totalCurrentLiabilities': '',
+            'deferredLongTermAssetCharges': '',
+            'shortLongTermDebt': '',
+            'otherStockholderEquity': '',
+            'propertyPlantEquipment': '',
+            'totalCurrentAssets': '',
+            'longTermInvestments': '',
+            'netTangibleAssets': '',
+            'shortTermInvestments': '',
+            'netReceivables': '',
+            'longTermDebt': '',
+            'inventory': '',
+            'accountsPayable': '',
+            'capitalSurplus': ''
+        },
+    'CAS':
+        {
+            # NOTE: netIncome is renamed CFnetIncome to avoid clashing with Income statement
+            'changeToLiabilities': '',
+            'totalCashflowsFromInvestingActivities': '',
+            'repurchaseOfStock': '',
+            'netBorrowings': '',
+            'totalCashFromFinancingActivities': '',
+            'changeToOperatingActivities': '',
+            'netIncome': '',
+            'changeInCash': '',
+            'effectOfExchangeRate': '',
+            'totalCashFromOperatingActivities': '',
+            'depreciation': '',
+            'otherCashflowsFromInvestingActivities': '',
+            'dividendsPaid': '',
+            'changeToInventory': '',
+            'changeToAccountReceivables': '',
+            'otherCashflowsFromFinancingActivities': '',
+            'changeToNetincome': '',
+            'capitalExpenditures': '',
+            'investments': '',
+            'issuanceOfStock': ''
+        }
+}
 
 YahooHistPricesConf = ["date", "open", "high", "low", "close", "adj_close", "volume"]
 
@@ -44,13 +127,11 @@ YahooHistDividendsConf = ["date", "value"]
 
 YahooHistSplitsConf = ["date", "value"]
 
-
 #
 # ECB
 #
 
 ECBSeriesConf = ["date", "value"]
-
 
 #
 # Investing
@@ -179,10 +260,9 @@ InvestingIncomeStatementConf = {'Net Interest Income': 'ENII',
                                 'Diluted Net Income': 'SDNI',
                                 'Diluted Weighted Average Shares': 'SDWS',
                                 'Diluted EPS Excluding Extraordinary Items': 'SDBF',  # divide
-                                'DPS - Common Stock Primary Issue': 'DDPS1',          # divide
-                                'Diluted Normalized EPS': 'VDES'                      # divide
+                                'DPS - Common Stock Primary Issue': 'DDPS1',  # divide
+                                'Diluted Normalized EPS': 'VDES'  # divide
                                 }
-
 
 #
 # Interactive Brokers

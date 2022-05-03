@@ -172,7 +172,8 @@ def find_relative_extrema(v: np.ndarray, order: int) \
     return idx, flags
 
 
-def last_valid_index(v: np.ndarray, start: Optional[int] = None) -> int:
+def last_valid_index(v: np.ndarray, start: Optional[int] = None,
+                     axis: int = 0) -> int:
     """ Find the index of the last non-nan value. Similar to the Pandas method
         last_valid_index(). It can be used with 1D arrays only.
 
@@ -183,14 +184,19 @@ def last_valid_index(v: np.ndarray, start: Optional[int] = None) -> int:
         Output:
             i [int]: last valid index
     """
-    if len(v.shape) > 1:
-        raise Ex.ShapeError('Only 1D arrays supported')
+    if len(v.shape) == 1:
+        v = v[None, :]
+    elif (len(v.shape) == 2) & (axis == 1):
+        v = v.T
+    elif len(v.shape) > 2:
+        raise Ex.ShapeError('Only 1D and 2D arrays supported')
 
-    i = v.size - 1 \
+    n = v.shape[1]
+    i = n - 1 \
         if start is None \
-        else min(start, v.size - 1)
+        else min(start, n - 1)
 
-    while np.isnan(v[i]) and (i >= 0):
+    while np.any(np.isnan(v[:, i])) and (i >= 0):
         i -= 1
     if i < 0:
         raise ValueError('The series is all nans')
@@ -221,23 +227,28 @@ def last_valid_value(v: np.ndarray, dt: Optional[np.ndarray] = None,
     return float(v[idx]), idx
 
 
-def next_valid_index(v: np.ndarray, start: int = 0) -> int:
+def next_valid_index(v: np.ndarray, start: int = 0, axis: int = 0) -> int:
     """ Find the index of the next non-nan value starting from the given index.
         It can be used with 1D arrays only.
 
         Input:
             v [np.ndarray]: input series
             start [int]: starting index (default: 0)
+            axis [int]: search direction (0: across rows, 1: across columns)
 
         Output:
             i [int]: next valid index
     """
-    if len(v.shape) > 1:
-        raise Ex.ShapeError('Only 1D arrays supported')
+    if len(v.shape) == 1:
+        v = v[None, :]
+    elif (len(v.shape) == 2) & (axis == 1):
+        v = v.T
+    elif len(v.shape) > 2:
+        raise Ex.ShapeError('Only 1D and 2D arrays supported')
 
     i = start
-    n = len(v)
-    while (i < n) and np.isnan(v[i]):
+    n = v.shape[1]
+    while (i < n) and np.any(np.isnan(v[:, i])):
         i += 1
     if i == n:
         raise ValueError('The series is all nans')

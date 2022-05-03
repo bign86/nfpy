@@ -11,7 +11,7 @@ import nfpy.Financial.Math as Mat
 import nfpy.IO as IO
 from nfpy.Tools import Utilities as Ut
 
-from .SR import Trends as Tr
+from .Indicators.BulkIndicators import SR as Tr
 
 
 class BreachesResult(Ut.AttributizedDict):

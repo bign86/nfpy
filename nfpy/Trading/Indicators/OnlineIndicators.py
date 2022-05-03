@@ -11,19 +11,7 @@ from collections import deque
 import numpy as np
 from typing import Optional
 
-from nfpy.Tools import Exceptions as Ex
-
-
-def _check_len(v, w) -> None:
-    if w == 0:
-        return
-    elif v.shape[0] < w:
-        raise Ex.ShortSeriesError(f'The provided Series is too short {v.shape[0]} < {w}')
-
-
-def _check_nans(v: np.ndarray) -> None:
-    if np.sum(np.isnan(v)) > 0:
-        raise Ex.NanPresent(f'The provided Series contains NaNs')
+from .Utils import (_check_len, _check_nans)
 
 
 class BaseOnlineIndicator(object):
