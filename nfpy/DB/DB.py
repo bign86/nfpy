@@ -100,10 +100,7 @@ class DBHandler(metaclass=Singleton):
 
     def _create_connection(self) -> None:
         """ Creates the DB connection """
-        self._conn = sqlite3.connect(
-            self.db_path,
-            detect_types=sqlite3.PARSE_DECLTYPES
-        )
+        self._conn = get_db_connection(self.db_path)
 
         # Sanity check on the database version
         q = "select value from SystemInfo where field = 'DBVersion'"
@@ -159,6 +156,10 @@ class DBHandler(metaclass=Singleton):
             raise ex
 
         print(f"Database backup'd in: {new_file}")
+
+
+def get_db_connection(path: str) -> sqlite3.Connection:
+    return sqlite3.connect(path, detect_types=sqlite3.PARSE_DECLTYPES)
 
 
 def get_db_glob(db_path: Optional[str] = None) -> DBHandler:

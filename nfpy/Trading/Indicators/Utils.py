@@ -14,6 +14,7 @@ def _check_len(v, w) -> None:
         raise Ex.ShortSeriesError(f'The provided Series is too short {l} < {w}')
 
 
+# TODO: expand to 2D
 def _check_nans(v: np.ndarray) -> None:
     if np.sum(np.isnan(v), axis=0) > 0:
         raise Ex.NanPresent(f'The provided Series contains NaNs')

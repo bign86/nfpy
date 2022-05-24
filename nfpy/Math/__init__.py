@@ -24,8 +24,8 @@ __all__ = [
     'beta', 'capm_beta', 'drawdown', 'sharpe', 'sml', 'te',
 
     # TSStats_
-    'correlation', 'kurtosis', 'rolling_mean', 'rolling_sum', 'rolling_window',
-    'series_momenta', 'skewness',
+    'correlation', 'kurtosis', 'rolling_mad', 'rolling_mean', 'rolling_sum',
+    'rolling_window', 'series_momenta', 'skewness',
 
     # TSUtils_
     'dropna', 'ffill_cols', 'ffill_rows', 'fillna', 'find_extrema',

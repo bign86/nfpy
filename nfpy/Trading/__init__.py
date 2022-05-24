@@ -2,8 +2,7 @@ from .AlertsEngine import (AlertsEngine, Alert)
 from .Backtesting import (Backtester, Portfolio)
 from .BaseSizer import TySizer
 from nfpy.Trading.Strategies.BaseStrategy import TyStrategy
-# from .BreachesEngine import BreachesEngine
-from .Enums import (Order, Signal)
+from nfpy.Trading.Strategies.Enums import (Order, Signal)
 
 
 __all__ = [

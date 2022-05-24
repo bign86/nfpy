@@ -1,14 +1,16 @@
-from .BulkIndicators import *
-from .OnlineIndicators import *
+from .Channel import *
+from .MA import *
+from .MO import *
 
 
 __all__ = [
-    # Bulk indicators
-    'atr', 'bollinger', 'cci', 'csma', 'dema', 'donchian', 'ewma', 'fi',
-    'fi_elder', 'macd', 'merge_sr', 'mfi', 'rsi_cutler', 'rsi_wilder',
-    'search_maxmin', 'sma', 'smd', 'smstd', 'stochastic', 'tema', 'tr', 'tsi',
-    'wma',
+    # Channel
+    'Bollinger', 'Donchian',
 
-    # Online indicators
-    'Bollinger', 'Csma', 'Ewma', 'Macd', 'Sma', 'Smd', 'Smstd'
+    # MA
+    'Csma', 'Dema', 'Ewma', 'Macd', 'Sma', 'Smd', 'Smstd', 'Tema',  # 'wma',
+
+    # MO
+    'Atr', 'Cci', 'Fi', 'FiElder', 'Mfi', 'RsiCutler', 'RsiWilder',
+    'Stochastic', 'Tr',  'Tsi',
 ]

@@ -48,7 +48,7 @@ class Equity(Asset):
             try:
                 res = self.load_dtype('dividend')['dividend']
             except Ex.MissingData:
-                res = pd.Series()
+                res = pd.Series(dtype=float)
             self._div = res
         return self._div
 
@@ -62,7 +62,7 @@ class Equity(Asset):
             try:
                 res = self.load_dtype('dividendSpecial')
             except Ex.MissingData:
-                res = pd.Series()
+                res = pd.Series(dtype=float)
             self._div_special = res
         return self._div_special
 
@@ -73,7 +73,7 @@ class Equity(Asset):
             try:
                 res = self.load_dtype('split')
             except Ex.MissingData:
-                res = pd.Series()
+                res = pd.Series(dtype=float)
             self._split = res
         return self._split
 

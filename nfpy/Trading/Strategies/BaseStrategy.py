@@ -5,60 +5,11 @@
 
 from abc import (ABCMeta, abstractmethod)
 import numpy as np
-from typing import (Optional, TypeVar, Union)
+from typing import (Optional, TypeVar)
 
+import nfpy.Assets as Ast
 import nfpy.Math as Math
-import nfpy.Tools.Exceptions as Ex
 import nfpy.Tools.Utilities as Ut
-
-
-class StrategyResult(Ut.AttributizedDict):
-
-    def __init__(self, idx: np.ndarray, dt: np.ndarray, sig: np.ndarray):
-        super().__init__()
-        self._indices = idx
-        self._dates = dt
-        self._signals = sig
-
-    @property
-    def indices(self) -> np.ndarray:
-        return self._indices
-
-    @property
-    def dates(self) -> np.ndarray:
-        return self._dates
-
-    @property
-    def signals(self) -> np.ndarray:
-        return self._signals
-
-    def __iter__(self):
-        return StrategyResIterator(self).__iter__()
-
-
-class StrategyResIterator(object):
-
-    def __init__(self, strat: StrategyResult):
-        self._idx = strat.indices
-        self._dt = strat.dates
-        self._s = strat.signals
-        self._i = 0
-        self._max = len(self._idx)
-
-    def __iter__(self):
-        return self
-
-    def __next__(self) -> tuple:
-        i = self._i
-        if i < self._max:
-            self._i += 1
-            return (
-                self._idx[i],
-                self._dt[i],
-                self._s[i],
-            )
-        else:
-            raise StopIteration
 
 
 class BaseStrategy(metaclass=ABCMeta):
@@ -81,53 +32,40 @@ class BaseStrategy(metaclass=ABCMeta):
     NAME = ''
     DESCRIPTION = ''
 
-    def __init__(self, dt: np.ndarray, ts: np.ndarray, npc: Optional[int] = 0):
-        self._dt = dt
+    def __init__(self, asset: Ast.TyAsset, bulk: bool, npc: Optional[int] = 0):
+        self._is_bulk = bulk
+        self._dt = asset.prices.index.values
 
-        if len(ts.shape) == 1:
-            self._ts = ts[None, :]
-        elif len(ts.shape) == 2:
-            self._ts = ts
-        else:
-            msg = 'BaseStrategy(): time series must be either 1D or 2D arrays.'
-            raise Ex.ShapeError(msg)
+        self._ts = self._extract_ts(asset)
+        print(f'Base strat | {id(self._ts)}')
 
-        # Number of periods to confirm a signal
-        self._num_p_conf = npc
-
-        # Variables for the on-line version of the strategy
-        self._is_timer_set = False
-        self._start_time = None
-        self._curr_time = None
-        self._i = None
-        self._max_i = len(dt)
+        self._num_p_conf = npc  # Periods to confirm a signal
+        self._max_t = self._dt.shape[0]
+        self._t = -1
 
     def __iter__(self):
         return self
 
     def __next__(self) -> tuple:
-        i = self._i
-        if i < self._max_i:
-            self._i += 1
-            return self._f(i)
+        self._t += 1
+        if self._t < self._max_t:
+            return self._signal()
         else:
             raise StopIteration
 
-    def _set_min_timer(self) -> None:
-        """ Set the timer to start at the latest date that makes still possible
-            to generate a single evaluation.
-        """
-        self._i = self._ts.shape[1] - self.min_length
-        self._start_time = self._dt[self._i]
-        self._is_timer_set = True
+    @property
+    def dt(self) -> np.ndarray:
+        return self._dt
 
-    def bulk_exec(self) -> StrategyResult:
-        """ Apply the strategy to the whole time series in bulk. """
-        self.check_length()
-        return self._bulk()
+    @property
+    def ts(self) -> np.ndarray:
+        return self._ts
 
-    def check_length(self) -> None:
-        useful_len = self._ts.shape[1] - self.min_length
+    def _check_length(self) -> None:
+        if len(self._ts.shape) == 1:
+            useful_len = self._ts.shape[0] - self.min_length
+        else:
+            useful_len = self._ts.shape[1] - self.min_length
 
         if useful_len < 0:
             msg = f'{self._LABEL}: The series is {-useful_len} periods too short'
@@ -137,49 +75,25 @@ class BaseStrategy(metaclass=ABCMeta):
             msg = f'{self._LABEL}: The are too many nans at the beginning'
             raise ValueError(msg)
 
+    @staticmethod
+    def _extract_ts(asset: Ast.TyAsset) -> np.ndarray:
+        """ Returns the 1D or 2D time series required to use the strategy. """
+        return Math.ffill_cols(asset.prices.values)
+
     @property
-    def max_length(self) -> int:
+    def max_t(self) -> int:
         """ Returns the max time series index. """
-        return self._max_i
+        return self._max_t
 
-    def set_timer(self, start: Optional[Union[int, np.datetime64]] = None) \
-            -> None:
-        """ Set the timer to <dt> for the period-by-period execution. """
-        if isinstance(start, np.datetime64):
-            self._i = max(
-                np.searchsorted(self._dt, [start])[0],
-                self.min_length
-            )
-        elif isinstance(start, int):
-            self._i = max(start, self.min_length)
-        else:
-            raise TypeError('The <date> in Strategy.set_timer() is not correct')
-
-        self._start_time = self._dt[self._i]
-        self._is_timer_set = True
-
-    def start(self) -> None:
-        self.check_length()
-        if not self._is_timer_set:
-            self._set_min_timer()
-
-        # We need to jumpstart the first part of the strategy to create the
-        # first data point of the strategy
-
+    # @abstractmethod
+    # def _bulk(self) -> StrategyResult:
+    #     """ Strategy bulk calculation function. Should get the results from each
+    #         indicator, make necessary controls and generate the series of
+    #         signals.
+    #     """
+    #
     @abstractmethod
-    def _bulk(self) -> StrategyResult:
-        """ Strategy bulk calculation function. """
-
-    @abstractmethod
-    def _f(self, i: int) -> Optional[tuple]:
-        """ Strategy day-by-day calculation function. Must return a tuple
-            containing the generated signal in the form:
-                <index, date, signal>
-            If no (new) signal is generated, None is returned instead.
-        """
-
-    @abstractmethod
-    def check_order_validity(self, order: list) -> str:
+    def check_order_validity(self, order: tuple) -> str:
         """ Return the validity of a pending order.
              - 'execute': if the order can be executed immediately
              - 'keep': if the order cannot be executed and remains pending
@@ -193,6 +107,19 @@ class BaseStrategy(metaclass=ABCMeta):
             generation. This represents the minimum amount of data necessary to
             run the strategy.
         """
+
+    @abstractmethod
+    def _signal(self) -> Optional[tuple]:
+        """ Must return a tuple containing the generated signal in the form:
+                <index, date, signal>
+            If the bulk mode is used, the pre-calculate signal is returned. If
+            the online mode is used, the indicator values are first returned,
+            the controls made and the signal generated.
+        """
+
+    @abstractmethod
+    def start(self, t0: int) -> None:
+        """ Call the start() method of each indicator. """
 
 
 TyStrategy = TypeVar('TyStrategy', bound=BaseStrategy)

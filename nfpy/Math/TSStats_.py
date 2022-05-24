@@ -107,8 +107,8 @@ def rolling_mean(v: np.ndarray, w: int) -> np.ndarray:
     return np.nanmean(rolling_window(v, w), axis=1)
 
 
-def rolling_mean_ad(v: np.ndarray, w: int) -> np.ndarray:
-    """ Compute the rolling mean of the input array.
+def rolling_mad(v: np.ndarray, w: int) -> np.ndarray:
+    """ Compute the rolling mean average deviation of the input array.
 
         Input:
             v [np.ndarray]: input array
