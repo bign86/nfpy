@@ -183,7 +183,8 @@ class Calendar(metaclass=Singleton):
         freq = self._frequency if freq is None else freq
         offset = _FREQ_LABELS[freq][1]
         shifted = dt + offset(int(n))
-        target = self._calendar.get_loc(shifted, method=method)
+        # target = self._calendar.get_loc(shifted, method=method)
+        target = self._calendar.get_indexer([shifted], method=method)[0]
         return self._calendar[target]
 
 

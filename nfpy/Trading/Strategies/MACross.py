@@ -3,14 +3,13 @@
 # Strategies based on crossing between MAs
 #
 
-import numpy as np
 from typing import Optional
 
 import nfpy.Assets as Ast
-import nfpy.Math as Math
 
 from .. import Indicators as Ind
-from .BaseStrategy import (BaseStrategy, StrategyResult)
+from .BaseStrategy import BaseStrategy
+from .Enums import (Order, Signal, SignalFlag)
 
 
 class SMAPriceCross(BaseStrategy):
@@ -23,9 +22,6 @@ class SMAPriceCross(BaseStrategy):
             bulk [bool]: use the "bulk" or the "online" mode
             w [int]: rolling window size
             npc [int]: number of periods to confirm the signal
-
-        Output:
-            signals [StrategyResult]: generated signals
     """
 
     _LABEL = 'SMA_P_Cross'
@@ -42,33 +38,27 @@ class SMAPriceCross(BaseStrategy):
 
         self._status = b''
         self._ma = Ind.Sma(self._ts, bulk, w)
+        self._register_indicator([self._ma])
 
-    def check_order_validity(self, order: tuple) -> str:
-        return 'execute'
+    def check_order_validity(self, order: Order) -> tuple[str, int]:
+        return 'execute', self._t
 
-    @property
-    def min_length(self) -> int:
-        return self._ma.min_length + self._num_p_conf
-
-    def _signal(self) -> Optional[tuple]:
+    def _signal(self) -> Optional[Signal]:
         ma = self._ma.__next__()
         d_new = self._ts[self._t] - ma
 
         signal = None
         if d_new > .0:
             if self._status == b'b':
-                signal = self._t, self._dt[self._t], 1  # Signal.BUY
+                signal = self.raise_signal(SignalFlag.BUY)
             self._status = b'a'
         elif d_new < .0:
             if self._status == b'a':
-                signal = self._t, self._dt[self._t], -1  # Signal.SELL
+                signal = self.raise_signal(SignalFlag.SELL)
             self._status = b'b'
 
+        print(f'{self._t}| {d_new:.2f} -> {signal.__repr__()}')
         return signal
-
-    def start(self, t0: int) -> None:
-        self._t = t0
-        self._ma.start(t0)
 
 
 class TwoSMACross(BaseStrategy):
@@ -82,9 +72,6 @@ class TwoSMACross(BaseStrategy):
             w_fast [int]: fast rolling window size
             w_slow [int]: slow rolling window size
             npc [int]: number of periods to confirm the signal
-
-        Output:
-            signals [StrategyResult]: generated signals
     """
 
     _LABEL = '2_SMA_Cross'
@@ -103,15 +90,12 @@ class TwoSMACross(BaseStrategy):
         self._status = b''
         self._maf = Ind.Sma(self._ts, bulk, w_fast)
         self._mas = Ind.Sma(self._ts, bulk, w_slow)
+        self._register_indicator([self._maf, self._mas])
 
-    def check_order_validity(self, order: tuple) -> str:
-        return 'execute'
+    def check_order_validity(self, order: Order) -> tuple[str, int]:
+        return 'execute', self._t
 
-    @property
-    def min_length(self) -> int:
-        return self._mas.min_length + self._num_p_conf
-
-    def _signal(self) -> Optional[tuple]:
+    def _signal(self) -> Optional[Signal]:
         maf = self._maf.__next__()
         mas = self._mas.__next__()
         d_new = maf - mas
@@ -119,19 +103,14 @@ class TwoSMACross(BaseStrategy):
         signal = None
         if d_new > .0:
             if self._status == b'b':
-                signal = self._t, self._dt[self._t], 1  # Signal.BUY
+                signal = self.raise_signal(SignalFlag.BUY)
             self._status = b'a'
         elif d_new < .0:
             if self._status == b'a':
-                signal = self._t, self._dt[self._t], -1  # Signal.SELL
+                signal = self.raise_signal(SignalFlag.SELL)
             self._status = b'b'
 
         return signal
-
-    def start(self, t0: int) -> None:
-        self._t = t0
-        self._maf.start(t0)
-        self._mas.start(t0)
 
 
 class EMAPriceCross(BaseStrategy):
@@ -144,9 +123,6 @@ class EMAPriceCross(BaseStrategy):
             bulk [bool]: use the "bulk" or the "online" mode
             w [int]: fast rolling window size
             npc [int]: number of periods to confirm the signal
-
-        Output:
-            signals [StrategyResult]: generated signals
     """
 
     _LABEL = 'EMA_P_Cross'
@@ -163,33 +139,26 @@ class EMAPriceCross(BaseStrategy):
 
         self._status = b''
         self._ema = Ind.Ewma(self._ts, bulk, w)
+        self._register_indicator([self._ema])
 
-    def check_order_validity(self, order: tuple) -> str:
-        return 'execute'
+    def check_order_validity(self, order: Order) -> tuple[str, int]:
+        return 'execute', self._t
 
-    @property
-    def min_length(self) -> int:
-        return self._ema.min_length + self._num_p_conf
-
-    def _signal(self) -> Optional[tuple]:
+    def _signal(self) -> Optional[Signal]:
         ema = self._ema.__next__()
         d_new = self._ts[self._t] - ema
 
         signal = None
         if d_new > .0:
             if self._status == b'b':
-                signal = self._t, self._dt[self._t], 1  # Signal.BUY
+                signal = self.raise_signal(SignalFlag.BUY)
             self._status = b'a'
         elif d_new < .0:
             if self._status == b'a':
-                signal = self._t, self._dt[self._t], -1  # Signal.SELL
+                signal = self.raise_signal(SignalFlag.SELL)
             self._status = b'b'
 
         return signal
-
-    def start(self, t0: int) -> None:
-        self._t = t0
-        self._ema.start(t0)
 
 
 class TwoEMACross(BaseStrategy):
@@ -203,9 +172,6 @@ class TwoEMACross(BaseStrategy):
             w_fast [int]: fast rolling window size
             w_slow [int]: slow rolling window size
             npc [int]: number of periods to confirm the signal
-
-        Output:
-            signals [StrategyResult]: generated signals
     """
 
     _LABEL = '2_EMA_Cross'
@@ -224,15 +190,12 @@ class TwoEMACross(BaseStrategy):
         self._status = b''
         self._emaf = Ind.Ewma(self._ts, bulk, w_fast)
         self._emas = Ind.Ewma(self._ts, bulk, w_slow)
+        self._register_indicator([self._emaf, self._emas])
 
-    def check_order_validity(self, order: tuple) -> str:
-        return 'execute'
+    def check_order_validity(self, order: Order) -> tuple[str, int]:
+        return 'execute', self._t
 
-    @property
-    def min_length(self) -> int:
-        return self._emas.min_length + self._num_p_conf
-
-    def _signal(self) -> Optional[tuple]:
+    def _signal(self) -> Optional[Signal]:
         emaf = self._emaf.__next__()
         emas = self._emas.__next__()
         d_new = emaf - emas
@@ -240,45 +203,14 @@ class TwoEMACross(BaseStrategy):
         signal = None
         if d_new > .0:
             if self._status == b'b':
-                signal = self._t, self._dt[self._t], 1  # Signal.BUY
+                signal = self.raise_signal(SignalFlag.BUY)
             self._status = b'a'
         elif d_new < .0:
             if self._status == b'a':
-                signal = self._t, self._dt[self._t], -1  # Signal.SELL
+                signal = self.raise_signal(SignalFlag.SELL)
             self._status = b'b'
 
         return signal
-
-    def start(self, t0: int) -> None:
-        self._t = t0
-        self._emaf.start(t0)
-        self._emas.start(t0)
-
-
-class ThreeMAStrategy(BaseStrategy):
-
-    @staticmethod
-    def _3ma_swing_(dt: np.ndarray, p: np.ndarray, v1: np.ndarray,
-                    v2: np.ndarray, v3: np.ndarray, w: int) -> tuple:
-        # Calculate the trend mask
-        p = Math.ffill_cols(p)
-        mask_tr = (p - v3) > .0
-
-        # Calculate cross MAs
-        cross_cr = np.diff(np.where(v1 > v2, 1, 0))
-        cross_cr[:w - 1] = 0
-
-        # Calculate final mask and indices
-        mask = ((cross_cr == 1) & mask_tr[1:]) | \
-               ((cross_cr == -1) & ~mask_tr[1:])
-        idx = np.nonzero(mask)[0]
-        signals = cross_cr[idx]
-
-        # Calculate returned quantities
-        idx = idx + 1
-        dt = dt[idx]
-
-        return idx, dt, signals
 
 
 class ThreeSMAMomentumStrategy(BaseStrategy):
@@ -294,9 +226,6 @@ class ThreeSMAMomentumStrategy(BaseStrategy):
             w_slow [int]: slow rolling window size
             w_trend [int]: slowest rolling window size for general trend
             npc [int]: number of periods to confirm the signal
-
-        Output:
-            signals [StrategyResult]: generated signals
     """
 
     _LABEL = '3_SMA_Mom'
@@ -317,15 +246,12 @@ class ThreeSMAMomentumStrategy(BaseStrategy):
         self._maf = Ind.Sma(self._ts, bulk, w_fast)
         self._mas = Ind.Sma(self._ts, bulk, w_slow)
         self._mat = Ind.Sma(self._ts, bulk, w_trend)
+        self._register_indicator([self._maf, self._mas, self._mat])
 
-    def check_order_validity(self, order: tuple) -> str:
-        return 'execute'
+    def check_order_validity(self, order: Order) -> tuple[str, int]:
+        return 'execute', self._t
 
-    @property
-    def min_length(self) -> int:
-        return self._mas.min_length + self._num_p_conf
-
-    def _signal(self) -> Optional[tuple]:
+    def _signal(self) -> Optional[Signal]:
         maf = self._maf.__next__()
         mas = self._mas.__next__()
         mat = self._mat.__next__()
@@ -335,24 +261,18 @@ class ThreeSMAMomentumStrategy(BaseStrategy):
         if d_new > .0:
             if self._status == b'b':
                 if self._ts[self._t] > mat:
-                    signal = self._t, self._dt[self._t], 1  # Signal.BUY
+                    signal = self.raise_signal(SignalFlag.BUY)
             self._status = b'a'
         elif d_new < .0:
             if self._status == b'a':
                 if self._ts[self._t] < mat:
-                    signal = self._t, self._dt[self._t], -1  # Signal.SELL
+                    signal = self.raise_signal(SignalFlag.SELL)
             self._status = b'b'
 
         return signal
 
-    def start(self, t0: int) -> None:
-        self._t = t0
-        self._maf.start(t0)
-        self._mas.start(t0)
-        self._mat.start(t0)
 
-
-class ThreeEMAMomentumStrategy(ThreeMAStrategy):
+class ThreeEMAMomentumStrategy(BaseStrategy):
     """ Buy/Sell strategy. Generates a buy signal when the fast EMA crosses
         above slow EMA if the price is above the trending (longest) EMA, and a
         sell signal when the fast EMA crosses below the slow EMA and the price
@@ -365,9 +285,6 @@ class ThreeEMAMomentumStrategy(ThreeMAStrategy):
             w_slow [int]: slow rolling window size
             w_trend [int]: slowest rolling window size for general trend
             npc [int]: number of periods to confirm the signal
-
-        Output:
-            signals [StrategyResult]: generated signals
     """
 
     _LABEL = '3_EMA_Mom'
@@ -388,15 +305,12 @@ class ThreeEMAMomentumStrategy(ThreeMAStrategy):
         self._emaf = Ind.Ewma(self._ts, bulk, w_fast)
         self._emas = Ind.Ewma(self._ts, bulk, w_slow)
         self._emat = Ind.Ewma(self._ts, bulk, w_trend)
+        self._register_indicator([self._emaf, self._emas, self._emat])
 
-    def check_order_validity(self, order: tuple) -> str:
-        return 'execute'
+    def check_order_validity(self, order: Order) -> tuple[str, int]:
+        return 'execute', self._t
 
-    @property
-    def min_length(self) -> int:
-        return self._emas.min_length + self._num_p_conf
-
-    def _signal(self) -> Optional[tuple]:
+    def _signal(self) -> Optional[Signal]:
         emaf = self._emaf.__next__()
         emas = self._emas.__next__()
         emat = self._emat.__next__()
@@ -406,21 +320,15 @@ class ThreeEMAMomentumStrategy(ThreeMAStrategy):
         if d_new > .0:
             if self._status == b'b':
                 if self._ts[self._t] > emat:
-                    signal = self._t, self._dt[self._t], 1  # Signal.BUY
+                    signal = self.raise_signal(SignalFlag.BUY)
             self._status = b'a'
         elif d_new < .0:
             if self._status == b'a':
                 if self._ts[self._t] < emat:
-                    signal = self._t, self._dt[self._t], -1  # Signal.SELL
+                    signal = self.raise_signal(SignalFlag.SELL)
             self._status = b'b'
 
         return signal
-
-    def start(self, t0: int) -> None:
-        self._t = t0
-        self._emaf.start(t0)
-        self._emas.start(t0)
-        self._emat.start(t0)
 
 
 class MACDHistReversalStrategy(BaseStrategy):
@@ -434,9 +342,6 @@ class MACDHistReversalStrategy(BaseStrategy):
             w_slow [int]: slow rolling window size
             w_trend [int]: slowest rolling window size for general trend
             npc [int]: number of periods to confirm the signal
-
-        Output:
-            signals [StrategyResult]: generated signals
     """
 
     _LABEL = 'MACD_Hist_Rev'
@@ -454,29 +359,22 @@ class MACDHistReversalStrategy(BaseStrategy):
 
         self._status = b''
         self._macd = Ind.Macd(self._ts, bulk, w_slow, w_fast, w_macd)
+        self._register_indicator([self._macd])
 
-    def check_order_validity(self, order: tuple) -> str:
-        return 'execute'
+    def check_order_validity(self, order: Order) -> tuple[str, int]:
+        return 'execute', self._t
 
-    @property
-    def min_length(self) -> int:
-        return self._macd.min_length + self._num_p_conf
-
-    def _signal(self) -> Optional[tuple]:
+    def _signal(self) -> Optional[Signal]:
         hist = self._macd.__next__()[2]
 
         signal = None
         if hist > .0:
             if self._status == b'b':
-                signal = self._t, self._dt[self._t], 1  # Signal.BUY
+                signal = self.raise_signal(SignalFlag.BUY)
             self._status = b'a'
         elif hist < .0:
             if self._status == b'a':
-                signal = self._t, self._dt[self._t], -1  # Signal.SELL
+                signal = self.raise_signal(SignalFlag.SELL)
             self._status = b'b'
 
         return signal
-
-    def start(self, t0: int) -> None:
-        self._t = t0
-        self._macd.start(t0)

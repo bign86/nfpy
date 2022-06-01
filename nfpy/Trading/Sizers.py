@@ -4,10 +4,9 @@
 #
 
 from math import floor
-import numpy as np
 
 from .BaseSizer import BaseSizer
-from .Enums import Signal
+from .Strategies import SignalFlag
 
 
 class ConstantSizer(BaseSizer):
@@ -19,12 +18,12 @@ class ConstantSizer(BaseSizer):
         super().__init__()
         self._c = max(min(1., float(size)), .0)
 
-    def __call__(self, i: int, s: Signal) -> int:
+    def __call__(self, i: int, s: SignalFlag) -> int:
         p = self._p[i]
         size = 0
-        if s == Signal.BUY:
+        if s == SignalFlag.BUY:
             size = int((self._ptf.cash * self._c) // p)
-        elif s == Signal.SELL:
+        elif s == SignalFlag.SELL:
             size = int(floor(self._ptf.shares * self._c))
         return size
 
@@ -39,11 +38,11 @@ class ConstantSplitSizer(BaseSizer):
         self._b = max(min(1., float(buy)), .0)
         self._s = max(min(1., float(sell)), .0)
 
-    def __call__(self, i: int, s: int) -> int:
+    def __call__(self, i: int, s: SignalFlag) -> int:
         p = self._p[i]
         size = 0
-        if s == 1:  # BUY
+        if s == SignalFlag.BUY:
             size = int((self._ptf.cash * self._b) // p)
-        elif s == -1:  # SELL
+        elif s == SignalFlag.SELL:
             size = int(floor(self._ptf.shares * self._s))
         return size

@@ -39,6 +39,12 @@ class ReportMarketShort(BaseReport):
             'w_ma_fast': 20,
             'w_ma_slow': 120,
             'w_plot': 250
+        },
+        'sr': {
+            'w_sr': [120, 20],
+            'w_check': 10,
+            'tolerance': 1.5,
+            'w_multi': 2.,
         }
     }
 
@@ -209,8 +215,11 @@ class ReportMarketShort(BaseReport):
                 '\u03C3 (Y)', 'return', '\u03B2', 'adj. \u03B2', '\u03C1'
             )
         )
-        res.stats = df.style.format(
-            formatter={
+        res.stats = df.to_html(
+            index=True,
+            na_rep='-',
+            border=None,
+            formatters={
                 '\u03C3 (Y)': '{:,.1%}'.format,
                 'return': '{:,.1%}'.format,
                 '\u03B2': '{:,.2f}'.format,
@@ -219,9 +228,7 @@ class ReportMarketShort(BaseReport):
                 'SML ret': '{:,.1%}'.format,
                 '\u0394 pricing': '{:,.1%}'.format
             },
-            **PD_STYLE_PROP) \
-            .set_table_attributes('class="dataframe"') \
-            .render()
+        )
 
     def _calc_trading(self, asset: TyAsset, res: Ut.AttributizedDict) -> None:
         fig_full, fig_rel = self._get_image_paths(
@@ -247,27 +254,43 @@ class ReportMarketShort(BaseReport):
             triggered=None,
             date_checked=check_start
         )
-        alerts.sort(key=lambda x: x.value)
 
+        # Create a common list of alerts
         alerts_data = []
         for a in alerts:
             is_today = 'NEW' if a.date_triggered == dt_today else ''
             dt_trigger = a.date_triggered.strftime('%Y-%m-%d') \
                 if a.date_triggered else ''
-            alerts_data.append((a.cond, a.value, is_today, dt_trigger))
+            alerts_data.append((a.cond, 'breach', a.value, is_today, dt_trigger))
 
+        # S/R lines alerts & add to the common list
+        w_sr = self._p['sr']['w_sr']
+        sr_check = self._p['sr']['w_check']
+        sr_tol = self._p['sr']['tolerance']
+        sr_multi = self._p['sr']['w_multi']
+
+        smooth_w = max(w_sr) * sr_multi
+        sr_checker = Trd.SRBreach(
+            v_p[-smooth_w:],
+            sr_check, sr_tol, 'smooth', w_sr
+        )
+        for b in sr_checker.get_breaches():
+            alerts_data.append((b[0], b[2], b[1], '', ''))
+
+        # Create a DataFrame for alerts
         if len(alerts_data) > 0:
+            alerts_data.sort(key=lambda x: x[2])
             df = pd.DataFrame(
                 alerts_data,
-                columns=('condition', 'price', 'new', 'date trigger')
+                columns=('condition', 'status', 'price', 'new', 'date trigger')
             )
-            res.alerts_table = df.style.format(
-                formatter={
+            res.alerts_table = df.to_html(
+                index=False,
+                na_rep='-',
+                formatters={
                     'price': '{:,.2f}'.format,
                 },
-                **PD_STYLE_PROP) \
-                .set_table_attributes('class="dataframe"') \
-                .render()
+            )
         else:
             res.alerts_table = f'No manual alerts'
 
@@ -277,10 +300,14 @@ class ReportMarketShort(BaseReport):
         w_check = self._p['ma']['w_plot']
 
         total_length = min(w_slow + w_check, v_p.shape[0])
-        shortened_v = v_p[-total_length:]
+        shortened_v = Math.ffill_cols(v_p[-total_length:])
         shortened_dt = dt_p[-total_length:]
-        ma_fast = Ind.ewma(shortened_v, w_fast)
-        ma_slow = Ind.ewma(shortened_v, w_slow)
+        ema_f = Ind.Ewma(shortened_v, True, w_fast)
+        ema_s = Ind.Ewma(shortened_v, True, w_slow)
+        ema_f.start(w_slow)
+        ema_s.start(w_slow)
+        ma_fast = ema_f.get_indicator()['ewma']
+        ma_slow = ema_s.get_indicator()['ewma']
 
         pl = IO.TSPlot() \
             .lplot(0, shortened_dt[w_slow:], shortened_v[w_slow:]) \
@@ -289,9 +316,11 @@ class ReportMarketShort(BaseReport):
             .lplot(0, shortened_dt[w_slow:], ma_slow[w_slow:], color='C2',
                    linewidth=1.5, linestyle='--', label=f'MA {w_slow}')
 
-        for a in alerts:
-            color = 'C4' if a.date_triggered is None else 'C3'
-            pl.line(0, 'xh', a.value, color=color, linestyle='--', linewidth=1)
+        alerts_to_plot = [a for a in alerts_data if a[1] != '']
+        for a in alerts_to_plot:
+            color = 'C4' if a[4] == '' else 'C3'
+            style = '-' if a[0] in 'SR' else '--'
+            pl.line(0, 'xh', a[2], color=color, linestyle=style, linewidth=1)
 
         pl.plot() \
             .save(fig_full[0]) \

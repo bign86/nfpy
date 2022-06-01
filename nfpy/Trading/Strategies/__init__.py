@@ -6,7 +6,7 @@ from .MACross import *
 
 __all__ = [
     # Enums
-    'Order', 'Signal',
+    'Order', 'OrderType', 'Signal', 'SignalFlag',
 
     # BaseStrategy
     'TyStrategy',

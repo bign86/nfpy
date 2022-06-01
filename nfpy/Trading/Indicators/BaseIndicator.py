@@ -5,7 +5,7 @@
 
 from abc import (ABCMeta, abstractmethod)
 import numpy as np
-from typing import Union
+from typing import (TypeVar, Union)
 
 from .Utils import (_check_len, _check_nans)
 
@@ -79,3 +79,6 @@ class BaseIndicator(metaclass=ABCMeta):
         """ Return the minimum amount of data required for a single evaluation
             of the indicator.
         """
+
+
+TyIndicator = TypeVar('TyIndicator', bound=BaseIndicator)

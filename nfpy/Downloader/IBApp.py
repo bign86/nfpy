@@ -43,8 +43,8 @@ class IBAppFundamentals(EWrapper, EClient):
         self.contNumber = self.firstReqId  # start with first reqId
         self.getNextData()
 
-    def error(self, reqId, errorCode, errorString):
-        print("Error: ", reqId, "", errorCode, "", errorString)
+    def error(self, reqId, errorCode, errorString, advancedOrderRejectJson):
+        print(f'Error {errorCode}: reqId {reqId}, errorString {errorString}, json {advancedOrderRejectJson}')
 
         # if there was an error in one of your requests, just continue with next id
         if reqId > 0 and self.contracts.get(self.contNumber):

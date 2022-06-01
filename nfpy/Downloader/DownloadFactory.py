@@ -168,7 +168,7 @@ class DownloadFactory(metaclass=Singleton):
         if page not in self._dwn_obj[provider]:
             raise ValueError(f"Page {page} not available for {provider}")
 
-        symbol = '.' + '.'.join([provider, page+'Page'])
+        symbol = '.' + '.'.join([provider, page + 'Page'])
         class_ = Ut.import_symbol(symbol, pkg='nfpy.Downloader')
         return class_(ticker)
 
@@ -177,7 +177,7 @@ class DownloadFactory(metaclass=Singleton):
         if data.item not in self._imp_obj[data.provider]:
             raise ValueError(f"Item {data.item} not available for {data.provider}")
 
-        symbol = '.' + '.'.join([data.provider, data.item+'Item'])
+        symbol = '.' + '.'.join([data.provider, data.item + 'Item'])
         class_ = Ut.import_symbol(symbol, pkg='nfpy.Downloader')
 
         asset = self._af.get(data.uid)
@@ -216,6 +216,8 @@ class DownloadFactory(metaclass=Singleton):
         today_dt = Cal.today(mode='date')
         q_upd = self._qb.update(self._DWN_TABLE, fields=('last_update',))
 
+        # loop = asyncio.get_running_loop()
+
         count_done = 0
         count_skipped = 0
         count_failed = 0
@@ -233,6 +235,7 @@ class DownloadFactory(metaclass=Singleton):
             # If the last update check is passed go on with the update
             try:
                 print(f'{item.ticker} -> {item.provider}[{item.page}]')
+                # await loop.run_in_executor(None, self.do_test_download, item, do_save)
                 try:
                     page = self.create_page_obj(
                         item.provider, item.page, item.ticker

@@ -4,7 +4,7 @@
 #
 
 import numpy as np
-from typing import Sequence
+from typing import (Optional, Sequence)
 
 import nfpy.Math as Math
 
@@ -28,10 +28,14 @@ def _get_initial_trend(p: np.ndarray, thrs: float) -> int:
     return trend
 
 
-def _search_centroids(dt: np.ndarray, ts: np.ndarray, flags: np.ndarray,
-                      tol: float) -> tuple:
+def _search_centroids(ts: np.ndarray, flags: np.ndarray, tol: float,
+                      dt: Optional[np.ndarray] = None) -> tuple:
     """ S/R centroid search. """
-    extrema = ts[flags]
+    mask = flags != 0
+    if np.sum(mask) == 0:
+        return np.array([]), None
+
+    extrema = ts[mask]
 
     sort_idx = np.argsort(extrema)
     sort_ext = extrema[sort_idx]
@@ -52,8 +56,10 @@ def _search_centroids(dt: np.ndarray, ts: np.ndarray, flags: np.ndarray,
         centroids[n] = np.mean(sort_ext[groups == n + 1])
 
     unsort = np.argsort(sort_idx[mask_grp])
-    dates = dt[flags][sort_idx][mask_grp][unsort]
 
+    dates = None
+    if dt is not None:
+        dates = dt[flags][sort_idx][mask_grp][unsort]
     return centroids[unsort], dates
 
 
@@ -107,7 +113,7 @@ def _search_smooth(ts: np.ndarray, w: int) -> np.ndarray:
     ext_distance = np.diff(idx)
     fp = np.where(ext_distance == 1)[0]
     to_del = np.concatenate((fp, fp + 1))
-    if to_del:
+    if to_del.shape[0] > 0:
         idx = np.delete(idx, to_del)
         flags = np.delete(flags, to_del)
 
@@ -170,8 +176,8 @@ def merge_sr(groups: Sequence[np.ndarray], vola: float) -> Sequence[np.ndarray]:
     return result
 
 
-def sr_pivot(dt: np.ndarray, ts: np.ndarray, thrs: float, tol: float = 1.) \
-        -> tuple:
+def sr_pivot(ts: np.ndarray, thrs: float, tol: float = 1.,
+             dt: Optional[np.ndarray] = None) -> tuple:
     """ Search Support/Resistance lines using the maxima/minima found as pivotal
         levels of the price signal given a return threshold.
 
@@ -186,21 +192,21 @@ def sr_pivot(dt: np.ndarray, ts: np.ndarray, thrs: float, tol: float = 1.) \
             dates [np.ndarray]: array of S/R start dates
     """
     return _search_centroids(
-        dt, ts,
+        ts,
         _search_pivots(ts, thrs),
-        tol
+        tol, dt
     )
 
 
-def sr_smooth(dt: np.ndarray, ts: np.ndarray, w: int, tol: float = 1.) \
-        -> tuple:
+def sr_smooth(ts: np.ndarray, w: int, tol: float = 1.,
+              dt: Optional[np.ndarray] = None) -> tuple:
     """ Search Support/Resistance lines using the maxima/minima of the smoothed
         price curve given a rolling window.
 
         Input:
             dt [np.ndarray]: input dates series
             ts [np.ndarray]: input values series
-            w [int]: list of locations to verify
+            w [int]: smoothing window length
             tol [float]: multiplication factor to the volatility for grouping
 
         Output:
@@ -208,7 +214,87 @@ def sr_smooth(dt: np.ndarray, ts: np.ndarray, w: int, tol: float = 1.) \
             dates [np.ndarray]: array of S/R start dates
     """
     return _search_centroids(
-        dt, ts,
+        ts,
         _search_smooth(ts, w),
-        tol
+        tol, dt
     )
+
+
+class SRBreach(object):
+    """ Class to perform S/R lines breach checks. """
+
+    def __init__(self, ts: np.ndarray, check_w: int, tol: float,
+                 mode: str = 'smooth', w: Optional[Sequence[int]] = None,
+                 thrs: Optional[Sequence[float]] = None):
+        self._ts = Math.ffill_cols(ts)
+
+        self._check_w = check_w
+        self._mode = mode
+        self._w = w
+        self._thrs = thrs
+        self._tol = tol
+
+        if self._mode == 'smooth':
+            if w is None:
+                raise ValueError(f'SRBreach: you must give a window length for {self._mode}')
+        elif self._mode == 'pivot':
+            if thrs is None:
+                raise ValueError(f'SRBreach: you must give a threshold for {self._mode}')
+        else:
+            raise ValueError(f'SRBreach: {self._mode} not recognized')
+
+        self._vola = .0
+        self._breaches = []
+        self._is_calculated = False
+
+    def get_breaches(self, breach_only: bool = False) -> list:
+        if not self._is_calculated:
+            self._check_breaches()
+        if breach_only:
+            return list(filter(lambda v: v[2] != '', self._breaches))
+        else:
+            return self._breaches
+
+    def _check_breaches(self):
+        vola = float(np.nanstd(Math.ret(self._ts)))
+
+        if self._mode == 'smooth':
+            test_ts = self._ts[:-self._check_w]
+            all_sr = [
+                sr_smooth(test_ts, w, self._tol)[0]
+                for w in self._w
+            ]
+        else:
+            all_sr = [
+                sr_pivot(self._ts, th, self._tol)[0]
+                for th in self._thrs
+            ]
+        all_sr = [v for v in all_sr if v.shape[0] > 0]
+
+        if len(all_sr) == 0:
+            return
+
+        ts_0 = self._ts[-self._check_w]
+        ts_t = Math.last_valid_value(self._ts)[0]
+        all_sr = np.concatenate(merge_sr(all_sr, vola))
+
+        # Logic of breaches
+        signals = []
+        for sr in all_sr:
+            if ts_0 <= sr:
+                if abs(ts_0 - sr) < vola:
+                    signals.append(('R', sr, 'testing'))
+                elif ts_t > sr:
+                    signals.append(('R', sr, 'breach'))
+                else:
+                    signals.append(('R', sr, ''))
+            else:
+                if abs(ts_0 - sr) < vola:
+                    signals.append(('S', sr, 'testing'))
+                elif ts_t < sr:
+                    signals.append(('S', sr, 'breach'))
+                else:
+                    signals.append(('S', sr, ''))
+
+        self._breaches = signals
+        self._is_calculated = True

@@ -5,6 +5,7 @@
 
 import configparser
 # import logging
+import numpy
 import os
 import sys
 from typing import Any
@@ -13,6 +14,13 @@ from nfpy import NFPY_ROOT_DIR
 
 from .Exceptions import ConfigurationError
 from .Singleton import Singleton
+
+
+# New versions of numpy are printing an excessive amount of warning. This is to
+# silence the divide-by-zero and the I-found-a-nan ones. As this is to be done
+# as soon as possible BEFORE numpy gets used, configurations seems a good place.
+numpy.seterr(divide='ignore', invalid='ignore')
+
 
 # Dictionary of parameters in the current configuration file
 PARAMS_DICT__ = {

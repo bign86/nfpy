@@ -3,6 +3,8 @@
 # Script to download everything is in automatic download.
 #
 
+import asyncio
+
 import nfpy.Downloader as Dwn
 import nfpy.IO as IO
 
@@ -49,8 +51,18 @@ if __name__ == '__main__':
         do_save = inh.input("Save to database (default Yes)?: ",
                             idesc='bool', default=True, optional=True)
 
+    # loop = asyncio.new_event_loop()
+    # loop.set_debug(True)
+    # print('Loop started')
+
+    # loop.run_until_complete(
     dwnf.run_download(do_save=do_save, override_date=override_date,
                       provider=provider, page=page, ticker=ticker,
                       override_active=override_active)
+    # )
+
+    # loop.stop()
+    # loop.close()
+    # print('Loop closed')
 
     print("All done!")

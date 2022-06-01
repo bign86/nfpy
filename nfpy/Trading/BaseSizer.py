@@ -7,7 +7,7 @@ from abc import ABCMeta, abstractmethod
 import numpy as np
 from typing import TypeVar
 
-from .Enums import Signal
+from .Strategies import Signal
 
 
 class BaseSizer(metaclass=ABCMeta):

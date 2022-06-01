@@ -185,19 +185,19 @@ class ReportPortfolio(BaseReport):
             stats[1, i] = last_price / first_price - 1.
 
         # Render dataframes
-        df = pd.DataFrame(
+        res.stats = pd.DataFrame(
             stats.T,
             index=self._time_spans,
             columns=('\u03C3 (Y)', 'tot. return')
-        )
-        res.stats = df.style.format(
-            formatter={
+        ).to_html(
+            index=True,
+            formatters={
                 '\u03C3 (Y)': '{:,.1%}'.format,
                 'tot. return': '{:,.1%}'.format,
             },
-            **PD_STYLE_PROP) \
-            .set_table_attributes('class="dataframe"') \
-            .render()
+            border=None,
+            **PD_STYLE_PROP
+        )
 
         # Portfolio summary
         summary = pe.summary()
@@ -215,18 +215,17 @@ class ReportPortfolio(BaseReport):
             left_on='uid',
             right_index=True
         )
-        res.cnsts_data = merged.style.format(
-            formatter={
+        res.cnsts_data = merged.to_html(
+            index=False,
+            formatters={
                 'alp': '{:,.2f}'.format,
                 'cost (FX)': '{:,.2f}'.format,
                 f'value ({asset.currency})': '{:,.2f}'.format,
                 'quantity': '{:,.0f}'.format,
                 'weights': '{:,.1%}'.format,
             },
-            **PD_STYLE_PROP) \
-            .hide_index() \
-            .set_table_attributes('class="dataframe"') \
-            .render()
+            **PD_STYLE_PROP
+        )
 
         # Dividends received
         res.div_ttm = pe.dividends_received_ttm()
@@ -315,16 +314,16 @@ class ReportPortfolio(BaseReport):
 
         # Create correlation matrix
         res.corr = pd.DataFrame(oe.corr, index=oe.uids, columns=oe.uids) \
-            .style \
-            .format('{:,.0%}') \
-            .set_table_attributes('class="matrix"') \
-            .render()
+            .to_html(
+            float_format='{:,.0%}'.format,
+            classes='matrix'
+        )
 
         # Create results table
-        wgt_df = pd.DataFrame(np.vstack(weights).T,
-                              index=oe.uids,
-                              columns=models)
-        res.weights = wgt_df.style \
-            .format('{:,.1%}') \
-            .set_table_attributes('class="dataframe"') \
-            .render()
+        res.weights = pd.DataFrame(
+            np.vstack(weights).T,
+            index=oe.uids,
+            columns=models
+        ).to_html(
+            float_format='{:,.1%}'.format,
+        )

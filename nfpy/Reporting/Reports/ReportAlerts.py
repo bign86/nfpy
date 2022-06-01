@@ -26,7 +26,13 @@ else:
 class ReportAlerts(BaseReport):
     DEFAULT_P = {
         'years_price_hist': 2.,
-        'w_alerts_days': 14
+        'w_alerts_days': 14,
+        'sr': {
+            'w_sr': [120, 20],
+            'w_check': 10,
+            'tolerance': 1.5,
+            'w_multi': 2.,
+        }
     }
 
     def _init_input(self, type_: Optional[str] = None) -> None:
@@ -77,10 +83,7 @@ class ReportAlerts(BaseReport):
         data = []
         for a in alerts:
             asset = self._af.get(a.uid)
-            if asset.type == 'Equity':
-                key = asset.ticker
-            else:
-                key = a.uid
+            key = asset.ticker if asset.type == 'Equity' else a.uid
             is_today = 'NEW' if a.date_triggered == dt_today else ''
             dt_trigger = a.date_triggered.strftime('%Y-%m-%d') \
                 if a.date_triggered else ''
@@ -88,19 +91,38 @@ class ReportAlerts(BaseReport):
             data.append((a.uid, key, a.cond, a.value,
                          asset.last_price()[0], is_today, dt_trigger))
 
+        # S/R alerts
+        w_sr = self._p['sr']['w_sr']
+        sr_check = self._p['sr']['w_check']
+        sr_tol = self._p['sr']['tolerance']
+        sr_multi = self._p['sr']['w_multi']
+        smooth_w = max(w_sr) * sr_multi
+
+        for uid in self._uids:
+            eq = self._af.get(uid)
+            v_p = eq.prices.values[-smooth_w:]
+            key = eq.ticker if eq.type == 'Equity' else uid
+            last_price = eq.last_price()[0]
+
+            sr_checker = Trd.SRBreach(v_p, sr_check, sr_tol, 'smooth', w_sr)
+            for b in sr_checker.get_breaches(breach_only=True):
+                data.append((uid, key, b[0], b[1], last_price, '', ''))
+
+        # Create final table of alerts
         if len(data) > 0:
+            data.sort(key=lambda k: (k[0], k[3]))
+
             df = pd.DataFrame(
                 data,
                 columns=('ticker', 'uid', 'condition', 'price',
                          'last price', 'new', 'date trigger')
             )
-            res.alerts_table = df.style.format(
-                formatter={
+            res.alerts_table = df.to_html(
+                formatters={
                     'price': '{:,.2f}'.format,
                     'last price': '{:,.2f}'.format,
                 },
-                **PD_STYLE_PROP) \
-                .set_table_attributes('class="dataframe"') \
-                .render()
+                **PD_STYLE_PROP
+            )
         else:
             res.alerts_table = f'No breached alerts found'

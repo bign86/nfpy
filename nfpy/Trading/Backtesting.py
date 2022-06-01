@@ -9,12 +9,10 @@ from typing import (Any, MutableSequence)
 
 import nfpy.Assets as Ast
 import nfpy.Calendar as Cal
-import nfpy.Math as Math
 from nfpy.Tools import (get_conf_glob, Utilities as Ut)
 
 from .BaseSizer import TySizer
-from .Enums import *
-from .Strategies.BaseStrategy import TyStrategy
+from .Strategies import (Order, OrderType, SignalFlag, TyStrategy)
 
 
 class Portfolio(object):
@@ -33,13 +31,13 @@ class Portfolio(object):
         self.total_return = .0
         self.trades = []  # List of executed trades
 
-    def buy(self, dt: np.datetime64, p: float, s: int, sz: int) -> None:
+    def buy(self, dt: np.datetime64, p: float, s: SignalFlag, sz: int) -> None:
         """ Buy the position.
 
             Input:
                 dt [np.datetime64]: date
                 price [float]: price
-                signal [int]: signal
+                signal [SignalFlag]: signal
                 size [float]: quantity in percentage of the available
         """
         paid = sz * p
@@ -54,13 +52,13 @@ class Portfolio(object):
         self._last_sig = s
         self.num_buy += 1
 
-    def sell(self, dt: np.datetime64, p: float, s: int, sz: int) -> None:
+    def sell(self, dt: np.datetime64, p: float, s: SignalFlag, sz: int) -> None:
         """ Sell the position.
 
             Input:
                 dt [np.datetime64]: date
                 price [float]: price
-                signal [int]: signal
+                signal [SignalFlag]: signal
                 size [float]: quantity in percentage of the available
         """
         if self.shares == 0:
@@ -185,44 +183,29 @@ class Backtester(object):
 
         # Backtest strategy
         for uid in self._uids:
-            eq = self._af.get(uid)
+            asset = self._af.get(uid)
+            print(f'>>> {asset.uid}')
+
             try:
-                self._backtest(eq)
-            except RuntimeError as ex:
-                print(ex)
+                ptf = self._online_apply(
+                    self._strat(asset, **self._params)
+                )
+
+                # TODO: keep as side-effect of outputting the results of ptf
+                ptf.statistics()
+                self._res[asset.uid] = ptf
+            except (IndexError, TypeError) as ex:
+                print(f'Backtest failed for {asset.uid}\n{ex}')
 
         # Consolidate results
         # self._consolidate()
 
-    def _backtest(self, eq: Ast.TyAsset) -> None:
-        """ The backtester applies the strategy to the series and obtains
-            signals with their dates and strength.
-        """
-        print(f'>>> {eq.uid}')
-
-        p = eq.prices.values
-        dt = eq.prices.index.values
-        try:
-            strat = self._strat(dt, p, **self._params)
-            if self._bulk:
-                ptf = self._bulk_apply(dt, p, strat, self._initial)
-            else:
-                ptf = self._online_apply(dt, p, strat, self._initial)
-        except (IndexError, TypeError) as ex:
-            print(f'Backtest failed for {eq.uid}\n{ex}')
-            return
-        else:
-            ptf.statistics()
-            self._res[eq.uid] = ptf
-
-    def _bulk_apply(self, dates: np.ndarray, prices: np.ndarray,
-                    strat: TyStrategy, initial: float) -> Portfolio:
+    def _online_apply(self, strategy: TyStrategy) -> Portfolio:
         """ Perform the bulk backtesting of a simple strategy.
 
             Input:
-                dates [np.ndarray]: dates series
-                price [np.ndarray]: price series of the instrument
-                signals [StrategyResult]: signals to backtest
+                asset [Ast.TyAsset]: asset to backtest
+                strategy [TyStrategy]: strategy to backtest
                 initial [float]: initial cash value
 
             Output:
@@ -236,26 +219,24 @@ class Backtester(object):
                    converted to cash at the last available price
         """
         # Make sure to have no nans in prices
-        ptf = Portfolio(initial=initial)
-        prices = Math.ffill_cols(prices)
+        dates = strategy.dt
+        prices = strategy.ts
+
+        ptf = Portfolio(initial=self._initial)
         self._sizer.set(prices, ptf)
 
-        signals = strat.bulk_exec()
-        if len(signals) == 0:
-            return ptf
-
         # Initialize working variables
-        pending = []
-        t = 0
-        sig_iterator = signals.__iter__()
-        next_signal = next(sig_iterator)
+        pending: list[Order] = []
+        strategy.start()
 
         # Cycle until time is over
-        while t < strat.max_length:
+        for evaluation in strategy:
+            # t = evaluation.t
 
-            # No pending orders => move time to next signal and append order
+            # Check if any pending order can be executed. If no pending orders
+            # are present move along.
             if len(pending) > 0:
-                orders_sublist = []
+                orders_new_list = []
 
                 # Cycle through pending orders
                 while pending:
@@ -263,162 +244,42 @@ class Backtester(object):
                     order = pending.pop(0)
 
                     # Check what action to take with the order
-                    action = strat.check_order_validity(order)
+                    action, t = strategy.check_order_validity(order)
 
                     # If the order is marketable apply it
                     if action == 'execute':
                         # Calculate order size
-                        signal = order[3]
-                        dt = dates[t]
+                        signal = order.signal
                         sz = self._sizer(t, signal)
                         if sz > 0:
                             # If size is greater than zero buy/sell
-                            if order[3] == 1:  # BUY
+                            if signal == SignalFlag.BUY:  # BUY
                                 # Calculate buy price and apply
                                 p = max(prices[t], prices[t - 1])
-                                ptf.buy(dt, p, signal, sz)
+                                ptf.buy(dates[t], p, signal, sz)
                             else:
                                 # Calculate sell price and apply
                                 p = min(prices[t], prices[t - 1])
-                                ptf.sell(dt, p, signal, sz)
+                                ptf.sell(dates[t], p, signal, sz)
+                        else:
+                            orders_new_list.append(order)
+                        # print(f'     >>>>>>: {t}: {signal}')
 
                     # If the order is to be kept do it
                     elif action == 'keep':
-                        orders_sublist.append(order)
+                        orders_new_list.append(order)
 
                 # After cycling all orders update the pending list
-                pending = orders_sublist
+                pending = orders_new_list
 
-                if next_signal is None:
-                    t = strat.max_length
-                elif next_signal[0] == t:
-                    pending.append([Order.MKT, *next_signal])
-                    try:
-                        next_signal = sig_iterator.__next__()
-                    except StopIteration:
-                        next_signal = None
-
-            else:
-                t = next_signal[0]
-                pending.append([Order.MKT, *next_signal])
-                try:
-                    next_signal = sig_iterator.__next__()
-                except StopIteration:
-                    next_signal = None
-
-            # Update the time
-            t += 1
+            # If signal is actionable we add it to pending
+            if evaluation is not None:
+                pending.append(Order(OrderType.MKT, *evaluation))
+                # print(f'Order added: {t}: {evaluation[2]}')
 
         # Sell any residual security at the current market price at the end of
         # the backtesting period to get the final portfolio value
-        ptf.sell(dates[-1], prices[-1], -1, ptf.shares)
-
-        # Clean up
-        self._sizer.clean()
-
-        return ptf
-
-    def _online_apply(self, dates: np.ndarray, prices: np.ndarray,
-                      strat: TyStrategy, initial: float) -> Portfolio:
-        """ Perform the bulk backtesting of a simple strategy.
-
-            Input:
-                dates [np.ndarray]: dates series
-                price [np.ndarray]: price series of the instrument
-                signals [StrategyResult]: signals to backtest
-                initial [float]: initial cash value
-
-            Output:
-                ptf [Portfolio]: backtested hypothetical portfolio
-
-            TODOs: The following assumptions are valid and must be relaxed:
-                1. No short selling
-                2. No transaction costs
-                3. Fractional ownership of stocks allowed
-                4. Any stock available at the end of the time period is
-                   converted to cash at the last available price
-        """
-        # Make sure to have no nans in prices
-        ptf = Portfolio(initial=initial)
-        prices = Math.ffill_cols(prices)
-        self._sizer.set(prices, ptf)
-
-        # Initialize strategy
-        strat.set_timer(0)
-        strat.start()
-
-        # Initialize working variables
-        pending = []
-        t = 0
-
-        # Cycle until time is over
-        for signal in strat:
-            # If a new signal is generated, append it as a pending order
-            if signal is None:
-                continue
-            else:
-                pending.append(signal)
-
-            # Check if any pending order can be executed. If no pending orders
-            # are present move along.
-            if len(pending) > 0:
-                continue
-
-            # Cycle through pending orders
-            while pending:
-                # Pop the first order
-                order = pending.pop(0)
-
-                # Check what action to take with the order
-                action = strat.check_order_validity(order)
-
-                # If the order is marketable apply it
-                if action == 'execute':
-                    # Calculate order size
-                    signal = order[3]
-                    dt = dates[t]
-                    sz = self._sizer(t, signal)
-                    if sz > 0:
-                        # If size is greater than zero buy/sell
-                        if order[3] == 1:  # BUY
-                            # Calculate buy price and apply
-                            p = max(prices[t], prices[t - 1])
-                            ptf.buy(dt, p, signal, sz)
-                        else:
-                            # Calculate sell price and apply
-                            p = min(prices[t], prices[t - 1])
-                            ptf.sell(dt, p, signal, sz)
-
-                # If the order is to be kept do it
-                elif action == 'keep':
-                    orders_sublist.append(order)
-
-                # After cycling all orders update the pending list
-                pending = orders_sublist
-
-                if next_signal is None:
-                    t = strat.max_length
-                elif next_signal[0] == t:
-                    pending.append([Order.MKT, *next_signal])
-                    try:
-                        next_signal = sig_iterator.__next__()
-                    except StopIteration:
-                        next_signal = None
-
-            else:
-                t = next_signal[0]
-                pending.append([Order.MKT, *next_signal])
-                try:
-                    next_signal = sig_iterator.__next__()
-                except StopIteration:
-                    next_signal = None
-
-            # Update the time
-            t += 1
-
-        # Sell any residual security at the current market price at the end of
-        # the backtesting period to get the final portfolio value
-        ptf.sell(dates[-1], prices[-1], -1, ptf.shares)
+        ptf.sell(dates[-1], prices[-1], SignalFlag.SELL, ptf.shares)
 
         # Clean up
         self._sizer.clean()

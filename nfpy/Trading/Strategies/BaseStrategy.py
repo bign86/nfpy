@@ -9,7 +9,9 @@ from typing import (Optional, TypeVar)
 
 import nfpy.Assets as Ast
 import nfpy.Math as Math
-import nfpy.Tools.Utilities as Ut
+
+from .Enums import (Order, Signal, SignalFlag)
+from ..Indicators import TyIndicator
 
 
 class BaseStrategy(metaclass=ABCMeta):
@@ -19,13 +21,9 @@ class BaseStrategy(metaclass=ABCMeta):
         for analysis purposes may be recorded as well.
 
         Input:
-            dt [np.ndarray]: dates array
-            p [np.ndarray]: values array
+            asset [TyAsset]: asset to trade
+            bulk [bool]: use the "bulk" or the "online" mode
             npc [int]: number of days to go back in time for the check
-
-        Output:
-            result [StrategyResult]: strategy results
-            data [Optional[dict]]: optional dictionary of debug data
     """
 
     _LABEL = ''
@@ -37,16 +35,16 @@ class BaseStrategy(metaclass=ABCMeta):
         self._dt = asset.prices.index.values
 
         self._ts = self._extract_ts(asset)
-        print(f'Base strat | {id(self._ts)}')
 
         self._num_p_conf = npc  # Periods to confirm a signal
         self._max_t = self._dt.shape[0]
         self._t = -1
+        self._indicators = []
 
     def __iter__(self):
         return self
 
-    def __next__(self) -> tuple:
+    def __next__(self) -> Optional[Signal]:
         self._t += 1
         if self._t < self._max_t:
             return self._signal()
@@ -85,41 +83,44 @@ class BaseStrategy(metaclass=ABCMeta):
         """ Returns the max time series index. """
         return self._max_t
 
-    # @abstractmethod
-    # def _bulk(self) -> StrategyResult:
-    #     """ Strategy bulk calculation function. Should get the results from each
-    #         indicator, make necessary controls and generate the series of
-    #         signals.
-    #     """
-    #
+    @property
+    def min_length(self) -> int:
+        """ Return the minimum amount of data required for a single signal
+            generation. This represents the minimum amount of data necessary to
+            run the strategy.
+        """
+        n = max([i.min_length for i in self._indicators])
+        return n + self._num_p_conf
+
+    def raise_signal(self, flag: SignalFlag) -> Signal:
+        return Signal(self._t, self._dt[self._t], flag)
+
+    def _register_indicator(self, ind: list[TyIndicator]) -> None:
+        self._indicators.extend(ind)
+
+    def start(self, t0: Optional[int] = None) -> None:
+        """ Call the start() method of each indicator. """
+        t0 = self.min_length + 1 if t0 is None else t0
+        self._t = t0
+        for ind in self._indicators:
+            ind.start(t0)
+
     @abstractmethod
-    def check_order_validity(self, order: tuple) -> str:
+    def check_order_validity(self, order: Order) -> tuple[str, int]:
         """ Return the validity of a pending order.
              - 'execute': if the order can be executed immediately
              - 'keep': if the order cannot be executed and remains pending
              - None: if the order is not valid anymore and should be cancelled
         """
 
-    @property
     @abstractmethod
-    def min_length(self) -> int:
-        """ Return the minimum amount of data required for a single signal
-            generation. This represents the minimum amount of data necessary to
-            run the strategy.
-        """
-
-    @abstractmethod
-    def _signal(self) -> Optional[tuple]:
+    def _signal(self) -> Optional[Signal]:
         """ Must return a tuple containing the generated signal in the form:
                 <index, date, signal>
             If the bulk mode is used, the pre-calculate signal is returned. If
             the online mode is used, the indicator values are first returned,
             the controls made and the signal generated.
         """
-
-    @abstractmethod
-    def start(self, t0: int) -> None:
-        """ Call the start() method of each indicator. """
 
 
 TyStrategy = TypeVar('TyStrategy', bound=BaseStrategy)

@@ -184,9 +184,12 @@ class ReportCompanies(BaseReport):
 
             df = dcf_res.df
             df.index = df.index.strftime("%Y-%m-%d")
-            res.df = df.T.style \
-                .format('{:,.2f}', **PD_STYLE_PROP) \
-                .set_table_attributes('class="dataframe"') \
-                .render()
+            res.df = df.T.to_html(
+                index=True,
+                na_rep='-',
+                float_format='{:,.2f}'.format,
+                border=None,
+            )
+
         else:
             res.has_dcf = False
