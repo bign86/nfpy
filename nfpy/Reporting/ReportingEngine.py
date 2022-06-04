@@ -132,12 +132,7 @@ class ReportingEngine(metaclass=Singleton):
         outf = open(
             os.path.join(
                 self._curr_report_dir,
-                ''.join(
-                    [
-                        res.id,
-                        os.path.splitext(res.template)[1]
-                    ]
-                )
+                ''.join([res.id, os.path.splitext(res.template)[1]])
             ),
             mode='w'
         )

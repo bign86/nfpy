@@ -36,7 +36,7 @@ class ReportAlerts(BaseReport):
     }
 
     def _init_input(self, type_: Optional[str] = None) -> None:
-        """ Prepare and validate the the input parameters for the model. This
+        """ Prepare and validate the input parameters for the model. This
             includes verifying the parameters are correct for the models in the
             report. Takes the default parameters if any, applies the values from
             the database and the asset-specific overlays if any.
@@ -75,7 +75,7 @@ class ReportAlerts(BaseReport):
         dt_today = today(mode='datetime')
         check_start = dt_today - timedelta(days=self._p['w_alerts_days'])
         alerts = ae.fetch(
-            triggered=None,
+            triggered=True,
             date_checked=check_start
         )
         alerts.sort(key=lambda k: (k.uid, k.value))
@@ -85,8 +85,7 @@ class ReportAlerts(BaseReport):
             asset = self._af.get(a.uid)
             key = asset.ticker if asset.type == 'Equity' else a.uid
             is_today = 'NEW' if a.date_triggered == dt_today else ''
-            dt_trigger = a.date_triggered.strftime('%Y-%m-%d') \
-                if a.date_triggered else ''
+            dt_trigger = a.date_triggered.strftime('%Y-%m-%d')
 
             data.append((a.uid, key, a.cond, a.value,
                          asset.last_price()[0], is_today, dt_trigger))
@@ -105,7 +104,7 @@ class ReportAlerts(BaseReport):
             last_price = eq.last_price()[0]
 
             sr_checker = Trd.SRBreach(v_p, sr_check, sr_tol, 'smooth', w_sr)
-            for b in sr_checker.get_breaches(breach_only=True):
+            for b in sr_checker.get(triggers_only=True):
                 data.append((uid, key, b[0], b[1], last_price, '', ''))
 
         # Create final table of alerts

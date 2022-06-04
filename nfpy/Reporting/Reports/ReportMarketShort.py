@@ -35,7 +35,7 @@ class ReportMarketShort(BaseReport):
     DEFAULT_P = {
         'years_price_hist': 2.,
         'w_alerts_days': 14,
-        'ma': {
+        'ewma': {
             'w_ma_fast': 20,
             'w_ma_slow': 120,
             'w_plot': 250
@@ -258,10 +258,15 @@ class ReportMarketShort(BaseReport):
         # Create a common list of alerts
         alerts_data = []
         for a in alerts:
-            is_today = 'NEW' if a.date_triggered == dt_today else ''
-            dt_trigger = a.date_triggered.strftime('%Y-%m-%d') \
-                if a.date_triggered else ''
-            alerts_data.append((a.cond, 'breach', a.value, is_today, dt_trigger))
+            if a.date_triggered is not None:
+                is_today = 'NEW' if a.date_triggered == dt_today else ''
+                dt_trigger = a.date_triggered.strftime('%Y-%m-%d')
+                status = 'breach'
+            else:
+                is_today = ''
+                dt_trigger = ''
+                status = ''
+            alerts_data.append((a.cond, status, a.value, is_today, dt_trigger))
 
         # S/R lines alerts & add to the common list
         w_sr = self._p['sr']['w_sr']
@@ -274,30 +279,13 @@ class ReportMarketShort(BaseReport):
             v_p[-smooth_w:],
             sr_check, sr_tol, 'smooth', w_sr
         )
-        for b in sr_checker.get_breaches():
+        for b in sr_checker.get():
             alerts_data.append((b[0], b[2], b[1], '', ''))
 
-        # Create a DataFrame for alerts
-        if len(alerts_data) > 0:
-            alerts_data.sort(key=lambda x: x[2])
-            df = pd.DataFrame(
-                alerts_data,
-                columns=('condition', 'status', 'price', 'new', 'date trigger')
-            )
-            res.alerts_table = df.to_html(
-                index=False,
-                na_rep='-',
-                formatters={
-                    'price': '{:,.2f}'.format,
-                },
-            )
-        else:
-            res.alerts_table = f'No manual alerts'
-
         # Strategy and moving averages
-        w_fast = self._p['ma']['w_ma_fast']
-        w_slow = self._p['ma']['w_ma_slow']
-        w_check = self._p['ma']['w_plot']
+        w_fast = self._p['ewma']['w_ma_fast']
+        w_slow = self._p['ewma']['w_ma_slow']
+        w_check = self._p['ewma']['w_plot']
 
         total_length = min(w_slow + w_check, v_p.shape[0])
         shortened_v = Math.ffill_cols(v_p[-total_length:])
@@ -309,6 +297,7 @@ class ReportMarketShort(BaseReport):
         ma_fast = ema_f.get_indicator()['ewma']
         ma_slow = ema_s.get_indicator()['ewma']
 
+        # Create plot with alerts and S/Rs
         pl = IO.TSPlot() \
             .lplot(0, shortened_dt[w_slow:], shortened_v[w_slow:]) \
             .lplot(0, shortened_dt[w_slow:], ma_fast[w_slow:], color='C1',
@@ -316,12 +305,30 @@ class ReportMarketShort(BaseReport):
             .lplot(0, shortened_dt[w_slow:], ma_slow[w_slow:], color='C2',
                    linewidth=1.5, linestyle='--', label=f'MA {w_slow}')
 
-        alerts_to_plot = [a for a in alerts_data if a[1] != '']
-        for a in alerts_to_plot:
-            color = 'C4' if a[4] == '' else 'C3'
-            style = '-' if a[0] in 'SR' else '--'
+        alerts_to_plot = []
+        while alerts_data:
+            a = alerts_data.pop()
+            color = 'C4' if a[0] in 'SR' else 'C3'
+            style = '-' if a[1] == '' else '--'
             pl.line(0, 'xh', a[2], color=color, linestyle=style, linewidth=1)
+            if a[1] != '':
+                alerts_to_plot.append(a)
 
         pl.plot() \
             .save(fig_full[0]) \
             .clf()
+
+        # Create a DataFrame for alerts
+        if len(alerts_to_plot) > 0:
+            alerts_to_plot.sort(key=lambda x: x[2])
+            df = pd.DataFrame(
+                alerts_to_plot,
+                columns=('condition', 'status', 'price', 'new', 'date trigger')
+            )
+            res.alerts_table = df.to_html(
+                index=False,
+                na_rep='-',
+                formatters={'price': '{:,.2f}'.format, },
+            )
+        else:
+            res.alerts_table = f'No alerts triggered'

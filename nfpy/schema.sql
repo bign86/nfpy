@@ -132,9 +132,10 @@ CREATE TABLE Etf (
     [isin] TEXT NOT NULL,
     [description] TEXT,
     [country] TEXT,
-    [market] TEXT,
+    [ac] TEXT,
     [currency] TEXT NOT NULL,
     [index] TEXT,
+    [issuer] TEXT,
     [fees] REAL NOT NULL,
     PRIMARY KEY ([uid])
 ) WITHOUT ROWID;

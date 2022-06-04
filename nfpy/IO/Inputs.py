@@ -30,7 +30,7 @@ class InputHandler(object):
             'uid': self._to_string, 'datetime': self._to_datetime,
             'currency': self._to_string, 'timestamp': self._to_timestamp,
             'country': self._to_string, 'dict': self._to_json,
-            'json': self._to_json,
+            'json': self._to_json, 'uint': self._to_uint,
         }
         self._validators = {
             'uid': self._check_uid, 'currency': self._check_ccy,
@@ -39,9 +39,22 @@ class InputHandler(object):
         }
 
     @staticmethod
-    def _to_int(v: str, **kwargs) -> int:
+    def _to_bool(v: str, **kwargs) -> bool:
         _ = kwargs
-        return int(v)
+        return True if v.lower() in ('y', 'yes', '1', 'true') else False
+
+    @staticmethod
+    def _to_datetime(v: str, **kwargs) -> Cal.TyDate:
+        """ Transforms a date from string to datetime.
+
+            Input:
+                v [str]: date in string format
+                kwargs [dict]: 'fmt' argument to specify the date format
+
+            Output:
+                date [datetime.date]: formatted date
+        """
+        return Cal.date_2_datetime(v, fmt=kwargs['fmt'])
 
     @staticmethod
     def _to_float(v: str, **kwargs) -> float:
@@ -49,19 +62,14 @@ class InputHandler(object):
         return float(v)
 
     @staticmethod
-    def _to_bool(v: str, **kwargs) -> bool:
+    def _to_int(v: str, **kwargs) -> int:
         _ = kwargs
-        return True if v.lower() in ('y', 'yes', '1', 'true') else False
+        return int(v)
 
     @staticmethod
     def _to_string(v: str, **kwargs) -> str:
         _ = kwargs
         return re.sub('[!@#$?*;,:+]', '', v)
-
-    @staticmethod
-    def _to_json(v: str, **kwargs) -> Any:
-        _ = kwargs
-        return json.loads(v)
 
     @staticmethod
     def _to_timestamp(v: str, **kwargs) -> Cal.TyDate:
@@ -77,17 +85,14 @@ class InputHandler(object):
         return pd.to_datetime(v, format=kwargs['fmt'])
 
     @staticmethod
-    def _to_datetime(v: str, **kwargs) -> Cal.TyDate:
-        """ Transforms a date from string to datetime.
+    def _to_json(v: str, **kwargs) -> Any:
+        _ = kwargs
+        return json.loads(v)
 
-            Input:
-                v [str]: date in string format
-                kwargs [dict]: 'fmt' argument to specify the date format
-
-            Output:
-                date [datetime.date]: formatted date
-        """
-        return Cal.date_2_datetime(v, fmt=kwargs['fmt'])
+    @staticmethod
+    def _to_uint(v: str, **kwargs) -> int:
+        _ = kwargs
+        return abs(int(v))
 
     def _check_uid(self, uid: str) -> tuple:
         """ Validate a candidate uid checking existence. """

@@ -194,6 +194,7 @@ def backup_db(db_path: Optional[str] = None,
     else:
         new_file = f_name
 
+    os.makedirs(conf.backup_folder)
     copyfile(db_path, new_file)
     print(f"Database backup'd in: {new_file}")
 
