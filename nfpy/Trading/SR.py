@@ -247,15 +247,15 @@ class SRBreach(object):
         self._breaches = []
         self._is_calculated = False
 
-    def get_breaches(self, breach_only: bool = False) -> list:
+    def get(self, triggers_only: bool = False) -> list:
         if not self._is_calculated:
             self._check_breaches()
-        if breach_only:
+        if triggers_only:
             return list(filter(lambda v: v[2] != '', self._breaches))
         else:
             return self._breaches
 
-    def _check_breaches(self):
+    def _check_breaches(self) -> None:
         vola = float(np.nanstd(Math.ret(self._ts)))
 
         if self._mode == 'smooth':
@@ -281,20 +281,20 @@ class SRBreach(object):
         # Logic of breaches
         signals = []
         for sr in all_sr:
+            status = ''
             if ts_0 <= sr:
+                type_ = 'R'
                 if abs(ts_0 - sr) < vola:
-                    signals.append(('R', sr, 'testing'))
+                    status = 'testing'
                 elif ts_t > sr:
-                    signals.append(('R', sr, 'breach'))
-                else:
-                    signals.append(('R', sr, ''))
+                    status = 'breach'
             else:
+                type_ = 'S'
                 if abs(ts_0 - sr) < vola:
-                    signals.append(('S', sr, 'testing'))
+                    status = 'testing'
                 elif ts_t < sr:
-                    signals.append(('S', sr, 'breach'))
-                else:
-                    signals.append(('S', sr, ''))
+                    status = 'breach'
+            signals.append((type_, sr, status))
 
         self._breaches = signals
         self._is_calculated = True

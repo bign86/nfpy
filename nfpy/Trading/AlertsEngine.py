@@ -18,7 +18,7 @@ class AlertsEngine(object):
     """ Engine to evaluate and raise manual alerts. """
 
     _TABLE = 'Alerts'
-    _Q_ADD_ALERT = f"insert into Alerts (uid, date, cond, value, triggered," \
+    _Q_ADD_ALERT = f"insert into Alerts (uid, date, cond, value, triggered, " \
                    f"date_triggered, date_checked) values (?, ?, ?, ?, ?, ?, ?);"
     _Q_RMV_ALERT = f"delete from Alerts where uid = ? and date = ?" \
                    f" and cond = ? and value = ? and triggered = ?;"
@@ -123,14 +123,14 @@ class AlertsEngine(object):
         prices, idx = {}, []
         for i, al in enumerate(alerts):
             # Get last price
-            if al.uid not in prices:
+            if al.uid in prices:
+                p = prices[al.uid]
+            else:
                 p = self._af \
                     .get(al.uid) \
                     .last_price()[0]
                 # Add back to the dict as the same uid may appear again
                 prices[al.uid] = p
-            else:
-                p = prices[al.uid]
 
             if ((al.cond == 'G') & (p > al.value)) | \
                     ((al.cond == 'L') & (p < al.value)):

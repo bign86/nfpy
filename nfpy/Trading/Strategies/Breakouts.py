@@ -3,21 +3,21 @@
 # Strategies based on breakouts from channels or oscillators
 #
 
-from abc import abstractmethod
-import numpy as np
 from typing import (Callable, Optional, Sequence)
 
+import nfpy.Assets as Ast
+
 from .. import Indicators as Ind
-from .BaseStrategy import (BaseStrategy, StrategyResult)
+from .BaseStrategy import BaseStrategy
+from .Enums import (Order, Signal, SignalFlag)
 
 
-class IndicatorBreakout(BaseStrategy):
-    """ Generates a buy signal when the indicator crosses above the upper
-        threshold and a sell signal when it crosses below the lower threshold.
+class OscillatorBreakout(BaseStrategy):
+    """ Generates a buy signal when the oscillator crosses above the lower
+        threshold and a sell signal when it crosses below the upper threshold.
 
         Input:
-            dt [np.ndarray]: date series
-            ts [np.ndarray]: price series
+            asset [TyAsset]: asset to trade
             indicator [Callable]: indicator function
             params [Sequence]: parameters passed to the indicator
             threshold [Sequence]: upper and lower indicator thresholds
@@ -26,89 +26,122 @@ class IndicatorBreakout(BaseStrategy):
         Output:
             signals [StrategyResult]: generated signals
     """
-    _LABEL = 'Indicator_Breakout'
-    NAME = 'Indicator Breakout'
+    _LABEL = 'Oscillator_Breakout'
+    NAME = 'Oscillator Breakout'
     DESCRIPTION = f""
 
-    def __init__(self, dt: np.ndarray, ts: np.ndarray, indicator: Callable,
-                 params: Sequence, threshold: Optional[tuple[float]],
+    def __init__(self, asset: Ast.TyAsset, bulk: bool, indicator: Callable,
+                 params: Sequence, threshold: tuple[float],
                  npc: Optional[int] = 0):
-        super().__init__(dt, ts, npc)
-        self._ind_f = indicator
+        super().__init__(asset, bulk, npc)
         self._thr = threshold
         self._params = params
 
-    def _bulk(self) -> StrategyResult:
-        buy_cross, sell_cross = self._indicator_check()
-        buy_cross[buy_cross == -1] = 0
-        sell_cross[sell_cross == 1] = 0
+        self._status = b''
+        self._ind_f = indicator(self._ts, bulk, *params)
+        self._register_indicator([self._ind_f])
 
-        dead_time = sum(*self._params)
-        buy_cross[:dead_time - 1] = 0
+    def check_order_validity(self, order: Order) -> tuple[str, int]:
+        return 'execute', self._t
 
-        cross = buy_cross & sell_cross
-        mask = cross != 0
+    def _signal(self) -> Optional[Signal]:
+        osc = self._ind_f.__next__()
+        signal = None
 
-        idx = np.nonzero(mask)[0] + 1
-        dt = self._dt[1:][mask]
-        signals = cross[mask]
+        if osc < self._thr[0]:
+            self._status = b's'
+        elif osc > self._thr[1]:
+            self._status = b'b'
+        else:
+            # We are oversold ('s') and we exit ('n') => buy
+            if self._status == b's':
+                signal = self.raise_signal(SignalFlag.BUY)
 
-        return StrategyResult(idx, dt, signals)
+            # We are overbought ('b') and we exit ('n') => sell
+            elif self._status == b'b':
+                signal = self.raise_signal(SignalFlag.BUY)
+            self._status = b'n'
 
-    def _f(self, i: int) -> tuple:
-        return -999,
-
-    @abstractmethod
-    def _indicator_check(self) -> tuple[np.ndarray, np.ndarray]:
-        pass
-
-    def check_order_validity(self, order: list) -> str:
-        return 'execute'
-
-    @property
-    def min_length(self) -> int:
-        return sum(*self._params) + self._num_p_conf
+        return signal
 
 
-class OscillatorBreakout(IndicatorBreakout):
+class ChannelBreakout(BaseStrategy):
+    """ Generates a buy signal when the price crosses above the lower band
+        threshold and a sell signal when it crosses below the upper band.
 
-    def _indicator_check(self) -> tuple[np.ndarray, np.ndarray]:
-        sig = self._ind_f(self._ts, *self._params)
-        return (
-            np.diff(np.where(sig > self._thr, 1, 0)),
-            np.diff(np.where(sig < self._thr, -1, 0))
-        )
+        Input:
+            asset [TyAsset]: asset to trade
+            indicator [Callable]: indicator function
+            params [Sequence]: parameters passed to the indicator
+            npc [int]: number of days to go back in time for the check
 
+        Output:
+            signals [StrategyResult]: generated signals
+    """
+    _LABEL = 'Channel_Breakout'
+    NAME = 'Channel Breakout'
+    DESCRIPTION = f""
 
-class ChannelBreakout(IndicatorBreakout):
+    def __init__(self, asset: Ast.TyAsset, bulk: bool, indicator: Callable,
+                 params: Sequence, npc: Optional[int] = 0):
+        super().__init__(asset, bulk, npc)
+        self._params = params
 
-    def _indicator_check(self) -> tuple[np.ndarray, np.ndarray]:
-        high, low = self._ind_f(self._ts, *self._params)[:2]
-        return (
-            np.diff(np.where(high > self._thr, 1, 0)),
-            np.diff(np.where(low < self._thr, -1, 0))
-        )
+        self._status = b''
+        self._ind_f = indicator(self._ts, bulk, *params)
+        self._register_indicator([self._ind_f])
+
+    def check_order_validity(self, order: Order) -> tuple[str, int]:
+        return 'execute', self._t
+
+    def _signal(self) -> Optional[Signal]:
+        high, mean, low = self._ind_f.__next__()[:3]
+        signal = None
+
+        v = self._ts[self._t]
+        if v < low:
+            self._status = b's'
+        elif v > high:
+            self._status = b'b'
+        else:
+            # We are oversold ('s') and we exit ('n') => buy
+            if self._status == b's':
+                signal = self.raise_signal(SignalFlag.BUY)
+
+            # We are overbought ('b') and we exit ('n') => sell
+            elif self._status == b'b':
+                signal = self.raise_signal(SignalFlag.BUY)
+            self._status = b'n'
+
+        return signal
 
 
 class CCIBreakout(OscillatorBreakout):
     _LABEL = 'CCI_Breakout'
-    NAME = 'CCI Channel Breakout'
+    NAME = 'CCI Breakout'
     DESCRIPTION = f""
 
-    def __init__(self, dt: np.ndarray, ts: np.ndarray, w: int,
-                 threshold: Optional[tuple[float]] = (100., -100.),
+    def __init__(self, asset: Ast.TyAsset, bulk: bool, w: int,
+                 threshold: Optional[tuple[float]] = (-100., 100.),
                  npc: Optional[int] = 0):
-        super().__init__(dt, ts, Ind.cci, (w,), threshold, npc)
+        super().__init__(asset, bulk, Ind.Cci, (w,), threshold, npc)
 
 
-class DonchianBreakout(BaseStrategy):
+class DonchianBreakout(ChannelBreakout):
     _LABEL = 'Donchian_Breakout'
     NAME = 'Donchian Breakout'
     DESCRIPTION = f""
 
-    def __init__(self, dt: np.ndarray, p: np.ndarray, w: int,
-                 threshold: Optional[tuple[float]] = (.2, .8),
+    def __init__(self, asset: Ast.TyAsset, bulk: bool, w: int,
                  npc: Optional[int] = 0):
-        super().__init__(dt, p, npc)
-        self._thr = threshold
-        self._w = w
+        super().__init__(asset, bulk, Ind.Donchian, (w,), npc)
+
+
+class BollingerBreakout(ChannelBreakout):
+    _LABEL = 'Bollinger_Breakout'
+    NAME = 'Bollinger Breakout'
+    DESCRIPTION = f""
+
+    def __init__(self, asset: Ast.TyAsset, bulk: bool, w: int,
+                 alpha: float, npc: Optional[int] = 0):
+        super().__init__(asset, bulk, Ind.Donchian, (w, alpha), npc)

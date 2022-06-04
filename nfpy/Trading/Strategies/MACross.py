@@ -57,7 +57,6 @@ class SMAPriceCross(BaseStrategy):
                 signal = self.raise_signal(SignalFlag.SELL)
             self._status = b'b'
 
-        print(f'{self._t}| {d_new:.2f} -> {signal.__repr__()}')
         return signal
 
 

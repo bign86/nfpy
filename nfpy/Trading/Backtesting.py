@@ -5,7 +5,7 @@
 
 import numpy as np
 import os
-from typing import (Any, MutableSequence)
+from typing import (Any, MutableSequence, Optional, Union)
 
 import nfpy.Assets as Ast
 import nfpy.Calendar as Cal
@@ -98,7 +98,8 @@ class ConsolidatedResults(Ut.AttributizedDict):
 class Backtester(object):
     _DT_FMT = '%Y%m%d'
 
-    def __init__(self, uids: MutableSequence[str], initial: float, bulk: bool):
+    def __init__(self, uids: Union[str, MutableSequence[str]], initial: float,
+                 bulk: bool, debug: bool = False):
         # Handlers
         self._af = Ast.get_af_glob()
         self._conf = get_conf_glob()
@@ -106,7 +107,12 @@ class Backtester(object):
         # Input variables
         self._bulk = bool(bulk)
         self._initial = float(initial)
-        self._uids = tuple(uids)
+        self._debug = bool(debug)
+
+        if isinstance(uids, str):
+            self._uids = [uids]
+        else:
+            self._uids = tuple(uids)
 
         # Objects to set
         self._sizer = None
@@ -119,6 +125,19 @@ class Backtester(object):
 
         # Output variables
         self._res = {}
+        self._debug_res = {}
+
+    @property
+    def debug_data(self) -> Optional[dict[int, dict]]:
+        return self._debug_res if self._debug else None
+
+    @property
+    def parameters(self) -> dict[str, Any]:
+        return self._params
+
+    @parameters.setter
+    def parameters(self, p: dict[str, Any]) -> None:
+        self._params = p
 
     @property
     def results(self) -> dict[str, Portfolio]:
@@ -131,14 +150,6 @@ class Backtester(object):
         self._res = {}
 
     @property
-    def strategy(self) -> TyStrategy:
-        return self._strat
-
-    @strategy.setter
-    def strategy(self, s: TyStrategy):
-        self._strat = s
-
-    @property
     def sizer(self) -> TySizer:
         return self._sizer
 
@@ -147,12 +158,12 @@ class Backtester(object):
         self._sizer = s
 
     @property
-    def parameters(self) -> dict[str, Any]:
-        return self._params
+    def strategy(self) -> TyStrategy:
+        return self._strat
 
-    @parameters.setter
-    def parameters(self, p: dict[str, Any]) -> None:
-        self._params = p
+    @strategy.setter
+    def strategy(self, s: TyStrategy):
+        self._strat = s
 
     def _create_new_directory(self) -> None:
         """ Create a new directory for the current backtest. """
@@ -187,15 +198,18 @@ class Backtester(object):
             print(f'>>> {asset.uid}')
 
             try:
-                ptf = self._online_apply(
-                    self._strat(asset, **self._params)
-                )
+                strategy = self._strat(asset, **self._params)
+                ptf = self._online_apply(strategy)
 
                 # TODO: keep as side-effect of outputting the results of ptf
                 ptf.statistics()
                 self._res[asset.uid] = ptf
             except (IndexError, TypeError) as ex:
                 print(f'Backtest failed for {asset.uid}\n{ex}')
+            else:
+                # Add the results to self._debug_res
+                if self._debug:
+                    self._store_debug_info(uid, strategy)
 
         # Consolidate results
         # self._consolidate()
@@ -285,6 +299,12 @@ class Backtester(object):
         self._sizer.clean()
 
         return ptf
+
+    def _store_debug_info(self, uid: str, strategy: TyStrategy) -> None:
+        d = {}
+        for n, ind in enumerate(strategy._indicators):
+            d[n] = ind.get_indicator()
+        self._debug_res[uid] = d
 
     # def _consolidate(self):
     #     """ Creates consolidated results objects by grouping equities by some
