@@ -13,7 +13,7 @@ class AssetFactory(metaclass=Singleton):
     """ Factory to create asset objects from their types """
 
     _INFO_TABLE = 'Assets'
-    _ASSET_TYPES = ('Bond', 'Company', 'Currency', 'Curve', 'Equity',
+    _ASSET_TYPES = ('Bond', 'Company', 'Currency', 'Curve', 'Etf', 'Equity',
                     'Indices', 'Portfolio', 'Rate')
 
     def __init__(self):

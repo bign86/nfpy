@@ -13,6 +13,7 @@ body {
     background-color: #fff;
     position: relative;
     font-family: "Inter-Regular",system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Helvetica,Arial,sans-serif;
+    font-size: 0.875em;
     text-rendering: optimizeLegibility;
 }
 h1 { 

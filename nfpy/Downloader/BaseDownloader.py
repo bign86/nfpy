@@ -35,6 +35,7 @@ class BasePage(metaclass=ABCMeta):
     _HEADER = {}
     _Q_MAX_DATE = ''
     _Q_SELECT = ''
+    _DATE0 = '1990-01-01'
 
     def __init__(self, ticker: str):
         self._db = DB.get_db_glob()
@@ -169,7 +170,9 @@ class BasePage(metaclass=ABCMeta):
         if self._is_initialized is True:
             return self
 
-        self._ext_p = params
+        if params is not None:
+            self._ext_p = params
+
         if fname is not None:
             self._fname = fname
         else:
@@ -306,13 +309,14 @@ class BasePage(metaclass=ABCMeta):
         """ Calculates the last available data point in the database for
             incremental downloads.
         """
+        date = self._DATE0
         last_date = self._db.execute(
             self._Q_MAX_DATE,
             data
         ).fetchone()
-        date = '1990-01-01'
-        if last_date and (last_date[0] is not None):
-            date = last_date[0]
+        if last_date:
+            if last_date[0] is not None:
+                date = last_date[0]
         return date
 
     @abstractmethod

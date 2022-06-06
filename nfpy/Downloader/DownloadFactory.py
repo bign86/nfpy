@@ -57,6 +57,9 @@ class DownloadFactory(metaclass=Singleton):
     def providers(self) -> KeysView[str]:
         return self._dwn_obj.keys()
 
+    def pages(self, provider: str) -> list:
+        return self._dwn_obj[provider]
+
     @property
     def splits(self) -> list:
         return self._splits

@@ -87,9 +87,10 @@ class Portfolio(AggregationMixin, Asset):
             dividends received.
 
             WARNING: the current methodology does NOT take into account the
-            ex-dividend date. Therefore, it is assumed that at the payment date
-            all the shares are paid the dividend. This is NOT accurate if some
-            of the shares were acquired after the ex-dividend date.
+            ex-dividend/payment date difference. Therefore, it is assumed that
+            dividends are paid at the ex-dividend date. This creates an error in
+            the non-base currency cash accounts due to the FX in between the two
+            dates.
         """
         af = get_af_glob()
 

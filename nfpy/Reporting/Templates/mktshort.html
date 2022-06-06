@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <a name="head"></a>
     <meta charset="UTF-8">
     <link rel="stylesheet" type="text/css" href="style.css">
     <title>Report NFPY</title>
@@ -37,7 +38,7 @@
       <div class="base-container">
         <div class="container-link">
           <hr class="light">
-          <h4><a name="{{ ticker }}"></a><a href="#main_title">Top</a> - {{ val.info["description"] }}</h4>
+          <h4><a name="{{ ticker }}"></a><a href="#head">Top</a> - {{ val.info["description"] }}</h4>
         </div>
 
         <!-- Market model -->
@@ -81,6 +82,9 @@
                   <td colspan="2" style="font-weight:bold;text-align:center;padding-top:5px;">Dividends</td>
                 </tr>
                 <tr>
+                  <td class='anag-prop'># per year</td><td class='anag-value'>{{ val.freq_div }}</td>
+                </tr>
+                <tr>
                   <td class='anag-prop'>YTD</td><td class='anag-value'>{{ '%.2f'| format(val.ytd_yrl_div|float) }}</td>
                 </tr>
                 <tr>
@@ -96,7 +100,6 @@
             </table>
           </div>
           <div class="container-normal">
-            {{ val.stats }}
             <div style="text-align:center">
               {{ val.alerts_table }}
             </div>
@@ -107,6 +110,7 @@
             <img src="{{ val.img_ma_plot }}" alt="MA crosses" class="normal-plot">
           </div>
           <div class="container-normal">
+            {{ val.stats }}
             <img src="{{ val.img_prices_long }}" alt="Price history vs benchmark" class="normal-plot">
           </div>
         </div>

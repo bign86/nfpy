@@ -117,8 +117,8 @@ class DividendFactory(object):
 
         # Calculate yearly dividend as a sum
         divs = np.zeros(self._yearly_dt.shape)
-        for n, i in enumerate(years_idx[:-1]):
-            divs[n] += np.sum(self._div[i:i + 1])
+        for n in range(years_idx.shape[0] - 1):
+            divs[n] += np.sum(self._div[years_idx[n]:years_idx[n+1]])
 
         # Adjust the first year using the inferred frequency
         divs[0] *= self._freq / counts[0]

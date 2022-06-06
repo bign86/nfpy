@@ -256,7 +256,6 @@ class SRBreach(object):
             return self._breaches
 
     def _check_breaches(self) -> None:
-        vola = float(np.nanstd(Math.ret(self._ts)))
 
         if self._mode == 'smooth':
             test_ts = self._ts[:-self._check_w]
@@ -276,6 +275,10 @@ class SRBreach(object):
 
         ts_0 = self._ts[-self._check_w]
         ts_t = Math.last_valid_value(self._ts)[0]
+
+        vola = float(np.std(Math.ret(self._ts)))
+        ts_vola = 1.65 * vola * ts_t
+
         all_sr = np.concatenate(merge_sr(all_sr, vola))
 
         # Logic of breaches
@@ -284,13 +287,13 @@ class SRBreach(object):
             status = ''
             if ts_0 <= sr:
                 type_ = 'R'
-                if abs(ts_0 - sr) < vola:
+                if abs(ts_t - sr) < ts_vola:
                     status = 'testing'
                 elif ts_t > sr:
                     status = 'breach'
             else:
                 type_ = 'S'
-                if abs(ts_0 - sr) < vola:
+                if abs(ts_t - sr) < ts_vola:
                     status = 'testing'
                 elif ts_t < sr:
                     status = 'breach'

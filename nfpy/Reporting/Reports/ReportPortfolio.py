@@ -307,6 +307,9 @@ class ReportPortfolio(BaseReport):
             model_wgt = r.weights[0]
             weights.extend([model_wgt, model_wgt / wgt - 1.])
 
+        # TODO: Current state of portfolio. Insert a marker on the plot for the
+        #       current portfolio to compare with the optimizations.
+
         # Save out figure
         pl.plot() \
             .save(fig_full[0]) \

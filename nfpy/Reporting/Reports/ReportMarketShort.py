@@ -152,6 +152,7 @@ class ReportMarketShort(BaseReport):
 
         # Dividends
         df = DividendFactory(asset)
+        res.freq_div = df.frequency
         _, yrl_div = df.annual_dividends
         _, yrl_yield = df.div_yields()
         if len(yrl_yield) > 0:
@@ -180,10 +181,11 @@ class ReportMarketShort(BaseReport):
         bench_perf = Math.comp_ret(bench_r[slc], is_log=False) \
                      * Math.next_valid_value(v_p[slc])[0]
 
-        IO.TSPlot() \
+        IO.TSPlot(figsize=(10, 4)) \
             .lplot(0, dt_p[slc], v_p[slc], label=asset.ticker) \
             .lplot(0, dt_p[slc], bench_perf, color='C2',
                    linewidth=1.5, label=asset.index) \
+            .annotate(0, f'{last_price:.2f}', (dt_p[-1], v_p[-1])) \
             .plot() \
             .save(fig_full[0]) \
             .close(True)
@@ -241,6 +243,7 @@ class ReportMarketShort(BaseReport):
         prices = asset.prices
         v_p = prices.values
         dt_p = prices.index.values
+        last_price, _ = Math.last_valid_value(v_p, dt_p, self._cal.t0.asm8)
 
         # Manual alerts
         ae = Trd.AlertsEngine()
@@ -298,12 +301,13 @@ class ReportMarketShort(BaseReport):
         ma_slow = ema_s.get_indicator()['ewma']
 
         # Create plot with alerts and S/Rs
-        pl = IO.TSPlot() \
+        pl = IO.TSPlot(figsize=(10, 8)) \
             .lplot(0, shortened_dt[w_slow:], shortened_v[w_slow:]) \
             .lplot(0, shortened_dt[w_slow:], ma_fast[w_slow:], color='C1',
                    linewidth=1.5, linestyle='--', label=f'MA {w_fast}') \
             .lplot(0, shortened_dt[w_slow:], ma_slow[w_slow:], color='C2',
-                   linewidth=1.5, linestyle='--', label=f'MA {w_slow}')
+                   linewidth=1.5, linestyle='--', label=f'MA {w_slow}') \
+            .annotate(0, f'{last_price:.2f}', (dt_p[-1], v_p[-1]))
 
         alerts_to_plot = []
         while alerts_data:

@@ -239,7 +239,7 @@ CREATE TABLE ManualPrices (
     [ticker] TEXT NOT NULL,
     [date] DATETIME NOT NULL,
     [open] REAL,
-    [close REAL,
+    [close] REAL,
     [adj_close] REAL,
     [volume] INTEGER,
     PRIMARY KEY ([ticker], [date])

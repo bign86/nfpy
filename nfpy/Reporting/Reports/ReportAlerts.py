@@ -87,8 +87,8 @@ class ReportAlerts(BaseReport):
             is_today = 'NEW' if a.date_triggered == dt_today else ''
             dt_trigger = a.date_triggered.strftime('%Y-%m-%d')
 
-            data.append((a.uid, key, a.cond, a.value,
-                         asset.last_price()[0], is_today, dt_trigger))
+            data.append((key, a.uid, a.cond, a.value, asset.last_price()[0],
+                         'breach', is_today, dt_trigger))
 
         # S/R alerts
         w_sr = self._p['sr']['w_sr']
@@ -105,7 +105,7 @@ class ReportAlerts(BaseReport):
 
             sr_checker = Trd.SRBreach(v_p, sr_check, sr_tol, 'smooth', w_sr)
             for b in sr_checker.get(triggers_only=True):
-                data.append((uid, key, b[0], b[1], last_price, '', ''))
+                data.append((key, uid, b[0], b[1], last_price, b[2], '', ''))
 
         # Create final table of alerts
         if len(data) > 0:
@@ -114,7 +114,7 @@ class ReportAlerts(BaseReport):
             df = pd.DataFrame(
                 data,
                 columns=('ticker', 'uid', 'condition', 'price',
-                         'last price', 'new', 'date trigger')
+                         'last price', 'status', 'new', 'date trigger')
             )
             res.alerts_table = df.to_html(
                 formatters={

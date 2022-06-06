@@ -82,13 +82,9 @@ class Plotter(object):
             ax = self._ax[axid]
         return ax
 
-    def annotate(self, axid: int, x: Union[pd.Series, np.ndarray],
-                 y: Optional[np.ndarray] = None,
-                 labels: Sequence[str] = (), **kwargs):
-        if isinstance(x, pd.Series):
-            _v = x
-            x, y = _v.index, _v.values
-        self._annotations.append((axid, x, y, labels, kwargs))
+    def annotate(self, axid: int, text: str, xy: tuple[float],
+                 xytext: Optional[tuple[float]] = None, **kwargs):
+        self._annotations.append((axid, text, xy, xytext, kwargs))
         return self
 
     def bar(self, axid: int, x: Union[pd.Series, np.ndarray],
@@ -168,7 +164,7 @@ class Plotter(object):
         plt.show()
 
     def stem(self, axid: int, x: Union[pd.Series, np.ndarray],
-              y: Optional[np.ndarray] = None, **kwargs):
+             y: Optional[np.ndarray] = None, **kwargs):
         if isinstance(x, pd.Series):
             _v = x
             x, y = _v.index, _v.values
@@ -248,13 +244,15 @@ class Plotter(object):
             ax.axhline(yz, **self._RC['axis'])
 
         # Run over annotations
-        for axid, x, y, l, kw in self._annotations:
-            ax = self._get_axes(axid, False)
-            rc = self._RC['scatter'].copy()
-            rc.update(kw)
-            ax.scatter(x, y, **rc)
-            for i, k in enumerate(l):
-                ax.annotate(k, (x[i], y[i]), **self._RC['annotations'])
+        for axid, txt, xy, xytxt, kw in self._annotations:
+            self._get_axes(axid, False) \
+                .annotate(txt, xy, xytxt)
+            # ax = self._get_axes(axid, False)
+            # rc = self._RC['scatter'].copy()
+            # rc.update(kw)
+            # ax.scatter(*xy, **rc)
+            # for i, k in enumerate(txt):
+            #     ax.annotate(k, xy[i], **self._RC['annotations'])
 
         # Create legend
         for n, v in enumerate(zip(add_legend, label_legend)):
@@ -300,8 +298,11 @@ class PtfOptimizationPlot(Plotter):
         if not self._annotations:
             xc = np.array(res.const_var)
             yc = np.array(res.const_ret)
-            labels = res.uids
-            self._annotations.append((axid, xc, yc, labels, {'marker': 'x'}))
+            for i in range(len(res.uids)):
+                self._annotations.append((
+                    axid, res.uids[i], (xc[i], yc[i]), None, {}
+                ))
+            self.scatter(axid, xc, y=yc, marker='x')
 
         return self
 

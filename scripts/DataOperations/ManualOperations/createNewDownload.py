@@ -74,8 +74,7 @@ if __name__ == '__main__':
         provider = providers[prov_idx]
 
         # Page
-        prov_obj = dwn.get_provider(provider)
-        pages, pg_idx = tuple(prov_obj.pages), -1
+        pages, pg_idx = dwn.pages(provider), -1
         Ut.print_sequence(pages, showindex=True)
         while (pg_idx < 0) or (pg_idx > len(pages)):
             pg_idx = inh.input('Give the download page index: ', idesc='int')
