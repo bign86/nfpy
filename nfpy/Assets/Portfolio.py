@@ -200,6 +200,7 @@ class Portfolio(AggregationMixin, Asset):
         self._add_dividends(inception, positions, df)
 
         self._cnsts_df = df
+        # By using the column list we ensure to retain the order
         self._cnsts_uids = df.columns.tolist()
         self._dict_cnsts = positions
 
@@ -333,9 +334,9 @@ class Portfolio(AggregationMixin, Asset):
                 v.date = dt
                 df.loc[dt, uid] = v.quantity
 
-                if v.quantity == 0.:
-                    print(f'pos: {uid} | quantity: {v.quantity:.2f} ==> deleted')
-                    del positions[uid]
+                # if v.quantity == 0.:
+                #    print(f'pos: {uid} | quantity: {v.quantity:.2f} ==> deleted')
+                #    del positions[uid]
 
                 # Update the currency position
                 try:
@@ -367,6 +368,7 @@ class Portfolio(AggregationMixin, Asset):
             # except:
             #     print(f'{ccc.uid} = 0')
 
+        # Save the list of deposits/withdrawals
         self._cash_ops = pd.DataFrame(
             cash_ops_values,
             columns=['quantity'],

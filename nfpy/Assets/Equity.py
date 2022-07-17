@@ -28,6 +28,7 @@ class Equity(Asset):
         self._index = None
         self._div = None
         self._div_special = None
+        self._ticker = None
         self._split = None
 
     @property
@@ -65,6 +66,14 @@ class Equity(Asset):
                 res = pd.Series(dtype=float)
             self._div_special = res
         return self._div_special
+
+    @property
+    def ticker(self) -> str:
+        return self._ticker
+
+    @ticker.setter
+    def ticker(self, v: str):
+        self._ticker = v
 
     @property
     def splits(self) -> pd.Series:

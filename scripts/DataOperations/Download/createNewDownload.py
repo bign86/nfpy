@@ -9,11 +9,18 @@ import nfpy.Downloader as Dwn
 import nfpy.IO as IO
 from nfpy.Tools import Utilities as Ut
 
-__version__ = '0.5'
+__version__ = '0.6'
 _TITLE_ = '<<< Create new download script >>>'
 
+_IMPORT_HINTS = {
+    'HistoricalPrices': 'ClosePrices',
+    'Splits': 'Splits',
+    'Dividends': 'Dividends',
+    'Financials': 'Financials',
+}
 
-def columns_data(_table: str, _data: dict) -> tuple:
+
+def columns_data(_table: str, _data: dict, *args) -> tuple:
     _cols = qb.get_columns(_table)
     _d = []
     for _n, _c in _cols.items():
@@ -24,8 +31,16 @@ def columns_data(_table: str, _data: dict) -> tuple:
         _opt = not (_c.is_primary | _c.notnull)
         _check = _n if _n in ('currency', 'isin') else None
         _hint = _c.type + ', OPTIONAL' if _opt else _c.type
-        _v = inh.input('Insert {} ({}): '.format(_n, _hint),
-                       idesc=_col_type, checker=_check, optional=_opt)
+
+        if _n == 'item':
+            _default = _IMPORT_HINTS[args[0]]
+            _msg = f'Insert {_n} ({_default}): '
+        else:
+            _msg = f'Insert {_n} ({_hint}): '
+            _default = None
+
+        _v = inh.input(_msg, idesc=_col_type, checker=_check,
+                       optional=_opt, default=_default)
         _d.append(_v)
 
     return tuple(_d)
@@ -99,15 +114,15 @@ if __name__ == '__main__':
     # IMPORTS
     import_data = []
     imp_keys = ('uid', 'ticker', 'provider', 'item')
+    q_sel_imp = qb.select('Imports', keys=imp_keys)
     for d in dwn_data:
         imp_cols = (uid, d[2], d[0])
         msg = f'\nAdd a new import for the following download?\n{uid} {d[2]} {d[0]} {d[1]}\n'
         if inh.input(msg, idesc='bool', default=False):
             p = {k: v for k, v in zip(imp_keys, imp_cols)}
-            imp_cols = columns_data('Imports', p)
+            imp_cols = columns_data('Imports', p, d[1])
 
-            q = qb.select('Imports', keys=imp_keys)
-            res = db.execute(q, imp_cols[:4]).fetchall()
+            res = db.execute(q_sel_imp, imp_cols[:4]).fetchall()
             if res:
                 print('This import is already present. Not added', end='\n\n')
             else:

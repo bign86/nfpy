@@ -56,21 +56,24 @@ if __name__ == '__main__':
     pe = PortfolioEngine(ptf)
     res = pe.summary()
 
-    print(f'\n *** Portfolio info ***\n------------------------\n'
-          f'Uid:\t\t{res["uid"]}\n'
-          f'Currency:\t{res["currency"]}\n'
-          f'Inception:\t{res["inception"].strftime(_FMT_)}\n'
-          f'Tot. Value:\t{res["tot_value"]:.2f}',
-          end='\n\n')
+    print(
+        f'\n *** Portfolio info ***\n------------------------\n'
+        f'Uid:\t\t{res["uid"]}\n'
+        f'Currency:\t{res["currency"]}\n'
+        f'Inception:\t{res["inception"].strftime(_FMT_)}\n'
+        f'Tot. Value:\t{res["tot_value"]:.2f}',
+        end='\n\n'
+    )
 
     df = res['constituents_data']
     print(' *** Summary of positions ***\n------------------------------\n')
-    print(df.to_string(
-        index=False,
-        float_format=lambda x: '{:.2f}'.format(x),
-        formatters={'quantity': '{:,.0f}'.format},
-        **PD_STYLE_PROP
-    ),
+    print(
+        df.to_string(
+            index=False,
+            float_format=lambda x: '{:.2f}'.format(x),
+            formatters={'quantity': '{:,.0f}'.format},
+            **PD_STYLE_PROP
+        ),
         end='\n\n'
     )
 

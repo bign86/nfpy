@@ -31,4 +31,4 @@ class Rate(Asset):
 
         if dt == 'price':
             # The value from the database is in annual percentage points
-            self._df.loc[:, 'price'] *= .01/Cn.BDAYS_IN_1Y
+            self._df.loc[:, 'price'] *= .01

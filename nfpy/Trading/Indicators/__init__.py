@@ -15,6 +15,6 @@ __all__ = [
     'Csma', 'Dema', 'Ewma', 'Macd', 'Sma', 'Smd', 'Smstd', 'Tema',  # 'wma',
 
     # MO
-    'Atr', 'Cci', 'Fi', 'FiElder', 'Mfi', 'RsiCutler', 'RsiWilder',
-    'Stochastic', 'Tr',  'Tsi',
+    'Aroon', 'Atr', 'Cci', 'Fi', 'FiElder', 'Mfi', 'RsiCutler', 'RsiWilder',
+    'Stochastic', 'Tr',  'Tsi', 'Aroon2'
 ]

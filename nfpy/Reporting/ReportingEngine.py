@@ -26,7 +26,6 @@ class ReportingEngine(metaclass=Singleton):
         Rep.ReportAlerts,
         Rep.ReportBacktester,
         Rep.ReportCompanies,
-        Rep.ReportEquities,
         Rep.ReportMarketShort,
         Rep.ReportPortfolio,
     }

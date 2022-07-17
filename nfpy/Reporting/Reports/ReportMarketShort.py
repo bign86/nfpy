@@ -58,7 +58,7 @@ class ReportMarketShort(BaseReport):
         self._span_slc = None
 
     def _init_input(self, type_: Optional[str] = None) -> None:
-        """ Prepare and validate the the input parameters for the model. This
+        """ Prepare and validate the input parameters for the model. This
             includes verifying the parameters are correct for the models in the
             report. Takes the default parameters if any, applies the values from
             the database and the asset-specific overlays if any.
@@ -142,8 +142,6 @@ class ReportMarketShort(BaseReport):
 
         # Returns
         v_r = asset.returns.values
-        bench_r = self._af.get(asset.index) \
-            .returns.values
 
         # Last price
         last_price, idx = Math.last_valid_value(v_p, dt_p, t0.asm8)
@@ -178,36 +176,46 @@ class ReportMarketShort(BaseReport):
             Math.next_valid_index(v_p, self._hist_slc.start),
             self._hist_slc.stop
         )
-        bench_perf = Math.comp_ret(bench_r[slc], is_log=False) \
-                     * Math.next_valid_value(v_p[slc])[0]
 
-        IO.TSPlot(figsize=(10, 4)) \
+        pl = IO.TSPlot(figsize=(10, 4)) \
             .lplot(0, dt_p[slc], v_p[slc], label=asset.ticker) \
-            .lplot(0, dt_p[slc], bench_perf, color='C2',
-                   linewidth=1.5, label=asset.index) \
-            .annotate(0, f'{last_price:.2f}', (dt_p[-1], v_p[-1])) \
-            .plot() \
+            .annotate(0, f'{last_price:.2f}', (dt_p[-1], v_p[-1]))
+
+        bench_uid = asset.index
+        if bench_uid is not None:
+            bench_r = self._af.get(bench_uid).returns.values
+            bench_perf = Math.comp_ret(bench_r[slc], is_log=False) \
+                         * Math.next_valid_value(v_p[slc])[0]
+
+            pl.lplot(0, dt_p[slc], bench_perf, color='C2',
+                     linewidth=1.5, label=bench_uid)
+
+        pl.plot() \
             .save(fig_full[0]) \
             .close(True)
 
         # Statistics table and betas
         stats = np.empty((5, len(self._span_slc)))
         betas = []
-        ann_vola = np.sqrt(250)
+        ann_vola = np.sqrt(Cn.BDAYS_IN_1Y)
         for i, slc_sp in enumerate(self._span_slc):
             stats[0, i] = float(np.nanstd(v_r[slc_sp])) * ann_vola
 
             first_price = Math.next_valid_value(v_p[slc_sp])[0]
             stats[1, i] = last_price / first_price - 1.
 
-            beta_results = Math.beta(
-                dt_p[slc_sp], v_r[slc_sp], bench_r[slc_sp],
-            )
-            betas.append(beta_results[1:])
-            stats[2:4, i] = beta_results[1:3]
-            stats[4, i] = Math.correlation(
-                dt_p[slc_sp], v_r[slc_sp], bench_r[slc_sp],
-            )[0, 1]
+            if bench_uid is not None:
+                beta_results = Math.beta(
+                    dt_p[slc_sp], v_r[slc_sp], bench_r[slc_sp],
+                )
+                betas.append(beta_results[1:])
+                stats[2:4, i] = beta_results[1:3]
+                stats[4, i] = Math.correlation(
+                    dt_p[slc_sp], v_r[slc_sp], bench_r[slc_sp],
+                )[0, 1]
+            else:
+                betas.append(np.nan)
+                stats[2:5, i] = [np.nan, np.nan, np.nan]
 
         # Render dataframes
         df = pd.DataFrame(
@@ -300,14 +308,44 @@ class ReportMarketShort(BaseReport):
         ma_fast = ema_f.get_indicator()['ewma']
         ma_slow = ema_s.get_indicator()['ewma']
 
+        # Pivots
+        # The pivots are calculated on the same length of series of the MAs
+
+        #
+        # if self._p['pivots']['type'] == 'volatility':
+        #     ret = asset.returns.values[w_slow:]
+        #     threshold = np.std(ret) * self._p['pivots']['threshold']
+        # else:  # 'return'
+        #     threshold = self._p['pivots']['threshold']
+        # pivot_dt, pivot_p = Trd.get_pivot(
+        #     valid_dt, valid_p,
+        #     threshold
+        # )
+
+        # Absolute max and min
+        valid_dt = shortened_dt[w_slow:]
+        valid_p = shortened_v[w_slow:]
+        ath_idx = np.argmax(valid_p)
+        atl_idx = np.argmin(valid_p)
+        ath_ret = valid_p[ath_idx] / last_price - 1.
+        atl_ret = valid_p[atl_idx] / last_price - 1.
+
         # Create plot with alerts and S/Rs
         pl = IO.TSPlot(figsize=(10, 8)) \
-            .lplot(0, shortened_dt[w_slow:], shortened_v[w_slow:]) \
-            .lplot(0, shortened_dt[w_slow:], ma_fast[w_slow:], color='C1',
+            .lplot(0, valid_dt, valid_p) \
+            .lplot(0, valid_dt, ma_fast[w_slow:], color='C1',
                    linewidth=1.5, linestyle='--', label=f'MA {w_fast}') \
-            .lplot(0, shortened_dt[w_slow:], ma_slow[w_slow:], color='C2',
+            .lplot(0, valid_dt, ma_slow[w_slow:], color='C2',
                    linewidth=1.5, linestyle='--', label=f'MA {w_slow}') \
-            .annotate(0, f'{last_price:.2f}', (dt_p[-1], v_p[-1]))
+            .scatter(0, valid_dt[atl_idx], valid_p[atl_idx], s=40, marker='v',
+                     color='firebrick') \
+            .scatter(0, valid_dt[ath_idx], valid_p[ath_idx], s=40, marker='^',
+                     color='forestgreen') \
+            .annotate(0, f'{last_price:.2f}', (dt_p[-1], last_price), fontsize=12) \
+            .annotate(0, f'{ath_ret:.1%}', (valid_dt[ath_idx], valid_p[ath_idx]),
+                      fontsize=12, color='forestgreen', ha='right', va='bottom') \
+            .annotate(0, f'{atl_ret:.1%}', (valid_dt[atl_idx], valid_p[atl_idx]),
+                      fontsize=12, color='firebrick', ha='right', va='top')
 
         alerts_to_plot = []
         while alerts_data:

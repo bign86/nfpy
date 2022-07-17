@@ -68,7 +68,7 @@ class IBBasePage(BasePage):
 
     _ENCODING = 'utf-8-sig'
     _PROVIDER = 'IB'
-    _SLEEP_TIME = 5
+    _SLEEP_TIME = 3
 
     def __init__(self, ticker: str):
         super().__init__(ticker)
@@ -103,7 +103,7 @@ class FinancialsPage(IBBasePage):
     def _local_initializations(self) -> None:
         """ Local initializations for the single page. """
         tck = self.ticker.split('/')
-        self._app = IBAppFundamentals()
+        self._app = IBAppFundamentals("ReportsFinStatements")
         self._app.addContracts(tck, self._ext_p['currency'])
 
     def _parse(self) -> None:
@@ -126,3 +126,39 @@ class FinancialsPage(IBBasePage):
                         data.append((tck, f_, dt_, ccy, st_, cd_, item.text))
 
         self._res = pd.DataFrame(data, columns=self._COLUMNS)
+
+
+class EPSPage(IBBasePage):
+    _PAGE = 'EPS'
+    _COLUMNS = IBFundamentalsConf
+    _TABLE = ''
+
+    def _local_initializations(self) -> None:
+        """ Local initializations for the single page. """
+        tck = self.ticker.split('/')
+        self._app = IBAppFundamentals("ReportsFinSummary")
+        self._app.addContracts(tck, self._ext_p['currency'])
+
+    def _parse(self) -> None:
+        tree = ET.fromstring(self._robj)
+        print(self._robj)
+
+        self._res = pd.DataFrame([], columns=self._COLUMNS)
+
+
+class RatiosPage(IBBasePage):
+    _PAGE = 'Ratios'
+    _COLUMNS = IBFundamentalsConf
+    _TABLE = ''
+
+    def _local_initializations(self) -> None:
+        """ Local initializations for the single page. """
+        tck = self.ticker.split('/')
+        self._app = IBAppFundamentals("ReportRatios")
+        self._app.addContracts(tck, self._ext_p['currency'])
+
+    def _parse(self) -> None:
+        tree = ET.fromstring(self._robj)
+        print(self._robj)
+
+        self._res = pd.DataFrame([], columns=self._COLUMNS)

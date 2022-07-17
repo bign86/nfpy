@@ -58,6 +58,10 @@ class PortfolioEngine(object):
         return self._dt, self._tot_val
 
     @property
+    def volatility(self) -> np.ndarray:
+        return np.nanstd(self.returns[1])
+
+    @property
     def weights(self) -> np.ndarray:
         if self._wgt is None:
             self._calc_weights()
@@ -204,8 +208,8 @@ class PortfolioEngine(object):
             if ccy != base_ccy:
                 fx = Math.ffill_cols(
                     self._fx.get(ccy, base_ccy)
-                        .prices
-                        .values
+                    .prices
+                    .values
                 )
             cum_divs += np.nancumsum(df_divs[ccy].values) * fx
 
@@ -291,32 +295,47 @@ class PortfolioEngine(object):
 
     def summary(self) -> dict[str, Any]:
         """ Show the portfolio summary in the portfolio base currency. """
-        # Run through positions and collect data for the summary
-        idx = np.searchsorted(self._dt, self._cal.t0.asm8)
+        # We search for the day before t0 since the value of the position at t0
+        # will only be fully known the next period
+        idx = np.searchsorted(
+            self._dt,
+            self._cal.shift(self._cal.t0, -1).asm8
+        )
         pos_value = self.positions_value[1][idx, None]
         pos_value = pos_value.reshape((self._ptf.num_constituents,))
 
-        data = [
-            (
-                p.type, p.uid,
-                p.date.strftime('%Y-%m-%d'),
+        data = []
+        # NOTE: here we use the positions at t0, while prices are at t0-1
+        t0_quantities = self._ptf.cnsts_df.loc[self._cal.t0].values
+        for k, p in enumerate(self._ptf.constituents.values()):
+            # We check if the position was empty at the time of calculation aka
+            # t0. This is the reason we use the history of the position instead
+            # of relying on the positions dictionary that only stores the
+            # snapshot at calendar end. Calendar end and t0 may not coincide.
+            if t0_quantities[k] == .0:
+                continue
+
+            ticker = '-'
+            if p.type == 'Equity':
+                ticker = self._af.get(p.uid).ticker
+
+            data.append((
+                p.type, ticker, p.uid,
                 p.currency,
                 p.alp, p.quantity,
                 p.alp * p.quantity,
                 float(pos_value[k])
-            )
-            for k, p in enumerate(self._ptf.constituents.values())
-        ]
+            ))
 
         ptf_total = pos_value.sum()
         data.append(('Total', '-', '-', '-', None, None, None, ptf_total))
 
         # Sort accordingly to the key <type, uid>
-        data.sort(key=lambda _t: (_t[0], _t[1]))
+        data.sort(key=lambda _t: (_t[0], _t[1], _t[2]))
         cnsts = pd.DataFrame(
             data,
-            columns=('type', 'uid', 'date', 'currency', 'alp', 'quantity',
-                     'cost (FX)', f'value ({self._ptf.currency})')
+            columns=('type', 'ticker', 'uid', 'currency', 'alp',
+                     'quantity', 'cost (FX)', f'value ({self._ptf.currency})')
         )
 
         # Calculate total deposits/withdrawals
@@ -365,7 +384,7 @@ class PortfolioEngine(object):
             idx = countries.index(d)
             aggregated_v[idx] += self._pos_val[dt_idx, n]
 
-        return countries, aggregated_v/self._tot_val[dt_idx]
+        return countries, aggregated_v / self._tot_val[dt_idx]
 
     def currency_concentration(self, date: Optional[Cal.TyDate] = None) \
             -> tuple[list[str], np.ndarray]:
@@ -393,7 +412,7 @@ class PortfolioEngine(object):
             idx = ccys.index(p.currency)
             aggregated_v[idx] += self._pos_val[dt_idx, n]
 
-        return ccys, aggregated_v/self._tot_val[dt_idx]
+        return ccys, aggregated_v / self._tot_val[dt_idx]
 
     def sector_concentration(self, date: Optional[Cal.TyDate] = None) \
             -> tuple[list[str], np.ndarray]:
@@ -430,4 +449,4 @@ class PortfolioEngine(object):
             idx = sectors.index(d)
             aggregated_v[idx] += self._pos_val[dt_idx, n]
 
-        return sectors, aggregated_v/self._tot_val[dt_idx]
+        return sectors, aggregated_v / self._tot_val[dt_idx]

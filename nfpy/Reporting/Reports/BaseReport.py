@@ -103,8 +103,8 @@ class BaseReport(metaclass=ABCMeta):
         self._is_calculated = True
 
     @abstractmethod
-    def _init_input(self, uid: Optional[str] = None) -> None:
-        """ Prepare and validate the the input parameters for the model. This
+    def _init_input(self, type_: Optional[str] = None) -> None:
+        """ Prepare and validate the input parameters for the model. This
             includes verifying the parameters are correct for the models in the
             report. Takes the default parameters if any, applies the values from
             the database and the asset-specific overlays if any.

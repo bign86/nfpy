@@ -33,8 +33,11 @@ if __name__ == '__main__':
         else:
             is_ticker_valid = True
 
-    fields = qb.get_fields(f.download_table)
-    tab = tabulate(data, headers=fields, showindex=True)
+    tab = tabulate(
+        data,
+        headers=tuple(qb.get_fields(f.download_table)),
+        showindex=True
+    )
     print(tab, end='\n\n')
     choice = inh.input('Index: ', idesc='int')
     while 0 > choice >= len(data):
@@ -42,20 +45,22 @@ if __name__ == '__main__':
         choice = inh.input('Index: ', idesc='int')
 
     dwn = data[choice]
-    p = f.create_page_obj(dwn[1], dwn[2], dwn[3])
-    num_params = f.print_parameters(p)
+    p = f.create_page_obj(dwn.provider, dwn.page, dwn.ticker)
+    f.print_parameters(p)
 
+    num_params = len(p.params) if p.params else 0
     params = {}
     if num_params > 0:
         msg = "Type the additional parameters as key1, value1, key2, value2, ...:\n"
         pin = inh.input(msg, idesc='str', is_list=True, default=[])
         params = Ut.list_to_dict(pin)
 
-    p.initialize(dwn[4], params=params)
+    params.update({'currency': dwn.currency})
+    p.initialize(params=params)
     p.fetch()
     p.printout()
 
-    if inh.input('\nSave the results to database?', idesc='bool', default=False):
+    if inh.input('\nSave the results to database? ', idesc='bool', default=False):
         p.save()
         # TODO: write a logic inside the download factory to get rid of this
         #       external logic here. We don't want to deal with QueryBuilder and

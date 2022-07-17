@@ -23,7 +23,7 @@ class Sma(BaseIndicator):
         super(Sma, self).__init__(ts, is_bulk)
 
     def _bulk(self, t0: int) -> None:
-        self._ma = np.empty(self._ts.shape[0], dtype=float)
+        self._ma = np.empty(self._max_t, dtype=float)
         self._ma[:self._w - 1] = np.nan
 
         if self._is_bulk:
@@ -64,7 +64,7 @@ class Smstd(BaseIndicator):
         super(Smstd, self).__init__(ts, is_bulk)
 
     def _bulk(self, t0: int) -> None:
-        self._std = np.empty(self._ts.shape[0], dtype=float)
+        self._std = np.empty(self._max_t, dtype=float)
         self._std[:self._w - 1] = np.nan
 
         if self._is_bulk:
@@ -106,7 +106,7 @@ class Csma(BaseIndicator):
         super(Csma, self).__init__(ts, is_bulk)
 
     def _bulk(self, t0: int) -> None:
-        self._ma = np.empty(self._ts.shape[0], dtype=float)
+        self._ma = np.empty(self._max_t, dtype=float)
 
         if self._is_bulk:
             slc = slice(None, None)
@@ -153,12 +153,12 @@ class Ewma(BaseIndicator):
         super(Ewma, self).__init__(ts, is_bulk)
 
     def _bulk(self, t0: int) -> None:
-        self._ma = np.empty(self._ts.shape[0], dtype=float)
+        self._ma = np.empty(self._max_t, dtype=float)
 
         self._ma[0] = self._ts[0]
         end = self._max_t if self._is_bulk else t0 + 1
         for i in range(1, end):
-            self._ma[i] = self._alpha * self._ts[i] + self._c * self._ma[i-1]
+            self._ma[i] = self._alpha * self._ts[i] + self._c * self._ma[i - 1]
 
     def get_indicator(self) -> dict:
         return {'ewma': self._ma}
@@ -167,7 +167,7 @@ class Ewma(BaseIndicator):
         return self._ma[self._t]
 
     def _ind_online(self) -> Union[float, tuple]:
-        new = self._alpha * self._ts[self._t] + self._c * self._ma[self._t-1]
+        new = self._alpha * self._ts[self._t] + self._c * self._ma[self._t - 1]
         self._ma[self._t] = new
         return new
 
@@ -188,7 +188,7 @@ class Smd(BaseIndicator):
         super(Smd, self).__init__(ts, is_bulk)
 
     def _bulk(self, t0: int) -> None:
-        self._smd = np.empty(self._ts.shape[0], dtype=float)
+        self._smd = np.empty(self._max_t, dtype=float)
         self._smd[:self._w - 1] = np.nan
 
         if self._is_bulk:
@@ -242,10 +242,9 @@ class Macd(BaseIndicator):
         super(Macd, self).__init__(ts, is_bulk)
 
     def _bulk(self, t0: int) -> None:
-        n = self._ts.shape[0]
-        self._macd = np.empty(n, dtype=float)
-        self._signal = np.empty(n, dtype=float)
-        self._hist = np.empty(n, dtype=float)
+        self._macd = np.empty(self._max_t, dtype=float)
+        self._signal = np.empty(self._max_t, dtype=float)
+        self._hist = np.empty(self._max_t, dtype=float)
 
         self._mas = self._ts[0]
         self._maf = self._ts[0]
@@ -258,7 +257,7 @@ class Macd(BaseIndicator):
             self._mas = self._als * self._ts[i] + self._cs * self._mas
             self._maf = self._alf * self._ts[i] + self._cf * self._maf
             self._macd[i] = self._maf - self._mas
-            self._signal[i] = self._alm * self._macd[i] + self._cm * self._signal[i-1]
+            self._signal[i] = self._alm * self._macd[i] + self._cm * self._signal[i - 1]
         self._hist[1:end] = self._macd[1:end] - self._signal[1:end]
 
     def get_indicator(self) -> dict:
@@ -271,7 +270,7 @@ class Macd(BaseIndicator):
         self._mas = self._als * self._ts[self._t] + self._cs * self._mas
         self._maf = self._alf * self._ts[self._t] + self._cf * self._maf
         macd = self._maf - self._mas
-        signal = self._alm * macd + self._cm * self._signal[self._t-1]
+        signal = self._alm * macd + self._cm * self._signal[self._t - 1]
         hist = macd - signal
         self._macd[self._t] = macd
         self._signal[self._t] = signal
@@ -300,7 +299,7 @@ class Dema(BaseIndicator):
         super(Dema, self).__init__(ts, is_bulk)
 
     def _bulk(self, t0: int) -> None:
-        self._dema = np.empty(self._ts.shape[0], dtype=float)
+        self._dema = np.empty(self._max_t, dtype=float)
 
         self._ma1 = self._ts[0]
         self._ma2 = self._ts[0]
@@ -348,7 +347,7 @@ class Tema(BaseIndicator):
         super(Tema, self).__init__(ts, is_bulk)
 
     def _bulk(self, t0: int) -> None:
-        self._tema = np.empty(self._ts.shape[0], dtype=float)
+        self._tema = np.empty(self._max_t, dtype=float)
 
         self._ma1 = self._ts[0]
         self._ma2 = self._ts[0]
@@ -379,3 +378,55 @@ class Tema(BaseIndicator):
     @property
     def min_length(self) -> int:
         return self._w
+
+
+class Alma(BaseIndicator):
+    """ Arnaud Legoux Moving Average indicator. """
+
+    _NAME = 'alma'
+
+    def __init__(self, ts: np.ndarray, is_bulk: bool, w: int,
+                 offset: float = .85, vola: float = 6.):
+        self._w = w
+        self._offset = offset * (w - 1)
+        self._vola = 2. * w * w / vola / vola
+        self._ma = None
+
+        self._factor = np.exp(
+            -(np.arange(self._w) - self._offset) ** 2. / self._vola
+        )
+        self._norm = np.sum(self._factor)
+
+        super(Alma, self).__init__(ts, is_bulk)
+
+    def _bulk(self, t0: int) -> None:
+        self._ma = np.empty(self._max_t, dtype=float)
+        self._ma[:self._w - 1] = np.nan
+
+        if self._is_bulk:
+            ma_slc = slice(self._w - 1, None)
+            ts_slc = slice(None, None)
+        else:
+            ma_slc = slice(self._w - 1, t0 + 1)
+            ts_slc = slice(None, t0 + 1)
+
+        roll = Math.rolling_window(self._ts[ts_slc], self._w)
+        self._ma[ma_slc] = np.sum(roll * self._factor, axis=1) / self._norm
+
+    def get_indicator(self) -> dict:
+        return {'alma': self._ma}
+
+    def _ind_bulk(self) -> Union[float, tuple]:
+        return self._ma[self._t]
+
+    def _ind_online(self) -> Union[float, tuple]:
+        ma = self._ma[self._t - 1] + (self._ts[self._t] - self._ts[self._t - self._w]) / self._w
+        self._ma[self._t] = ma
+        return ma
+
+    @property
+    def min_length(self) -> int:
+        return self._w
+
+
+

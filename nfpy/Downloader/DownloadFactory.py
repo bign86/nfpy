@@ -18,7 +18,7 @@ from .BaseDownloader import BasePage
 # Namedtuples holding the data for downloads and imports
 NTDownload = namedtuple(
     'NTDownload',
-    'provider, page, ticker, currency, active, update_frequency, last_update'
+    'provider, page, ticker, currency, active, update_frequency, last_update, description',
 )
 
 NTImport = namedtuple('NTImport', 'uid, ticker, provider, item, active')
@@ -69,7 +69,7 @@ class DownloadFactory(metaclass=Singleton):
         self._splits.append(v)
 
     @staticmethod
-    def print_parameters(page_obj: BasePage) -> int:
+    def print_parameters(page_obj: BasePage) -> None:
         """ Print out the parameters available to a page object. """
         if not page_obj.params:
             buf = 'No parameters required for this downloading page\n'
@@ -79,7 +79,6 @@ class DownloadFactory(metaclass=Singleton):
                 prfx = '*' if p in page_obj._MANDATORY else ' '
                 buf += f'  {prfx}  | {p}\n'
         print(buf)
-        return len(page_obj.params)
 
     def provider_exists(self, provider: str) -> bool:
         """ Check if the provider is supported. """
@@ -193,6 +192,13 @@ class DownloadFactory(metaclass=Singleton):
         imp_item = class_(data, incremental)
         imp_item.run()
 
+    # TODO: the downloadSingleAsset script does re-implement most of the
+    #       functionalities in here. This is required since the script needs to
+    #       ask the user for parameters that this function fetches from the DB.
+    #  ==>  This function should fetch from DB, send fetched objects to a loop
+    #       function that runs everything and updates DB. The same loop function
+    #       should be possible to call from the outside of this to allow the
+    #       mentioned script to NOT re-implement existing functionalities.
     def run_download(self, do_save: bool = True, override_date: bool = False,
                      provider: Optional[str] = None, page: Optional[str] = None,
                      ticker: Optional[str] = None,

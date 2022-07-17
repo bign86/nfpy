@@ -18,7 +18,8 @@ class BaseIndicator(metaclass=ABCMeta):
         self._is_bulk = is_bulk
 
         self._t = -1
-        self._max_t = ts.shape[max(0, len(ts.shape) - 1)]
+        # self._max_t = ts.shape[max(0, len(ts.shape) - 1)]
+        self._max_t = ts.shape[len(ts.shape) - 1]
 
         _check_nans(ts)
         _check_len(ts, self.min_length + 1)
@@ -32,6 +33,10 @@ class BaseIndicator(metaclass=ABCMeta):
         """ Start the indicator. In bulk mode, calculates the whole history.
             In online mode, precalculate in bulk mode up to t0. If t0 is before
             the minimum length of data to start the indicator, raise exception.
+
+            Note that t0 represents the INDEX of the element, not the length of
+            the array to calculate. That is the reason why it can go down to
+            (min_length - 1) instead of min_length only.
         """
         if t0 < self.min_length - 1:
             raise ValueError(f'Indicator {self._NAME}: t0={t0} < {self.min_length - 1}')

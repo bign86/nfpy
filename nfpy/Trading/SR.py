@@ -138,6 +138,23 @@ def _search_smooth(ts: np.ndarray, w: int) -> np.ndarray:
     return flags
 
 
+def get_pivot(dt: np.ndarray, p: np.ndarray, thrs: float) -> tuple:
+    """ Find the pivot dates and prices.
+
+        Input:
+            dt [np.ndarray]: input dates series
+            ts [np.ndarray]: input values series
+            thrs [float]: return threshold
+
+        Output:
+            dates [np.ndarray]: array of pivot dates
+            prices [np.ndarray]: array of pivot prices
+    """
+    flags = _search_pivots(p, thrs)
+    mask = flags != 0
+    return dt[mask], p[mask]
+
+
 def merge_sr(groups: Sequence[np.ndarray], vola: float) -> Sequence[np.ndarray]:
     """ Remove redundant S/R lines from S/R groups. The groups must be supplied
         in order of priority. The first group is retained intact, the S/R lines

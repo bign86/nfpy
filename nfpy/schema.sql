@@ -17,8 +17,8 @@ CREATE TABLE Bond (
     [country] TEXT,
     [description] TEXT,
     [asset_class] TEXT,
-    [inception_date] DATETIME,
-    [maturity] DATETIME,
+    [inception_date] DATE,
+    [maturity] DATE,
     [rate_type] TEXT,
     [coupon] REAL,
     [c_per_year] INTEGER,
@@ -94,6 +94,7 @@ CREATE TABLE Downloads (
     [active] BOOL NOT NULL,
     [update_frequency] INTEGER NOT NULL,
     [last_update] DATE,
+    [description] TEXT,
     PRIMARY KEY ([provider], [page], [ticker])
 ) WITHOUT ROWID;
 
@@ -252,6 +253,26 @@ CREATE TABLE MapFinancials (
     PRIMARY KEY ([short_name])
 ) WITHOUT ROWID;
 
+CREATE TABLE OECDSeries (
+    [ticker] TEXT NOT NULL,
+    [location] TEXT NOT NULL,
+    [country] TEXT,
+    [transact_code] TEXT NOT NULL,
+    [transact] TEXT,
+    [measure_code] TEXT NOT NULL,
+    [measure] TEXT,
+    [frequency_code] TEXT NOT NULL,
+    [frequency] TEXT NOT NULL,
+    [date_code] DATE NOT NULL,
+    [date] TEXT,
+    [unit_code] TEXT,
+    [unit] TEXT,
+    [powercode_code] INTEGER,
+    [powercode] TEXT,
+    [value] REAL NOT NULL,
+    PRIMARY KEY ([location], [transact_code], [measure_code], [frequency], [date_code])
+) WITHOUT ROWID;
+
 CREATE TABLE Portfolio (
     [uid] TEXT NOT NULL,
     [name] TEXT,
@@ -284,8 +305,10 @@ CREATE TABLE Rate (
     [uid] TEXT NOT NULL,
     [description] TEXT,
     [currency] TEXT,
+    [country] BOOL NOT NULL,
     [tenor] REAL,
-    [is_rf] BOOL NOT NULL DEFAULT False,
+    [is_ccy_rf] BOOL NOT NULL DEFAULT False,
+    [is_country_rf] BOOL NOT NULL DEFAULT False,
     PRIMARY KEY ([uid])
 ) WITHOUT ROWID;
 

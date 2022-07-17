@@ -131,7 +131,7 @@ YahooHistSplitsConf = ["date", "value"]
 # ECB
 #
 
-ECBSeriesConf = ["date", "value"]
+ECBSeriesConf = ["date", "value", "notes"]
 
 #
 # Investing
@@ -269,3 +269,13 @@ InvestingIncomeStatementConf = {'Net Interest Income': 'ENII',
 #
 
 IBFundamentalsConf = ['ticker', 'freq', 'date', 'currency', 'statement', 'code', 'value']
+
+#
+# OECD
+#
+
+OECDSeriesConf = [
+    "location", "country", "transaction_code", "transaction", "measure_code",
+    "measure", "frequency_code", "frequency", "time_code", "time", "unit_code",
+    "unit", "powercode_code", "powercode", "value"
+]

@@ -10,11 +10,13 @@ from ibapi.contract import Contract
 
 class IBAppFundamentals(EWrapper, EClient):
 
-    def __init__(self):
+    def __init__(self, dataReq: str):
         EClient.__init__(self, self)
         self.firstReqId = 1001  # remember starting id
         self.contracts = {}  # keep in dict so you can lookup
         self.contNumber = self.firstReqId
+
+        self._data_req = dataReq
         self._data = None
 
     @property
@@ -43,8 +45,8 @@ class IBAppFundamentals(EWrapper, EClient):
         self.contNumber = self.firstReqId  # start with first reqId
         self.getNextData()
 
-    def error(self, reqId, errorCode, errorString, advancedOrderRejectJson):
-        print(f'Error {errorCode}: reqId {reqId}, errorString {errorString}, json {advancedOrderRejectJson}')
+    def error(self, reqId, errorCode, errorString, advancedOrderRejectJson=None):
+        print(f'Error {errorCode}: reqId {reqId}, errorString {errorString}')
 
         # if there was an error in one of your requests, just continue with next id
         if reqId > 0 and self.contracts.get(self.contNumber):
@@ -62,7 +64,7 @@ class IBAppFundamentals(EWrapper, EClient):
             # so req data
             self.reqFundamentalData(self.contNumber,
                                     self.contracts[self.contNumber],
-                                    "ReportsFinStatements", [])
+                                    self._data_req, [])
             self.contNumber += 1  # now get ready for next request
         else:  # means no more sequentially numbered contracts
             self.disconnect()  # just exit

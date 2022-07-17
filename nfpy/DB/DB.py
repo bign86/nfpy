@@ -12,7 +12,7 @@ from nfpy.Tools import (Singleton, Exceptions as Ex,
 
 from .DBTypes import *
 
-_MIN_DB_VERSION = 1.02
+_MIN_DB_VERSION = 1.03
 
 
 class DBHandler(metaclass=Singleton):
@@ -159,7 +159,7 @@ class DBHandler(metaclass=Singleton):
 
 
 def get_db_connection(path: str) -> sqlite3.Connection:
-    return sqlite3.connect(path, detect_types=sqlite3.PARSE_DECLTYPES)
+    return sqlite3.connect(path, detect_types=sqlite3.PARSE_DECLTYPES, check_same_thread=False)
 
 
 def get_db_glob(db_path: Optional[str] = None) -> DBHandler:
@@ -184,19 +184,31 @@ def backup_db(db_path: Optional[str] = None,
             raise Ex.DatabaseError("Not a valid database name")
 
     path, file = os.path.split(db_path)
+    bk_dir = conf.backup_folder
 
     if f_name is None:
         name, ext = os.path.splitext(file)
         new_file = os.path.join(
-            conf.backup_folder,
+            bk_dir,
             ''.join([name, f"_{datetime.today().strftime('%Y%m%d_%H%M%S')}", ext])
         )
     else:
         new_file = f_name
 
-    os.makedirs(conf.backup_folder)
-    copyfile(db_path, new_file)
-    print(f"Database backup'd in: {new_file}")
+    if not os.path.exists(bk_dir):
+        try:
+            os.makedirs(bk_dir)
+        except OSError as ex:
+            print(f'Creation of the directory {bk_dir} failed')
+            raise ex
+
+    try:
+        copyfile(db_path, new_file)
+    except OSError as ex:
+        print(f'Backup of  {new_file} failed')
+        raise ex
+    else:
+        print(f"Database backup'd in: {new_file}")
 
 
 # register the connection closing.

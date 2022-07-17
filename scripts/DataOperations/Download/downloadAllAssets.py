@@ -3,12 +3,13 @@
 # Script to download everything is in automatic download.
 #
 
-import asyncio
+import argparse
+# import asyncio
 
 import nfpy.Downloader as Dwn
 import nfpy.IO as IO
 
-__version__ = '0.7'
+__version__ = '0.8'
 _TITLE_ = "<<< Update database script >>>"
 __purpose__ = "Updates the time series according to the Downloads table"
 __desc__ = """
@@ -28,37 +29,53 @@ overridden by the user:
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', '--interactive', action='store_true',
+                        help='use interactively')
+    parser.add_argument('-d', '--override-date', action='store_true',
+                        help='override date in DB')
+    parser.add_argument('-p', '--provider', nargs='?',
+                        help='set a provider')
+    parser.add_argument('-g', '--page', nargs='?',
+                        help='set a page')
+    parser.add_argument('-t', '--ticker', nargs='?',
+                        help='set a ticker')
+    parser.add_argument('-a', '--override-active', action='store_true',
+                        help='override <active> flag in DB')
+    parser.add_argument('-s', '--no-save', action='store_false',
+                        help='do not save in DB')
+    args = parser.parse_args()
+
+    if args.interactive is True:
+        inh = IO.InputHandler()
+
+        give_p = inh.input('Do you want to specify parameters (default: No)?: ',
+                           idesc='bool', default=False, optional=True)
+        if give_p:
+            args.override_date = inh.input("Override dates (default No)?: ",
+                                           idesc='bool', default=False, optional=True)
+            args.provider = inh.input("Download for a specific provider (default None)?: ",
+                                      idesc='str', default=None, optional=True,
+                                      checker='provider')
+            args.page = inh.input("Download for a specific page (default None)?: ",
+                                  idesc='str', default=None, optional=True)
+            args.ticker = inh.input("Download for a specific ticker (default None)?: ",
+                                    idesc='str', default=None, optional=True)
+            args.override_active = inh.input("Override automatic (default No)?: ",
+                                             idesc='bool', default=False, optional=True)
+            args.no_save = inh.input("Save to database (default Yes)?: ",
+                                     idesc='bool', default=True, optional=True)
+
     dwnf = Dwn.get_dwnf_glob()
-    inh = IO.InputHandler()
-
-    do_save, override_date, override_active = True, False, False
-    provider, page, ticker = None, None, None
-
-    give_p = inh.input('Do you want to specify parameters (default: No)?: ',
-                       idesc='bool', default=False, optional=True)
-    if give_p:
-        override_date = inh.input("Override dates (default No)?: ",
-                                  idesc='bool', default=False, optional=True)
-        provider = inh.input("Download for a specific provider (default None)?: ",
-                             idesc='str', default=None, optional=True,
-                             checker='provider')
-        page = inh.input("Download for a specific page (default None)?: ",
-                         idesc='str', default=None, optional=True)
-        ticker = inh.input("Download for a specific ticker (default None)?: ",
-                           idesc='str', default=None, optional=True)
-        override_active = inh.input("Override automatic (default No)?: ",
-                                    idesc='bool', default=False, optional=True)
-        do_save = inh.input("Save to database (default Yes)?: ",
-                            idesc='bool', default=True, optional=True)
 
     # loop = asyncio.new_event_loop()
     # loop.set_debug(True)
     # print('Loop started')
 
     # loop.run_until_complete(
-    dwnf.run_download(do_save=do_save, override_date=override_date,
-                      provider=provider, page=page, ticker=ticker,
-                      override_active=override_active)
+    dwnf.run_download(do_save=args.no_save, override_date=args.override_date,
+                      provider=args.provider, page=args.page,
+                      ticker=args.ticker, override_active=args.override_active)
     # )
 
     # loop.stop()

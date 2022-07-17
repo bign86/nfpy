@@ -1,0 +1,168 @@
+#
+# OECD Downloader
+# Downloads data from the OECD central database
+#
+
+import json
+import pandas as pd
+
+from nfpy.Calendar import today
+
+from .BaseDownloader import BasePage
+from .BaseProvider import BaseImportItem
+from .DownloadsConf import OECDSeriesConf
+
+
+class ClosePricesItem(BaseImportItem):
+    _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
+    select '{uid}', '1', date_code, value from OECDSeries where ticker = ?"""
+    _Q_INCR = """ and date_code > ifnull((select max(date) from {dst_table}
+    where uid = '{uid}'), '1900-01-01')"""
+
+
+class SeriesPage(BasePage):
+    """ Base class for all OECD downloads. It cannot be used by itself but the
+        derived classes for single download instances should always be used.
+    """
+
+    _ENCODING = "utf-8-sig"
+    _PROVIDER = "OECD"
+    _REQ_METHOD = 'get'
+    _PAGE = 'Series'
+    _COLUMNS = OECDSeriesConf
+    _BASE_URL = u"https://stats.oecd.org/SDMX-JSON/data/{dataset_id}/{data_subject}/all?"
+    _TABLE = "OECDSeries"
+    _PARAMS = {
+        "startTime": None,
+        "endTime": None,
+        "dimensionAtObservation": "allDimensions"
+    }
+    _MANDATORY = ("startTime", "endTime")
+
+    def _set_default_params(self) -> None:
+        """ Set the starting default of the parameters for the page. """
+        self._p = self._PARAMS
+        ld = self._fetch_last_data_point((self.ticker,))
+        self._p.update({
+            'startTime': pd.to_datetime(ld).strftime('%Y-%m'),
+            'endTime': today(fmt='%Y-%m')
+        })
+
+    @property
+    def baseurl(self) -> str:
+        """ Return the base url for the page. """
+        request = self.ticker.split('/')
+
+        dataset_id = request[0]
+        data_subject = '.'.join(
+            [
+                '+'.join(p.split(','))
+                for p in request[1:]
+                if p
+            ]
+        )
+
+        return self._BASE_URL.format(
+            dataset_id=dataset_id, data_subject=data_subject
+        )
+
+    def _local_initializations(self) -> None:
+        """ Page-dependent initializations of parameters. """
+        if self._ext_p:
+            p = {}
+            for t in [('start', 'startTime'), ('end', 'endTime')]:
+                if t[0] in self._ext_p:
+                    d = self._ext_p[t[0]]
+                    p[t[1]] = pd.to_datetime(d).strftime('%Y-%m')
+            self.params = p
+
+    def _parse(self) -> None:
+        """ Parse the fetched object. """
+        j = json.loads(self._robj.text)
+        dimensions = j["structure"]["dimensions"]["observation"]
+        attributes = j["structure"]["attributes"]["observation"]
+        data_points = j["dataSets"][0]["observations"]
+
+        location_list = [v for v in dimensions if v['id'] == 'LOCATION'][0]['values']
+        measure_list = [v for v in dimensions if v['id'] == 'MEASURE'][0]['values']
+        time_list = [v for v in dimensions if v['id'] == 'TIME_PERIOD'][0]['values']
+        units_list = [v for v in attributes if v['id'] == 'UNIT'][0]['values']
+        powercode_list = [v for v in attributes if v['id'] == 'POWERCODE'][0]['values']
+
+        # Sometimes we have SUBJECT, sometimes TRANSACT
+        subject = [v for v in dimensions if v['id'] == 'SUBJECT']
+        if not subject:
+            subject = [v for v in dimensions if v['id'] == 'TRANSACT']
+        subject_list = subject[0]['values']
+
+        frequency = [v for v in dimensions if v['id'] == 'FREQUENCY']
+        if not frequency:
+            frequency = [{'values': [{'id': 'A', 'name': 'Annually'}]}]
+        frequency_list = frequency[0]['values']
+
+        data = []
+        for idx, point in data_points.items():
+            dims = list(map(int, idx.split(':')))
+            row = [
+                location_list[dims[0]]['id'],
+                location_list[dims[0]]['name'],
+                subject_list[dims[1]]['id'],
+                subject_list[dims[1]]['name'],
+                measure_list[dims[2]]['id'],
+                measure_list[dims[2]]['name'],
+            ]
+            if len(dims) == 4:
+                dt = time_list[dims[3]]['id']
+                if len(dt) == 4:
+                    pd.to_datetime(dt, format='%Y')
+                else:
+                    pd.to_datetime(dt, format='%Y-%m')
+                row.extend(
+                    [
+                        frequency_list[0]['id'],
+                        frequency_list[0]['name'],
+                        dt,
+                        time_list[dims[3]]['name'],
+                    ]
+                )
+            elif len(dims) == 5:
+                dt = time_list[dims[4]]['id']
+                if len(dt) == 4:
+                    pd.to_datetime(dt, format='%Y')
+                else:
+                    pd.to_datetime(dt, format='%Y-%m')
+                row.extend(
+                    [
+                        frequency_list[dims[3]]['id'],
+                        frequency_list[dims[3]]['name'],
+                        dt,
+                        time_list[dims[4]]['name'],
+                    ]
+                )
+            row.extend(
+                [
+                    units_list[dims[2]]['id'],
+                    units_list[dims[2]]['name'],
+                ]
+            )
+            if len(powercode_list) == 1:
+                row.extend(
+                    [
+                        int(powercode_list[0]['id']),
+                        powercode_list[0]['name'],
+                        float(point[0])
+                    ]
+                )
+            else:
+                row.extend(
+                    [
+                        int(powercode_list[dims[2]]['id']),
+                        powercode_list[dims[2]]['name'],
+                        float(point[0])
+                    ]
+                )
+            data.append(row)
+
+        df = pd.DataFrame(data, columns=self._COLUMNS)
+        df.insert(0, 'ticker', self.ticker)
+        self._res = df

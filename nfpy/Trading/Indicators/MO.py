@@ -11,6 +11,104 @@ import nfpy.Math as Math
 from .BaseIndicator import BaseIndicator
 
 
+class Aroon(BaseIndicator):
+    """ Calculates the Aroon bands and oscillator over the given window. The
+        <ts> array is expected to have either shape (1, n) or shape (2, n) with
+        each row having the structure:
+            <high, low>.
+    """
+
+    _NAME = 'aroon'
+
+    def __init__(self, ts: np.ndarray, is_bulk: bool, w: int):
+        self._w = w
+        self._aro = None
+        self._aro_up = None
+        self._aro_dwn = None
+
+        super(Aroon, self).__init__(ts, is_bulk)
+
+    def _bulk(self, t0: int) -> None:
+        self._aro = np.empty(self._max_t, dtype=float)
+        self._aro_up = np.empty(self._max_t, dtype=float)
+        self._aro_dwn = np.empty(self._max_t, dtype=float)
+
+        self._aro[:self._w - 1] = np.nan
+        self._aro_up[:self._w - 1] = np.nan
+        self._aro_dwn[:self._w - 1] = np.nan
+
+        # Calculate the Aroon over the relevant time period
+        if self._is_bulk:
+            ts_slc = slice(0, None)
+            a_slc = slice(self._w - 1, None)
+        else:
+            ts_slc = slice(0, t0 + 1)
+            a_slc = slice(self._w - 1, t0 + 1)
+
+        roll = Math.rolling_window(self._ts[ts_slc], self._w)
+        up = 100. * np.argmax(roll, axis=1) / self._w
+        down = 100. * np.argmin(roll, axis=1) / self._w
+
+        self._aro[a_slc] = up - down
+        self._aro_up[a_slc] = up
+        self._aro_dwn[a_slc] = down
+
+    def get_indicator(self) -> dict:
+        return {'up': self._aro_up, 'down': self._aro_dwn, 'aroon': self._aro}
+
+    def _ind_bulk(self) -> Union[float, tuple]:
+        return self._aro_up[self._t], self._aro_dwn[self._t], self._aro[self._t]
+
+    def _ind_online(self) -> Union[float, tuple]:
+        slc = self._ts[self._t - self._w: self._t + 1]
+        up = 100. * np.argmax(slc) / self._w
+        down = 100. * np.argmin(slc) / self._w
+        aroon = up - down
+
+        self._aro[self._t] = aroon
+        self._aro_up[self._t] = up
+        self._aro_dwn[self._t] = down
+        return up, down, aroon
+
+    # NON-Vectorized version. Slower in Python, but closer to full C.
+    # def _ind_online(self) -> Union[float, tuple]:
+    #     if self._t - self._max[0] > self._w:
+    #         t = min(self._t + 1, self._max_t)
+    #         slc = self._ts[self._t - self._w: t]
+    #         imax = np.argmax(slc)
+    #         self._max = (imax, self._ts[imax])
+    #         up = 100. * imax / self._w
+    #
+    #         imin = np.argmin(slc)
+    #         self._min = (imin, self._ts[imin])
+    #         down = 100. * imin / self._w
+    #     else:
+    #         # max
+    #         if self._ts[self._t] > self._max[1]:
+    #             self._max = (self._t, self._ts[self._t])
+    #             up = 0
+    #         else:
+    #             up = 100. * self._max[0] / self._w
+    #
+    #         # min
+    #         if self._ts[self._t] < self._min[1]:
+    #             self._min = (self._t, self._ts[self._t])
+    #             down = 0
+    #         else:
+    #             down = 100. * self._min[0] / self._w
+    #
+    #     aroon = up - down
+    #
+    #     self._aro[self._t] = aroon
+    #     self._aro_up[self._t] = up
+    #     self._aro_dwn[self._t] = down
+    #     return up, down, aroon
+
+    @property
+    def min_length(self) -> int:
+        return self._w
+
+
 class Atr(BaseIndicator):
     """ Calculates the Average True Range over the given window. The <ts> array
         is expected to have shape (3, n) with each row having the structure:
@@ -39,7 +137,7 @@ class Atr(BaseIndicator):
             raise ValueError(f"Indicator {self._NAME}: Input malformed: ts.shape != (n,) or (3, n)")
 
     def _bulk(self, t0: int) -> None:
-        self._atr = np.empty(self._ts.shape[0], dtype=float)
+        self._atr = np.empty(self._max_t, dtype=float)
         self._atr[:self._w] = np.nan
 
         # Calculate the TR over the relevant time period
@@ -62,7 +160,7 @@ class Atr(BaseIndicator):
             tr = np.abs(self._ts[hl_slc] - self._ts[c_slc])
 
         # Calculate the first point for the ATR using a simple average
-        atr = np.mean(tr[:self._w])
+        atr = np.mean(tr[:self._w + 1])
         self._atr[self._w] = atr
 
         # Calculate the remaining points as an exponential average
@@ -114,9 +212,9 @@ class Cci(BaseIndicator):
         super(Cci, self).__init__(ts, is_bulk)
 
     def _bulk(self, t0: int) -> None:
-        self._cci = np.empty(self._ts.shape[0], dtype=float)
+        self._cci = np.empty(self._max_t, dtype=float)
         self._cci[:self._w - 1] = np.nan
-        self._dmean = np.empty(self._ts.shape[0], dtype=float)
+        self._dmean = np.empty(self._max_t, dtype=float)
 
         if self._is_bulk:
             ma_slc = slice(None, None)
@@ -156,7 +254,7 @@ class Cci(BaseIndicator):
 
 class Fi(BaseIndicator):
     """ Force Index indicator calculation. It is the price difference scaled by
-        the trade volume. The input must be like:
+        the trade volume. The input must have shape (2, n) and be like:
             <price, volume>.
     """
 
@@ -171,7 +269,7 @@ class Fi(BaseIndicator):
         super(Fi, self).__init__(ts, is_bulk)
 
     def _bulk(self, t0: int) -> None:
-        self._fi = np.empty(self._ts.shape[1], dtype=float)
+        self._fi = np.empty(self._max_t, dtype=float)
 
         if self._is_bulk:
             df_slc = slice(None, None)
@@ -200,7 +298,8 @@ class Fi(BaseIndicator):
 
 class FiElder(BaseIndicator):
     """ Elder's Force Index indicator calculation. It is the moving average of
-        the price difference scaled by the trade volume. The input must be like:
+        the price difference scaled by the trade volume. The input must have
+        shape (2, n) and be like:
             <price, volume>.
     """
 
@@ -217,8 +316,8 @@ class FiElder(BaseIndicator):
         super(FiElder, self).__init__(ts, is_bulk)
 
     def _bulk(self, t0: int) -> None:
-        self._fi = np.empty(self._ts.shape[1], dtype=float)
-        self._fie = np.empty(self._ts.shape[1], dtype=float)
+        self._fi = np.empty(self._max_t, dtype=float)
+        self._fie = np.empty(self._max_t, dtype=float)
         self._fie[:self._w - 1] = np.nan
 
         if self._is_bulk:
@@ -278,10 +377,10 @@ class Mfi(BaseIndicator):
         super(Mfi, self).__init__(ts, is_bulk)
 
     def _bulk(self, t0: int) -> None:
-        self._mfi = np.empty(self._ts.shape[1], dtype=float)
+        self._mfi = np.empty(self._max_t, dtype=float)
         self._mfi[:self._w - 1] = np.nan
-        self._pos_mf = np.empty(self._ts.shape[1], dtype=int)
-        self._neg_mf = np.empty(self._ts.shape[1], dtype=int)
+        self._pos_mf = np.empty(self._max_t, dtype=int)
+        self._neg_mf = np.empty(self._max_t, dtype=int)
 
         if self._is_bulk:
             ts_slc = slice(None, None)
@@ -348,10 +447,10 @@ class RsiCutler(BaseIndicator):
         super(RsiCutler, self).__init__(ts, is_bulk)
 
     def _bulk(self, t0: int) -> None:
-        self._rsi = np.empty(self._ts.shape[0], dtype=float)
-        self._rsi[:self._w] = np.nan
-        self._up = np.empty(self._ts.shape[0], dtype=float)
-        self._down = np.empty(self._ts.shape[0], dtype=float)
+        self._rsi = np.empty(self._max_t, dtype=float)
+        self._rsi[:self._w - 1] = np.nan
+        self._up = np.empty(self._max_t, dtype=float)
+        self._down = np.empty(self._max_t, dtype=float)
 
         if self._is_bulk:
             slc = slice(None, None)
@@ -419,10 +518,10 @@ class RsiWilder(BaseIndicator):
         super(RsiWilder, self).__init__(ts, is_bulk)
 
     def _bulk(self, t0: int) -> None:
-        self._rsi = np.empty(self._ts.shape[0], dtype=float)
-        self._rsi[:self._w] = np.nan
-        self._up = np.empty(self._ts.shape[0], dtype=float)
-        self._down = np.empty(self._ts.shape[0], dtype=float)
+        self._rsi = np.empty(self._max_t, dtype=float)
+        # self._rsi[:self._w - 1] = np.nan
+        self._up = np.empty(self._max_t, dtype=float)
+        self._down = np.empty(self._max_t, dtype=float)
 
         slc = slice(None, None) if self._is_bulk else slice(None, t0 + 1)
 
@@ -495,13 +594,12 @@ class Stochastic(BaseIndicator):
         super(Stochastic, self).__init__(ts, is_bulk)
 
     def _bulk(self, t0: int) -> None:
-        n = self._ts.shape[0]
-        self._ma_pk = np.empty(n, dtype=float)
-        self._ma_pk[:self._wp - 1] = np.nan
-
-        self._p_k = np.empty(n, dtype=float)
-        self._p_d = np.empty(n, dtype=float)
-        self._p_d_slow = np.empty(n, dtype=float)
+        # n = self._ts.shape[0]
+        # self._ma_pk = np.empty(self._max_t, dtype=float)
+        # self._ma_pk[:self._wp - 1] = np.nan
+        self._p_k = np.empty(self._max_t, dtype=float)
+        self._p_d = np.empty(self._max_t, dtype=float)
+        self._p_d_slow = np.empty(self._max_t, dtype=float)
 
         slc = slice(None, None) if self._is_bulk else slice(None, t0 + 1)
 
@@ -582,7 +680,7 @@ class Tr(BaseIndicator):
             raise ValueError(f"Indicator {self._NAME}: Input malformed: ts.shape != (n,) or (3, n)")
 
     def _bulk(self, t0: int) -> None:
-        self._tr = np.empty(self._ts.shape[0], dtype=float)
+        self._tr = np.empty(self._max_t, dtype=float)
         self._tr[0] = np.nan
 
         if self._is_hlc:
@@ -653,12 +751,11 @@ class Tsi(BaseIndicator):
         super(Tsi, self).__init__(ts, is_bulk)
 
     def _bulk(self, t0: int) -> None:
-        n = self._ts.shape[0]
-        self._tsi = np.empty(n, dtype=float)
-        self._ema_fs = np.empty(n, dtype=float)
-        self._ema_pc = np.empty(n, dtype=float)
-        self._ema_fsabs = np.empty(n, dtype=float)
-        self._ema_apc = np.empty(n, dtype=float)
+        self._tsi = np.empty(self._max_t, dtype=float)
+        self._ema_fs = np.empty(self._max_t, dtype=float)
+        self._ema_pc = np.empty(self._max_t, dtype=float)
+        self._ema_fsabs = np.empty(self._max_t, dtype=float)
+        self._ema_apc = np.empty(self._max_t, dtype=float)
 
         def _ewma(out_, v_, a_, c_, start_, end_):
             out_[0] = np.nan
