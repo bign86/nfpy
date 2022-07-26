@@ -178,8 +178,7 @@ class ReportMarketShort(BaseReport):
         )
 
         pl = IO.TSPlot(figsize=(10, 4)) \
-            .lplot(0, dt_p[slc], v_p[slc], label=asset.ticker) \
-            .annotate(0, f'{last_price:.2f}', (dt_p[-1], v_p[-1]))
+            .lplot(0, dt_p[slc], v_p[slc], label=asset.ticker)
 
         bench_uid = asset.index
         if bench_uid is not None:

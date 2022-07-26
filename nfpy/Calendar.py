@@ -12,7 +12,7 @@ from pandas.core.tools.datetimes import DatetimeScalar
 import pandas.tseries.offsets as off
 from typing import (Optional, Sequence, TypeVar, Union)
 
-from nfpy.Tools import (get_conf_glob, Singleton)
+from nfpy.Tools import Singleton
 
 TyDatetime = TypeVar('TyDatetime', bound=Union[
     str, pd.Timestamp, datetime.datetime, np.datetime64
@@ -30,9 +30,13 @@ _WEEK_MASK_STR_ = ('Mon', 'Tue', 'Wen', 'Thu', 'Fri')
 _FREQ_LABELS = {'D': ('D', off.Day),
                 'B': ('B', off.BDay),
                 'W': ('W', off.Week),
-                'M': ('M', off.MonthBegin),
+                'MS': ('MS', off.MonthBegin),
+                'BMS': ('AMS', off.BMonthBegin),
+                'M': ('M', off.MonthEnd),
                 'Q': ('Q', off.QuarterEnd),
                 'BQ': ('BQ', off.BQuarterEnd),
+                'AS': ('AS', off.YearBegin),
+                'BAS': ('BAS', off.BYearBegin),
                 'A': ('A', off.YearEnd),
                 'BA': ('BA', off.BYearEnd)}
 
@@ -48,6 +52,8 @@ class Calendar(metaclass=Singleton):
         self._end = None
         self._t0 = None
         self._calendar = None
+        self._monthly_calendar = None
+        self._yearly_calendar = None
         self._initialized = False
 
     @property
@@ -56,6 +62,20 @@ class Calendar(metaclass=Singleton):
         if not self._initialized:
             return pd.DatetimeIndex([], self._frequency)
         return self._calendar
+
+    @property
+    def monthly_calendar(self) -> TyTimeSequence:
+        """ Return the instantiated monthly calendar if initialized else None. """
+        if not self._initialized:
+            return pd.DatetimeIndex([], self._frequency)
+        return self._monthly_calendar
+
+    @property
+    def yearly_calendar(self) -> TyTimeSequence:
+        """ Return the instantiated yearly calendar if initialized else None. """
+        if not self._initialized:
+            return pd.DatetimeIndex([], self._frequency)
+        return self._yearly_calendar
 
     # Starting (oldest) date in the calendar
     @property
@@ -78,12 +98,7 @@ class Calendar(metaclass=Singleton):
 
     @property
     def is_initialized(self) -> bool:
-        # return self._initialized
         return self.__bool__()
-
-    @property
-    def frequency(self) -> str:
-        return self._frequency
 
     @property
     def holidays(self) -> np.array:
@@ -99,8 +114,8 @@ class Calendar(metaclass=Singleton):
         return pd.Timestamp(dt) in self._calendar
 
     def initialize(self, end: TyDate, start: Optional[TyDate] = None,
-                   periods: Optional[int] = None, fmt: str = '%Y-%m-%d') \
-            -> None:
+                   periods: Optional[int] = None, fmt: str = '%Y-%m-%d'
+                ) -> None:
         if self._initialized:
             return
 
@@ -129,20 +144,12 @@ class Calendar(metaclass=Singleton):
         if self._end < self._start:
             self._start, self._end = self._end, self._start
 
-        # Get the calendar
-        freq = get_conf_glob().calendar_frequency
-        if freq == 'B':
-            calcf = pd.bdate_range
-            holidays = calc_holidays(self.start, self.end)
-            f = 'C'
-        else:
-            calcf = pd.date_range
-            holidays = None
-            f = freq
-
-        self._calendar = calcf(start=self._start, end=self._end,
-                               freq=f, normalize=True, holidays=holidays)
-        self._frequency = freq
+        # Business daily calendar
+        holidays = calc_holidays(self.start, self.end)
+        self._calendar = pd.bdate_range(
+            start=self._start, end=self._end, freq='C',
+            normalize=True, holidays=holidays
+        )
 
         offset = max(0, self._end.weekday() - 4)
         # offset = min(2, max(0, (self.end.weekday() + 6) % 7 - 3))
@@ -151,6 +158,17 @@ class Calendar(metaclass=Singleton):
         print(f' * Calendar dates: {self._start.date()} -> '
               f'{self._end.date()} : {self._t0.date()}',
               end='\n\n')
+
+        # Monthly calendar
+        self._monthly_calendar = pd.date_range(
+            start=self._start, end=self._end, freq='BMS'
+        )
+
+        # Yearly calendar
+        self._yearly_calendar = pd.date_range(
+            start=self._start, end=self._end, freq='BAS'
+        )
+
         self._initialized = True
 
     @staticmethod
@@ -164,7 +182,7 @@ class Calendar(metaclass=Singleton):
         e_idx = self._calendar.get_loc(end, method='nearest')
         return e_idx - s_idx
 
-    def shift(self, dt: pd.Timestamp, n: int, freq: Optional[str] = None,
+    def shift(self, dt: pd.Timestamp, n: int, freq: str,
               method: str = 'nearest') -> pd.Timestamp:
         """ Shift the <end> date by <n> periods forward or backwards.
 
@@ -172,20 +190,26 @@ class Calendar(metaclass=Singleton):
                 dt [pd.Timestamp]: initial date
                 n [int]: number of periods forward (if positive) or backwards
                         (if negative)
-                freq [str]: frequency of the periods of the movement (defaults
-                        to the calendar frequency)
+                freq [str]: frequency of the periods of the movement
                 method [str]: method for finding the calendar date (default
                         'nearest')
 
             Output:
                 target [pd.Timestamp]: target calendar date
         """
-        freq = self._frequency if freq is None else freq
+        if freq in ('B', 'D'):
+            cal = self._calendar
+        elif freq in ('M', 'BMS'):
+            cal = self._monthly_calendar
+        elif freq in ('Y', 'BAS'):
+            cal = self._yearly_calendar
+        else:
+            raise ValueError(f'Calendar.shift(): frequency {freq} not recognized')
+
         offset = _FREQ_LABELS[freq][1]
         shifted = dt + offset(int(n))
-        # target = self._calendar.get_loc(shifted, method=method)
-        target = self._calendar.get_indexer([shifted], method=method)[0]
-        return self._calendar[target]
+        target = cal.get_indexer([shifted], method=method)[0]
+        return cal[target]
 
 
 def date_2_datetime(dt: Union[TyDate, TyTimeSequence], fmt: str = '%Y-%m-%d') \

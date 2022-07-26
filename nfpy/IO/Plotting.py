@@ -92,7 +92,7 @@ class Plotter(object):
         if isinstance(x, pd.Series):
             _v = x
             x, y = _v.index, _v.values
-        self._plots.append((axid, 'bar', x, y, kwargs))
+        self._plots.append((axid, 'bar', (x, y), kwargs))
         return self
 
     @staticmethod
@@ -118,7 +118,11 @@ class Plotter(object):
         if isinstance(x, pd.Series):
             _v = x
             x, y = _v.index, _v.values
-        self._plots.append((axid, 'hist', x, y, kwargs))
+        self._plots.append((axid, 'hist', (x, y), kwargs))
+        return self
+
+    def matshow(self, axid: int, data: Union[pd.Series, np.ndarray], **kwargs):
+        self._plots.append((axid, 'matshow', (data,), kwargs))
         return self
 
     def line(self, axid: int, type_: str, v: Union[float, np.ndarray],
@@ -131,7 +135,7 @@ class Plotter(object):
         if isinstance(x, pd.Series):
             _v = x
             x, y = _v.index, _v.values
-        self._plots.append((axid, 'plot', x, y, kwargs))
+        self._plots.append((axid, 'plot', (x, y), kwargs))
         return self
 
     def save(self, f_name: str, fmt: str = 'png'):
@@ -146,7 +150,7 @@ class Plotter(object):
         if isinstance(x, pd.Series):
             _v = x
             x, y = _v.index, _v.values
-        self._plots.append((axid, 'scatter', x, y, kwargs))
+        self._plots.append((axid, 'scatter', (x, y), kwargs))
         return self
 
     def set_limits(self, axid: int, axis: str, bottom: float, top: float):
@@ -168,7 +172,7 @@ class Plotter(object):
         if isinstance(x, pd.Series):
             _v = x
             x, y = _v.index, _v.values
-        self._plots.append((axid, 'stem', x, y, kwargs))
+        self._plots.append((axid, 'stem', (x, y), kwargs))
         return self
 
     def title(self, axid: int, label: str, **kwargs):
@@ -182,7 +186,7 @@ class Plotter(object):
 
         # Run over plots
         for plot in self._plots:
-            axid, call, x, y, kw = plot
+            axid, call, data, kw = plot
             secondary = kw.pop('secondary_y', False)
             ax = self._get_axes(axid, secondary)
 
@@ -190,7 +194,7 @@ class Plotter(object):
             rc.update(kw)
             # pts = (x,) if call == 'hist' else (x, y)
             # leg = getattr(ax, call)(*pts, **rc)
-            leg = getattr(ax, call)(x, y, **rc)
+            leg = getattr(ax, call)(*data, **rc)
 
             if 'x_label' in rc:
                 ax.set_xlabel(rc['x_label'])
@@ -245,14 +249,10 @@ class Plotter(object):
 
         # Run over annotations
         for axid, txt, xy, xytxt, kw in self._annotations:
+            rc = self._RC['annotations'].copy()
+            rc.update(kw)
             self._get_axes(axid, False) \
-                .annotate(txt, xy, xytxt)
-            # ax = self._get_axes(axid, False)
-            # rc = self._RC['scatter'].copy()
-            # rc.update(kw)
-            # ax.scatter(*xy, **rc)
-            # for i, k in enumerate(txt):
-            #     ax.annotate(k, xy[i], **self._RC['annotations'])
+                .annotate(txt, xy, xytxt, **rc)
 
         # Create legend
         for n, v in enumerate(zip(add_legend, label_legend)):
@@ -293,7 +293,7 @@ class PtfOptimizationPlot(Plotter):
         """ Add more plots to be plotted. """
         x = np.array(res.ptf_variance)
         y = np.array(res.ptf_return)
-        self._plots.append((axid, call, x, y, kwargs))
+        self._plots.append((axid, call, (x, y), kwargs))
 
         if not self._annotations:
             xc = np.array(res.const_var)

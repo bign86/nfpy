@@ -19,7 +19,6 @@
     <div class="reportBody">
 
       <!-- Portfolios -->
-      {%- for uid, val in res.items()|sort -%}
       <div class="base-container">
         <div class="container-link">
           <h4><a href="#main_title">Top</a> - {{ uid }}</h4>
@@ -36,43 +35,43 @@
               </thead>
               <tbody>
                 <tr>
-                  <td class='anag-prop'>Name</td><td class='anag-value'>{{ val.info["name"] }}</td>
+                  <td class='anag-prop'>Name</td><td class='anag-value'>{{ res.info["name"] }}</td>
                 </tr>
                 <tr>
-                  <td class='anag-prop'>Description</td><td class='anag-value'>{{ val.info["description"] }}</td>
+                  <td class='anag-prop'>Description</td><td class='anag-value'>{{ res.info["description"] }}</td>
                 </tr>
                 <tr>
-                  <td class='anag-prop'>Currency</td><td class='anag-value'>{{ val.info["currency"] }}</td>
+                  <td class='anag-prop'>Currency</td><td class='anag-value'>{{ res.info["currency"] }}</td>
                 </tr>
                 <tr>
-                  <td class='anag-prop'>Benchmark</td><td class='anag-value'>{{ val.info["benchmark"] }}</td>
+                  <td class='anag-prop'>Benchmark</td><td class='anag-value'>{{ res.info["benchmark"] }}</td>
                 </tr>
                 <tr>
-                  <td class='anag-prop'>Inception</td><td class='anag-value'>{{ val.info["inception_date"].strftime('%Y-%m-%d') }}</td>
+                  <td class='anag-prop'>Inception</td><td class='anag-value'>{{ res.info["inception_date"].strftime('%Y-%m-%d') }}</td>
                 </tr>
                 <tr>
-                  <td class='anag-prop'># Constituents</td><td class='anag-value'>{{ val.info["num_constituents"] }}</td>
+                  <td class='anag-prop'># Constituents</td><td class='anag-value'>{{ res.info["num_constituents"] }}</td>
                 </tr>
                 <tr>
                   <td colspan="2" style="font-weight:bold;text-align:center;padding-top:5px;">Dividends</td>
                 </tr>
                 <tr>
-                  <td class='anag-prop'>Date</td><td class='anag-value'>{{ val.last_tot_date }}</td>
+                  <td class='anag-prop'>Date</td><td class='anag-value'>{{ res.last_tot_date }}</td>
                 </tr>
                 <tr>
-                  <td class='anag-prop'>Total Value</td><td class='anag-value'>{{ '%.2f' | format(val.last_tot_value|float) }} {{ val.info["currency"] }}</td>
+                  <td class='anag-prop'>Total Value</td><td class='anag-value'>{{ '%.2f' | format(res.last_tot_value|float) }} {{ res.info["currency"] }}</td>
                 </tr>
                 <tr>
-                  <td class='anag-prop'>TTM dividends</td><td class='anag-value'>{{ '%.2f' | format(val.div_ttm|float) }} {{ val.info["currency"] }}</td>
+                  <td class='anag-prop'>TTM dividends</td><td class='anag-value'>{{ '%.2f' | format(res.div_ttm|float) }} {{ res.info["currency"] }}</td>
                 </tr>
-                {% set n_years = val.div_history[0]|length %}
+                {% set n_years = res.div_history[0]|length %}
                 {%- if n_years > 0 -%}
                 <tr>
                   <td colspan="2" style="font-weight:bold;text-align:center;padding-top:5px;">Dividends received per year</td>
                 </tr>
                 {%- for i in range(n_years) -%}
                   <tr>
-                    <td class='anag-prop'>{{ val.div_history[0][i] }}</td><td class='anag-value'>{{ '%.2f' | format(val.div_history[1][i]|float) }} {{ val.info["currency"] }}</td>
+                    <td class='anag-prop'>{{ res.div_history[0][i] }}</td><td class='anag-value'>{{ '%.2f' | format(res.div_history[1][i]|float) }} {{ res.info["currency"] }}</td>
                   </tr>
                 {%- endfor -%}
                 {%- endif -%}
@@ -80,26 +79,26 @@
                   <td colspan="2" style="font-weight:bold;text-align:center;padding-top:5px;">Cash operations</td>
                 </tr>
                 <tr>
-                  <td class='anag-prop'>Deposits</td><td class='anag-value'>{{ '%.2f' | format(val.tot_deposits|float) }} {{ val.info["currency"] }}</td>
+                  <td class='anag-prop'>Deposits</td><td class='anag-value'>{{ '%.2f' | format(res.tot_deposits|float) }} {{ res.info["currency"] }}</td>
                 </tr>
                 <tr>
-                  <td class='anag-prop'>Withdrawals</td><td class='anag-value'>{{ '%.2f' | format(val.tot_withdrawals|float) }} {{ val.info["currency"] }}</td>
+                  <td class='anag-prop'>Withdrawals</td><td class='anag-value'>{{ '%.2f' | format(res.tot_withdrawals|float) }} {{ res.info["currency"] }}</td>
                 </tr>
               </tbody>
             </table>
-            {{ val.stats }}
+            {{ res.stats }}
           </div>
 
           <!-- Portfolio performance and dividends -->
           <div class="container-huge">
             <div style="text-align:center" class="container-small">
               <h4>Portfolio Performance</h4>
-              <img src="{{ val.img_value_hist }}" alt="History of portfolio value" class="normal-plot">
-              <img src="{{ val.img_divs_hist }}" alt="History of dividends received" class="normal-plot">
+              <img src="{{ res.img_value_hist }}" alt="History of portfolio value" class="normal-plot">
+              <img src="{{ res.img_divs_hist }}" alt="History of dividends received" class="normal-plot">
             </div>
             <div style="text-align:center" class="container-large">
               <h4>Portfolio Constituents</h4>
-              {{ val.cnsts_data }}
+              {{ res.cnsts_data }}
               <div style="text-align:center">
                 Cost (FX): cost in the currency of the position calculated as alp * quantity<br>
                 Value (Base Currency): value of the position at the current date in the base currency
@@ -110,36 +109,135 @@
         </div>
 
         <!-- Portfolio concentration -->
-        <div style="text-align:center" class="base-containers">
-          <div style="text-align:center" class="spacer">
-            <h3>Portfolio Concentration</h3>
-          </div>
-          <img src="{{ val.img_conc_pies }}" alt="History of portfolio value" class="small-plot">
-          <hr>
-        </div>
+<!--        <div style="text-align:center" class="base-containers">-->
+<!--          <div style="text-align:center" class="spacer">-->
+<!--            <h3>Portfolio Concentration</h3>-->
+<!--          </div>-->
+<!--          <img src="{{ res.img_conc_pies }}" alt="History of portfolio value" class="small-plot">-->
+<!--          <hr>-->
+<!--        </div>-->
 
         <!-- Portfolio optimization -->
         <div class="base-container">
           <div style="text-align:center" class="spacer">
             <h3>Portfolio Optimization</h3>
           </div>
-          <div class="container-large">
-            {{ val.weights }}
-            <div style="text-align:center">Weights obtained in the optimization and relative variation wrt to the actual weights</div>
+          <div class="container-normal">
+            <div class="container-normal">
+              {{ res.weights }}
+              <div style="text-align:center">Weights obtained in the optimization and relative variation wrt to the actual weights</div>
+            </div>
+            <div class="container-normal">
+              <img src="{{ res.ptf_corr_plot }}" alt="Portfolio correlation" class="normal-plot">
+              <div style="text-align:center">Correlation matrix of the constituents over the period considered for the optimization</div>
+            </div>
           </div>
-          <div class="container-small">
-            <img src="{{ val.var_ret_plot }}" alt="Portfolio optimization" class="normal-plot">
+          <div class="container-normal">
+            <img src="{{ res.var_ret_plot }}" alt="Portfolio optimization" class="normal-plot">
           </div>
         </div>
+        <hr>
 
-        <!-- Portfolio optimization -->
+        <!-- Constituents results -->
         <div class="base-container">
-          <div style="text-align:center">{{ val.corr }}</div>
-          <div style="text-align:center">Correlation matrix of the constituents over the period considered for the optimization</div>
+          {% set const_res = res.constituents_res.output %}
+          <div style="text-align:center" class="spacer">
+            <h3>Constituents</h3>
+          </div>
+          <div class="uidList">
+            <h3><a name="uidList_link"></a>List of constituent UIDs</h3>
+            <div class="uidListMultiCol">
+              {%- for ticker, val in const_res.items()|sort -%}
+              <a href="#{{ ticker }}">{{ ticker }}</a> - {{ val.info["description"] }}<br>
+              {%- endfor -%}
+            </div>
+            <hr>
+            {%- for ticker, val in const_res.items()|sort -%}
+            <div class="base-container">
+              <div class="container-link">
+                <hr class="light">
+                <h4><a name="{{ ticker }}"></a><a href="#head">Top</a> - {{ val.info["description"] }}</h4>
+              </div>
+
+              <!-- Market model -->
+              <div class="container-small">
+                <div class="container-normal">
+                  <table class="simple">
+                    <thead>
+                      <tr>
+                        <th colspan="2">General data</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td class='anag-prop'>Isin</td><td class='anag-value'>{{ val.info["isin"] }}</td>
+                      </tr>
+                      <tr>
+                        <td class='anag-prop'>Company</td><td class='anag-value'>{{ val.info["company"] }}</td>
+                      </tr>
+                      <tr>
+                        <td class='anag-prop'>Name</td><td class='anag-value'>{{ val.info["description"] }}</td>
+                      </tr>
+                      <tr>
+                        <td class='anag-prop'>Index</td><td class='anag-value'>{{ val.info["index"] }}</td>
+                      </tr>
+                      <tr>
+                        <td class='anag-prop'>Country</td><td class='anag-value'>{{ val.info["country"] }}</td>
+                      </tr>
+                      <tr>
+                        <td class='anag-prop'>Currency</td><td class='anag-value'>{{ val.info["currency"] }}</td>
+                      </tr>
+                      <tr>
+                        <td colspan="2" style="font-weight:bold;text-align:center;padding-top:5px;">Performance</td>
+                      </tr>
+                      <tr>
+                        <td class='anag-prop'>Date</td><td class='anag-value'>{{ val.last_price_date }}</td>
+                      </tr>
+                      <tr>
+                        <td class='anag-prop'>Last price</td><td class='anag-value'>{{ '%.2f'| format(val.last_price|float) }} {{ val.info["currency"] }}</td>
+                      </tr>
+                      <tr>
+                        <td colspan="2" style="font-weight:bold;text-align:center;padding-top:5px;">Dividends</td>
+                      </tr>
+                      <tr>
+                        <td class='anag-prop'># per year</td><td class='anag-value'>{{ val.freq_div }}</td>
+                      </tr>
+                      <tr>
+                        <td class='anag-prop'>YTD</td><td class='anag-value'>{{ '%.2f'| format(val.ytd_yrl_div|float) }}</td>
+                      </tr>
+                      <tr>
+                        <td class='anag-prop'>Yield YTD</td><td class='anag-value'>{{ '%.2f'| format(val.ytd_yrl_yield|float) }}%</td>
+                      </tr>
+                      <tr>
+                        <td class='anag-prop'>Last year</td><td class='anag-value'>{{ '%.2f'| format(val.last_yrl_div|float) }}</td>
+                      </tr>
+                      <tr>
+                        <td class='anag-prop'>Yield Last year</td><td class='anag-value'>{{ '%.2f'| format(val.last_yrl_yield|float) }}%</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="container-normal">
+                  <div style="text-align:center">
+                    {{ val.stats }}
+                    {{ val.alerts_table }}
+                  </div>
+                </div>
+              </div>
+              <div class="container-large">
+                <div class="container-normal">
+                  <img src="{{ val.img_ma_plot }}" alt="MA crosses" class="normal-plot">
+                </div>
+                <div class="container-normal">
+                  <img src="{{ val.img_prices_long }}" alt="Price history vs benchmark" class="normal-plot">
+                </div>
+              </div>
+            </div>
+            {%- endfor -%}
+          </div>
         </div>
 
       </div>
-      {%- endfor -%}
     </div>
 
   </body>

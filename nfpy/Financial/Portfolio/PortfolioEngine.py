@@ -297,9 +297,10 @@ class PortfolioEngine(object):
         """ Show the portfolio summary in the portfolio base currency. """
         # We search for the day before t0 since the value of the position at t0
         # will only be fully known the next period
+        # assert self._ptf._df.index.freqstr == 'B'
         idx = np.searchsorted(
             self._dt,
-            self._cal.shift(self._cal.t0, -1).asm8
+            self._cal.shift(self._cal.t0, -1, 'B').asm8
         )
         pos_value = self.positions_value[1][idx, None]
         pos_value = pos_value.reshape((self._ptf.num_constituents,))

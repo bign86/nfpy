@@ -38,7 +38,7 @@ class ReportCompanies(BaseReport):
             2 * Cn.DAYS_IN_1Y, 3 * Cn.DAYS_IN_1Y, 5 * Cn.DAYS_IN_1Y
         )
         self._hist_slc = None
-        self._span_slc = None
+        # self._span_slc = None
 
     def _init_input(self, type_: Optional[str] = None) -> None:
         """ Prepare and validate the the input parameters for the model. This
@@ -56,23 +56,12 @@ class ReportCompanies(BaseReport):
         # Calculate price history length and save the slice object for later use
         t0 = self._cal.t0
         hist_y = -self._p['years_price_hist'] * Cn.DAYS_IN_1Y
-        start = self._cal.shift(t0, hist_y, 'D')
+        start = self._cal.shift(t0, hist_y, 'B')
         self._hist_slc = Math.search_trim_pos(
             self._cal.calendar.values,
             start=start.asm8,
             end=t0.asm8
         )
-
-        # Calculate time span length and save the list of slices
-        self._span_slc = []
-        for i, span in enumerate(self._time_spans):
-            start = self._cal.shift(t0, -span, 'D')
-            slc_sp = Math.search_trim_pos(
-                self._cal.calendar.values,
-                start=start.asm8,
-                end=t0.asm8
-            )
-            self._span_slc.append(slc_sp)
 
     def _calculate(self) -> Any:
         """ Calculate the required models.
@@ -139,15 +128,17 @@ class ReportCompanies(BaseReport):
 
         dcf_res = None
         try:
-            dcf_res = DiscountedCashFlowModel(asset.uid, **self._p) \
-                .result(**self._p)
+            p = self._p.get('DCF', {})
+            dcf_res = DiscountedCashFlowModel(asset.uid, **p) \
+                .result(**p)
         except Exception as ex:
             Ut.print_exc(ex)
 
         ddm_res = None
         try:
-            ddm_res = DividendDiscountModel(asset.uid, **self._p) \
-                .result(**self._p)
+            p = self._p.get('DDM', {})
+            ddm_res = DividendDiscountModel(asset.uid, **p) \
+                .result(**p)
         except Exception as ex:
             Ut.print_exc(ex)
 

@@ -8,16 +8,15 @@ from typing import Optional
 
 from nfpy.Assets import TyAsset
 import nfpy.Calendar as Cal
-from nfpy.Math import (compound, search_trim_pos)
+from nfpy.Math import (compound, fillna, search_trim_pos)
 from nfpy.Tools import (Constants as Cn)
 
 
 class DividendFactory(object):
 
-    def __init__(self, eq: TyAsset, tolerance: float = .5, suspension: float = 1.):
+    def __init__(self, eq: TyAsset, suspension: float = 1.):
         # INPUTS
         self._eq = eq
-        self._tol = max(tolerance, .0)
         self._suspension = max(suspension, .0) + 1.
 
         # WORKING VARIABLES
@@ -55,28 +54,16 @@ class DividendFactory(object):
             self._yearly_div[1:-1] / self._yearly_div[:-2] - 1.,
             1.
         )
+        ret = fillna(ret, .0, inplace=True)
         returns = ret * (1. - .2 * ret * ret - .2 * np.abs(ret))
-        # print(f'_calc_drift()\nret: {ret}\nadj: {returns}')
 
         self._ann_drift = np.mean(returns)
         self._daily_drift = compound(self._ann_drift, 1. / Cn.BDAYS_IN_1Y)
-
-    def _calc_returns(self) -> None:
-        """ Calculates the percentage change of dividends. """
-        if self._num < 2:
-            msg = f'Too few dividends to determine dividend returns in {self._eq.uid}'
-            raise ValueError(msg)
-
-        self._divret = self._div[1:] / self._div[:-1] - 1.
 
     def _initialize(self) -> None:
         """ Initialize the factory. """
         if self._eq.type != 'Equity':
             msg = f'DividendFactory() supports only equities not {self._eq.type}'
-            raise ValueError(msg)
-
-        if self._tol > 1. or self._tol < 0.:
-            msg = f'Tolerance for dividends should be in [0, 1], given {self._tol}'
             raise ValueError(msg)
 
         # Initialize dividends stopping at t0
@@ -103,7 +90,10 @@ class DividendFactory(object):
         # Calculate frequency
         div_dt_y = self._div_dt.astype('datetime64[Y]')
         counts = np.unique(div_dt_y, return_counts=True)[1]
-        self._freq = int(np.round(np.mean(counts)))
+        self._freq = min(
+            [1, 2, 4, 12],
+            key=lambda v: abs(v - np.mean(counts))
+        )
 
         # Get series of years
         self._yearly_dt = np.arange(
@@ -118,7 +108,7 @@ class DividendFactory(object):
         # Calculate yearly dividend as a sum
         divs = np.zeros(self._yearly_dt.shape)
         for n in range(years_idx.shape[0] - 1):
-            divs[n] += np.sum(self._div[years_idx[n]:years_idx[n+1]])
+            divs[n] += np.sum(self._div[years_idx[n]:years_idx[n + 1]])
 
         # Adjust the first year using the inferred frequency
         divs[0] *= self._freq / counts[0]
@@ -163,8 +153,8 @@ class DividendFactory(object):
         return (
             self._eq.dividends_special.values,
             self._eq.dividends_special.index
-                .values
-                .astype('datetime64[D]')
+            .values
+            .astype('datetime64[D]')
         )
 
     def div_yields(self) -> tuple[np.ndarray, np.ndarray]:
@@ -233,7 +223,7 @@ class DividendFactory(object):
     def num(self) -> int:
         return self.__len__()
 
-    def search_sp_div(self) -> tuple:
+    def search_sp_div(self, tolerance: float = .5) -> tuple:
         """ Function to search for special dividends. Creates a grid of
             plausible dates when to pay a dividend given the inferred frequency.
             The distance between the actual payment date and the theoretical one
@@ -241,6 +231,10 @@ class DividendFactory(object):
         """
         if not self._is_div_payer:
             return np.array([]), np.array([]), .0
+
+        if tolerance > 1. or tolerance < 0.:
+            msg = f'Tolerance for dividends should be in [0, 1], given {tolerance}'
+            raise ValueError(msg)
 
         dt = (self._div_dt - self._div_dt[0]).astype('int')
         days = Cn.DAYS_IN_1Y / self.frequency
@@ -251,8 +245,8 @@ class DividendFactory(object):
         prob = 1. / (1. + np.exp(exp))
 
         return (
-            self._div_dt[prob > self._tol],
-            self._div[prob > self._tol],
+            self._div_dt[prob > tolerance],
+            self._div[prob > tolerance],
             prob
         )
 

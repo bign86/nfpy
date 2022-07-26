@@ -49,7 +49,7 @@ def check_imports_consistency(_db) -> None:
     wrong_imp = _db.execute(q).fetchall()
 
     print(
-        f'>>> Checks that each item is imported ones.\n'
+        f'>>> Checks that each item is imported once.\n'
         f'    For each uid and each imported item, only one active download\n'
         f'    should be present. This does NOT work for Investing Financials\n'
         f'    that are currently excluded from the test.'

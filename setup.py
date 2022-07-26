@@ -1,4 +1,5 @@
 from setuptools import setup
+from Cython.Build import cythonize
 
 setup(
     name='nfpy',
@@ -11,5 +12,6 @@ setup(
     license='',
     author='bign86',
     author_email='',
-    description=''
+    description='',
+    ext_modules=cythonize(['ctools.pyx'])
 )

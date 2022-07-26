@@ -12,7 +12,7 @@ import nfpy.DB as DB
 import nfpy.IO as IO
 from nfpy.Tools import Exceptions as Ex
 
-__version__ = '0.6'
+__version__ = '0.7'
 _TITLE_ = "<<< Equity benchmark calculation script >>>"
 
 if __name__ == '__main__':
@@ -29,15 +29,16 @@ if __name__ == '__main__':
                          default=today(), idesc='timestamp', optional=True)
     get_calendar_glob().initialize(end_date, start_date)
 
-    q = "select * from Assets where type = 'Equity'"
+    q = """select ticker, description, country, uid from Equity where uid in
+    (select uid from Assets where type = 'Equity') order by ticker"""
     eqs = db.execute(q).fetchall()
 
-    f = list(qb.get_fields('Assets'))
+    f = ('ticker', 'description', 'country', 'uid')
     print(f'\n\nAvailable equities:\n'
           f'{tabulate(eqs, headers=f, showindex=True)}',
           end='\n\n')
     eq_idx = inh.input("Give an equity index: ", idesc='int')
-    eq = af.get(eqs[eq_idx][0])
+    eq = af.get(eqs[eq_idx][3])
 
     q = "select * from Assets where type = 'Indices'"
     idx = db.execute(q).fetchall()
@@ -48,7 +49,7 @@ if __name__ == '__main__':
         try:
             uid = tup[0]
             bmk = af.get(uid)
-            dt, b, adj_b, itc = eq.beta(bmk)
+            b, adj_b, itc = eq.beta(bmk)
             rho = eq.returns.corr(bmk.returns)
             d = '*' if default == uid else ''
             res.append((d, uid, rho, b, adj_b))

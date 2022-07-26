@@ -4,6 +4,7 @@ from .BaseFundamentalModel import (
 from .DiscountedCashFlowModel import (
     DCFModel, DiscountedCashFlowModel
 )
+from .DDMBase import DDMResult
 from .DividendDiscountModel import (
     DDModel, DividendDiscountModel
 )
@@ -17,6 +18,9 @@ __all__ = [
 
     # DCF
     'DCFModel', 'DiscountedCashFlowModel',
+
+    # DDMBase
+    'DDMResult',
 
     # DDM
     'DDModel', 'DividendDiscountModel',

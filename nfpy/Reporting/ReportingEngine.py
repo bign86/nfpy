@@ -144,7 +144,7 @@ class ReportingEngine(metaclass=Singleton):
         self._create_new_directory()
 
         # Calculate model results
-        done_reports = []
+        completed, failed = 0, 0
         for data in call_list:
             print(f'>>> Generating {data.id} [{data.report}]')
             try:
@@ -154,19 +154,19 @@ class ReportingEngine(metaclass=Singleton):
                 ).result
             except RuntimeError as ex:
                 Ut.print_exc(ex)
+                failed += 1
                 continue
+
+            # Generate the report and update the index
             self._generate(res)
-            done_reports.append(data)
+            self._update_index(data)
+            completed += 1
 
-        # Update report index
-        self._update_index(done_reports)
+        print(f'Reports: {completed} completed | {failed} failed')
 
-    def _update_index(self, done: Sequence[Rep.ReportData]) -> None:
+    def _update_index(self, done: Rep.ReportData) -> None:
         # Extract information
-        to_print = [
-            (d.id, str(d.description))
-            for d in done
-        ]
+        to_print = [(done.id, str(done.description))]
 
         # Parse existing index file
         try:
