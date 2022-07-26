@@ -89,8 +89,8 @@ class SeriesPage(ECBBasePage):
 
     def _local_initializations(self) -> None:
         """ Local initializations for the single page. """
-        p = {}
         if self._ext_p:
+            p = {}
             for t in [('start', 'st_date'), ('end', 'end_date')]:
                 if t[0] in self._ext_p:
                     d = self._ext_p[t[0]]
@@ -108,5 +108,6 @@ class SeriesPage(ECBBasePage):
             skiprows=6,
             index_col=False
         )
+        df.drop(columns=self._COLUMNS[-1], inplace=True)
         df.insert(0, 'ticker', self.ticker)
         self._res = df

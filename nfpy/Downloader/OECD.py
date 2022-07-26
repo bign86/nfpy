@@ -32,6 +32,7 @@ class SeriesPage(BasePage):
     _COLUMNS = OECDSeriesConf
     _BASE_URL = u"https://stats.oecd.org/SDMX-JSON/data/{dataset_id}/{data_subject}/all?"
     _TABLE = "OECDSeries"
+    _Q_MAX_DATE = "select max(date) from OECDSeries where ticker = ?"
     _PARAMS = {
         "startTime": None,
         "endTime": None,

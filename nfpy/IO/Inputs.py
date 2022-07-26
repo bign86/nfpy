@@ -69,7 +69,7 @@ class InputHandler(object):
     @staticmethod
     def _to_string(v: str, **kwargs) -> str:
         _ = kwargs
-        return re.sub('[!@#$?*;,:+]', '', v)
+        return re.sub('[!@#$?*;:+]', '', v)
 
     @staticmethod
     def _to_timestamp(v: str, **kwargs) -> Cal.TyDate:
