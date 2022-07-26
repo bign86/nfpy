@@ -5,9 +5,8 @@
 
 import numpy as np
 import pandas as pd
-from typing import (Any, Optional)
+from typing import Any
 
-from nfpy.Calendar import TyDate
 import nfpy.Financial as Fin
 import nfpy.Math as Math
 from nfpy.Tools import Constants as Cn
@@ -83,20 +82,23 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
     _MIN_DEPTH_DATA = 3
     _MIN_DEBT_COST = .05
 
-    def __init__(self, uid: str, date: Optional[TyDate] = None,
-                 past_horizon: int = 5, future_proj: int = 3,
+    def __init__(self, uid: str, past_horizon: int = 5, future_proj: int = 3,
                  perpetual_rate: float = 0., **kwargs):
-        super().__init__(uid, date, past_horizon, future_proj)
+        super().__init__(uid)
+
+        self._idx = self._af.get(self._eq.index)
+        self._ph = int(past_horizon)
+        self._fp = int(future_proj)
         self._p_rate = max(perpetual_rate, .0)
+        self._ff = Fin.FundamentalsFactory(self._asset)
+
         self._fcf = None
 
-        self._ff = Fin.FundamentalsFactory(self._asset)
         self._check_applicability()
 
         self._res_update(ccy=self._asset.currency, perpetual_growth=self._p_rate,
-                         uid=self._uid, equity=self._eq.uid, t0=self._t0,
-                         start=self._start, past_horizon=self._ph,
-                         future_proj=self._fp)
+                         uid=self._uid, equity=self._eq.uid,
+                         past_horizon=self._ph, future_proj=self._fp)
 
     def _check_applicability(self) -> None:
         f = self.frequency
@@ -215,8 +217,7 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
         # Get Tax Rate
         self._calc_tax_rate(array)
 
-        # Get Cost of Debt
-        # Put a floor to the cost of debt
+        # Get Cost of Debt (floored)
         array[8, :y] = np.maximum(
             (self._ff.interest_expenses(f).values[-y:] / array[6, :y])
             * (1. - array[7, :y]),
@@ -292,16 +293,14 @@ class DiscountedCashFlowModel(BaseFundamentalModel):
             shares=shares,
             mean_wacc=mean_wacc,
             mean_beta=mean_beta,
-            last_price=self.get_last_price()
         )
 
 
-def DCFModel(uid: str, date: Optional[TyDate] = None, past_horizon: int = 5,
-             future_proj: int = 3, perpetual_rate: float = 0.) -> DCFResult:
+def DCFModel(uid: str, past_horizon: int = 5, future_proj: int = 3,
+             perpetual_rate: float = 0.) -> DCFResult:
     """ Shortcut for the calculation. Intermediate results are lost. """
     return DiscountedCashFlowModel(
         uid,
-        date,
         past_horizon,
         future_proj,
         perpetual_rate
