@@ -1,4 +1,4 @@
-CREATE TABLE Alerts (
+CREATE TABLE [Alerts] (
     [uid] TEXT NOT NULL,
     [date] DATETIME NOT NULL,
     [cond] TEXT NOT NULL,
@@ -9,7 +9,7 @@ CREATE TABLE Alerts (
     PRIMARY KEY ([uid], [date], [cond], [value])
 ) WITHOUT ROWID;
 
-CREATE TABLE Bond (
+CREATE TABLE [Bond] (
     [uid] TEXT NOT NULL,
     [isin] TEXT,
     [issuer] TEXT,
@@ -27,16 +27,15 @@ CREATE TABLE Bond (
     PRIMARY KEY ([uid])
 ) WITHOUT ROWID;
 
-CREATE TABLE BondTS (
+CREATE TABLE [BondTS] (
     [uid] TEXT NOT NULL,
     [dtype] INTEGER,
     [date] DATETIME,
     [value] REAL,
-    PRIMARY KEY ([uid], [dtype], [date]),
-    foreign key ([uid]) references Bond([uid])
+    PRIMARY KEY ([uid], [dtype], [date])
 ) WITHOUT ROWID;
 
-CREATE TABLE Company (
+CREATE TABLE [Company] (
     [uid] TEXT NOT NULL,
     [description] TEXT,
     [name] TEXT NOT NULL,
@@ -48,7 +47,7 @@ CREATE TABLE Company (
     PRIMARY KEY ([uid])
 ) WITHOUT ROWID;
 
-CREATE TABLE CompanyFundamentals (
+CREATE TABLE [CompanyFundamentals] (
     [uid] TEXT NOT NULL,
     [code] TEXT NOT NULL,
     [date] DATE NOT NULL,
@@ -58,35 +57,33 @@ CREATE TABLE CompanyFundamentals (
     foreign key ([uid]) references Company([uid])
 ) WITHOUT ROWID;
 
-CREATE TABLE Currency (
+CREATE TABLE [Currency] (
     [name] TEXT,
     [symbol] TEXT NOT NULL,
     [country] TEXT,
     PRIMARY KEY ([symbol])
 ) WITHOUT ROWID;
 
-CREATE TABLE Curve (
+CREATE TABLE [Curve] (
     [uid] TEXT NOT NULL,
     [description] TEXT,
     [currency] TEXT,
     PRIMARY KEY ([uid])
 ) WITHOUT ROWID;
 
-CREATE TABLE CurveConstituents (
+CREATE TABLE [CurveConstituents] (
     [uid] TEXT NOT NULL,
     [bucket] TEXT NOT NULL,
-    PRIMARY KEY ([uid], [bucket]),
-    foreign key ([uid]) references Rate([uid]),
-    foreign key ([bucket]) references Rate([uid])
+    PRIMARY KEY ([uid], [bucket])
 ) WITHOUT ROWID;
 
-CREATE TABLE DecDatatype (
+CREATE TABLE [DecDatatype] (
     [datatype] TEXT NOT NULL,
     [encoding] INTEGER,
     PRIMARY KEY ([datatype])
 ) WITHOUT ROWID;
 
-CREATE TABLE Downloads (
+CREATE TABLE [Downloads] (
     [provider] TEXT NOT NULL,
     [page] TEXT NOT NULL,
     [ticker] TEXT NOT NULL,
@@ -98,14 +95,14 @@ CREATE TABLE Downloads (
     PRIMARY KEY ([provider], [page], [ticker])
 ) WITHOUT ROWID;
 
-CREATE TABLE ECBSeries(
+CREATE TABLE [ECBSeries] (
     [ticker] TEXT NOT NULL,
     [date] DATETIME NOT NULL,
     [value] REAL,
     PRIMARY KEY ([ticker], [date])
 ) WITHOUT ROWID;
 
-CREATE TABLE Equity (
+CREATE TABLE [Equity] (
     [uid] TEXT NOT NULL,
     [ticker] TEXT NOT NULL,
     [isin] TEXT NOT NULL,
@@ -119,7 +116,7 @@ CREATE TABLE Equity (
     PRIMARY KEY ([uid])
 ) WITHOUT ROWID;
 
-CREATE TABLE EquityTS (
+CREATE TABLE [EquityTS] (
     [uid] TEXT NOT NULL,
     [dtype] INTEGER NOT NULL,
     [date] DATETIME NOT NULL,
@@ -127,7 +124,7 @@ CREATE TABLE EquityTS (
     PRIMARY KEY ([uid], [dtype], [date])
 ) WITHOUT ROWID;
 
-CREATE TABLE Etf (
+CREATE TABLE [Etf] (
     [uid] TEXT NOT NULL,
     [ticker] TEXT NOT NULL,
     [isin] TEXT NOT NULL,
@@ -141,7 +138,7 @@ CREATE TABLE Etf (
     PRIMARY KEY ([uid])
 ) WITHOUT ROWID;
 
-CREATE TABLE EtfTS (
+CREATE TABLE [EtfTS] (
     [uid] TEXT NOT NULL,
     [dtype] INTEGER NOT NULL,
     [date] DATETIME NOT NULL,
@@ -149,7 +146,7 @@ CREATE TABLE EtfTS (
     PRIMARY KEY ([uid], [dtype], [date])
 ) WITHOUT ROWID;
 
-CREATE TABLE Fx (
+CREATE TABLE [Fx] (
     [uid] TEXT NOT NULL,
     [description] TEXT,
     [price_country] TEXT,
@@ -159,7 +156,7 @@ CREATE TABLE Fx (
     PRIMARY KEY ([uid])
 ) WITHOUT ROWID;
 
-CREATE TABLE FxTS (
+CREATE TABLE [FxTS] (
     [uid] TEXT NOT NULL,
     [dtype] INTEGER NOT NULL,
     [date] DATETIME NOT NULL,
@@ -167,7 +164,7 @@ CREATE TABLE FxTS (
     PRIMARY KEY ([uid], [dtype], [date])
 ) WITHOUT ROWID;
 
-CREATE TABLE IBFinancials (
+CREATE TABLE [IBFinancials] (
     [ticker] TEXT,
     [freq] TEXT,
     [date] DATE,
@@ -273,7 +270,7 @@ CREATE TABLE OECDSeries (
     PRIMARY KEY ([location], [transact_code], [measure_code], [frequency], [date_code])
 ) WITHOUT ROWID;
 
-CREATE TABLE Portfolio (
+CREATE TABLE [Portfolio] (
     [uid] TEXT NOT NULL,
     [name] TEXT,
     [description] TEXT,
@@ -283,7 +280,7 @@ CREATE TABLE Portfolio (
     PRIMARY KEY ([uid])
 ) WITHOUT ROWID;
 
-CREATE TABLE PortfolioPositions (
+CREATE TABLE [PortfolioPositions] (
     [ptf_uid] TEXT NOT NULL,
     [date] DATETIME NOT NULL,
     [pos_uid] TEXT NOT NULL,
@@ -294,31 +291,33 @@ CREATE TABLE PortfolioPositions (
     PRIMARY KEY ([ptf_uid], [date], [pos_uid])
 ) WITHOUT ROWID;
 
-CREATE TABLE Providers (
+CREATE TABLE [Providers] (
     [provider] TEXT NOT NULL,
     [page] TEXT NOT NULL,
     [item] TEXT NOT NULL,
     PRIMARY KEY ([provider], [page], [item])
 ) WITHOUT ROWID;
 
-CREATE TABLE Rate (
+CREATE TABLE [Rate] (
     [uid] TEXT NOT NULL,
     [description] TEXT,
     [currency] TEXT,
     [country] BOOL NOT NULL,
     [tenor] REAL,
+    [frequency] TEXT NOT NULL,
     [is_ccy_rf] BOOL NOT NULL DEFAULT False,
     [is_country_rf] BOOL NOT NULL DEFAULT False,
+    [is_inflation] BOOL NOT NULL DEFAULT False,
+    [is_gdp] BOOL NOT NULL DEFAULT False,
     PRIMARY KEY ([uid])
 ) WITHOUT ROWID;
 
-CREATE TABLE RateTS (
+CREATE TABLE [RateTS] (
     [uid] TEXT NOT NULL,
     [dtype] INTEGER NOT NULL,
     [date] DATETIME NOT NULL,
     [value] REAL,
-    PRIMARY KEY ([uid], [dtype], [date]),
-    foreign key ([uid]) references Rate([uid])
+    PRIMARY KEY ([uid], [dtype], [date])
 ) WITHOUT ROWID;
 
 CREATE TABLE Reports (
