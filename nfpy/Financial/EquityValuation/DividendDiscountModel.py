@@ -40,6 +40,7 @@ class DividendDiscountModel(DDMBase):
         self._t, ft = self._get_future_dates()
         div_drift_annual = self._calc_drift()
 
+        # Calculates max drift
         country = self._eq.country
         gdp_rate = self._rf \
             .get_gdp(country) \
@@ -50,12 +51,21 @@ class DividendDiscountModel(DDMBase):
             .prices.values
         inflation = np.nanmean(inflation_rate[-13:])
 
-        div_drift_annual = min(
+        short_term_drift = max(
             div_drift_annual,
             gdp + inflation
         )
-        self._div_drift = Math.compound(
+        self._st_div_drift = Math.compound(
+            short_term_drift,
+            1. / self.frequency
+        )
+
+        long_term_drift = min(
             div_drift_annual,
+            gdp + inflation
+        )
+        self._lt_div_drift = Math.compound(
+            long_term_drift,
             1. / self.frequency
         )
 
@@ -65,9 +75,9 @@ class DividendDiscountModel(DDMBase):
         self._pn_no_growth = float(self._cf_no_growth[1, -1])
 
         # Calculate the DCF w/ growth
-        cf_compound = cf * (Math.compound(self._div_drift, self._t) + 1.)
+        cf_compound = cf * (Math.compound(self._st_div_drift, self._t) + 1.)
         self._cf_growth = np.array([self._t, cf_compound])
-        self._pn_growth = float(self._cf_growth[1, -1]) * (1. + self._div_drift)
+        self._pn_growth = float(self._cf_growth[1, -1]) * (1. + self._st_div_drift)
 
         # Transform projected dividend series for plotting
         self._cf_zg = np.array([ft, cf])
@@ -94,21 +104,18 @@ class DividendDiscountModel(DDMBase):
             dr -= rf
 
         den = Math.compound(dr, 1. / self.frequency)
-        dr = den + self._div_drift
+        dr = den + self._lt_div_drift
 
         # Check model consistency
         if den <= 0.:
-            msg = f'Re={dr:.1%} < g={self._div_drift:.1%} for {self._uid}'
+            msg = f'Re={dr:.1%} < g={self._lt_div_drift:.1%} for {self._uid}'
             raise ValueError(msg)
 
-        n = self._cf_no_growth.shape[1]
-        terminal_dcf = (1. + dr) ** n
+        self._cf_no_growth[1, -1] += self._pn_no_growth / den
         fv_zg = float(np.sum(Math.dcf(self._cf_no_growth, dr)))
-        pn_zg = self._pn_no_growth / terminal_dcf / den
-        fv_zg += pn_zg
+
+        self._cf_growth[1, -1] += self._pn_growth / den
         fv_gwt = float(np.sum(Math.dcf(self._cf_growth, dr)))
-        pn_gwt = self._pn_growth / terminal_dcf / den
-        fv_gwt += pn_gwt
 
         ret_zg = fv_zg / self._last_price - 1.
         ret_gwt = fv_gwt / self._last_price - 1.
@@ -122,7 +129,8 @@ class DividendDiscountModel(DDMBase):
             'div_freq': self.frequency,
             'div_ts': self._div_ts,
             'last_price': self._last_price,
-            'div_drift': self._div_drift,
+            'short_term_drift': self._st_div_drift,
+            'long_term_drift': self._lt_div_drift,
             'div_zg': self._cf_zg,
             'div_gwt': self._cf_gwt,
             'd_rate': dr,

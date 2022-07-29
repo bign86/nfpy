@@ -38,7 +38,6 @@ class ReportCompanies(BaseReport):
             2 * Cn.DAYS_IN_1Y, 3 * Cn.DAYS_IN_1Y, 5 * Cn.DAYS_IN_1Y
         )
         self._hist_slc = None
-        # self._span_slc = None
 
     def _init_input(self, type_: Optional[str] = None) -> None:
         """ Prepare and validate the the input parameters for the model. This

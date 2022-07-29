@@ -60,24 +60,23 @@ class GordonGrowthModel(DDMBase):
             msg = f'Re={dr:.1%} < g={self._div_drift:.1%} for {self._uid}'
             raise ValueError(msg)
 
-        fv_no_g = float(self._fut_div / den)
-        fv_gwt = float(self._div / den)
+        fv_no_gwt = float(self._div / den)
+        fv_gwt = float(self._fut_div / den)
 
-        ret_zg = fv_no_g / self._last_price - 1.
+        ret_no_gwt = fv_no_gwt / self._last_price - 1.
         ret_gwt = fv_gwt / self._last_price - 1.
 
         return {
             'uid': self._uid,
             'ccy': self._asset.currency,
             'equity': self._eq.uid,
-            # 't0': self._t0, 'start': self._start,
             'last_price': self._last_price,
             'div': self._div, 'fut_div': self._fut_div,
             'div_drift': self._div_drift,
             'd_rate': dr,
-            'fair_value_no_growth': fv_no_g,
+            'fair_value_no_growth': fv_no_gwt,
             'fair_value_with_growth': fv_gwt,
-            'ret_no_growth': ret_zg,
+            'ret_no_growth': ret_no_gwt,
             'ret_with_growth': ret_gwt
         }
 
