@@ -61,6 +61,8 @@ CREATE TABLE [Currency] (
     [name] TEXT,
     [symbol] TEXT NOT NULL,
     [country] TEXT,
+    [pegged] TEXT,
+    [factor] REAL,
     PRIMARY KEY ([symbol])
 ) WITHOUT ROWID;
 
