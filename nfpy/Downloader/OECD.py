@@ -80,9 +80,13 @@ class SeriesPage(BasePage):
     def _parse(self) -> None:
         """ Parse the fetched object. """
         j = json.loads(self._robj.text)
+
         dimensions = j["structure"]["dimensions"]["observation"]
         attributes = j["structure"]["attributes"]["observation"]
         data_points = j["dataSets"][0]["observations"]
+
+        if len(data_points) == 0:
+            raise RuntimeWarning(f'{self.ticker} | no new data downloaded')
 
         location_list = [v for v in dimensions if v['id'] == 'LOCATION'][0]['values']
         measure_list = [v for v in dimensions if v['id'] == 'MEASURE'][0]['values']

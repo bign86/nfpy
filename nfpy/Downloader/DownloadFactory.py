@@ -261,14 +261,20 @@ class DownloadFactory(metaclass=Singleton):
                     page.printout()
 
             except (Ex.MissingData, Ex.IsNoneError, RuntimeError,
-                    RequestException, ValueError) as e:
-                print(e)
+                    RequestException, ValueError, ConnectionError) as e:
+                Ut.print_exc(e)
                 count_failed += 1
+            except RuntimeWarning as w:
+                Ut.print_wrn(w)
+                count_done += 1
+                data_upd = (today_dt, item.provider, item.page, item.ticker)
+                self._db.execute(q_upd, data_upd, commit=True)
             else:
                 count_done += 1
                 if do_save is True:
-                    data_upd = (today_dt, item.provider, item.page, item.ticker)
-                    self._db.execute(q_upd, data_upd, commit=True)
+                    if page.is_saved:
+                        data_upd = (today_dt, item.provider, item.page, item.ticker)
+                        self._db.execute(q_upd, data_upd, commit=True)
 
         print(
             f'\nItems downloaded: {count_done:>4}'

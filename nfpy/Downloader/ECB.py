@@ -108,6 +108,10 @@ class SeriesPage(ECBBasePage):
             skiprows=6,
             index_col=False
         )
+
+        if df.empty:
+            raise RuntimeWarning(f'{self.ticker} | no new data downloaded')
+
         df.drop(columns=self._COLUMNS[-1], inplace=True)
         df.insert(0, 'ticker', self.ticker)
         self._res = df

@@ -32,10 +32,13 @@ class BasePage(metaclass=ABCMeta):
     _ENCODING = ''
     _REQ_METHOD = ''
     _USE_UPSERT = False
-    _HEADER = {}
     _Q_MAX_DATE = ''
     _Q_SELECT = ''
     _DATE0 = '1990-01-01'
+    _HEADER = {
+        'Accept-Encoding': 'gzip, deflate',
+        'Connection': 'keep-alive',
+    }
 
     def __init__(self, ticker: str):
         self._db = DB.get_db_glob()
@@ -48,9 +51,10 @@ class BasePage(metaclass=ABCMeta):
         self._res = None
         self._jar = None
         self._ext_p = None
-        # self._curr = None
         self._fname = None
+
         self._is_initialized = False
+        self._is_saved = False
 
         self._set_default_params()
 
@@ -90,7 +94,8 @@ class BasePage(metaclass=ABCMeta):
     @property
     def user_agent(self) -> str:
         # return 'Mozilla/5.0 (X11; Linux x86_64; rv:61.0) Gecko/20100101 Firefox/61.0'
-        return 'Mozilla/5.0 (X11; Linux x86_64; rv:67.0) Gecko/20100101 Firefox/67.0'
+        # return 'Mozilla/5.0 (X11; Linux x86_64; rv:67.0) Gecko/20100101 Firefox/67.0'
+        return 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.4 Safari/605.1.15'
 
     @property
     def req_method(self) -> str:
@@ -105,8 +110,12 @@ class BasePage(metaclass=ABCMeta):
         return False if self._res is None else True
 
     @property
-    def is_inizialized(self) -> bool:
+    def is_initialized(self) -> bool:
         return self._is_initialized
+
+    @property
+    def is_saved(self) -> bool:
+        return self._is_saved
 
     @property
     def use_upsert(self) -> bool:
@@ -138,7 +147,8 @@ class BasePage(metaclass=ABCMeta):
     def save(self) -> None:
         """ Save the downloaded page in the DB. """
         _ = self.data
-        self._write_to_db()
+        if self.is_parsed:
+            self._write_to_db()
 
     def dump(self, fname: Optional[str] = None) -> None:
         """ Dump the downloaded page on a file.
@@ -147,7 +157,8 @@ class BasePage(metaclass=ABCMeta):
                 fname [str]: backup file name, overrides default
         """
         _ = self.data
-        self._write_to_file(fname)
+        if self.is_parsed:
+            self._write_to_file(fname)
 
     def initialize(self, fname: Optional[Union[str, Path]] = None,
                    params: Optional[dict] = None):
@@ -231,7 +242,7 @@ class BasePage(metaclass=ABCMeta):
         headers['User-Agent'] = self.user_agent
 
         if self.req_method == 'get':
-            r = req.get(self.baseurl, params=self._p, headers=headers)
+            r = req.get(self.baseurl, params=self._p, headers=headers, timeout=10)
         elif self.req_method == 'post':
             r = req.post(self.baseurl, data=self._p, headers=headers)
         else:
@@ -296,6 +307,8 @@ class BasePage(metaclass=ABCMeta):
                 data_all,
                 commit=True
             )
+
+        self._is_saved = True
 
     def printout(self) -> None:
         """ Print out the results of the fetched object. """

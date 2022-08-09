@@ -177,7 +177,7 @@ CREATE TABLE [IBFinancials] (
     PRIMARY KEY ([ticker], [freq], [date], [statement], [code])
 ) WITHOUT ROWID;
 
-CREATE TABLE Imports (
+CREATE TABLE [Imports] (
     [uid] TEXT NOT NULL,
     [ticker] TEXT NOT NULL,
     [provider] TEXT NOT NULL,
@@ -186,7 +186,7 @@ CREATE TABLE Imports (
     PRIMARY KEY ([uid], [ticker], [provider], [item])
 ) WITHOUT ROWID;
 
-CREATE TABLE Indices (
+CREATE TABLE [Indices] (
     [uid] TEXT NOT NULL,
     [ticker] TEXT NOT NULL,
     [area] TEXT,
@@ -196,7 +196,7 @@ CREATE TABLE Indices (
     PRIMARY KEY ([uid])
 ) WITHOUT ROWID;
 
-CREATE TABLE IndexTS (
+CREATE TABLE [IndexTS] (
     [uid] TEXT NOT NULL,
     [dtype] INTEGER NOT NULL,
     [date] DATETIME NOT NULL,
@@ -205,7 +205,7 @@ CREATE TABLE IndexTS (
     foreign key ([uid]) references Indices([uid])
 ) WITHOUT ROWID;
 
-CREATE TABLE InvestingEvents
+CREATE TABLE [InvestingEvents] (
     [ticker] TEXT NOT NULL,
     [date] DATETIME NOT NULL,
     [dtype] TEXT NOT NULL,
@@ -213,7 +213,7 @@ CREATE TABLE InvestingEvents
     PRIMARY KEY ([ticker], [date], [dtype])
 ) WITHOUT ROWID;
 
-CREATE TABLE InvestingFinancials (
+CREATE TABLE [InvestingFinancials] (
     [ticker] TEXT NOT NULL,
     [freq] TEXT NOT NULL,
     [date] DATETIME NOT NULL,
@@ -224,7 +224,7 @@ CREATE TABLE InvestingFinancials (
     PRIMARY KEY ([ticker], [freq], [date], [statement], [code])
 ) WITHOUT ROWID;
 
-CREATE TABLE InvestingPrices (
+CREATE TABLE [InvestingPrices] (
     [ticker] TEXT NOT NULL,
     [date] DATETIME NOT NULL,
     [price] REAL,
@@ -235,7 +235,7 @@ CREATE TABLE InvestingPrices (
     PRIMARY KEY ([ticker], [date])
 ) WITHOUT ROWID;
 
-CREATE TABLE ManualPrices (
+CREATE TABLE [ManualPrices] (
     [ticker] TEXT NOT NULL,
     [date] DATETIME NOT NULL,
     [open] REAL,
@@ -245,14 +245,36 @@ CREATE TABLE ManualPrices (
     PRIMARY KEY ([ticker], [date])
 ) WITHOUT ROWID;
 
-CREATE TABLE MapFinancials (
+CREATE TABLE [MapFinancials] (
     [short_name] TEXT NOT NULL,
     [category] TEXT,
     [long_name] TEXT,
     PRIMARY KEY ([short_name])
 ) WITHOUT ROWID;
 
-CREATE TABLE OECDSeries (
+CREATE TABLE [NasdaqDividends] (
+    [ticker] TEXT NOT NULL,
+	[type] TEXT NOT NULL,
+    [date] DATE NOT NULL,
+    [amount] REAL,
+    [declaration_date] DATE,
+    [record_date] DATE,
+    [payment_date] DATE,
+    PRIMARY KEY ([ticker], [type], [date])
+) WITHOUT ROWID;
+
+CREATE TABLE [NasdaqPrices] (
+    [ticker] TEXT NOT NULL,
+    [date] DATE NOT NULL,
+    [close] REAL,
+    [open] REAL,
+    [high] REAL,
+    [low] REAL,
+    [volume] INTEGER,
+    PRIMARY KEY ([ticker], [date])
+) WITHOUT ROWID;
+
+CREATE TABLE [OECDSeries] (
     [ticker] TEXT NOT NULL,
     [location] TEXT NOT NULL,
     [country] TEXT,
@@ -322,7 +344,7 @@ CREATE TABLE [RateTS] (
     PRIMARY KEY ([uid], [dtype], [date])
 ) WITHOUT ROWID;
 
-CREATE TABLE Reports (
+CREATE TABLE [Reports] (
     [id] TEXT NOT NULL,
     [title] TEXT,
     [description] TEXT,
@@ -334,13 +356,13 @@ CREATE TABLE Reports (
     PRIMARY KEY ([id])
 ) WITHOUT ROWID;
 
-CREATE TABLE SystemInfo (
+CREATE TABLE [SystemInfo] (
     [field] TEXT NOT NULL,
     [value] REAL,
     PRIMARY KEY ([field])
 ) WITHOUT ROWID;
 
-CREATE TABLE Trades (
+CREATE TABLE [Trades] (
     [ptf_uid] TEXT NOT NULL,
     [date] DATETIME NOT NULL,
     [pos_uid] TEXT NOT NULL,
@@ -354,7 +376,7 @@ CREATE TABLE Trades (
     foreign key ([ptf_uid]) references Portfolio([uid])
 ) WITHOUT ROWID;
 
-CREATE TABLE YahooEvents (
+CREATE TABLE [YahooEvents] (
     [ticker] TEXT NOT NULL,
     [date] DATETIME NOT NULL,
     [dtype] TEXT NOT NULL,
@@ -362,7 +384,7 @@ CREATE TABLE YahooEvents (
     PRIMARY KEY ([ticker], [date], [dtype])
 ) WITHOUT ROWID;
 
-CREATE TABLE YahooFinancials (
+CREATE TABLE [YahooFinancials] (
     [ticker] TEXT NOT NULL,
     [freq] TEXT NOT NULL,
     [date] DATETIME NOT NULL,
@@ -373,7 +395,7 @@ CREATE TABLE YahooFinancials (
     PRIMARY KEY ([ticker], [freq], [date], [statement], [code])
 ) WITHOUT ROWID;
 
-CREATE TABLE YahooPrices (
+CREATE TABLE [YahooPrices] (
     [ticker] TEXT NOT NULL,
     [date] DATETIME NOT NULL,
     [open] REAL,
@@ -385,17 +407,17 @@ CREATE TABLE YahooPrices (
     PRIMARY KEY ([ticker], [date])
 ) WITHOUT ROWID;
 
-CREATE VIEW Assets AS
+CREATE VIEW [Assets] AS
 SELECT [uid], [type], [description], [currency]
 FROM (
-    SELECT [uid], 'Bond'      as [type], [description], [currency] FROM Bond UNION
-    SELECT [uid], 'Company'   as [type], [description], [currency] FROM Company UNION
-    SELECT [uid], 'Curve'     as [type], [description], [currency] FROM Curve UNION
-    SELECT [uid], 'Equity'    as [type], [description], [currency] FROM Equity UNION
-    SELECT [uid], 'Etf'       as [type], [description], [currency] FROM Etf UNION
-    SELECT [uid], 'Fx'        as [type], [description], NULL FROM Fx UNION
-    SELECT [uid], 'Indices'   as [type], [description], [currency] FROM Indices UNION
-    SELECT [uid], 'Portfolio' as [type], [description], NULL FROM Portfolio UNION
-    SELECT [uid], 'Rate'      as [type], [description], NULL FROM Rate
+    SELECT [uid], 'Bond'      as [type], [description], [currency] FROM [Bond] UNION
+    SELECT [uid], 'Company'   as [type], [description], [currency] FROM [Company] UNION
+    SELECT [uid], 'Curve'     as [type], [description], [currency] FROM [Curve] UNION
+    SELECT [uid], 'Equity'    as [type], [description], [currency] FROM [Equity] UNION
+    SELECT [uid], 'Etf'       as [type], [description], [currency] FROM [Etf] UNION
+    SELECT [uid], 'Fx'        as [type], [description], NULL FROM [Fx] UNION
+    SELECT [uid], 'Indices'   as [type], [description], [currency] FROM [Indices] UNION
+    SELECT [uid], 'Portfolio' as [type], [description], NULL FROM [Portfolio] UNION
+    SELECT [uid], 'Rate'      as [type], [description], NULL FROM [Rate]
 ) AS src;
 

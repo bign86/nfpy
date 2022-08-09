@@ -218,6 +218,9 @@ class YahooHistoricalBasePage(YahooBasePage):
             skiprows=1
         )
 
+        if df.empty:
+            raise RuntimeWarning(f'{self.ticker} | no new data downloaded')
+
         # When downloading prices the oldest row is often made of nulls,
         # this is to remove it
         df.replace(to_replace='null', value=np.nan, inplace=True)
@@ -290,10 +293,11 @@ class SplitsPage(YahooHistoricalBasePage):
         df = self._parse_csv()
         df.insert(2, 'dtype', self._dt.get('split'))
 
-        if not df.empty:
-            msg = f' >>> New split found for {self.ticker}!\n' \
-                  f'{df.to_string}'
-            Ut.print_wrn(Warning(msg))
+        Ut.print_wrn(
+            Warning(
+                f' >>> New split found for {self.ticker}!\n{df.to_string}'
+            )
+        )
 
         def _calc(x: str) -> float:
             """ Transform splits in adjustment factors """

@@ -65,9 +65,8 @@ class InvestingBasePage(BasePage):
     _REQ_METHOD = 'post'
     _HEADER = {
         'Accept': 'text/html',
-        # 'Accept-Encoding': 'gzip, deflate, br',
-        'Accept-Encoding': 'gzip, deflate',
-        'Connection': 'keep-alive',
+        # 'Accept-Encoding': 'gzip, deflate',  # br
+        # 'Connection': 'keep-alive',
         'X-Requested-With': 'XMLHttpRequest',
     }
 
@@ -155,6 +154,9 @@ class HistoricalPricesPage(InvestingBasePage):
                     i += 1
             dt.append(row)
 
+        if len(dt) == 0:
+            raise RuntimeWarning(f'{self.ticker} | no new data downloaded')
+
         df = pd.DataFrame(dt, columns=self._COLUMNS)
         df['date'] = pd.to_datetime(df['date'], unit='s').dt.strftime('%Y-%m-%d')
 
@@ -192,6 +194,9 @@ class DividendsPage(InvestingBasePage):
             for v in td_list[::5]
         ]
         td_values = [float(v.text) for v in td_list[1::5]]
+
+        if len(td_values) == 0:
+            raise RuntimeWarning(f'{self.ticker} | no new data downloaded')
 
         df = pd.DataFrame(
             list(zip(td_dates, td_values)),
@@ -276,6 +281,9 @@ class InvestingFinancialsBasePage(InvestingBasePage):
                 if v is None:
                     continue
                 data_final.append((tck, freq, d, ccy, st, code, v))
+
+        if len(data_final) == 0:
+            raise RuntimeWarning(f'{self.ticker} | no new data downloaded')
 
         df = pd.DataFrame(
             data_final,

@@ -271,11 +271,18 @@ InvestingIncomeStatementConf = {'Net Interest Income': 'ENII',
 IBFundamentalsConf = ['ticker', 'freq', 'date', 'currency', 'statement', 'code', 'value']
 
 #
+# Nasdaq
+#
+
+NasdaqDividendsConf = ['date', 'type', 'amount', 'declaration_date', 'record_date', 'payment_date']
+NasdaqPricesConf = ['date', 'close', 'volume', 'open', 'high', 'low']
+
+#
 # OECD
 #
 
 OECDSeriesConf = [
-    "location", "country", "transaction_code", "transaction", "measure_code",
-    "measure", "frequency_code", "frequency", "time_code", "time", "unit_code",
+    "location", "country", "transact_code", "transact", "measure_code",
+    "measure", "frequency_code", "frequency", "date_code", "date", "unit_code",
     "unit", "powercode_code", "powercode", "value"
 ]
