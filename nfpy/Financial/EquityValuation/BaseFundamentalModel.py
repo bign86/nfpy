@@ -31,8 +31,16 @@ class BaseFundamentalModel(metaclass=ABCMeta):
 
         # Input variables
         self._uid = uid
-        self._asset = self._af.get(uid)
-        self._eq = self._af.get(self._asset.equity)
+
+        asset = self._af.get(uid)
+        if asset.type == 'Equity':
+            self._eq = asset
+            self._comp = self._af.get(asset.company)
+        elif asset.type == 'Company':
+            self._comp = asset
+            self._eq = self._af.get(asset.equity)
+        else:
+            raise ValueError(f'BaseFundamentalModel(): something wrong with {uid}')
 
         # Working data
         self._dt = {}

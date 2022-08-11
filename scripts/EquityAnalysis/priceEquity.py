@@ -9,7 +9,7 @@ from tabulate import tabulate
 from nfpy.Assets import get_af_glob
 from nfpy.Calendar import (get_calendar_glob, today)
 import nfpy.DB as DB
-from nfpy.Financial.EquityValuation import DividendDiscountModel
+from nfpy.Financial.EquityValuation import DDM2s
 import nfpy.IO as IO
 from nfpy.Tools import Constants as Cn
 
@@ -45,7 +45,7 @@ if __name__ == '__main__':
 
     rrr = inh.input("Enter your required rate of return: ", idesc='float')
 
-    res = DividendDiscountModel(eq, future_proj=years).result(d_rate=rrr)
+    res = DDM2s(eq, future_proj=years).result(d_rate=rrr)
 
     print(f"\n----------------------------------\nInputs\n"
           f"\tNum of dividends:\t\t{res['div_num']:.0f}\n"

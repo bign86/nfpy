@@ -1,6 +1,6 @@
 #
 # Companies Report
-# Report class for the Companies Data
+# Class for the Companies Data
 #
 
 from collections import defaultdict
@@ -10,7 +10,7 @@ from typing import (Any, Optional)
 from nfpy.Assets import TyAsset
 import nfpy.IO as IO
 from nfpy.Financial.EquityValuation import (
-    DiscountedCashFlowModel, DividendDiscountModel
+    DiscountedCashFlowModel, DDM
 )
 import nfpy.Math as Math
 from nfpy.Tools import (
@@ -104,7 +104,6 @@ class ReportCompanies(BaseReport):
         prices = equity.prices
         v_p = prices.values
         dt_p = prices.index.values
-        # v_r = equity.returns.values
 
         IO.TSPlot() \
             .lplot(0, prices[self._hist_slc], label=asset.uid) \
@@ -125,49 +124,15 @@ class ReportCompanies(BaseReport):
                       'equity', 'currency', 'country')
         }
 
-        dcf_res = None
+        # Render DCF
         try:
             p = self._p.get('DCF', {})
             dcf_res = DiscountedCashFlowModel(asset.uid, **p) \
                 .result(**p)
         except Exception as ex:
+            res.has_dcf = False
             Ut.print_exc(ex)
-
-        ddm_res = None
-        try:
-            p = self._p.get('DDM', {})
-            ddm_res = DividendDiscountModel(asset.uid, **p) \
-                .result(**p)
-        except Exception as ex:
-            Ut.print_exc(ex)
-
-        # Render DDM
-        if ddm_res is not None:
-            res.has_ddm = True
-            res.ret_zg = ddm_res.ret_no_growth * 100.
-            res.ret_wg = ddm_res.ret_with_growth * 100.
-            res.fair_value_no_growth = ddm_res.fair_value_no_growth
-            res.fair_value_with_growth = ddm_res.fair_value_with_growth
-
-            labels = ((ddm_res.uid,), ('DDM',), ('div',))
-            fig_full, fig_rel = self._get_image_paths(labels)
-            res.div_fig = fig_rel[0]
-
-            # Save out figure
-            IO.TSPlot(yl=('Dividend',)) \
-                .lplot(0, ddm_res.div_ts, marker='o', label='historical') \
-                .lplot(0, ddm_res.div_zg[0, :], ddm_res.div_zg[1, :],
-                       marker='o', label='no growth') \
-                .lplot(0, ddm_res.div_gwt[0, :], ddm_res.div_gwt[1, :],
-                       marker='o', label='w/ growth') \
-                .plot() \
-                .save(fig_full[0]) \
-                .close(True)
         else:
-            res.has_ddm = False
-
-        # Render DCF
-        if dcf_res is not None:
             res.has_dcf = True
             res.ret_dcf = (dcf_res.fair_value / res.last_price - 1.) * 100.
             res.fair_value_dcf = dcf_res.fair_value
@@ -181,5 +146,31 @@ class ReportCompanies(BaseReport):
                 border=None,
             )
 
+        # Render DDM
+        try:
+            p = self._p.get('DDM', {})
+            ddm_res = DDM(asset.uid, **p).result(**p)
+        except Exception as ex:
+            res.has_ddm = False
+            Ut.print_exc(ex)
         else:
-            res.has_dcf = False
+            res.has_ddm = True
+            res.ret_no_growth = ddm_res.ret_no_growth * 100.
+            res.ret_growth = ddm_res.ret_growth * 100.
+            res.fv_no_growth = ddm_res.fv_no_growth
+            res.fv_growth = ddm_res.fv_growth
+
+            labels = ((ddm_res.uid,), ('DDM',), ('div',))
+            fig_full, fig_rel = self._get_image_paths(labels)
+            res.div_fig = fig_rel[0]
+
+            # Save out figure
+            IO.TSPlot(yl=('Dividend',)) \
+                .lplot(0, ddm_res.div_ts, marker='o', label='historical') \
+                .lplot(0, ddm_res.div_no_growth[0, :], ddm_res.div_no_growth[1, :],
+                       marker='o', label='no growth') \
+                .lplot(0, ddm_res.div_growth[0, :], ddm_res.div_growth[1, :],
+                       marker='o', label='w/ growth') \
+                .plot() \
+                .save(fig_full[0]) \
+                .close(True)

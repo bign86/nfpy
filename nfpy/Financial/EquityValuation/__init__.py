@@ -5,11 +5,14 @@ from .DiscountedCashFlowModel import (
     DCFModel, DiscountedCashFlowModel
 )
 from .DDMBase import DDMResult
-from .DividendDiscountModel import (
-    DDModel, DividendDiscountModel
+from .DDM import (
+    DDMModel, DDM
 )
-from .GordonGrowthModel import (
-    GGModel, GordonGrowthModel
+from .DDM2s import (
+    DDM2sModel, DDM2s
+)
+from .GGM import (
+    GGMModel, GGM
 )
 
 __all__ = [
@@ -22,9 +25,12 @@ __all__ = [
     # DDMBase
     'DDMResult',
 
-    # DDM
-    'DDModel', 'DividendDiscountModel',
+    # DDMGeneric
+    'DDMModel', 'DDM',
+
+    # DDM2s
+    'DDM2sModel', 'DDM2s',
 
     # GGM
-    'GGModel', 'GordonGrowthModel'
+    'GGMModel', 'GGM'
 ]

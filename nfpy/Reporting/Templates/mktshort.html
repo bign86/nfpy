@@ -47,55 +47,65 @@
             <table class="simple">
               <thead>
                 <tr>
-                  <th colspan="2">General data</th>
+                  <th colspan="3">General data</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td class='anag-prop'>Isin</td><td class='anag-value'>{{ val.info["isin"] }}</td>
+                  <td class='anag-prop'>Isin</td><td colspan="2" class='anag-value'>{{ val.info["isin"] }}</td>
                 </tr>
                 <tr>
-                  <td class='anag-prop'>Company</td><td class='anag-value'>{{ val.info["company"] }}</td>
+                  <td class='anag-prop'>Company</td><td colspan="2" class='anag-value'>{{ val.info["company"] }}</td>
                 </tr>
                 <tr>
-                  <td class='anag-prop'>Name</td><td class='anag-value'>{{ val.info["description"] }}</td>
+                  <td class='anag-prop'>Name</td><td colspan="2" class='anag-value'>{{ val.info["description"] }}</td>
                 </tr>
                 <tr>
-                  <td class='anag-prop'>Index</td><td class='anag-value'>{{ val.info["index"] }}</td>
+                  <td class='anag-prop'>Index</td><td colspan="2" class='anag-value'>{{ val.info["index"] }}</td>
                 </tr>
                 <tr>
-                  <td class='anag-prop'>Country</td><td class='anag-value'>{{ val.info["country"] }}</td>
+                  <td class='anag-prop'>Country</td><td colspan="2" class='anag-value'>{{ val.info["country"] }}</td>
                 </tr>
                 <tr>
-                  <td class='anag-prop'>Currency</td><td class='anag-value'>{{ val.info["currency"] }}</td>
+                  <td class='anag-prop'>Currency</td><td colspan="2" class='anag-value'>{{ val.info["currency"] }}</td>
                 </tr>
                 <tr>
-                  <td colspan="2" style="font-weight:bold;text-align:center;padding-top:5px;">Performance</td>
+                  <td colspan="3" style="font-weight:bold;text-align:center;padding-top:5px;">Performance</td>
                 </tr>
                 <tr>
-                  <td class='anag-prop'>Date</td><td class='anag-value'>{{ val.last_price_date }}</td>
+                  <td class='anag-prop'>Date</td><td colspan="2" class='anag-value'>{{ val.last_price_date }}</td>
                 </tr>
                 <tr>
-                  <td class='anag-prop'>Last price</td><td class='anag-value'>{{ '%.2f'| format(val.last_price|float) }} {{ val.info["currency"] }}</td>
+                  <td class='anag-prop'>Last price</td><td colspan="2" class='anag-value'>{{ '%.2f'| format(val.last_price|float) }} {{ val.info["currency"] }}</td>
                 </tr>
                 <tr>
-                  <td colspan="2" style="font-weight:bold;text-align:center;padding-top:5px;">Dividends</td>
+                  <td colspan="3" style="font-weight:bold;text-align:center;padding-top:5px;">Dividends</td>
                 </tr>
                 <tr>
-                  <td class='anag-prop'># per year</td><td class='anag-value'>{{ val.freq_div }}</td>
+                  <td class='anag-prop'># per year</td><td colspan="2" class='anag-value'>{{ val.freq_div }}</td>
                 </tr>
                 <tr>
-                  <td class='anag-prop'>YTD</td><td class='anag-value'>{{ '%.2f'| format(val.ytd_yrl_div|float) }}</td>
+                  <td class='anag-prop'>YTD</td><td colspan="2" class='anag-value'>{{ '%.2f'| format(val.ytd_yrl_div|float) }}</td>
                 </tr>
                 <tr>
-                  <td class='anag-prop'>Yield YTD</td><td class='anag-value'>{{ '%.2f'| format(val.ytd_yrl_yield|float) }}%</td>
+                  <td class='anag-prop'>Yield YTD</td><td colspan="2" class='anag-value'>{{ '%.2f'| format(val.ytd_yrl_yield|float) }}%</td>
                 </tr>
                 <tr>
-                  <td class='anag-prop'>Last year</td><td class='anag-value'>{{ '%.2f'| format(val.last_yrl_div|float) }}</td>
+                  <td class='anag-prop'>Last year</td><td colspan="2" class='anag-value'>{{ '%.2f'| format(val.last_yrl_div|float) }}</td>
                 </tr>
                 <tr>
-                  <td class='anag-prop'>Yield Last year</td><td class='anag-value'>{{ '%.2f'| format(val.last_yrl_yield|float) }}%</td>
+                  <td class='anag-prop'>Yield Last year</td><td colspan="2" class='anag-value'>{{ '%.2f'| format(val.last_yrl_yield|float) }}%</td>
                 </tr>
+                {%- if val.has_ddm -%}
+                <tr>
+                  <td class='anag-prop'>DDM value w/o</td><td class='anag-value'>{{ '%.2f'| format(val.ddm_fv_no_growth|float) }} {{ val.info["currency"] }}</td>
+                  <td class='anag-value'>{{ '%.2f'| format(val.ddm_ret_no_growth|float) }} %</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>DDM value w/</td><td class='anag-value'>{{ '%.2f'| format(val.ddm_fv_growth|float) }} {{ val.info["currency"] }}</td>
+                  <td class='anag-value'>{{ '%.2f'| format(val.ddm_ret_growth|float) }} %</td>
+                </tr>
+                {%- endif -%}
               </tbody>
             </table>
           </div>

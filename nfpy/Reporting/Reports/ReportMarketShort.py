@@ -12,6 +12,7 @@ from typing import (Any, Optional)
 from nfpy.Assets import TyAsset
 from nfpy.Calendar import today
 from nfpy.Financial import DividendFactory
+from nfpy.Financial.EquityValuation import DDM
 import nfpy.IO as IO
 import nfpy.Math as Math
 from nfpy.Tools import (
@@ -177,8 +178,8 @@ class ReportMarketShort(BaseReport):
             self._hist_slc.stop
         )
 
-        pl = IO.TSPlot(figsize=(10, 4)) \
-            .lplot(0, dt_p[slc], v_p[slc], label=asset.ticker)
+        # pl = IO.TSPlot(figsize=(10, 4)) \
+        #     .lplot(0, dt_p[slc], v_p[slc], label=asset.ticker)
 
         bench_uid = asset.index
         if bench_uid is not None:
@@ -186,12 +187,12 @@ class ReportMarketShort(BaseReport):
             bench_perf = Math.comp_ret(bench_r[slc], is_log=False) \
                          * Math.next_valid_value(v_p[slc])[0]
 
-            pl.lplot(0, dt_p[slc], bench_perf, color='C2',
-                     linewidth=1.5, label=bench_uid)
+            # pl.lplot(0, dt_p[slc], bench_perf, color='C2',
+            #          linewidth=1.5, label=bench_uid)
 
-        pl.plot() \
-            .save(fig_full[0]) \
-            .close(True)
+        # pl.plot() \
+        #     .save(fig_full[0]) \
+        #     .close(True)
 
         # Statistics table and betas
         stats = np.empty((5, len(self._span_slc)))
@@ -238,6 +239,20 @@ class ReportMarketShort(BaseReport):
                 '\u0394 pricing': '{:,.1%}'.format
             },
         )
+
+        # Dividends Discount Calculation
+        try:
+            p = self._p.get('DDM', {})
+            ddm_res = DDM(asset.uid, **p).result(**p)
+        except Exception as ex:
+            res.has_ddm = False
+            Ut.print_exc(ex)
+        else:
+            res.has_ddm = True
+            res.ddm_ret_no_growth = ddm_res.ret_no_growth * 100.
+            res.ddm_ret_growth = ddm_res.ret_growth * 100.
+            res.ddm_fv_no_growth = ddm_res.fv_no_growth
+            res.ddm_fv_growth = ddm_res.fv_growth
 
     def _calc_trading(self, asset: TyAsset, res: Ut.AttributizedDict) -> None:
         fig_full, fig_rel = self._get_image_paths(

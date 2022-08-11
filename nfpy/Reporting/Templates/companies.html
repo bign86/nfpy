@@ -85,12 +85,12 @@
               {%- endif -%}
               {%- if val.has_ddm -%}
               <tr>
-                <td class='anag-prop'>DDM value</td><td class='anag-value'>{{ '%.2f'| format(val.fair_value_no_growth|float) }} {{ val.info["currency"] }}</td>
-                <td class='anag-value'>{{ '%0.2f'| format(val.ret_zg|float) }} %</td>
+                <td class='anag-prop'>DDM value</td><td class='anag-value'>{{ '%.2f'| format(val.fv_no_growth|float) }} {{ val.info["currency"] }}</td>
+                <td class='anag-value'>{{ '%0.2f'| format(val.ret_no_growth|float) }} %</td>
               </tr>
               <tr>
-                <td class='anag-prop'>DDM value</td><td class='anag-value'>{{ '%.2f'| format(val.fair_value_with_growth|float) }} {{ val.info["currency"] }}</td>
-                <td class='anag-value'>{{ '%0.2f'| format(val.ret_wg|float) }} %</td>
+                <td class='anag-prop'>DDM value</td><td class='anag-value'>{{ '%.2f'| format(val.fv_growth|float) }} {{ val.info["currency"] }}</td>
+                <td class='anag-value'>{{ '%0.2f'| format(val.ret_growth|float) }} %</td>
               </tr>
               {%- endif -%}
             </tbody>
