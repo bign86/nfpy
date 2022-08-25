@@ -16,9 +16,6 @@ from .DownloadsConf import (NasdaqDividendsConf, NasdaqPricesConf)
 
 
 class ClosePricesItem(BaseImportItem):
-    _Q_READ = "select '{uid}', '1', date, close from NasdaqPrices where ticker = ?"
-    _Q_WRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
-    values (?,?,?,?)"""
     _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
     select '{uid}', '1', date, close from NasdaqPrices where ticker = ?"""
     _Q_INCR = """ and date > ifnull((select max(date) from {dst_table}
@@ -26,9 +23,6 @@ class ClosePricesItem(BaseImportItem):
 
 
 class DividendsItem(BaseImportItem):
-    _Q_READ = "select '{uid}', '6', date, amount from NasdaqDividends where ticker = ?"
-    _Q_WRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
-    values (?,?,?,?)"""
     _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
     select '{uid}', '6', date, amount from NasdaqDividends where ticker = ?"""
     _Q_INCR = """ and date > ifnull((select max(date) from {dst_table}
@@ -52,8 +46,8 @@ class NasdaqBasePage(BasePage):
     _MANDATORY = ('fromdate', 'todate')
     _HEADER = {
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Host': 'api.nasdaq.com',
-        # 'Accept-Encoding': 'gzip, deflate, br',
+        # 'Host': 'api.nasdaq.com',
+        'Accept-Encoding': 'gzip, deflate, br',
     }
 
     @property

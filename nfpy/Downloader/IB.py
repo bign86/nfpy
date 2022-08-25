@@ -3,12 +3,12 @@
 # Downloads data from Interactive Brokers API
 #
 
-import datetime
 import pandas as pd
+import pandas.tseries.offsets as off
 from time import sleep
 import xml.etree.ElementTree as ET
 
-from nfpy.Tools.Configuration import get_conf_glob
+from nfpy.Tools import get_conf_glob
 
 from .BaseDownloader import BasePage
 from .BaseProvider import BaseImportItem
@@ -17,6 +17,7 @@ from .IBApp import *
 
 
 class FinancialsItem(BaseImportItem):
+    _MODE = 'SPLIT'
     _Q_READ = """select distinct '{uid}', code, date, freq, value
     from IBFinancials where ticker = ?"""
     _Q_WRITE = """insert or replace into {dst_table}
@@ -29,35 +30,32 @@ class FinancialsItem(BaseImportItem):
         return self._d['ticker'].split('/')[0],
 
     @staticmethod
-    def _clean_eoy_dates(data: list[tuple]) -> list[tuple]:
-        """ Moves EOY results to the actual end of the year. """
+    def _clean_data(data: list[tuple]) -> list[tuple]:
+        """ Prepare results for import. """
         data_ins = []
         while data:
             item = data.pop(0)
-            if (item[3] == 'A') & (item[2].month != 12):
-                new_date = datetime.date(item[2].year - 1, 12, 31)
-                item = (item[0], item[1], new_date, item[3], item[4])
 
-            data_ins.append(item)
+            # Adjust the date
+            dt = item[2]
+            if dt.month == 1:
+                month = 1
+            elif 2 <= dt.month <= 4:
+                month = 4
+            elif 5 <= dt.month <= 7:
+                month = 7
+            elif 8 <= dt.month <= 10:
+                month = 10
+            else:
+                month = 1
+            ref = pd.Timestamp(dt.year, month, 1) - off.BDay(1)
+
+            # Build the new tuple
+            data_ins.append(
+                (item[0], item[1], ref.strftime('%Y-%m-%d'), item[3], item[4])
+            )
 
         return data_ins
-
-    def run(self) -> None:
-        params = self._get_params()
-
-        qr = self._Q_READ
-        if self._incr:
-            qr += self._Q_INCR
-        qr = qr.format(**self._d) + ';'
-
-        data = self._db.execute(qr, params).fetchall()
-
-        if len(data) > 0:
-            self._db.executemany(
-                self._Q_WRITE.format(**self._d),
-                self._clean_eoy_dates(data),
-                commit=True
-            )
 
 
 class IBBasePage(BasePage):

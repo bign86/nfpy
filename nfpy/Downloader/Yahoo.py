@@ -17,33 +17,80 @@ from io import StringIO
 import json
 import numpy as np
 import pandas as pd
+import pandas.tseries.offsets as off
 import re
 
-from nfpy.Calendar import today
+import nfpy.Calendar as Cal
 from nfpy.Tools import Utilities as Ut
 
 from .BaseDownloader import BasePage
 from .BaseProvider import BaseImportItem
-from .DownloadsConf import (YahooFinancialsConf, YahooHistPricesConf,
-                            YahooHistDividendsConf, YahooHistSplitsConf)
+from .DownloadsConf import (
+    YahooFinancialsConf, YahooFinancialsMapping,
+    YahooHistPricesConf, YahooHistDividendsConf, YahooHistSplitsConf
+)
 
 
 class ClosePricesItem(BaseImportItem):
-    _Q_READ = "select '{uid}', '1', date, close from YahooPrices where ticker = ?"
-    _Q_WRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
-    values (?,?,?,?)"""
     _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
-    select '{uid}', '1', date, close from YahooPrices where ticker = ?"""
+    select '{uid}', ?, date, close from YahooPrices where ticker = ?"""
     _Q_INCR = """ and date > ifnull((select max(date) from {dst_table}
-    where uid = '{uid}'), '1900-01-01')"""
+    where uid = '{uid}' and dtype = ?), '1900-01-01')"""
+
+    def _get_params(self) -> tuple:
+        dt = self._dt.get('closePrice')
+        if self._incr:
+            return dt, self._d['ticker'], dt
+        else:
+            return dt, self._d['ticker']
 
 
 class FinancialsItem(BaseImportItem):
-    _Q_READWRITE = """insert or replace into {dst_table}
-    (uid, code, date, freq, value) select distinct '{uid}', code, date, freq, value
+    _MODE = 'SPLIT'
+    _Q_READ = """select distinct '{uid}', statement, code, date, freq, value
     from YahooFinancials where ticker = ?"""
+    _Q_WRITE = """insert or replace into {dst_table}
+    (uid, code, date, freq, value) values (?, ?, ?, ?, ?)"""
     _Q_INCR = """ and date > ifnull((select max(date) from {dst_table}
     where uid = '{uid}'), '1900-01-01')"""
+
+    @staticmethod
+    def _clean_data(data: list[tuple]) -> list[tuple]:
+        """ Prepare results for import. """
+        data_ins = []
+        while data:
+            item = data.pop(0)
+
+            # Map the field
+            field = YahooFinancialsMapping[item[1]][item[2]]
+            if field == '':
+                continue
+
+            # Adjust the date
+            dt = item[3]
+            if dt.month == 1:
+                month = 1
+            elif 2 <= dt.month <= 4:
+                month = 4
+            elif 5 <= dt.month <= 7:
+                month = 7
+            elif 8 <= dt.month <= 10:
+                month = 10
+            else:
+                month = 1
+            ref = pd.Timestamp(dt.year, month, 1) - off.BDay(1)
+
+            # Divide to millions
+            value = item[5]
+            if field not in ('EPSactual', 'EPSestimate'):
+                value /= 1e6
+
+            # Build the new tuple
+            data_ins.append(
+                (item[0], field, ref.strftime('%Y-%m-%d'), item[4], value)
+            )
+
+        return data_ins
 
 
 class DividendsItem(BaseImportItem):
@@ -114,12 +161,34 @@ class FinancialsPage(YahooBasePage):
             msg = f'Data group not found in Yahoo financials for {self.ticker}'
             raise RuntimeError(msg)
 
+        # v = (
+        #     ('balanceSheetHistory', 'balanceSheetStatements'),
+        #     ('balanceSheetHistoryQuarterly', 'balanceSheetStatements'),
+        #     ('cashflowStatementHistory', 'cashflowStatements'),
+        #     ('cashflowStatementHistoryQuarterly', 'cashflowStatements'),
+        #     ('incomeStatementHistory', 'incomeStatementHistory'),
+        #     ('incomeStatementHistoryQuarterly', 'incomeStatementHistory'),
+        # )
+        # for t in v:
+        #     print(t)
+        #     for k in data[t[0]][t[1]][0].keys():
+        #         print(k)
+        #
+        # d = json_dict['context']['dispatcher']['stores']['QuoteTimeSeriesStore']['timeSeries']
+        # print(('QuoteTimeSeriesStore', 'timeSeries'))
+        # for k in d.keys():
+        #     print(k)
+
         rows = []
 
-        # Helper function
-        def _extract_(_p, _map, _data):
+        # Helper function for financial statements
+        def _extract_f(_p, _data):
             for _item in _data:
+                # _dt = Cal.ensure_business_day(_item['endDate']['fmt'])
                 _dt = _item['endDate']['fmt']
+                # if _dt.month in (1, 4, 7, 10):
+                #     _dt = Cal.shift(_dt, -1, 'B')
+                # _dt = _dt.strftime('%Y-%m-%d')
                 for _field, _entry in _item.items():
                     if _field in ('endDate', 'maxAge'):
                         continue
@@ -127,37 +196,74 @@ class FinancialsPage(YahooBasePage):
                         _row = _p + (_dt, _field, _entry.get('raw'))
                         rows.append(_row)
 
-        # ------------------------------
-        #          EARNINGS
-        # ------------------------------
-        # earn_chart = data['earnings']['earningsChart']
-        # quarter = earn_chart['quarterly']
-        # for item in quarter:
-        #    date = pd.Period(item['date'], freq='Q').strftime('%Y-%m-%d')
-        #    key = (date, 'Q')
-        #    _new_data_set(key)
-        #    _add_element(key, 'earningsActual', item['actual'].get('raw'))
-        #    _add_element(key, 'earningsEstimate', item['estimate'].get('raw'))
-
         to_download = (
-            ('INC', 'incomeStatementHistory', 'incomeStatementHistory', 'A'),
-            ('INC', 'incomeStatementHistoryQuarterly', 'incomeStatementHistory', 'Q'),
-            ('BAL', 'balanceSheetHistory', 'balanceSheetStatements', 'A'),
-            ('BAL', 'balanceSheetHistoryQuarterly', 'balanceSheetStatements', 'Q'),
-            ('CAS', 'cashflowStatementHistory', 'cashflowStatements', 'A'),
-            ('CAS', 'cashflowStatementHistoryQuarterly', 'cashflowStatements', 'Q'),
+            ('INC', ('incomeStatementHistory', 'incomeStatementHistory'), 'A'),
+            ('INC', ('incomeStatementHistoryQuarterly', 'incomeStatementHistory'), 'Q'),
+            ('BAL', ('balanceSheetHistory', 'balanceSheetStatements'), 'A'),
+            ('BAL', ('balanceSheetHistoryQuarterly', 'balanceSheetStatements'), 'Q'),
+            ('CAS', ('cashflowStatementHistory', 'cashflowStatements'), 'A'),
+            ('CAS', ('cashflowStatementHistoryQuarterly', 'cashflowStatements'), 'Q'),
         )
         for td in to_download:
-            _extract_(
-                (self._ticker, td[3], self._ext_p['currency'], td[0]),
-                YahooFinancialsConf[td[0]],
-                data[td[1]][td[2]]
+            data_list = data
+            for v in td[1]:
+                data_list = data_list[v]
+            _extract_f(
+                (self._ticker, td[2], self._ext_p['currency'], td[0]),
+                data_list
+            )
+
+        # Helper function for EPS
+        def _extract_eps(_p, _data):
+            for _item in _data:
+                _dt = _item['date']
+                for _field, _entry in _item.items():
+                    if _field == 'date':
+                        continue
+                    if _entry:
+                        _row = _p + (_dt, 'EPS' + _field, _entry.get('raw'))
+                        rows.append(_row)
+
+        to_download = (
+            ('TS', ('earnings', 'earningsChart', 'quarterly'), 'Q'),
+        )
+        for td in to_download:
+            data_list = data
+            for v in td[1]:
+                data_list = data_list[v]
+            _extract_eps(
+                (self._ticker, td[2], self._ext_p['currency'], td[0]),
+                data_list
+            )
+
+        # Helper function for earnings
+        def _extract_e(_p, _data):
+            for _item in _data:
+                _dt = _item['date']
+                for _field, _entry in _item.items():
+                    if _field in ('date', 'revenue'):
+                        continue
+                    if _entry:
+                        _row = _p + (_dt, _field, _entry.get('raw'))
+                        rows.append(_row)
+
+        to_download = (
+            ('TS', ('earnings', 'financialsChart', 'yearly'), 'A'),
+            ('TS', ('earnings', 'financialsChart', 'quarterly'), 'Q'),
+        )
+        for td in to_download:
+            data_list = data
+            for v in td[1]:
+                data_list = data_list[v]
+            _extract_e(
+                (self._ticker, td[2], self._ext_p['currency'], td[0]),
+                data_list
             )
 
         # Create dataframe
         df = pd.DataFrame.from_records(
             rows,
-            columns=self._qb.get_fields(self._TABLE)
+            columns=self._COLUMNS
         )
 
         # I want a cleaner version of the _robj for backup purposes
@@ -176,6 +282,7 @@ class YahooHistoricalBasePage(YahooBasePage):
     }
     _MANDATORY = ("period1", "period2")
     _BASE_URL = u"https://query1.finance.yahoo.com/v7/finance/download/{}?"
+    # _BASE_URL = u"https://query1.finance.yahoo.com/v8/finance/chart/{}?"
     _SKIP = [1]
 
     @property
@@ -194,13 +301,14 @@ class YahooHistoricalBasePage(YahooBasePage):
         self._p.update(
             {
                 'period1': str(int(start.timestamp())),
-                'period2': today(mode='str', fmt='%s')
+                'period2': Cal.today(mode='str', fmt='%s')
             }
         )
 
     def _local_initializations(self) -> None:
         """ Local initializations for the single page. """
         p = {'events': self.event}
+        # p = {'events': 'dividends,splits'}
         if self._ext_p:
             for t in [('start', 'period1'), ('end', 'period2')]:
                 if t[0] in self._ext_p:
@@ -246,9 +354,9 @@ class HistoricalPricesPage(YahooHistoricalBasePage):
         ld = self._fetch_last_data_point((self.ticker,))
         self._p.update(
             {
-                # TODO: pd.to_datetime(ld).strftime('%s') yields a different output
+                # NOTE: pd.to_datetime(ld).strftime('%s') yields a different output
                 'period1': str(int(pd.to_datetime(ld).timestamp())),
-                'period2': today(mode='str', fmt='%s')
+                'period2': Cal.today(mode='str', fmt='%s')
             }
         )
 

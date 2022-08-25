@@ -3,13 +3,22 @@
 # Base class to handle imports
 #
 
+from enum import Enum
+
 from nfpy.DatatypeFactory import get_dt_glob
 import nfpy.DB as DB
+
+
+class Action(Enum):
+    DEL = 0
+    RDW = 1
+    INC = 2
 
 
 class BaseImportItem(object):
     """ Base class for import items. """
 
+    _MODE = 'RW'
     _Q_READ = ''
     _Q_WRITE = ''
     _Q_READWRITE = ''
@@ -25,11 +34,32 @@ class BaseImportItem(object):
         """ Return the correct parameters for the read query. """
         return self._d['ticker'],
 
+    @staticmethod
+    def _clean_data(data: list[tuple]) -> list[tuple]:
+        """ Prepare results for import. """
+        return data
+
     def run(self) -> None:
         params = self._get_params()
 
-        qrw = self._Q_READWRITE
-        if self._incr:
-            qrw += self._Q_INCR
-        qrw = qrw.format(**self._d) + ";"
-        self._db.execute(qrw, params, commit=True)
+        if self._MODE == 'RW':
+            qrw = self._Q_READWRITE
+            if self._incr:
+                qrw += self._Q_INCR
+            qrw = qrw.format(**self._d) + ";"
+            self._db.execute(qrw, params, commit=True)
+
+        else:
+            qr = self._Q_READ
+            if self._incr:
+                qr += self._Q_INCR
+            qr = qr.format(**self._d) + ';'
+
+            data = self._db.execute(qr, params).fetchall()
+
+            if len(data) > 0:
+                self._db.executemany(
+                    self._Q_WRITE.format(**self._d),
+                    self._clean_data(data),
+                    commit=True
+                )

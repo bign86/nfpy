@@ -4,12 +4,12 @@
 #
 
 from datetime import (date, datetime)
+from dateutil.parser import isoparse
 import json
 import numpy
 import pandas
 import sqlite3
 from typing import Any
-
 
 SQLITE2PY_CONVERSION = {
     'BOOL': 'bool',
@@ -23,6 +23,13 @@ SQLITE2PY_CONVERSION = {
     'REAL': 'float',
     'TEXT': 'str',
 }
+
+
+def adapt_date(val) -> str:
+    """ Operates on datetime.date() to obtain a representation to be used
+        in sqlite3.
+    """
+    return val.strftime('%Y-%m-%d')
 
 
 def adapt_np64(val) -> str:
@@ -59,8 +66,16 @@ def convert_date(val) -> date:
     """ Converts from DATE to datetime.date. Taken from the function
         convert_timestamp() in the Python implementation of sqlite3.
     """
-    year, month, day = map(int, val.split(b"-"))
-    return date(year, month, day)
+    # year, month, day = map(int, val.split(b"-"))
+    # return date(year, month, day)
+    if b'Q' in val:
+        quarter = val.split(b'Q')[::-1]
+        month = str(int(quarter[1]) * 3)
+        if len(month) == 1:
+            month = '0' + month
+        quarter[1] = str.encode(month)
+        val = b'-'.join(quarter)
+    return isoparse(val).date()
 
 
 def adapt_parameters(val) -> Any:
@@ -74,6 +89,7 @@ def convert_parameters(val) -> Any:
 
 
 # Register the adapters
+sqlite3.register_adapter(datetime.date, adapt_date)
 sqlite3.register_adapter(numpy.datetime64, adapt_np64)
 sqlite3.register_adapter(pandas.Timestamp, adapt_pd_timestamp)
 sqlite3.register_adapter(list, adapt_parameters)

@@ -6,6 +6,7 @@
 from bs4 import BeautifulSoup
 import json
 import pandas as pd
+import pandas.tseries.offsets as off
 from random import randint
 
 from nfpy.Calendar import today
@@ -14,8 +15,9 @@ from nfpy.Tools import Exceptions as Ex
 
 from .BaseDownloader import BasePage
 from .BaseProvider import BaseImportItem
-from .DownloadsConf import (InvestingSeriesConf, InvestingCashFlowConf,
-                            InvestingBalanceSheetConf, InvestingIncomeStatementConf)
+from .DownloadsConf import (
+    InvestingSeriesConf, InvestingFinancialsConf, InvestingFinancialsMapping
+)
 
 
 class ClosePricesItem(BaseImportItem):
@@ -26,15 +28,50 @@ class ClosePricesItem(BaseImportItem):
 
 
 class FinancialsItem(BaseImportItem):
-    _Q_READWRITE = """insert or replace into {dst_table}
-    (uid, code, date, freq, value) select distinct "{uid}", code, date, freq, value
+    _MODE = 'SPLIT'
+    _Q_READ = """select distinct '{uid}', statement, code, date, freq, value
     from InvestingFinancials where ticker = ?"""
+    _Q_WRITE = """insert or replace into {dst_table}
+    (uid, code, date, freq, value) values (?, ?, ?, ?, ?)"""
     _Q_INCR = """ and date > ifnull((select max(date) from {dst_table}
     where uid = '{uid}'), '1900-01-01')"""
 
     def _get_params(self) -> tuple:
         """ Return the correct parameters for the read query. """
         return self._d['ticker'].split('/')[0],
+
+    @staticmethod
+    def _clean_data(data: list[tuple]) -> list[tuple]:
+        """ Prepare results for import. """
+        data_ins = []
+        while data:
+            item = data.pop(0)
+
+            # Map the field
+            field = InvestingFinancialsMapping[item[1]][item[2]]
+            if field == '':
+                continue
+
+            # Adjust the date
+            dt = item[3]
+            if dt.month == 1:
+                month = 1
+            elif 2 <= dt.month <= 4:
+                month = 4
+            elif 5 <= dt.month <= 7:
+                month = 7
+            elif 8 <= dt.month <= 10:
+                month = 10
+            else:
+                month = 1
+            ref = pd.Timestamp(dt.year, month, 1) - off.BDay(1)
+
+            # Build the new tuple
+            data_ins.append(
+                (item[0], item[1], ref.strftime('%Y-%m-%d'), item[4], item[5])
+            )
+
+        return data_ins
 
 
 class DividendsItem(BaseImportItem):
@@ -190,7 +227,7 @@ class DividendsPage(InvestingBasePage):
         td_list = soup.select('tr > td')
         td_dates = [
             pd.to_datetime(v['data-value'], unit='s')
-              .strftime('%Y-%m-%d')
+            .strftime('%Y-%m-%d')
             for v in td_list[::5]
         ]
         td_values = [float(v.text) for v in td_list[1::5]]
@@ -214,6 +251,7 @@ class InvestingFinancialsBasePage(InvestingBasePage):
     _PARAMS = {'pair_ID': None, 'action': 'change_report_type',
                'report_type': None, 'period_type': None}
     _MANDATORY = ("pair_ID", "period_type")
+    _COLUMNS = InvestingFinancialsConf
     _TABLE = 'InvestingFinancials'
     _USE_UPSERT = True
     _REPORT_TYPE = ''
@@ -238,17 +276,19 @@ class InvestingFinancialsBasePage(InvestingBasePage):
         # Get dates
         period_type = self.params['period_type']
         h = t.find('tr', {'class': "alignBottom"})
+        # years = [i.text for i in h.select('th > span')][1:]
+        # if period_type == 'Interim':
+        #     months = [
+        #         i.text.split('/')[::-1]
+        #         for i in h.select('th > div')
+        #     ]
+        # elif period_type == 'Annual':
+        #     months = [('12', '31')] * 4
+        # else:
+        #     msg = f"Parameter period_type = {self.params['period_type']} not recognized"
+        #     raise ValueError(msg)
         years = [i.text for i in h.select('th > span')][1:]
-        if period_type == 'Interim':
-            months = [
-                i.text.split('/')[::-1]
-                for i in h.select('th > div')
-            ]
-        elif period_type == 'Annual':
-            months = [('12', '31')] * 4
-        else:
-            msg = f"Parameter period_type = {self.params['period_type']} not recognized"
-            raise ValueError(msg)
+        months = [i.text.split('/')[::-1] for i in h.select('th > div')]
         dates = tuple(
             '-'.join([i, *j])
             for i, j in zip(years, months)
@@ -276,35 +316,34 @@ class InvestingFinancialsBasePage(InvestingBasePage):
         ccy = self._ext_p['currency']
         data_final = []
         for tup in data:
-            code = self._COLUMNS[tup[0]]
+            column = tup[0]
+            # code = self._COLUMNS[column]
             for d, v in zip(dates, tup[1:]):
                 if v is None:
                     continue
-                data_final.append((tck, freq, d, ccy, st, code, v))
+                # data_final.append((tck, freq, d, ccy, st, code, v))
+                data_final.append((tck, freq, d, ccy, st, column, v))
 
         if len(data_final) == 0:
             raise RuntimeWarning(f'{self.ticker} | no new data downloaded')
 
         df = pd.DataFrame(
             data_final,
-            columns=self._qb.get_fields(self._TABLE)
+            columns=self._COLUMNS  # self._qb.get_fields(self._TABLE)
         )
         self._res = df
 
 
 class IncomeStatementPage(InvestingFinancialsBasePage):
     _PAGE = 'IncomeStatement'
-    _COLUMNS = InvestingIncomeStatementConf
     _REPORT_TYPE = 'INC'
 
 
 class BalanceSheetPage(InvestingFinancialsBasePage):
     _PAGE = 'BalanceSheet'
-    _COLUMNS = InvestingBalanceSheetConf
     _REPORT_TYPE = 'BAL'
 
 
 class CashFlowPage(InvestingFinancialsBasePage):
     _PAGE = 'CashFlow'
-    _COLUMNS = InvestingCashFlowConf
     _REPORT_TYPE = 'CAS'

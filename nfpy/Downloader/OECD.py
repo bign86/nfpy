@@ -118,29 +118,23 @@ class SeriesPage(BasePage):
             ]
             if len(dims) == 4:
                 dt = time_list[dims[3]]['id']
-                if len(dt) == 4:
-                    pd.to_datetime(dt, format='%Y')
-                else:
-                    pd.to_datetime(dt, format='%Y-%m')
+                _format = '%Y' if len(dt) == 4 else '%Y-%m'
                 row.extend(
                     [
                         frequency_list[0]['id'],
                         frequency_list[0]['name'],
-                        dt,
+                        pd.to_datetime(dt, format=_format),
                         time_list[dims[3]]['name'],
                     ]
                 )
             elif len(dims) == 5:
                 dt = time_list[dims[4]]['id']
-                if len(dt) == 4:
-                    pd.to_datetime(dt, format='%Y')
-                else:
-                    pd.to_datetime(dt, format='%Y-%m')
+                _format = '%Y' if len(dt) == 4 else '%Y-%m'
                 row.extend(
                     [
                         frequency_list[dims[3]]['id'],
                         frequency_list[dims[3]]['name'],
-                        dt,
+                        pd.to_datetime(dt, format=_format),
                         time_list[dims[4]]['name'],
                     ]
                 )
