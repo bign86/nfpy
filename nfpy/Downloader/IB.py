@@ -37,18 +37,8 @@ class FinancialsItem(BaseImportItem):
             item = data.pop(0)
 
             # Adjust the date
-            dt = item[2]
-            if dt.month == 1:
-                month = 1
-            elif 2 <= dt.month <= 4:
-                month = 4
-            elif 5 <= dt.month <= 7:
-                month = 7
-            elif 8 <= dt.month <= 10:
-                month = 10
-            else:
-                month = 1
-            ref = pd.Timestamp(dt.year, month, 1) - off.BDay(1)
+            dt = item[2] - off.BDay(10)
+            ref = off.BMonthEnd().rollforward(dt)
 
             # Build the new tuple
             data_ins.append(

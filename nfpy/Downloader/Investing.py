@@ -53,22 +53,12 @@ class FinancialsItem(BaseImportItem):
                 continue
 
             # Adjust the date
-            dt = item[3]
-            if dt.month == 1:
-                month = 1
-            elif 2 <= dt.month <= 4:
-                month = 4
-            elif 5 <= dt.month <= 7:
-                month = 7
-            elif 8 <= dt.month <= 10:
-                month = 10
-            else:
-                month = 1
-            ref = pd.Timestamp(dt.year, month, 1) - off.BDay(1)
+            dt = item[3] - off.BDay(10)
+            ref = off.BMonthEnd().rollforward(dt)
 
             # Build the new tuple
             data_ins.append(
-                (item[0], item[1], ref.strftime('%Y-%m-%d'), item[4], item[5])
+                (item[0], field, ref.strftime('%Y-%m-%d'), item[4], item[5])
             )
 
         return data_ins
@@ -102,8 +92,6 @@ class InvestingBasePage(BasePage):
     _REQ_METHOD = 'post'
     _HEADER = {
         'Accept': 'text/html',
-        # 'Accept-Encoding': 'gzip, deflate',  # br
-        # 'Connection': 'keep-alive',
         'X-Requested-With': 'XMLHttpRequest',
     }
 
@@ -276,17 +264,6 @@ class InvestingFinancialsBasePage(InvestingBasePage):
         # Get dates
         period_type = self.params['period_type']
         h = t.find('tr', {'class': "alignBottom"})
-        # years = [i.text for i in h.select('th > span')][1:]
-        # if period_type == 'Interim':
-        #     months = [
-        #         i.text.split('/')[::-1]
-        #         for i in h.select('th > div')
-        #     ]
-        # elif period_type == 'Annual':
-        #     months = [('12', '31')] * 4
-        # else:
-        #     msg = f"Parameter period_type = {self.params['period_type']} not recognized"
-        #     raise ValueError(msg)
         years = [i.text for i in h.select('th > span')][1:]
         months = [i.text.split('/')[::-1] for i in h.select('th > div')]
         dates = tuple(
@@ -317,11 +294,9 @@ class InvestingFinancialsBasePage(InvestingBasePage):
         data_final = []
         for tup in data:
             column = tup[0]
-            # code = self._COLUMNS[column]
             for d, v in zip(dates, tup[1:]):
                 if v is None:
                     continue
-                # data_final.append((tck, freq, d, ccy, st, code, v))
                 data_final.append((tck, freq, d, ccy, st, column, v))
 
         if len(data_final) == 0:
@@ -329,7 +304,7 @@ class InvestingFinancialsBasePage(InvestingBasePage):
 
         df = pd.DataFrame(
             data_final,
-            columns=self._COLUMNS  # self._qb.get_fields(self._TABLE)
+            columns=self._COLUMNS
         )
         self._res = df
 

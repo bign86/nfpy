@@ -24,7 +24,8 @@ def check_download_exist(_db) -> None:
     orphan_imp = _db.execute(q).fetchall()
 
     print(
-        f'>>> Checks that an active download exists for each active import.\n'
+        f'{Col.HEADER.value}>>> CHECK DOWNLOADS CONSISTENCY{Col.ENDC.value}\n'
+        f'    Checks that an active download exists for each active import.\n'
         f'    Imported items not actively connected to a download are reported.'
     )
     if len(orphan_imp) == 0:
@@ -49,10 +50,11 @@ def check_imports_consistency(_db) -> None:
     wrong_imp = _db.execute(q).fetchall()
 
     print(
-        f'>>> Checks that each item is imported once.\n'
-        f'    For each uid and each imported item, only one active download\n'
-        f'    should be present. This does NOT work for Investing Financials\n'
-        f'    that are currently excluded from the test.'
+        f'{Col.HEADER.value}>>> CHECK IMPORTS CONSISTENCY{Col.ENDC.value}\n'
+        f'    Checks that each item is imported once. For each uid and each\n'
+        f'    imported item, only one active download should be present. This\n'
+        f'    does NOT work for Investing Financials that are currently\n'
+        f'    excluded from the test.'
     )
     if len(wrong_imp) == 0:
         print(f'{Col.OKGREEN.value}None found{Col.ENDC.value}', end='\n\n')
@@ -66,23 +68,24 @@ def check_imports_consistency(_db) -> None:
 
 
 def check_currency_consistency(_db) -> None:
-    q = """select uid, count(*) from (select distinct i.uid,
-    d.currency as ccy_dwn, a.currency as ccy_elab from Imports as i
+    q = """select * from (select i.uid, a.type, d.currency as ccy_dwn,
+    a.currency as ccy_elab, i.item, d.page, d.description from Imports as i
     join Downloads as d on i.ticker = d.ticker and i.provider = d.provider
-    join Assets as a on a.uid = i.uid where d.active = 1 and i.active = 1
-    ) as s group by uid having count(*) > 1"""
+    join Assets as a on a.uid = i.uid where d.active = 1 and i.active = 1) as s
+    where s.ccy_dwn != s.ccy_elab"""
 
     wrong_ccy = _db.execute(q).fetchall()
 
     print(
-        f'>>> Checks the downloads for each asset have the right currency.\n'
+        f'{Col.HEADER.value}>>> CHECK CURRENCY CONSISTENCY{Col.ENDC.value}\n'
+        f'    Checks the downloads for each asset have the right currency.\n'
         f'    For each uid the downloads and elaboration currencies should\n'
         f'    match. Mismatches are reported.'
     )
     if len(wrong_ccy) == 0:
         print(f'{Col.OKGREEN.value}None found{Col.ENDC.value}', end='\n\n')
     else:
-        fields = ('uid', 'num ccy combinations')
+        fields = ('uid', 'type', 'ccy_dwn', 'ccy_elab', 'item', 'page', 'description')
         print(
             f'{Col.FAIL.value}{len(wrong_ccy)} found!{Col.ENDC.value}\n'
             f'{tabulate(wrong_ccy, headers=fields, showindex=True)}',

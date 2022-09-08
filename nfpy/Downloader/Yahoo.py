@@ -27,7 +27,7 @@ from .BaseDownloader import BasePage
 from .BaseProvider import BaseImportItem
 from .DownloadsConf import (
     YahooFinancialsConf, YahooFinancialsMapping,
-    YahooHistPricesConf, YahooHistDividendsConf, YahooHistSplitsConf
+    YahooHistDividendsConf, YahooHistPricesConf, YahooHistSplitsConf
 )
 
 
@@ -57,33 +57,30 @@ class FinancialsItem(BaseImportItem):
     @staticmethod
     def _clean_data(data: list[tuple]) -> list[tuple]:
         """ Prepare results for import. """
+        _keep = ('BasicEPS', 'DilutedEPS', 'EPSactual', 'EPSestimate', 'TaxRateForCalcs')
+
         data_ins = []
         while data:
             item = data.pop(0)
 
             # Map the field
-            field = YahooFinancialsMapping[item[1]][item[2]]
+            try:
+                field = YahooFinancialsMapping[item[1]][item[2]]
+            except KeyError as ex:
+                print(item)
+                Ut.print_exc(ex)
+                continue
+
             if field == '':
                 continue
 
             # Adjust the date
-            dt = item[3]
-            if dt.month == 1:
-                month = 1
-            elif 2 <= dt.month <= 4:
-                month = 4
-            elif 5 <= dt.month <= 7:
-                month = 7
-            elif 8 <= dt.month <= 10:
-                month = 10
-            else:
-                month = 1
-            ref = pd.Timestamp(dt.year, month, 1) - off.BDay(1)
+            dt = item[3] - off.BDay(10)
+            ref = off.BMonthEnd().rollforward(dt)
 
             # Divide to millions
-            value = item[5]
-            if field not in ('EPSactual', 'EPSestimate'):
-                value /= 1e6
+            norm = 1. if item[2] in _keep else 1e6
+            value = item[5] / norm
 
             # Build the new tuple
             data_ins.append(
@@ -156,39 +153,18 @@ class FinancialsPage(YahooBasePage):
         """ Parse the fetched object. """
         json_string = re.search(self._JSON_PATTERN, self._robj.text)
         json_dict = json.loads(json_string.group(1))
-        data = json_dict['context']['dispatcher']['stores']['QuoteSummaryStore']
+        stores = json_dict['context']['dispatcher']['stores']
+        data = stores['QuoteSummaryStore']
         if not data:
             msg = f'Data group not found in Yahoo financials for {self.ticker}'
             raise RuntimeError(msg)
-
-        # v = (
-        #     ('balanceSheetHistory', 'balanceSheetStatements'),
-        #     ('balanceSheetHistoryQuarterly', 'balanceSheetStatements'),
-        #     ('cashflowStatementHistory', 'cashflowStatements'),
-        #     ('cashflowStatementHistoryQuarterly', 'cashflowStatements'),
-        #     ('incomeStatementHistory', 'incomeStatementHistory'),
-        #     ('incomeStatementHistoryQuarterly', 'incomeStatementHistory'),
-        # )
-        # for t in v:
-        #     print(t)
-        #     for k in data[t[0]][t[1]][0].keys():
-        #         print(k)
-        #
-        # d = json_dict['context']['dispatcher']['stores']['QuoteTimeSeriesStore']['timeSeries']
-        # print(('QuoteTimeSeriesStore', 'timeSeries'))
-        # for k in d.keys():
-        #     print(k)
 
         rows = []
 
         # Helper function for financial statements
         def _extract_f(_p, _data):
             for _item in _data:
-                # _dt = Cal.ensure_business_day(_item['endDate']['fmt'])
                 _dt = _item['endDate']['fmt']
-                # if _dt.month in (1, 4, 7, 10):
-                #     _dt = Cal.shift(_dt, -1, 'B')
-                # _dt = _dt.strftime('%Y-%m-%d')
                 for _field, _entry in _item.items():
                     if _field in ('endDate', 'maxAge'):
                         continue
@@ -205,59 +181,64 @@ class FinancialsPage(YahooBasePage):
             ('CAS', ('cashflowStatementHistoryQuarterly', 'cashflowStatements'), 'Q'),
         )
         for td in to_download:
-            data_list = data
-            for v in td[1]:
-                data_list = data_list[v]
+            data_list = data[td[1][0]][td[1][1]]
             _extract_f(
                 (self._ticker, td[2], self._ext_p['currency'], td[0]),
                 data_list
             )
 
         # Helper function for EPS
-        def _extract_eps(_p, _data):
-            for _item in _data:
-                _dt = _item['date']
-                for _field, _entry in _item.items():
-                    if _field == 'date':
-                        continue
-                    if _entry:
-                        _row = _p + (_dt, 'EPS' + _field, _entry.get('raw'))
-                        rows.append(_row)
-
-        to_download = (
-            ('TS', ('earnings', 'earningsChart', 'quarterly'), 'Q'),
-        )
-        for td in to_download:
-            data_list = data
-            for v in td[1]:
-                data_list = data_list[v]
-            _extract_eps(
-                (self._ticker, td[2], self._ext_p['currency'], td[0]),
-                data_list
-            )
-
-        # Helper function for earnings
         def _extract_e(_p, _data):
             for _item in _data:
                 _dt = _item['date']
                 for _field, _entry in _item.items():
                     if _field in ('date', 'revenue'):
                         continue
+                    elif _field in ('actual', 'estimate'):
+                        _field = 'EPS' + _field
                     if _entry:
                         _row = _p + (_dt, _field, _entry.get('raw'))
                         rows.append(_row)
 
         to_download = (
+            ('TS', ('earnings', 'earningsChart', 'quarterly'), 'Q'),
             ('TS', ('earnings', 'financialsChart', 'yearly'), 'A'),
             ('TS', ('earnings', 'financialsChart', 'quarterly'), 'Q'),
         )
         for td in to_download:
-            data_list = data
-            for v in td[1]:
-                data_list = data_list[v]
+            v = td[1]
+            data_list = data[v[0]][v[1]][v[2]]
             _extract_e(
                 (self._ticker, td[2], self._ext_p['currency'], td[0]),
                 data_list
+            )
+
+        # Helper function for time series
+        def _extract_ts(_p, _field, _data):
+            for _item in _data:
+                if not _item:
+                    continue
+                _dt = _item['asOfDate']
+                _v = _item['reportedValue']
+                if _v:
+                    _row = _p + (_dt, _field, _v.get('raw'))
+                    rows.append(_row)
+
+        data = stores['QuoteTimeSeriesStore']['timeSeries']
+        for k, v in data.items():
+            if k == 'timestamp':
+                continue
+            elif k[:6] == 'annual':
+                st = 'A'
+                code = k[6:]
+            elif k[:8] == 'trailing':
+                st = 'TTM'
+                code = k[8:]
+            else:
+                raise ValueError(f'YahooFinancialsPage(): {k} not conformant')
+            _extract_ts(
+                (self._ticker, st, self._ext_p['currency'], 'TS'),
+                code, v
             )
 
         # Create dataframe

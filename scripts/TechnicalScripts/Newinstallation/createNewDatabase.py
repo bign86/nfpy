@@ -17,7 +17,7 @@ from nfpy.Tools import get_conf_glob
 __version__ = '0.8'
 _TITLE_ = "<<< Database creation script >>>"
 
-Q_CCY = "insert into Currency (name, symbol, country) values (?, ?, ?);"
+Q_CCY = "insert into Currency (name, symbol, country, pegged, factor) values (?, ?, ?, ?, ?);"
 Q_DEC = "insert into DecDatatype (datatype, encoding) values (?, ?);"
 Q_FMAP = "insert into MapFinancials (short_name, category, long_name) values (?, ?, ?);"
 Q_PROV = "insert into Providers (provider, page, item) values (?, ?, ?);"

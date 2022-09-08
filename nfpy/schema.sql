@@ -1,6 +1,6 @@
 CREATE TABLE [Alerts] (
     [uid] TEXT NOT NULL,
-    [date] DATETIME NOT NULL,
+    [date] DATE NOT NULL,
     [cond] TEXT NOT NULL,
     [value] REAL NOT NULL,
     [triggered] BOOL,
@@ -99,7 +99,7 @@ CREATE TABLE [Downloads] (
 
 CREATE TABLE [ECBSeries] (
     [ticker] TEXT NOT NULL,
-    [date] DATETIME NOT NULL,
+    [date] DATE NOT NULL,
     [value] REAL,
     PRIMARY KEY ([ticker], [date])
 ) WITHOUT ROWID;
@@ -199,7 +199,7 @@ CREATE TABLE [Indices] (
 CREATE TABLE [IndexTS] (
     [uid] TEXT NOT NULL,
     [dtype] INTEGER NOT NULL,
-    [date] DATETIME NOT NULL,
+    [date] DATE NOT NULL,
     [value] REAL,
     PRIMARY KEY ([uid], [dtype], [date]),
     foreign key ([uid]) references Indices([uid])
@@ -207,7 +207,7 @@ CREATE TABLE [IndexTS] (
 
 CREATE TABLE [InvestingEvents] (
     [ticker] TEXT NOT NULL,
-    [date] DATETIME NOT NULL,
+    [date] DATE NOT NULL,
     [dtype] TEXT NOT NULL,
     [value] REAL,
     PRIMARY KEY ([ticker], [date], [dtype])
@@ -216,7 +216,7 @@ CREATE TABLE [InvestingEvents] (
 CREATE TABLE [InvestingFinancials] (
     [ticker] TEXT NOT NULL,
     [freq] TEXT NOT NULL,
-    [date] DATETIME NOT NULL,
+    [date] DATE NOT NULL,
     [currency] TEXT,
     [statement] TEXT NOT NULL,
     [code] TEXT NOT NULL,
@@ -226,7 +226,7 @@ CREATE TABLE [InvestingFinancials] (
 
 CREATE TABLE [InvestingPrices] (
     [ticker] TEXT NOT NULL,
-    [date] DATETIME NOT NULL,
+    [date] DATE NOT NULL,
     [price] REAL,
     [open] REAL,
     [high] REAL,
@@ -299,7 +299,7 @@ CREATE TABLE [Portfolio] (
     [name] TEXT,
     [description] TEXT,
     [currency] TEXT,
-    [inception_date] DATETIME,
+    [inception_date] DATE,
     [benchmark] TEXT,
     PRIMARY KEY ([uid])
 ) WITHOUT ROWID;
@@ -339,7 +339,7 @@ CREATE TABLE [Rate] (
 CREATE TABLE [RateTS] (
     [uid] TEXT NOT NULL,
     [dtype] INTEGER NOT NULL,
-    [date] DATETIME NOT NULL,
+    [date] DATE NOT NULL,
     [value] REAL,
     PRIMARY KEY ([uid], [dtype], [date])
 ) WITHOUT ROWID;
@@ -378,7 +378,7 @@ CREATE TABLE [Trades] (
 
 CREATE TABLE [YahooEvents] (
     [ticker] TEXT NOT NULL,
-    [date] DATETIME NOT NULL,
+    [date] DATE NOT NULL,
     [dtype] TEXT NOT NULL,
     [value] REAL,
     PRIMARY KEY ([ticker], [date], [dtype])
@@ -387,9 +387,9 @@ CREATE TABLE [YahooEvents] (
 CREATE TABLE [YahooFinancials] (
     [ticker] TEXT NOT NULL,
     [freq] TEXT NOT NULL,
-    [date] DATETIME NOT NULL,
     [currency] TEXT,
     [statement] TEXT NOT NULL,
+    [date] DATE NOT NULL,
     [code] TEXT NOT NULL,
     [value] REAL,
     PRIMARY KEY ([ticker], [freq], [date], [statement], [code])
@@ -397,7 +397,7 @@ CREATE TABLE [YahooFinancials] (
 
 CREATE TABLE [YahooPrices] (
     [ticker] TEXT NOT NULL,
-    [date] DATETIME NOT NULL,
+    [date] DATE NOT NULL,
     [open] REAL,
     [high] REAL,
     [low] REAL,
