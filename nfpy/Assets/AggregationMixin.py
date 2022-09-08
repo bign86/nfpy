@@ -33,22 +33,18 @@ class AggregationMixin(object):
     @property
     def constituents(self) -> dict[Any]:
         """ Return the dictionary of constituents. """
+        if not self._cnsts_loaded:
+            self._load_cnsts()
         return self._dict_cnsts
-
-    @constituents.setter
-    def constituents(self, cnst: dict[Any]) -> None:
-        self._dict_cnsts = cnst
 
     @property
     def constituents_uids(self) -> list[str]:
         """ Return the sorted list of constituents uids. The sorting must
             be defined by the child object.
         """
+        if not self._cnsts_loaded:
+            self._load_cnsts()
         return self._cnsts_uids
-
-    @constituents_uids.setter
-    def constituents_uids(self, uids: list[str]) -> None:
-        self._cnsts_uids = uids
 
     @property
     def num_constituents(self) -> int:
@@ -63,14 +59,6 @@ class AggregationMixin(object):
     @property
     def prices(self):
         raise NotImplementedError("Aggregations do not have price levels!")
-
-    def load(self) -> None:
-        """ Load the portfolio from base table and load the constituents.
-            Overrides the one in Asset.
-        """
-        super(AggregationMixin, self).load()
-        if not self._cnsts_loaded:
-            self._load_cnsts()
 
     def write_cnsts(self):
         """ Save to the database the constituents of the aggregation. """

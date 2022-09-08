@@ -3,7 +3,6 @@
 # Base class for company database
 #
 
-from itertools import groupby
 import pandas as pd
 import warnings
 
@@ -45,36 +44,19 @@ class Company(AggregationMixin, FinancialItem):
             warnings.warn(f'No fundamental data found for {self._uid}')
             return
 
-        # Create the sorted indices per date
-        id_a = sorted(set(pd.to_datetime(v[2]) for v in res if v[1] == 'A'))
-        id_q = sorted(set(pd.to_datetime(v[2]) for v in res if v[1] == 'Q'))
+        idx = pd.MultiIndex.from_tuples(
+            sorted(set((v[1], pd.to_datetime(v[2])) for v in res)),
+            names=('date', 'freq')
+        )
+        uids = sorted(set(v[0] for v in res))
+        df = pd.DataFrame(index=idx, columns=uids)
 
-        # Build the constituents data series
-        avail_data = []
-        # for code, g in groupby(_r, key=lambda f: f[0]):
-        for k, g in groupby(res, key=lambda f: f[0]):
-            has_a, has_q = False, False
-            s_a = pd.Series(index=id_a, dtype=float)
-            s_q = pd.Series(index=id_q, dtype=float)
-            for v in list(g):
-                date = pd.to_datetime(v[2])
+        for v in res:
+            dt = pd.to_datetime(v[2])
+            df.at[(v[1], dt), v[0]] = v[3]
 
-                # Populate the correct series
-                if v[1] == 'A':
-                    s_a.at[date] = v[3]
-                    has_a = True
-                else:
-                    s_q.at[date] = v[3]
-                    has_q = True
-
-            # Populate the final dictionary
-            if has_a:
-                self._dict_cnsts[('A', k)] = s_a
-                avail_data.append(('A', k))
-            if has_q:
-                self._dict_cnsts[('Q', k)] = s_q
-                avail_data.append(('Q', k))
-        self._cnsts_uids = avail_data
+        self._cnsts_df = df
+        self._cnsts_uids = uids
 
         # Signal constituents loaded
         self._cnsts_loaded = True
