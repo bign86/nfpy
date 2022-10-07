@@ -1,5 +1,5 @@
 #
-# Bond math functions
+# Bond math
 # Functions with bond math
 #
 

@@ -51,14 +51,10 @@ class FinancialsItem(BaseImportItem):
     from YahooFinancials where ticker = ?"""
     _Q_WRITE = """insert or replace into {dst_table}
     (uid, code, date, freq, value) values (?, ?, ?, ?, ?)"""
-    _Q_INCR = """ and date > ifnull((select max(date) from {dst_table}
-    where uid = '{uid}'), '1900-01-01')"""
 
     @staticmethod
     def _clean_data(data: list[tuple]) -> list[tuple]:
         """ Prepare results for import. """
-        _keep = ('BasicEPS', 'DilutedEPS', 'EPSactual', 'EPSestimate', 'TaxRateForCalcs')
-
         data_ins = []
         while data:
             item = data.pop(0)
@@ -67,11 +63,10 @@ class FinancialsItem(BaseImportItem):
             try:
                 field = YahooFinancialsMapping[item[1]][item[2]]
             except KeyError as ex:
-                print(item)
                 Ut.print_exc(ex)
                 continue
 
-            if field == '':
+            if field[0] == '':
                 continue
 
             # Adjust the date
@@ -79,12 +74,11 @@ class FinancialsItem(BaseImportItem):
             ref = off.BMonthEnd().rollforward(dt)
 
             # Divide to millions
-            norm = 1. if item[2] in _keep else 1e6
-            value = item[5] / norm
+            value = item[5] * field[2]
 
             # Build the new tuple
             data_ins.append(
-                (item[0], field, ref.strftime('%Y-%m-%d'), item[4], value)
+                (item[0], field[0], ref.strftime('%Y-%m-%d'), item[4], value)
             )
 
         return data_ins
@@ -299,13 +293,20 @@ class YahooHistoricalBasePage(YahooBasePage):
         self.params = p
 
     def _parse_csv(self) -> pd.DataFrame:
-        df = pd.read_csv(
-            StringIO(self._robj.text),
-            sep=',',
-            header=None,
-            names=self._COLUMNS,
-            skiprows=1
-        )
+
+        # FIXME: there are errors flying around. This is to intercept them and
+        #        understand what is going on.
+        try:
+            df = pd.read_csv(
+                StringIO(self._robj.text),
+                sep=',',
+                header=None,
+                names=self._COLUMNS,
+                skiprows=1
+            )
+        except pd.errors.ParserError as ex:
+            print(self._robj.text)
+            raise RuntimeError(ex)
 
         if df.empty:
             raise RuntimeWarning(f'{self.ticker} | no new data downloaded')

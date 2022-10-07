@@ -10,7 +10,7 @@ from typing import (Any, Optional)
 import nfpy.Assets as Ast
 import nfpy.Calendar as Cal
 import nfpy.Downloader as Dwn
-from nfpy.Tools import Constants as Cn
+from nfpy.Tools import (Constants as Cn, Utilities as Ut)
 
 
 class InputHandler(object):
@@ -205,7 +205,7 @@ class InputHandler(object):
                 value = default
                 _validated = True
             elif (not _v) and (optional is False):
-                print('!!! Mandatory !!!')
+                print(f'{Ut.Col.WARNING.value}--- Mandatory {Ut.Col.ENDC.value}')
             elif (not _v) and (optional is True):
                 _validated = True
             else:
@@ -213,7 +213,7 @@ class InputHandler(object):
                 if checker:
                     _validated, msg_out = self._validate(value, checker)
                     if not _validated:
-                        print(f'!!! Not valid: {msg_out}')
+                        print(f'{Ut.Col.WARNING.value}--- Not valid: {msg_out}{Ut.Col.ENDC.value}')
                 else:
                     _validated = True
         return value

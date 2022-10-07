@@ -56,10 +56,11 @@ class BaseImportItem(object):
             qr = qr.format(**self._d) + ';'
 
             data = self._db.execute(qr, params).fetchall()
+            data_clean = self._clean_data(data)
 
-            if len(data) > 0:
+            if len(data_clean) > 0:
                 self._db.executemany(
                     self._Q_WRITE.format(**self._d),
-                    self._clean_data(data),
+                    data_clean,
                     commit=True
                 )

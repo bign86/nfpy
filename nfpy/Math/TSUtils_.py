@@ -13,7 +13,16 @@ from nfpy.Tools import Exceptions as Ex
 
 
 def dropna(v: np.ndarray, axis: int = 0) -> tuple:
-    """ Drop NA from 2D input array. NOT inplace. """
+    """ Drop NA from 1D or 2D input array. NOT inplace.
+
+        Input:
+            v [np.ndarray]: input array
+            axis [int]: apply along axis (default: 0)
+
+        Ouput:
+            arr [np.ndarray]: output array
+            mask [np.ndarray]: boolean mask of nan values
+    """
     if len(v.shape) == 1:
         mask = ~np.isnan(v)
         _v = v[mask]
@@ -183,13 +192,17 @@ def last_valid_index(v: np.ndarray, start: Optional[int] = None,
 
         Output:
             i [int]: last valid index
+
+        Exceptions:
+            ShapeError: if array is not 1D or 2D
+            ValueError: if the series is all nans
     """
     if len(v.shape) == 1:
         v = v[None, :]
     elif (len(v.shape) == 2) & (axis == 1):
         v = v.T
     elif len(v.shape) > 2:
-        raise Ex.ShapeError('Only 1D and 2D arrays supported')
+        raise Ex.ShapeError('last_valid_index(): Only 1D and 2D arrays supported')
 
     n = v.shape[1]
     i = n - 1 \
@@ -199,7 +212,7 @@ def last_valid_index(v: np.ndarray, start: Optional[int] = None,
     while np.any(np.isnan(v[:, i])) and (i >= 0):
         i -= 1
     if i < 0:
-        raise ValueError('The series is all nans')
+        raise ValueError('last_valid_index(): The series is all nans')
     return i
 
 
@@ -216,6 +229,10 @@ def last_valid_value(v: np.ndarray, dt: Optional[np.ndarray] = None,
         Output:
             val [float]: value of the series at or before t0
             idx [int]: corresponding index
+
+        Exceptions:
+            ShapeError: if array is not 1D or 2D
+            ValueError: if the series is all nans
     """
     if len(v.shape) > 1:
         raise Ex.ShapeError('Only 1D arrays supported')
@@ -238,20 +255,24 @@ def next_valid_index(v: np.ndarray, start: int = 0, axis: int = 0) -> int:
 
         Output:
             i [int]: next valid index
+
+        Exceptions:
+            ShapeError: if array is not 1D or 2D
+            ValueError: if the series is all nans
     """
     if len(v.shape) == 1:
         v = v[None, :]
     elif (len(v.shape) == 2) & (axis == 1):
         v = v.T
     elif len(v.shape) > 2:
-        raise Ex.ShapeError('Only 1D and 2D arrays supported')
+        raise Ex.ShapeError('next_valid_index(): Only 1D and 2D arrays supported')
 
     i = start
     n = v.shape[1]
     while (i < n) and np.any(np.isnan(v[:, i])):
         i += 1
     if i == n:
-        raise ValueError('The series is all nans')
+        raise ValueError('next_valid_index(): The series is all nans')
     return i
 
 
@@ -268,6 +289,10 @@ def next_valid_value(v: np.ndarray, dt: Optional[np.ndarray] = None,
         Output:
             val [float]: value of the series at or after t0
             idx [int]: corresponding index
+
+        Exceptions:
+            ShapeError: if array is not 1D or 2D
+            ValueError: if the series is all nans
     """
     if len(v.shape) > 1:
         raise Ex.ShapeError('Only 1D arrays supported')

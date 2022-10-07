@@ -42,29 +42,29 @@ def analyze():
 
     y_n = norm.pdf(mids, *n_p)
     y_c = cauchy.pdf(mids, *c_p)
-    diff_n = (y_n - b)
-    diff_c = (y_c - b)
 
     pt, line = probplot(ret, dist=norm, fit=True)
     lx = np.array([np.min(pt[0]), np.max(pt[0])])
     ly = line[0] * lx + line[1]
 
-    return ret, b, y_n, y_c, diff_n, diff_c, pt, lx, ly, mids
+    return ret, b, y_n, y_c, pt, lx, ly, mids
 
 
 def plot():
-    ret, b, y_n, y_c, diff_n, diff_c, pt, lx, ly, mids = analysis
+    ret, b, y_n, y_c, pt, lx, ly, mids = analysis
 
     fig = plt.figure(constrained_layout=True)
     gs = fig.add_gridspec(2, 2)
     ax1 = fig.add_subplot(gs[0, 0])
     _ = ax1.hist(ret, bins=bins, density=True)
-    _ = ax1.plot(mids, y_n, linewidth=2.)
-    _ = ax1.plot(mids, y_c, linewidth=2.)
+    _ = ax1.plot(mids, y_n, linewidth=2., label='Normal')
+    _ = ax1.plot(mids, y_c, linewidth=2., label='Lorentz')
+    ax1.legend()
 
     ax2 = fig.add_subplot(gs[1, 0])
-    _ = ax2.plot(mids, diff_n, color='C1')
-    _ = ax2.plot(mids, diff_c, color='C2')
+    _ = ax2.plot(mids, (y_n - b), color='C1', label='Normal')
+    _ = ax2.plot(mids, (y_c - b), color='C2', label='Lorentz')
+    ax2.legend()
 
     ax3 = fig.add_subplot(gs[:, 1])
     _ = ax3.scatter(pt[0], pt[1], color='C0', alpha=.5)
@@ -104,8 +104,8 @@ if __name__ == '__main__':
                              idesc='int', is_list=True, optional=False)
         eq_list = tuple(res[i][0] for i in idx_list)
 
-    bins = inh.input("Give number of bins (default 10): ",
-                     default=10, idesc='int')
+    bins = inh.input("Give number of bins (default 51): ",
+                     default=51, idesc='int')
 
     analysis = analyze()
     plot()

@@ -245,16 +245,16 @@ class DownloadFactory(metaclass=Singleton):
             try:
                 print(f'{item.ticker} -> {item.provider}[{item.page}]')
                 # await loop.run_in_executor(None, self.do_test_download, item, do_save)
-                try:
-                    page = self.create_page_obj(
-                        item.provider, item.page, item.ticker
-                    ) \
-                        .initialize(params={'currency': item.currency}) \
-                        .fetch()
-                except RuntimeWarning as w:
-                    # DownloadFactory throws this error for codes != 200
-                    Ut.print_wrn(w)
-                    continue
+                # try:
+                page = self.create_page_obj(
+                    item.provider, item.page, item.ticker
+                ) \
+                    .initialize(params={'currency': item.currency}) \
+                    .fetch()
+                # except RuntimeWarning as w:
+                #     # DownloadFactory throws this error for codes != 200
+                #     Ut.print_wrn(w)
+                #     continue
                 if do_save is True:
                     page.save()
                 else:
@@ -308,8 +308,8 @@ class DownloadFactory(metaclass=Singleton):
             except Ex.CalendarError as cal:
                 raise cal
             except (Ex.MissingData, Ex.IsNoneError,
-                    RuntimeError, RequestException) as e:
-                print(e)
+                    RuntimeError, ValueError, RequestException) as e:
+                Ut.print_exc(e)
 
 
 def get_dwnf_glob() -> DownloadFactory:

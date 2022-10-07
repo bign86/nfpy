@@ -4,7 +4,7 @@
 #
 
 from abc import (ABCMeta, abstractmethod)
-from typing import (Any, Optional, TypeVar)
+from typing import (Any, TypeVar)
 
 import nfpy.Assets as Ast
 from nfpy.Tools import Utilities as Ut
@@ -43,7 +43,7 @@ class BaseFundamentalModel(metaclass=ABCMeta):
             raise ValueError(f'BaseFundamentalModel(): something wrong with {uid}')
 
         # Working data
-        self._dt = {}
+        self._res = self._RES_OBJ()
         self._is_calculated = False
         self._freq = None
 
@@ -53,18 +53,9 @@ class BaseFundamentalModel(metaclass=ABCMeta):
             self._calc_freq()
         return self._freq
 
-    def _res_update(self, **kwargs) -> None:
-        self._dt.update(kwargs)
-
-    def _create_output(self, outputs: Optional[dict] = None) \
-            -> TyFundamentalModelResult:
-        res = self._RES_OBJ()
-        for k, v in self._dt.items():
-            setattr(res, k, v)
-        if outputs:
-            for k, v in outputs.items():
-                setattr(res, k, v)
-        return res
+    def _res_update(self, d: dict) -> TyFundamentalModelResult:
+        self._res.update(d)
+        return self._res
 
     def result(self, **kwargs) -> TyFundamentalModelResult:
         # Main calculations
@@ -73,7 +64,7 @@ class BaseFundamentalModel(metaclass=ABCMeta):
             self._is_calculated = True
 
         # On-the-fly calculations and outputs
-        return self._create_output(
+        return self._res_update(
             self._otf_calculate(**kwargs)
         )
 

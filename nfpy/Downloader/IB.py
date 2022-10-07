@@ -8,17 +8,17 @@ import pandas.tseries.offsets as off
 from time import sleep
 import xml.etree.ElementTree as ET
 
-from nfpy.Tools import get_conf_glob
+from nfpy.Tools import (get_conf_glob, Utilities as Ut)
 
 from .BaseDownloader import BasePage
 from .BaseProvider import BaseImportItem
-from .DownloadsConf import IBFundamentalsConf
+from .DownloadsConf import (IBFinancialsConf, IBFinancialsMapping)
 from .IBApp import *
 
 
 class FinancialsItem(BaseImportItem):
     _MODE = 'SPLIT'
-    _Q_READ = """select distinct '{uid}', code, date, freq, value
+    _Q_READ = """select distinct '{uid}', statement, code, date, freq, value
     from IBFinancials where ticker = ?"""
     _Q_WRITE = """insert or replace into {dst_table}
     (uid, code, date, freq, value) values (?, ?, ?, ?, ?)"""
@@ -36,13 +36,22 @@ class FinancialsItem(BaseImportItem):
         while data:
             item = data.pop(0)
 
+            # Map the field
+            try:
+                field = IBFinancialsMapping[item[1]][item[2]]
+            except KeyError as ex:
+                Ut.print_exc(ex)
+                continue
+
             # Adjust the date
-            dt = item[2] - off.BDay(10)
+            dt = item[3] - off.BDay(10)
             ref = off.BMonthEnd().rollforward(dt)
+
+            value = item[5] * field[2]
 
             # Build the new tuple
             data_ins.append(
-                (item[0], item[1], ref.strftime('%Y-%m-%d'), item[3], item[4])
+                (item[0], item[2], ref.strftime('%Y-%m-%d'), item[4], value)
             )
 
         return data_ins
@@ -85,7 +94,7 @@ class IBBasePage(BasePage):
 
 class FinancialsPage(IBBasePage):
     _PAGE = 'Financials'
-    _COLUMNS = IBFundamentalsConf
+    _COLUMNS = IBFinancialsConf
     _TABLE = 'IBFinancials'
 
     def _local_initializations(self) -> None:
@@ -118,7 +127,7 @@ class FinancialsPage(IBBasePage):
 
 class EPSPage(IBBasePage):
     _PAGE = 'EPS'
-    _COLUMNS = IBFundamentalsConf
+    _COLUMNS = IBFinancialsConf
     _TABLE = ''
 
     def _local_initializations(self) -> None:
@@ -136,7 +145,7 @@ class EPSPage(IBBasePage):
 
 class RatiosPage(IBBasePage):
     _PAGE = 'Ratios'
-    _COLUMNS = IBFundamentalsConf
+    _COLUMNS = IBFinancialsConf
     _TABLE = ''
 
     def _local_initializations(self) -> None:

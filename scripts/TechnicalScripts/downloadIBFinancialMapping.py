@@ -13,8 +13,8 @@ __version__ = '0.2'
 _TITLE_ = "<<< Interactive Brokers financials mapping download script >>>"
 
 
-def ibdownload(tck_, ccy_, cf_) -> str:
-    app = IBAppFundamentals()
+def ibdownload(tck_, ccy_, cf_, req_) -> str:
+    app = IBAppFundamentals(req_)
     app.addContracts(tck_, ccy_)
     app.connect(cf_.ib_interface, cf_.ib_tws_port, cf_.ib_client_id)
     app.run()
@@ -50,29 +50,31 @@ if __name__ == '__main__':
     db = DB.get_db_glob()
     conf = get_conf_glob()
 
-    ticker = ['KO', '']
+    ticker = ['PST', 'BVME']
     provider = 'IB'
     page = 'Financials'
-    ccy = 'USD'
+    ccy = 'EUR'
+    req = 'ReportsFinStatements'
     save = False
 
-    new_map, new_dt = parsexml(ibdownload(ticker, ccy, conf))
+    new_map, new_dt = parsexml(
+        ibdownload(ticker, ccy, conf, req)
+    )
     old_map, old_dt = fetchfromdb(db, qb)
 
     diff_map = new_map - old_map
     diff_dt = new_dt - old_dt
-    print(f'Downloaded\tmaps: {len(new_map)}\t-\tdatatypes: {len(new_dt)}\n'
-          f'Existing\tmaps: {len(old_map)}\t-\tdatatypes: {len(old_dt)}\n'
-          f'To be added\tmaps: {len(diff_map)}\t-\tdatatypes: {len(diff_dt)}')
+    print(
+        f'Downloaded\tmaps: {len(new_map)}\t-\tdatatypes: {len(new_dt)}\n'
+        f'Existing\tmaps: {len(old_map)}\t-\tdatatypes: {len(old_dt)}\n'
+        f'To be added\tmaps: {len(diff_map)}'
+    )
 
     if save:
         map_q = qb.insert('MapFinancials')
-        dt_q = qb.insert('DecDatatype')
         db.executemany(map_q, diff_map)
-        db.executemany(dt_q, diff_dt)
     else:
-        _nl = '\n'
-        print(f'MapFinancials\n{_nl.join(diff_map)}'
-              f'DecDatatype\n{_nl.join(diff_dt)}\n')
+        _nl = '\n'.join(list(diff_map))
+        print(f'MapFinancials\n{_nl}')
 
-    print('done!')
+    print('All done!')

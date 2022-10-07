@@ -26,7 +26,7 @@ class Aroon(BaseIndicator):
         self._aro_up = None
         self._aro_dwn = None
 
-        super(Aroon, self).__init__(ts, is_bulk)
+        super(Aroon, self).__init__(ts, is_bulk, (1,))
 
     def _bulk(self, t0: int) -> None:
         self._aro = np.empty(self._max_t, dtype=float)
@@ -123,7 +123,7 @@ class Atr(BaseIndicator):
         self._w = w
         self._atr = None
 
-        super(Atr, self).__init__(ts, is_bulk)
+        super(Atr, self).__init__(ts, is_bulk, (1, 3))
 
         if len(ts.shape) == 1:
             self._is_hlc = False
@@ -209,7 +209,7 @@ class Cci(BaseIndicator):
         self._sma = .0
         self._mad = .0
 
-        super(Cci, self).__init__(ts, is_bulk)
+        super(Cci, self).__init__(ts, is_bulk, (1,))
 
     def _bulk(self, t0: int) -> None:
         self._cci = np.empty(self._max_t, dtype=float)
@@ -263,10 +263,10 @@ class Fi(BaseIndicator):
     def __init__(self, ts: np.ndarray, is_bulk: bool):
         self._fi = None
 
-        if len(ts.shape) != 2:
-            raise ValueError(f"Indicator {self._NAME}: Input malformed: ts.shape != (2,n)")
-
-        super(Fi, self).__init__(ts, is_bulk)
+        # if len(ts.shape) != 2:
+        #     raise ValueError(f"Indicator {self._NAME}: Input malformed: ts.shape != (2,n)")
+        #
+        super(Fi, self).__init__(ts, is_bulk, (2,))
 
     def _bulk(self, t0: int) -> None:
         self._fi = np.empty(self._max_t, dtype=float)
@@ -310,10 +310,7 @@ class FiElder(BaseIndicator):
         self._fi = None
         self._fie = None
 
-        if len(ts.shape) != 2:
-            raise ValueError(f"Indicator {self._NAME}: Input malformed: ts.shape != (2,n)")
-
-        super(FiElder, self).__init__(ts, is_bulk)
+        super(FiElder, self).__init__(ts, is_bulk, (2,))
 
     def _bulk(self, t0: int) -> None:
         self._fi = np.empty(self._max_t, dtype=float)
@@ -367,14 +364,11 @@ class Mfi(BaseIndicator):
         self._roll_pos_mf = 0
         self._roll_neg_mf = 0
 
-        if len(ts.shape) not in (2, 4):
-            raise ValueError(f"Indicator {self._NAME}: Input malformed: ts.shape != (2,n) or (4,n)")
-
         if ts.shape[0] == 4:
             tp = np.sum(ts[:3, :], axis=1) / 3.
             ts = np.vstack(tp, ts[3, :])
 
-        super(Mfi, self).__init__(ts, is_bulk)
+        super(Mfi, self).__init__(ts, is_bulk, (2,))
 
     def _bulk(self, t0: int) -> None:
         self._mfi = np.empty(self._max_t, dtype=float)
@@ -444,7 +438,7 @@ class RsiCutler(BaseIndicator):
         self._ma_up = .0
         self._ma_down = .0
 
-        super(RsiCutler, self).__init__(ts, is_bulk)
+        super(RsiCutler, self).__init__(ts, is_bulk, (1,))
 
     def _bulk(self, t0: int) -> None:
         self._rsi = np.empty(self._max_t, dtype=float)
@@ -515,11 +509,10 @@ class RsiWilder(BaseIndicator):
         self._ma_up = .0
         self._ma_down = .0
 
-        super(RsiWilder, self).__init__(ts, is_bulk)
+        super(RsiWilder, self).__init__(ts, is_bulk, (1,))
 
     def _bulk(self, t0: int) -> None:
         self._rsi = np.empty(self._max_t, dtype=float)
-        # self._rsi[:self._w - 1] = np.nan
         self._up = np.empty(self._max_t, dtype=float)
         self._down = np.empty(self._max_t, dtype=float)
 
@@ -591,12 +584,9 @@ class Stochastic(BaseIndicator):
         self._p_d = None
         self._p_d_slow = None
 
-        super(Stochastic, self).__init__(ts, is_bulk)
+        super(Stochastic, self).__init__(ts, is_bulk, (1,))
 
     def _bulk(self, t0: int) -> None:
-        # n = self._ts.shape[0]
-        # self._ma_pk = np.empty(self._max_t, dtype=float)
-        # self._ma_pk[:self._wp - 1] = np.nan
         self._p_k = np.empty(self._max_t, dtype=float)
         self._p_d = np.empty(self._max_t, dtype=float)
         self._p_d_slow = np.empty(self._max_t, dtype=float)
@@ -668,12 +658,12 @@ class Tr(BaseIndicator):
     def __init__(self, ts: np.ndarray, is_bulk: bool):
         self._tr = None
 
-        super(Tr, self).__init__(ts, is_bulk)
+        super(Tr, self).__init__(ts, is_bulk, (3,))
 
         if len(ts.shape) == 1:
             self._is_hlc = False
             setattr(self, '_ind', self._ind_c)
-        elif (len(ts.shape) == 2) and (ts.shape[0] == 3):
+        elif len(ts.shape) == 2:
             self._is_hlc = True
             setattr(self, '_ind', self._ind_hlc)
         else:
@@ -748,7 +738,7 @@ class Tsi(BaseIndicator):
         self._ema_fsabs = None
         self._ema_apc = None
 
-        super(Tsi, self).__init__(ts, is_bulk)
+        super(Tsi, self).__init__(ts, is_bulk, (1,))
 
     def _bulk(self, t0: int) -> None:
         self._tsi = np.empty(self._max_t, dtype=float)
@@ -801,3 +791,44 @@ class Tsi(BaseIndicator):
     @property
     def min_length(self) -> int:
         return self._ws + self._wf
+
+
+class Vwap(BaseIndicator):
+    """ Calculates the Volume Weighted Average Price (VWAP). The ts array is
+        expected with shape (2, n) with structure:
+            <close, volume>.
+    """
+
+    _NAME = 'vwap'
+
+    def __init__(self, ts: np.ndarray, is_bulk: bool, w: int):
+        self._w = w
+        self._vwap = None
+
+        super(Vwap, self).__init__(ts, is_bulk, (2,))
+
+    def _bulk(self, t0: int) -> None:
+        self._vwap = np.empty(self._max_t, dtype=float)
+
+        end = self._max_t if self._is_bulk else t0 + 1
+        p = Math.rolling_window(self._ts[0, :end], self._w)
+        v = Math.rolling_window(self._ts[1, :end], self._w)
+
+        self._vwap[:end] = np.nansum(p * v, axis=1) / np.nansum(v, axis=1)
+
+    def get_indicator(self) -> dict:
+        return {'vwap': self._vwap}
+
+    def _ind_bulk(self) -> Union[float, tuple]:
+        return self._vwap[self._t]
+
+    def _ind_online(self) -> Union[float, tuple]:
+        p = self._ts[self._t - self._w: self._t]
+        v = self._ts[self._t - self._w: self._t]
+        vwap = np.nansum(p * v) / np.nansum(v)
+        self._vwap[self._t] = vwap
+        return vwap
+
+    @property
+    def min_length(self) -> int:
+        return self._w

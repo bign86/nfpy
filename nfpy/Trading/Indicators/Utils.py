@@ -1,6 +1,6 @@
 #
 # Utilities
-# Utilities for indicator functions and classes.
+# Functions for indicator functions and classes.
 #
 
 import numpy as np

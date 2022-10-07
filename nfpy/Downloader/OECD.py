@@ -5,6 +5,7 @@
 
 import json
 import pandas as pd
+import pandas.tseries.offsets as off
 
 from nfpy.Calendar import today
 
@@ -14,10 +15,34 @@ from .DownloadsConf import OECDSeriesConf
 
 
 class ClosePricesItem(BaseImportItem):
-    _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
-    select '{uid}', '1', date_code, value from OECDSeries where ticker = ?"""
-    _Q_INCR = """ and date_code > ifnull((select max(date) from {dst_table}
-    where uid = '{uid}'), '1900-01-01')"""
+    _MODE = 'SPLIT'
+    _Q_READ = """select '{uid}', '1', date_code, value from OECDSeries where ticker = ?"""
+    _Q_WRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
+    values (?, ?, ?, ?)"""
+    _Q_INCR = """ and date_code > iif(substr(ticker, length(ticker)) == 'M',
+    substr(ifnull((select max(date) from RateTS where uid = '{uid}'),
+    '1900-01-01'),1,7),substr(ifnull((select max(date) from RateTS
+    where uid = '{uid}'),'1900-01-01'),1,4))"""
+
+    @staticmethod
+    def _clean_data(data: list[tuple]) -> list[tuple]:
+        """ Prepare results for import. """
+        data_ins = []
+        while data:
+            item = data.pop(0)
+
+            # Adjust the date
+            dt = str(item[2])
+            if len(dt) == 4:
+                dt += '-01'
+            ref = off.BMonthBegin().rollforward(dt)
+
+            # Build the new tuple
+            data_ins.append(
+                (item[0], item[1], ref.strftime('%Y-%m-%d'), item[3])
+            )
+
+        return data_ins
 
 
 class SeriesPage(BasePage):
@@ -117,24 +142,26 @@ class SeriesPage(BasePage):
                 measure_list[dims[2]]['name'],
             ]
             if len(dims) == 4:
-                dt = time_list[dims[3]]['id']
-                _format = '%Y' if len(dt) == 4 else '%Y-%m'
+                # dt = time_list[dims[3]]['id']
+                # _format = '%Y' if len(dt) == 4 else '%Y-%m'
                 row.extend(
                     [
                         frequency_list[0]['id'],
                         frequency_list[0]['name'],
-                        pd.to_datetime(dt, format=_format),
+                        # pd.to_datetime(dt, format=_format).date(),
+                        time_list[dims[3]]['id'],
                         time_list[dims[3]]['name'],
                     ]
                 )
             elif len(dims) == 5:
-                dt = time_list[dims[4]]['id']
-                _format = '%Y' if len(dt) == 4 else '%Y-%m'
+                # dt = time_list[dims[4]]['id']
+                # _format = '%Y' if len(dt) == 4 else '%Y-%m'
                 row.extend(
                     [
                         frequency_list[dims[3]]['id'],
                         frequency_list[dims[3]]['name'],
-                        pd.to_datetime(dt, format=_format),
+                        # pd.to_datetime(dt, format=_format).date(),
+                        time_list[dims[3]]['id'],
                         time_list[dims[4]]['name'],
                     ]
                 )

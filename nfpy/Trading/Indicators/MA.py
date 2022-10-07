@@ -20,7 +20,7 @@ class Sma(BaseIndicator):
         self._w = w
         self._ma = None
 
-        super(Sma, self).__init__(ts, is_bulk)
+        super(Sma, self).__init__(ts, is_bulk, (1,))
 
     def _bulk(self, t0: int) -> None:
         self._ma = np.empty(self._max_t, dtype=float)
@@ -61,7 +61,7 @@ class Smstd(BaseIndicator):
         self._dof = ddof
         self._std = None
 
-        super(Smstd, self).__init__(ts, is_bulk)
+        super(Smstd, self).__init__(ts, is_bulk, (1,))
 
     def _bulk(self, t0: int) -> None:
         self._std = np.empty(self._max_t, dtype=float)
@@ -103,7 +103,7 @@ class Csma(BaseIndicator):
         self._sum = .0
         self._count = 0
 
-        super(Csma, self).__init__(ts, is_bulk)
+        super(Csma, self).__init__(ts, is_bulk, (1,))
 
     def _bulk(self, t0: int) -> None:
         self._ma = np.empty(self._max_t, dtype=float)
@@ -114,7 +114,6 @@ class Csma(BaseIndicator):
             slc = slice(None, t0 + 1)
 
         _sum = np.nancumsum(self._ts[slc])
-        # _div = np.cumsum(~np.isnan(self._ts[slc]))
         _div = np.array(range(self._ts[slc]))
         self._ma[slc] = _sum / _div
 
@@ -150,7 +149,7 @@ class Ewma(BaseIndicator):
         self._alpha = 2. / (1. + w)
         self._c = 1. - self._alpha
 
-        super(Ewma, self).__init__(ts, is_bulk)
+        super(Ewma, self).__init__(ts, is_bulk, (1,))
 
     def _bulk(self, t0: int) -> None:
         self._ma = np.empty(self._max_t, dtype=float)
@@ -185,7 +184,7 @@ class Smd(BaseIndicator):
         self._w = w
         self._smd = None
 
-        super(Smd, self).__init__(ts, is_bulk)
+        super(Smd, self).__init__(ts, is_bulk, (1,))
 
     def _bulk(self, t0: int) -> None:
         self._smd = np.empty(self._max_t, dtype=float)
@@ -239,7 +238,7 @@ class Macd(BaseIndicator):
         self._signal = None
         self._hist = None
 
-        super(Macd, self).__init__(ts, is_bulk)
+        super(Macd, self).__init__(ts, is_bulk, (1,))
 
     def _bulk(self, t0: int) -> None:
         self._macd = np.empty(self._max_t, dtype=float)
@@ -296,7 +295,7 @@ class Dema(BaseIndicator):
         self._ma1 = .0
         self._ma2 = .0
 
-        super(Dema, self).__init__(ts, is_bulk)
+        super(Dema, self).__init__(ts, is_bulk, (1,))
 
     def _bulk(self, t0: int) -> None:
         self._dema = np.empty(self._max_t, dtype=float)
@@ -344,7 +343,7 @@ class Tema(BaseIndicator):
         self._ma2 = .0
         self._ma3 = .0
 
-        super(Tema, self).__init__(ts, is_bulk)
+        super(Tema, self).__init__(ts, is_bulk, (1,))
 
     def _bulk(self, t0: int) -> None:
         self._tema = np.empty(self._max_t, dtype=float)
@@ -397,7 +396,7 @@ class Alma(BaseIndicator):
         )
         self._norm = np.sum(self._factor)
 
-        super(Alma, self).__init__(ts, is_bulk)
+        super(Alma, self).__init__(ts, is_bulk, (1,))
 
     def _bulk(self, t0: int) -> None:
         self._ma = np.empty(self._max_t, dtype=float)

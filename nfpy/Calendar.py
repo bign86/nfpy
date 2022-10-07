@@ -115,7 +115,7 @@ class Calendar(metaclass=Singleton):
 
     def initialize(self, end: TyDate, start: Optional[TyDate] = None,
                    periods: Optional[int] = None, fmt: str = '%Y-%m-%d'
-                ) -> None:
+                   ) -> None:
         if self._initialized:
             return
 
@@ -134,7 +134,7 @@ class Calendar(metaclass=Singleton):
         else:
             self._end = pd.to_datetime(end, format=fmt)
         if not start:
-            self._start = self.shift(self._end, -periods)
+            self._start = self.shift(self._end, -periods, 'B')
         else:
             if isinstance(start, pd.Timestamp):
                 self._start = start
@@ -153,7 +153,7 @@ class Calendar(metaclass=Singleton):
 
         offset = max(0, self._end.weekday() - 4)
         # offset = min(2, max(0, (self.end.weekday() + 6) % 7 - 3))
-        self._t0 = self.end - off.Day(offset)
+        self._t0 = self.end - off.BDay(offset)
 
         print(f' * Calendar dates: {self._start.date()} -> '
               f'{self._end.date()} : {self._t0.date()}',
@@ -237,7 +237,7 @@ def date_2_datetime(dt: Union[TyDate, TyTimeSequence], fmt: str = '%Y-%m-%d') \
 
 
 def today(mode: str = 'date', fmt: str = '%Y-%m-%d') -> TyDate:
-    """ Return a string with today date. By default returns a datetime.date
+    """ Return a string with today date. Per default returns a datetime.date
         object. The return type depends on the mode attribute:
           1. date (default): datetime.date
           2. str: string
@@ -276,8 +276,20 @@ def last_business(offset: int = 1, mode: str = 'str',
     return lbd_
 
 
+def ensure_business_day(dt: TyDate) -> TyDate:
+    """ Return the previous business day if the given date is not a
+        business day.
+    """
+    if not isinstance(dt, pd.Timestamp):
+        dt = pd.Timestamp(dt)
+    ldb = dt - 0 * off.BDay(1)
+    if dt != ldb:
+        dt = dt - off.BDay(1)
+    return dt.date()
+
+
 def now(mode: str = 'datetime', fmt: str = '%Y-%m-%d %H:%M') -> TyDate:
-    """ Return a string with current date and time.  By default returns a
+    """ Return a string with current date and time. By default, returns a
         datetime.datetime object. The return type depends on the mode attribute:
           1. datetime (default): datetime.datetime
           2. str: string

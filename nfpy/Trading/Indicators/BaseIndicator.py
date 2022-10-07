@@ -13,7 +13,7 @@ from .Utils import (_check_len, _check_nans)
 class BaseIndicator(metaclass=ABCMeta):
     _NAME = ''
 
-    def __init__(self, ts: np.ndarray, is_bulk: bool):
+    def __init__(self, ts: np.ndarray, is_bulk: bool, dims: tuple):
         self._ts = ts
         self._is_bulk = is_bulk
 
@@ -21,6 +21,7 @@ class BaseIndicator(metaclass=ABCMeta):
         # self._max_t = ts.shape[max(0, len(ts.shape) - 1)]
         self._max_t = ts.shape[len(ts.shape) - 1]
 
+        self._check_dims(ts, dims)
         _check_nans(ts)
         _check_len(ts, self.min_length + 1)
 
@@ -28,6 +29,15 @@ class BaseIndicator(metaclass=ABCMeta):
             setattr(self, '_ind', self._ind_bulk)
         else:
             setattr(self, '_ind', self._ind_online)
+
+    def _check_dims(self, _ts: np.ndarray, _dims: tuple):
+        for d in _dims:
+            if d == 1:
+                if len(_ts.shape) != 1:
+                    raise ValueError(f'Indicator {self._NAME}: ts dims != 1')
+            elif d > 1:
+                if (len(_ts.shape) == 1) or (_ts.shape[0] != d):
+                    raise ValueError(f'Indicator {self._NAME}: ts dims != {d}')
 
     def start(self, t0: int) -> None:
         """ Start the indicator. In bulk mode, calculates the whole history.

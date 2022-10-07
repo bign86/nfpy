@@ -21,6 +21,7 @@ SQLITE2PY_CONVERSION = {
     'NUMERIC': 'int',
     'PARAMETERS': 'json',
     'REAL': 'float',
+    'SHORTDATE': 'date',
     'TEXT': 'str',
 }
 
@@ -77,7 +78,6 @@ def convert_date(val) -> date:
         val = b'-'.join(quarter)
     return isoparse(val).date()
 
-
 def adapt_parameters(val) -> Any:
     """ Converts from PARAMETERS to json. """
     return json.dumps(val)
@@ -86,6 +86,18 @@ def adapt_parameters(val) -> Any:
 def convert_parameters(val) -> Any:
     """ Converts from PARAMETERS to json. """
     return json.loads(val)
+
+
+def convert_short_date(val) -> date:
+    """ Converts from SHORTDATE to datetime.date. """
+    if b'Q' in val:
+        quarter = val.split(b'Q')[::-1]
+        month = str(int(quarter[1]) * 3)
+        if len(month) == 1:
+            month = '0' + month
+        quarter[1] = str.encode(month)
+        val = b'-'.join(quarter)
+    return isoparse(val).date()
 
 
 # Register the adapters

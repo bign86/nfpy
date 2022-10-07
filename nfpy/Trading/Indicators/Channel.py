@@ -26,7 +26,7 @@ class Bollinger(BaseIndicator):
         self._bp = None
         self._b_width = None
 
-        super(Bollinger, self).__init__(ts, is_bulk)
+        super(Bollinger, self).__init__(ts, is_bulk, (1,))
 
     def _bulk(self, t0: int) -> None:
         n = self._ts.shape[0]
@@ -100,13 +100,13 @@ class Donchian(BaseIndicator):
         self._low = None
         self._high = None
 
-        super(Donchian, self).__init__(ts, is_bulk)
+        super(Donchian, self).__init__(ts, is_bulk, (1, 2))
 
         if len(ts.shape) == 1:
             self._is_hl = True
             if not self._is_bulk:
                 setattr(self, '_ind', self._ind_c)
-        elif (len(ts.shape) == 2) and (ts.shape[0] == 2):
+        elif len(ts.shape) == 2:
             self._is_hl = False
             if not self._is_bulk:
                 setattr(self, '_ind', self._ind_hl)

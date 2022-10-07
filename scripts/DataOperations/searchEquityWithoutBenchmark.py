@@ -27,10 +27,11 @@ if __name__ == '__main__':
     if not eq_list:
         print('No equities without benchmark found...')
     else:
-        msg = f">>> Equities without an index\n\n'" \
-              f"{'uid':12}: {'ticker':8}\t{'isin':12}\t{'company':8}"
+        msg = f">>> Equities without an index\n\n" \
+              f"{'uid':^12}: {'ticker':^8}\t{'isin':^12}\t{'company':^8}\n" \
+                f"------------------------------------------------\n"
         for eq in eq_list:
-            msg += f'{eq[0]:12}: {eq[1]:8}\t{eq[2]:12}\t{eq[3]:8}'
+            msg += f'{eq[0]:^12}: {eq[1]:^8}\t{eq[2]:^12}\t{eq[3]:^8}'
         print(msg, end='\n\n')
 
     print('All done!')

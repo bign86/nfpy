@@ -40,7 +40,7 @@ class ReportCompanies(BaseReport):
         self._hist_slc = None
 
     def _init_input(self, type_: Optional[str] = None) -> None:
-        """ Prepare and validate the the input parameters for the model. This
+        """ Prepare and validate the input parameters for the model. This
             includes verifying the parameters are correct for the models in the
             report. Takes the default parameters if any, applies the values from
             the database and the asset-specific overlays if any.
@@ -83,7 +83,7 @@ class ReportCompanies(BaseReport):
                 self._calc_company(asset, res)
                 outputs[uid] = res
 
-            except (RuntimeError, Ex.AssetTypeError) as ex:
+            except (ValueError, KeyError, Ex.AssetTypeError) as ex:
                 Ut.print_exc(ex)
 
         return outputs
@@ -167,9 +167,9 @@ class ReportCompanies(BaseReport):
             # Save out figure
             IO.TSPlot(yl=('Dividend',)) \
                 .lplot(0, ddm_res.div_ts, marker='o', label='historical') \
-                .lplot(0, ddm_res.div_no_growth[0, :], ddm_res.div_no_growth[1, :],
+                .lplot(0, ddm_res.dates, ddm_res.div_no_growth,
                        marker='o', label='no growth') \
-                .lplot(0, ddm_res.div_growth[0, :], ddm_res.div_growth[1, :],
+                .lplot(0, ddm_res.dates, ddm_res.div_growth,
                        marker='o', label='w/ growth') \
                 .plot() \
                 .save(fig_full[0]) \

@@ -1,5 +1,5 @@
 #
-# Yields and Returns functions
+# Yields and Returns
 # Functions to deal with yields and returns
 #
 

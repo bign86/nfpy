@@ -11,7 +11,7 @@ from random import randint
 
 from nfpy.Calendar import today
 from nfpy.DatatypeFactory import get_dt_glob
-from nfpy.Tools import Exceptions as Ex
+from nfpy.Tools import (Exceptions as Ex, Utilities as Ut)
 
 from .BaseDownloader import BasePage
 from .BaseProvider import BaseImportItem
@@ -48,17 +48,24 @@ class FinancialsItem(BaseImportItem):
             item = data.pop(0)
 
             # Map the field
-            field = InvestingFinancialsMapping[item[1]][item[2]]
-            if field == '':
+            try:
+                field = InvestingFinancialsMapping[item[1]][item[2]]
+            except KeyError as ex:
+                Ut.print_exc(ex)
+                continue
+
+            if field[0] == '':
                 continue
 
             # Adjust the date
             dt = item[3] - off.BDay(10)
             ref = off.BMonthEnd().rollforward(dt)
 
+            value = item[5] * field[2]
+
             # Build the new tuple
             data_ins.append(
-                (item[0], field, ref.strftime('%Y-%m-%d'), item[4], item[5])
+                (item[0], field[0], ref.strftime('%Y-%m-%d'), item[4], value)
             )
 
         return data_ins

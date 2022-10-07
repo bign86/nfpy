@@ -153,7 +153,7 @@ class ReportMarketShort(BaseReport):
         df = DividendFactory(asset)
         res.freq_div = df.frequency
         _, yrl_div = df.annual_dividends
-        _, yrl_yield = df.div_yields()
+        _, yrl_yield = df.annual_yields()
         if len(yrl_yield) > 0:
             res.ytd_yrl_div = yrl_div[-1]
             res.ytd_yrl_yield = yrl_yield[-1] * 100.
@@ -178,8 +178,8 @@ class ReportMarketShort(BaseReport):
             self._hist_slc.stop
         )
 
-        # pl = IO.TSPlot(figsize=(10, 4)) \
-        #     .lplot(0, dt_p[slc], v_p[slc], label=asset.ticker)
+        pl = IO.TSPlot(figsize=(10, 4)) \
+            .lplot(0, dt_p[slc], v_p[slc], label=asset.ticker)
 
         bench_uid = asset.index
         if bench_uid is not None:
@@ -187,12 +187,12 @@ class ReportMarketShort(BaseReport):
             bench_perf = Math.comp_ret(bench_r[slc], is_log=False) \
                          * Math.next_valid_value(v_p[slc])[0]
 
-            # pl.lplot(0, dt_p[slc], bench_perf, color='C2',
-            #          linewidth=1.5, label=bench_uid)
+            pl.lplot(0, dt_p[slc], bench_perf, color='C2',
+                     linewidth=1.5, label=bench_uid)
 
-        # pl.plot() \
-        #     .save(fig_full[0]) \
-        #     .close(True)
+        pl.plot() \
+            .save(fig_full[0]) \
+            .close(True)
 
         # Statistics table and betas
         stats = np.empty((5, len(self._span_slc)))
@@ -240,7 +240,7 @@ class ReportMarketShort(BaseReport):
             },
         )
 
-        # Dividends Discount Calculation
+        # Dividends Discount Model Calculation
         try:
             p = self._p.get('DDM', {})
             ddm_res = DDM(asset.uid, **p).result(**p)
@@ -324,7 +324,6 @@ class ReportMarketShort(BaseReport):
 
         # Pivots
         # The pivots are calculated on the same length of series of the MAs
-
         #
         # if self._p['pivots']['type'] == 'volatility':
         #     ret = asset.returns.values[w_slow:]

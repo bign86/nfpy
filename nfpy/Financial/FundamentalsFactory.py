@@ -1,186 +1,287 @@
 #
-# Fundamentals Factory class
+# Fundamentals Factory
 # Class to handle the calculations of fundamental quantities
 #
 
-import pandas as pd
-from typing import Callable
+import numpy as np
+from typing import (Callable, Optional)
 
-from nfpy.Tools import Exceptions as Ex
+from nfpy.Tools import (Exceptions as Ex, Utilities as Ut)
 
 
 class FundamentalsFactory(object):
+    __slots__ = ['_comp', '_cnst', '_labels', '_df_a', '_df_q', '_df_t']
 
     def __init__(self, company):
         self._comp = company
-        self._cnst = company.constituents
+        self._cnst = company.cnsts_df
+        self._labels = company.constituents_uids
+
+        dfa = company.cnsts_df.loc[('A', slice(None)), :]
+        dfa.index = dfa.index.droplevel(0)
+        self._df_a = dfa
+        dfq = company.cnsts_df.loc[('Q', slice(None)), :]
+        dfq.index = dfq.index.droplevel(0)
+        self._df_q = dfq
+        dft = company.cnsts_df.loc[('TTM', slice(None)), :]
+        dft.index = dft.index.droplevel(0)
+        self._df_t = dft
 
     def _financial(self, code: str, freq: str,
-                   callb: Callable = None) -> pd.Series:
+                   callb: Optional[Callable] = None,
+                   cb_args: Optional[tuple] = None) \
+            -> tuple[np.ndarray, np.ndarray]:
         """ Base function to return fundamental data. """
-        tpl = (freq, code)
-        try:
-            d = self._comp.constituents[tpl]
-            d.name = code
-            return d
-        except KeyError as ke:
-            if not callb:
-                raise ke
-            else:
-                d = callb(freq)
-                self._comp.constituents[tpl] = d
-                self._comp.constituents_uids.append(tpl)
-                return d
+        df = self._df_a if freq == 'A' else self._df_q
+        res = np.array([np.nan] * len(df))
 
-    def get_index(self, freq: str) -> pd.Series:
-        return self._comp.constituents[(freq, 'ATOT')].index
+        if code in self._labels:
+            v = df[code].values
+            mask = np.isnan(res)
+            res[mask] = v[mask]
 
-    def net_income(self, freq: str) -> pd.Series:
-        return self._financial('NINC', freq)
+        if not np.isnan(res).any():
+            return df.index.values, res
 
-    def income_before_taxes(self, freq: str) -> pd.Series:
-        return self._financial('EIBT', freq)
+        # FIXME: we need to match the indices of the previous array with
+        #        the one of the _df_t that is going to be monthly.
+        #        Until this is done, we comment out this part.
+        # v = self._df_t[code].values
+        # if not np.isnan(res).all():
+        #     mask = np.isnan(res)
+        #     res[mask] = v[mask]
+        #
+        # if not np.isnan(res).any():
+        #     return df.index.values, res
 
-    def income_tax_paid(self, freq: str) -> pd.Series:
-        return self._financial('TTAX', freq, self._calc_tax_paid)
+        if callb:
+            _, v = callb(*cb_args)
+            mask = np.isnan(res)
+            res[mask] = v[mask]
 
-    def tot_revenues(self, freq: str) -> pd.Series:
-        return self._financial('RTLR', freq)
+        if np.isnan(res).all():
+            raise KeyError(f'FundamentalsFactory(): {code}|{freq} not found for {self._comp.uid}')
 
-    def tot_debt(self, freq: str) -> pd.Series:
-        return self._financial('STLD', freq, self._calc_tot_debt)
+        return df.index.values, res
 
-    def tot_asset(self, freq: str) -> pd.Series:
-        return self._financial('ATOT', freq)
+    def book_value(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        return self._financial('QTLE', freq)
 
-    def ebit(self, freq: str) -> pd.Series:
-        return self._financial('SOPI', freq, self._calc_ebit)
+    def book_value_ps(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        return self._financial('0TBVP', freq, self._book_value_ps, (freq,))
 
-    def total_shares(self, freq: str) -> pd.Series:
-        return self._financial('0TSOS', freq, self._calc_total_shares)
+    def _book_value_ps(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        """ Return Book Value Per Share as:
+                Total Equity / Total Shares Outstanding
+                (Total Book Value / Total Shares Outstanding)
+        """
+        idx, n = self._financial('QTLE', freq)
+        _, d = self.total_shares(freq)
+        return idx, n / d
 
-    def cash_eps(self, freq: str) -> pd.Series:
-        return self._financial('0CEPS', freq, self._calc_cash_eps)
-
-    def fcf(self, freq: str) -> pd.Series:
-        return self._financial('0FCFE', freq, self._calc_fcf)
-
-    def interest_expenses(self, freq: str) -> pd.Series:
-        return self._financial('STIE', freq, self._calc_int_exp)
-
-    def cost_of_debt(self, freq: str) -> pd.Series:
-        return self._financial('0CODB', freq, self._calc_cost_debt)
-
-    def cash_interest_paid(self, freq: str) -> pd.Series:
+    def cash_interest_paid(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
         return self._financial('SCIP', freq)
 
-    # TODO
-    def fcff(self, freq: str) -> pd.Series:
-        return self._financial('0FCFF', freq, self._calc_fcff)
+    def common_shares(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        return self._financial('QTCO', freq, self._total_shares, (freq,))
 
-    ######################
-
-    def _calc_tax_paid(self, freq: str) -> pd.Series:
-        """ Return Provision for Income Tax as:
-                Net Income Before Taxes - Net Income After Taxes
-        """
-        c = self._cnst
-        d = c[(freq, 'EIBT')] - c[(freq, 'TIAT')]
-        d.name = 'TTAX'
-        return d
-
-    def _calc_tot_debt(self, freq: str) -> pd.Series:
-        """ Return Total Debt as:
-                Capital Leases + Total Long Term Debt + Short Term Debt
-        """
-        c = self._cnst
-        d = c[(freq, 'LCLD')] + c[(freq, 'LTTD')] + c[(freq, 'LSTD')]
-        d.name = 'STLD'
-        return d
-
-    def _calc_ebit(self, freq: str) -> pd.Series:
-        """ Return Operating Income as:
-                1. Revenue - Operating Expenses
-                2. Net Income AT + Interest Expenses + Tax Provision
-        """
-        c = self._cnst
-        try:
-            d = c[(freq, 'RTLR')] - c[(freq, 'ETOE')]
-        except KeyError as ke:
-            print(ke)
-            d = c[(freq, 'TIAT')] + c[(freq, 'STIE')] + self.income_tax_paid(freq)
-        d.name = 'SOPI'
-        return d
-
-    def _calc_total_shares(self, freq: str) -> pd.Series:
+    def _common_shares(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
         """ Return Total Shares Outstanding as:
                 Common Shares + Preferred Shares
         """
-        c = self._cnst
-        d = c[(freq, 'QTCO')].fillna(method='ffill', inplace=False)
+        idx, n = self._financial('0TSOS', freq)
         try:
-            d = d + c[(freq, 'QTPO')].fillna(method='ffill', inplace=False)
+            _, m = self._financial('QTPO', freq)
         except KeyError:
-            pass
-        d.name = '0TSOS'
-        return d
+            m = 0
+        return idx, n - m
 
-    def _calc_cash_eps(self, freq: str) -> pd.Series:
+    def cost_of_debt(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        return self._financial('0CODB', freq, self._cost_debt, (freq,))
+
+    def _cost_debt(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        """ Return the cost of debt as:
+                Interest Expenses / Total Liabilities
+        """
+        idx, n = self.interest_expenses(freq)
+        _, d = self._financial('LTLL', freq)
+        return idx, n / d
+
+    def eps(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        return self._financial('0BEPS', freq, self._eps, (freq,))
+
+    def _eps(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
         """ Return Cash EPS as:
                 1. Operating Cash Flow / Shares Outstanding
                 2. (Net Income AT + Depr&Amort * (1 - Tax Rate)) / Shares Outstanding
                    Note that as per now the Tax Rate is assumed 0
         """
-        c = self._cnst
+        idx, d = self.total_shares(freq)
         try:
-            d = c[(freq, 'OTLO')] / self.total_shares(freq)
+            _, n = self._financial('OTLO', freq)
         except KeyError as ke:
-            print(ke)
-            d = (c[(freq, 'TIAT')] + c[(freq, 'SDPR')]) / self.total_shares(freq)
-        d.name = '0CEPS'
-        return d
+            Ut.print_wrn(Warning(ke.__str__()))
+            _, v = self._financial('TIAT', freq)
+            _, n = self._financial('SDPR', freq)
+            ret = v + n / d
+        else:
+            ret = n / d
+        return idx, ret
 
-    def _calc_fcf(self, freq: str) -> pd.Series:
-        """ Return Free Cash Flow as:
-                Operating Cash Flow - Capital Expenditures
+    def eps_cash(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        return self._financial('0CEPS', freq, self._eps, (freq,))
+
+    def eps_diluted_normalized(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        return self._financial('VDES', freq)
+
+    def ebit(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        return self._financial('SOPI', freq, self._ebit, (freq,))
+
+    def _ebit(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        """ Return Operating Income as:
+                1. Revenue - Operating Expenses
+                2. Net Income AT + Interest Expenses + Tax Provision
         """
-        c = self._cnst
-        d = c[(freq, 'OTLO')] + c[(freq, 'SCEX')]
-        d.name = '0FCFE'
-        return d
+        try:
+            idx, n = self._financial('RTLR', freq)
+            _, m = self._financial('ETOE', freq)
+            d = n - m
+        except KeyError as ke:
+            Ut.print_wrn(Warning(ke.__str__()))
+            idx, n = self._financial('TIAT', freq)
+            _, m = self._financial('STIE', freq)
+            _, k = self.income_tax_paid(freq)
+            d = n + m + k
+        return idx, d
 
-    def _calc_int_exp(self, freq: str) -> pd.Series:
+    def fcfe(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        return self._financial('0FCFE', freq, self._fcfe, (freq,))
+
+    def _fcfe(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        """ Return Free Cash Flow as:
+                Operating Cash Flow - Capital Expenditures + Net Borrowings
+        """
+        idx, n = self._financial('OTLO', freq)
+        _, m = self._financial('SCEX', freq)
+        _, b = self._financial('FPRD', freq)
+        return idx, n - m + b
+
+    def get_index(self, freq: str) -> np.ndarray:
+        df = self._df_a if freq == 'A' else self._df_q
+        return df.index.values
+
+    def income_before_taxes(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        return self._financial('EIBT', freq)
+
+    def income_tax_paid(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        return self._financial('TTAX', freq, self._income_tax_paid, (freq,))
+
+    def _income_tax_paid(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        """ Return Provision for Income Tax as:
+                Net Income Before Taxes - Net Income After Taxes
+        """
+        idx, n = self._financial('EIBT', freq)
+        _, d = self._financial('NINC', freq)
+        return idx, n - d
+
+    def interest_expenses(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        return self._financial('STIE', freq, self._interest_expenses, (freq,))
+
+    def _interest_expenses(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
         """ Return Interest Expenses as:
                 Operating Income - Net Income AT - Taxes Provision
         """
-        c = self._cnst
-        d = self.ebit(freq) - c[(freq, 'TIAT')] - self.income_tax_paid(freq)
-        d.name = 'STIE'
-        return d
+        idx, n = self.ebit(freq)
+        _, m = self._financial('TIAT', freq)
+        _, k = self.income_tax_paid(freq)
+        return idx, n - m - k
 
-    def _calc_cost_debt(self, freq: str) -> pd.Series:
-        """ Return the cost of debt as:
-                Interest Expenses / Total Liabilities
+    def net_diluted_income(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        return self._financial('SDNI', freq, self.net_income, (freq,))
+
+    def net_income(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        return self._financial('NINC', freq)
+
+    def roe(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        return self._financial('0ROE', freq, self._roe, (freq,))
+
+    def _roe(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        """ Return ROE as:
+                Net Income / Total Equity
         """
-        c = self._cnst
-        d = self.interest_expenses(freq) / c[(freq, 'LTLL')]
-        d.name = '0CODB'
-        return d
+        idx, n = self._financial('NINC', freq)
+        _, d = self._financial('QTLE', freq)
+        return idx, n / d
+
+    def tax_rate(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        return self._financial('0TXR', freq, self._tax_rate, (freq,))
+
+    def _tax_rate(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        """ Tax Rate as:
+                Income Tax Paid / Income Before Taxes
+        """
+        idx, n = self.income_tax_paid(freq)
+        _, d = self.income_before_taxes(freq)
+        return idx, n / d
+
+    def total_asset(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        return self._financial('ATOT', freq)
+
+    def total_debt(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        return self._financial('STLD', freq, self._total_debt, (freq,))
+
+    def _total_debt(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        """ Return Total Debt as:
+                Capital Leases + Total Long Term Debt + Short Term Debt
+        """
+        idx, n = self._financial('LLTD', freq)
+        _, m = self._financial('LTTD', freq)
+        # _, k = self._financial('LSTD', freq)
+        return idx, n + m  # + k
+
+    def total_equity(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        return self._financial('QTLE', freq)
+
+    def total_liabilities(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        return self._financial('LTLL', freq)
+
+    def total_revenues(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        return self._financial('RTLR', freq)
+
+    def total_shares(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        return self._financial('0TSOS', freq, self._total_shares, (freq,))
+
+    def _total_shares(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        """ Return Total Shares Outstanding as:
+                Common Shares + Preferred Shares
+        """
+        idx, n = self._financial('QTCO', freq)
+        try:
+            _, m = self._financial('QTPO', freq)
+        except KeyError:
+            m = 0
+        return idx, n + m
+
+    ######################
 
     # TODO
-    def _calc_fcff(self, freq: str) -> pd.Series:
+    def fcff(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        return self._financial('0FCFF', freq, self._fcff, (freq,))
+
+    def _fcff(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
         """ Return Free Cash Flow to Firm as:
                 1. Net Income + Dep&Amor + Interest Expenses(1 – Tax Rate)
                     – Capital Expenditures + Change Working Capital
         """
         # https://www.wallstreetmojo.com/free-cash-flow-firm-fcff/
-        cnst = self._comp.constituents
         labels = ['TIAT', 'SDPR', 'STIE', 'SOCF', 'SCEX']
-        if all((freq, f) in self._comp.constituents_uids for f in labels):
-            d = cnst[(freq, 'TIAT')] + cnst[(freq, 'SDPR')] + \
-                cnst[(freq, 'STIE')] + cnst[(freq, 'SCEX')] + \
-                cnst[(freq, 'SOCF')]
+        if all(f in self._labels for f in labels):
+            idx, res = self._financial('TIAT', freq)
+            for lb in labels[1:]:
+                _, d = self._financial(lb, freq)
+                mask = np.isnan(res)
+                res[mask] = d[mask]
+                res[~mask] += d[~mask]
         else:
             raise Ex.MissingData(f'FCFF [0FCFF] for {self._comp.uid} not found')
-        d.name = '0FCFF'
-        return d
+        return idx, res

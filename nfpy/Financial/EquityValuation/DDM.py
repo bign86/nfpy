@@ -4,7 +4,6 @@
 #
 
 import numpy as np
-import pandas as pd
 from typing import Optional
 
 import nfpy.Math as Math
@@ -44,72 +43,74 @@ class DDM(DDMBase):
         freq = self.frequency
 
         t = np.arange(1., round(self._fp * freq) + .001)
-        ft = [
+        dt = [
             last_date + np.timedelta64(round(12 * v / freq), 'M').astype('timedelta64[D]')
             for v in t
         ]
 
-        return t, ft
+        return t, dt
 
     def _calculate(self) -> None:
         self._calc_macro_variables()
-        self._t, ft = self._get_future_dates()
+        t, self._dt = self._get_future_dates()
         d0 = self._df.last[1]
 
         # If there are suitable stages, go through them
         if self._num_stages == 0:
-            self._div = d0 * self._freq
-            self._fut_div = self._div * (1. + self._lt_div_drift)
+            self._cf_no_gwt = d0 * self._freq
+            self._cf_gwt = self._cf_no_gwt * (1. + self._lt_growth)
 
         else:
             # Create the no-growth arrays
-            cf = d0 + np.zeros(len(self._t))
+            cf = d0 + np.zeros(len(t))
             self._pn_no_growth = d0 * self._freq
-            self._cf_no_growth = np.array([self._t, cf])
+            self._cf_no_growth = np.array([t, cf])
 
             # Calculate the growth arrays
             # Create the array of dividends
-            fut_rate = np.ones(self._t.shape[0])
+            fut_rate = np.ones(t.shape[0])
             inv_freq = 1. / self._freq
+            rate_lt_pp = Math.compound(self._lt_growth, inv_freq)
 
             if self._num_stages == 1:
                 rate_1 = self._stage1[1]
                 if rate_1 is None:
-                    rate_1 = self._st_div_drift
+                    rate_1 = self._st_growth
 
                 rate_1_pp = Math.compound(rate_1, inv_freq)
                 if self._stage1[2]:
-                    rate_lt_pp = Math.compound(self._lt_div_drift, inv_freq)
-                    fut_rate += (rate_1_pp - rate_lt_pp) / self._t
+                    fut_rate += abs(rate_1_pp - rate_lt_pp) * (1 + t) / t
 
                 fut_rate += rate_1_pp
 
             else:
                 rate_1 = self._stage1[1]
                 if rate_1 is None:
-                    rate_1 = self._st_div_drift
+                    rate_1 = self._st_growth
 
                 rate_2 = self._stage2[1]
                 if rate_2 is None:
-                    rate_2 = 2 * rate_1 - self._lt_div_drift
+                    rate_2 = 2 * rate_1 - self._lt_growth
 
-                t_1 = self._stage1[0]
+                t_1 = self._stage1[0] * self._freq
 
                 rate_1_pp = Math.compound(rate_1, inv_freq)
                 rate_2_pp = Math.compound(rate_2, inv_freq)
                 if self._stage1[2]:
-                    fut_rate[:t_1] += (rate_1_pp - rate_2_pp) / self._t[:t_1]
+                    fut_rate[:t_1] += (rate_2_pp - rate_1_pp) * \
+                                      (t[:t_1]-1) / t[t_1-1]
 
                 if self._stage2[2]:
-                    rate_lt_pp = Math.compound(self._lt_div_drift, inv_freq)
-                    rate_v = (rate_2_pp - rate_lt_pp) / (self._t[t_1:] - self._t[t_1])
+                    rate_v = (rate_lt_pp - rate_2_pp) * \
+                             (t[t_1:] - t[t_1]) / (len(t) - t[t_1-1])
                     rate_v[np.isnan(rate_v)] = .0
                     fut_rate[t_1:] += rate_v
 
-                fut_rate[:t_1] += rate_1
+                fut_rate[:t_1] += rate_1_pp
                 fut_rate[t_1:] += rate_2_pp
 
-            self._st_div_drift = rate_1
+            self._st_growth = rate_1
+            self._rates = (fut_rate - 1.)[:]
 
             # Calculate the compounded dividends
             fut_rate[0] *= d0
@@ -117,16 +118,13 @@ class DDM(DDMBase):
 
             # Calculate the perpetual part
             self._pn_growth = float(cf_growth[-1]) \
-                              * (1. + self._lt_div_drift) \
+                              * (1. + self._lt_growth) \
                               * self._freq
-            self._cf_growth = np.array([self._t, cf_growth])
+            self._cf_growth = np.array([t, cf_growth])
 
             # Transform projected dividend series for plotting
-            self._cf_no_gwt = np.array([ft, cf])
-            self._cf_gwt = np.array([ft, cf_growth])
-
-        divs = self._df.dividends
-        self._div_ts = pd.Series(divs[1], index=divs[0])
+            self._cf_no_gwt = cf
+            self._cf_gwt = cf_growth
 
     def _calc_fv(self, den: float, dr: float) -> tuple:
         """ In input give the annual required rate of return. """

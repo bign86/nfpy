@@ -1,5 +1,5 @@
 #
-# Rate factory class
+# Rate factory
 # Class to handle rate and curves
 #
 
@@ -16,8 +16,8 @@ class RateFactory(metaclass=Singleton):
     _Q_GET_RATES = """
     select currency, uid, NULL, NULL from Rate where is_ccy_rf  = 1
     union select country, min(country_rf), min(gdp), min(inflation) from (
-    select country, iif(is_country_rf,uid,NULL) as country_rf,
-    iif(is_gdp,uid,NULL) as gdp, iif(is_inflation,uid,NULL) as inflation
+    select country, iif(is_country_rf, uid, NULL) as country_rf,
+    iif(is_gdp, uid, NULL) as gdp, iif(is_inflation, uid, NULL) as inflation
     from Rate where is_country_rf or is_gdp or is_inflation) as t
     group by country"""
 

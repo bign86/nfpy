@@ -3,7 +3,6 @@
 # Class to calculate a stock fair value using the DDM
 #
 
-import pandas as pd
 from typing import Optional
 
 from .DDMBase import (DDMBase, DDMResult)
@@ -15,10 +14,8 @@ class GGM(DDMBase):
     def _calculate(self) -> None:
         self._calc_macro_variables()
         self._cf_no_gwt = self._df.last[1] * self.frequency
-        self._cf_gwt = self._cf_no_gwt * (1. + self._lt_div_drift)
-
-        divs = self._df.dividends
-        self._div_ts = pd.Series(divs[1], index=divs[0])
+        self._cf_gwt = self._cf_no_gwt * (1. + self._lt_growth)
+        self._rates = self._lt_growth
 
     def _calc_fv(self, den: float, dr: float) -> tuple:
         """ In input give the annual required rate of return. """

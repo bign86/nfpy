@@ -95,7 +95,7 @@ class ChannelBreakout(BaseStrategy):
         return 'execute', self._t
 
     def _signal(self) -> Optional[Signal]:
-        high, mean, low = self._ind_f.__next__()[:3]
+        high, _, low = self._ind_f.__next__()[:3]
         signal = None
 
         v = self._ts[self._t]
@@ -144,4 +144,4 @@ class BollingerBreakout(ChannelBreakout):
 
     def __init__(self, asset: Ast.TyAsset, bulk: bool, w: int,
                  alpha: float, npc: Optional[int] = 0):
-        super().__init__(asset, bulk, Ind.Donchian, (w, alpha), npc)
+        super().__init__(asset, bulk, Ind.Bollinger, (w, alpha), npc)

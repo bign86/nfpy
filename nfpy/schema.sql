@@ -284,7 +284,7 @@ CREATE TABLE [OECDSeries] (
     [measure] TEXT,
     [frequency_code] TEXT NOT NULL,
     [frequency] TEXT NOT NULL,
-    [date_code] DATE NOT NULL,
+    [date_code] SHORTDATE NOT NULL,
     [date] TEXT,
     [unit_code] TEXT,
     [unit] TEXT,

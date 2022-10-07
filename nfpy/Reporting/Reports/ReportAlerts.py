@@ -1,6 +1,6 @@
 #
 # Alerts Report
-# Report class for the Market Alerts
+# Class for the Market Alerts
 #
 
 from datetime import timedelta
@@ -91,10 +91,11 @@ class ReportAlerts(BaseReport):
                          'breach', is_today, dt_trigger))
 
         # S/R alerts
-        w_sr = self._p['sr']['w_sr']
-        sr_check = self._p['sr']['w_check']
-        sr_tol = self._p['sr']['tolerance']
-        sr_multi = self._p['sr']['w_multi']
+        sr = self._p['sr']
+        w_sr = sr['w_sr']
+        sr_check = sr['w_check']
+        sr_tol = sr['tolerance']
+        sr_multi = sr['w_multi']
         smooth_w = max(w_sr) * sr_multi
 
         for uid in self._uids:
