@@ -2,10 +2,11 @@
 # Asset class
 # Base class for a single asset
 #
+import abc
 
 import numpy as np
 import pandas as pd
-from typing import (TypeVar, Optional)
+from typing import (Callable, Optional, TypeVar)
 
 import nfpy.Calendar as Cal
 import nfpy.Math as Math
@@ -19,6 +20,7 @@ class Asset(FinancialItem):
 
     _TS_TABLE = ''
     _TS_ROLL_KEY_LIST = ()
+    _DEF_PRICE_DTYPE = ''
 
     def __init__(self, uid: str):
         super().__init__(uid)
@@ -59,37 +61,55 @@ class Asset(FinancialItem):
 
     @property
     def prices(self) -> pd.Series:
-        """ Loads the price series for the asset. """
-        try:
-            res = self._df["price"]
-        except KeyError:
-            self.load_dtype_in_df("price")
-            res = self._df["price"]
-        return res
+        """ Loads the default price series for the asset. """
+        return self.series(self._DEF_PRICE_DTYPE)
 
     @property
     def returns(self) -> pd.Series:
-        """ Returns the returns for the asset. If not available calculates
-            them from prices.
-        """
-        try:
-            res = self._df["return"]
-        except KeyError:
-            res = self.calc_returns()
-            self._df["return"] = res
-        return res
+        """ Returns the default returns :) series for the asset. """
+        code = self._dt.get(
+            self._DEF_PRICE_DTYPE.replace('Price', 'Return')
+        )
+        if code not in self._df.columns:
+            self._df[code] = self.prices \
+                .pct_change(1, fill_method='pad')
+        return self._df[code]
 
     @property
     def log_returns(self) -> pd.Series:
-        """ Returns the is_log returns for the asset. If not available
-            calculates them from prices.
+        """ Returns the default log returns :) series for the asset. """
+        code = self._dt(
+            self._DEF_PRICE_DTYPE.replace('Price', 'LogReturn')
+        )
+        if code not in self._df.columns:
+            self._df[code] = self.prices \
+                .pct_change(1, fill_method='pad') \
+                .add(1.) \
+                .log()
+        return self._df[code]
+
+    @abc.abstractmethod
+    def series_callback(self, dtype: str) -> tuple[Callable, tuple]:
+        """ Return the callback for converting series. The callback must return
+            a bool indicating success/failure.
         """
-        try:
-            res = self._df["logReturn"]
-        except KeyError:
-            res = self.calc_log_returns()
-            self._df["logReturn"] = res
-        return res
+
+    def series(self, dtype: str) -> pd.Series:
+        """ Return the requested series. If data are not found an empty series
+            is returned unless the  callback throws an exception.
+
+            Input:
+                dtype [str]: datatype to load
+
+            Output:
+                res [pd.Series]: fetched series
+        """
+        code = self._dt.get(dtype)
+        if code not in self._df.columns:
+            call, args = self.series_callback(dtype)
+            if not call(*args):
+                return pd.Series(dtype=float)
+        return self._df[code]
 
     @property
     def data(self) -> pd.DataFrame:
@@ -98,7 +118,7 @@ class Asset(FinancialItem):
 
     def last_price(self, dt: Optional[Cal.TyDate] = None) \
             -> tuple[float, pd.Timestamp, int]:
-        """ Returns the last valid price at date.
+        """ Returns the last valid daily raw close price at date.
 
             Input:
                 dt [TyDate]: reference date (default: None)
@@ -108,8 +128,9 @@ class Asset(FinancialItem):
                 date [pd.Timestamp]: date of the last valid price
                 idx [int]: index of the last valid price
         """
-        ts = self.prices.values
-        date = self.prices.index.values
+        prices = self.prices
+        ts = prices.values
+        date = prices.index.values
 
         pos = None
         if dt:
@@ -117,16 +138,9 @@ class Asset(FinancialItem):
             pos = np.searchsorted(date, [dt])[0]
         idx = Math.last_valid_index(ts, pos)
 
-        dt_ts = self.prices.index[idx]
-        return ts[idx], dt_ts, idx
+        return ts[idx], date[idx], idx
 
-    def load_returns(self):
-        self.load_dtype_in_df("return")
-
-    def load_log_returns(self):
-        self.load_dtype_in_df("logReturn")
-
-    def load_dtype(self, dt: str) -> pd.DataFrame:
+    def load_dtype(self, dtype: str) -> tuple[bool, pd.DataFrame]:
         """ Fetch from the DB a time series. The content of the column 'datatype'
             of the table containing the time series is given in input.
 
@@ -134,16 +148,15 @@ class Asset(FinancialItem):
                 dt [str]: datatype to be loaded
 
             Output:
-                The method returns no value but the fetched data are merged in
-                the main DataFrame accessible from the obj.data property. The
-                new series will have the same name as the datatype.
+                success [bool]: success/failure
+                df [pd.DataFrame]: fetched data
 
             Exceptions:
                 KeyError: if datatype is not recognized in the decoding table
-                MissingData: if no data are found in the database
         """
         # this is needed inside the self._get_dati_for_query()
-        self.dtype = self._dt.get(dt)
+        dtype_code = self._dt.get(dtype)
+        self.dtype = dtype_code
 
         # Take results and append to the unique dataframe indexed on the calendar
         data = (
@@ -173,33 +186,38 @@ class Asset(FinancialItem):
             raise ex
 
         if df.empty:
-            raise Ex.MissingData(f"{self.uid} {dt} not found in the database!")
+            return False, df
+        else:
+            df.rename(columns={"value": dtype_code}, inplace=True)
+            return True, df
 
-        df.rename(columns={"value": str(dt)}, inplace=True)
-        return df
+    def load_dtype_in_df(self, dtype: str) -> bool:
+        """ Load the datatype and merge into the dataframe. """
+        success, df = self.load_dtype(dtype)
+        if success:
+            self._df = self._df.merge(
+                df, how='left',
+                left_index=True,
+                right_index=True
+            )
+            self._df.sort_index(inplace=True)
+        return success
 
-    def load_dtype_in_df(self, dt: str) -> None:
-        self._df = self._df.merge(
-            self.load_dtype(dt),
-            how='left',
-            left_index=True,
-            right_index=True
-        )
-        self._df.sort_index(inplace=True)
-
-    def calc_returns(self) -> pd.Series:
+    def _calc_returns(self, dtype: str) -> None:
         """ Calculates the returns from the series of the prices. """
-        return self.prices \
+        code = self._dt.get(dtype)
+        self._df[code] = self.series(dtype) \
             .pct_change(1, fill_method='pad')
 
-    def calc_log_returns(self) -> pd.Series:
+    def _calc_log_returns(self, dtype: str) -> None:
         """ Calculates the log returns from the series of the prices. """
-        return self.prices \
+        code = self._dt.get(dtype)
+        self._df[code] = self.series(dtype) \
             .pct_change(1, fill_method='pad') \
             .add(1.) \
             .log()
 
-    # TODO: This has NOT being TESTED!!!
+    # TODO: This has NOT been TESTED!!!
     def write_dtype(self, dt: str) -> None:
         """ Writes a time series to the DB. The content of the column 'datatype'
             of the table containing the time series is given in input.

@@ -33,16 +33,9 @@ from .DownloadsConf import (
 
 class ClosePricesItem(BaseImportItem):
     _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
-    select '{uid}', ?, date, close from YahooPrices where ticker = ?"""
+    select '{uid}', 124, date, close from YahooPrices where ticker = ?"""
     _Q_INCR = """ and date > ifnull((select max(date) from {dst_table}
-    where uid = '{uid}' and dtype = ?), '1900-01-01')"""
-
-    def _get_params(self) -> tuple:
-        dt = self._dt.get('closePrice')
-        if self._incr:
-            return dt, self._d['ticker'], dt
-        else:
-            return dt, self._d['ticker']
+    where uid = '{uid}' and dtype = 124), '1900-01-01')"""
 
 
 class FinancialsItem(BaseImportItem):
@@ -86,32 +79,34 @@ class FinancialsItem(BaseImportItem):
 
 class DividendsItem(BaseImportItem):
     _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
-    select '{uid}', dtype, date, value from YahooEvents
-    where ticker = ? and dtype = ?"""
+    select '{uid}', 621, date, value from YahooDividends where ticker = ?"""
     _Q_INCR = """ and date > ifnull((select max(date) from {dst_table}
-    where uid = '{uid}' and dtype = ?), '1900-01-01')"""
-
-    def _get_params(self) -> tuple:
-        dt = self._dt.get('dividend')
-        if self._incr:
-            return self._d['ticker'], dt, dt
-        else:
-            return self._d['ticker'], dt
+    where uid = '{uid}' and dtype = 621), '1900-01-01')"""
 
 
 class SplitsItem(BaseImportItem):
-    _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
-    select '{uid}', dtype, date, value from YahooEvents
-    where ticker = ? and dtype = ?"""
+    _MODE = 'SPLIT'
+    _Q_READ = """select '{uid}', date, value from YahooSplits where ticker = ?"""
+    _Q_WRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
+    values (?, ?, ?, ?)"""
     _Q_INCR = """ and date > ifnull((select max(date) from {dst_table}
-    where uid = '{uid}' and dtype = ?), '1900-01-01')"""
+    where uid = '{uid}' and dtype = 500), '1900-01-01')"""
 
-    def _get_params(self) -> tuple:
-        dt = self._dt.get('split')
-        if self._incr:
-            return self._d['ticker'], dt, dt
-        else:
-            return self._d['ticker'], dt
+    @staticmethod
+    def _clean_data(data: list[tuple], *args) -> list[tuple]:
+        """ Prepare results for import. """
+        data_ins = []
+        while data:
+            item = data.pop(0)
+
+            # Calculate the factor
+            ratio = str(item[2]).split(':')
+            value = int(ratio[1]) / int(ratio[0])
+
+            # Build the new tuple
+            data_ins.append((item[0], 500, item[1], value))
+
+        return data_ins
 
 
 class YahooBasePage(BasePage):
@@ -267,9 +262,7 @@ class YahooHistoricalBasePage(YahooBasePage):
 
     def _set_default_params(self) -> None:
         self._p = self._PARAMS
-        ld = self._fetch_last_data_point(
-            (self.ticker, self._dt.get(self.event))
-        )
+        ld = self._fetch_last_data_point((self.ticker,))
         # We add 2 days instead of 1 since with 1 day of offset the previous
         # split is downloaded again
         start = pd.to_datetime(ld) + pd.DateOffset(days=2)
@@ -283,7 +276,6 @@ class YahooHistoricalBasePage(YahooBasePage):
     def _local_initializations(self) -> None:
         """ Local initializations for the single page. """
         p = {'events': self.event}
-        # p = {'events': 'dividends,splits'}
         if self._ext_p:
             for t in [('start', 'period1'), ('end', 'period2')]:
                 if t[0] in self._ext_p:
@@ -351,9 +343,9 @@ class DividendsPage(YahooHistoricalBasePage):
     """ Download historical dividends. """
     _PAGE = 'Dividends'
     _COLUMNS = YahooHistDividendsConf
-    _TABLE = "YahooEvents"
-    _Q_MAX_DATE = "select max(date) from YahooEvents where ticker = ? and dtype = ?"
-    _Q_SELECT = "select * from YahooEvents where ticker = ? and dtype = 6"
+    _TABLE = "YahooDividends"
+    _Q_MAX_DATE = "select max(date) from YahooDividends where ticker = ?"
+    _Q_SELECT = "select * from YahooDividends where ticker = ?"
 
     @property
     def event(self) -> str:
@@ -361,18 +353,16 @@ class DividendsPage(YahooHistoricalBasePage):
 
     def _parse(self) -> None:
         """ Parse the fetched object. """
-        df = self._parse_csv()
-        df.insert(2, 'dtype', self._dt.get('dividend'))
-        self._res = df
+        self._res = self._parse_csv()
 
 
 class SplitsPage(YahooHistoricalBasePage):
     """ Download historical splits. """
     _PAGE = 'Splits'
     _COLUMNS = YahooHistSplitsConf
-    _TABLE = "YahooEvents"
-    _Q_MAX_DATE = "select max(date) from YahooEvents where ticker = ? and dtype = ?"
-    _Q_SELECT = "select * from YahooEvents where ticker = ? and dtype = 5"
+    _TABLE = "YahooSplits"
+    _Q_MAX_DATE = "select max(date) from YahooSplits where ticker = ?"
+    _Q_SELECT = "select * from YahooSplits where ticker = ?"
 
     @property
     def event(self) -> str:
@@ -381,7 +371,6 @@ class SplitsPage(YahooHistoricalBasePage):
     def _parse(self) -> None:
         """ Parse the fetched object. """
         df = self._parse_csv()
-        df.insert(2, 'dtype', self._dt.get('split'))
 
         Ut.print_wrn(
             Warning(
@@ -389,10 +378,4 @@ class SplitsPage(YahooHistoricalBasePage):
             )
         )
 
-        def _calc(x: str) -> float:
-            """ Transform splits in adjustment factors """
-            factors = x.split(':')
-            return float(factors[0]) / float(factors[1])
-
-        df['value'] = df['value'].apply(_calc)
         self._res = df

@@ -79,7 +79,7 @@ class Portfolio(AggregationMixin, Asset):
 
     @property
     def performance(self, *args):
-        raise NotImplementedError("Portfolio does not have performance()!")
+        raise NotImplementedError("Portfolio(): performance() not implemented!")
 
     def _add_dividends(self, start: pd.Timestamp, positions: dict[str, Position],
                        df: pd.DataFrame) -> None:
@@ -99,7 +99,12 @@ class Portfolio(AggregationMixin, Asset):
                 continue
 
             eq = af.get(pos.uid)
-            dividends = pd.concat([eq.dividends, eq.dividends_special])
+            dividends = pd.concat(
+                [
+                    eq.dividends.dropna(),
+                    eq.dividends_special.dropna()
+                ]
+            )
             dividends = dividends.loc[dividends.index >= start]
             if len(dividends) == 0:
                 continue

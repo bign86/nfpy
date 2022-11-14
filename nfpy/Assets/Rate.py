@@ -4,6 +4,9 @@
 #
 
 import pandas as pd
+from typing import Callable
+
+from nfpy.Tools import (Exceptions as Ex)
 
 from .Asset import Asset
 
@@ -21,6 +24,7 @@ class Rate(Asset):
     _BASE_TABLE = 'Rate'
     _TS_TABLE = 'RateTS'
     _TS_ROLL_KEY_LIST = ['date']
+    _DEF_PRICE_DTYPE = 'Price.Raw.Close'
 
     def __init__(self, uid: str):
         super(Rate, self).__init__(uid)
@@ -31,19 +35,13 @@ class Rate(Asset):
         return self._freq
 
     @frequency.setter
-    def frequency(self, v: str):
+    def frequency(self, v: str) -> None:
         self._freq = v
 
-    @property
-    def prices(self) -> pd.Series:
-        try:
-            res = self._df["price"]
-        except KeyError:
-            self.load_dtype_in_df("price")
-            res = self._df["price"]
-        return res
-
-    def load_dtype_in_df(self, dt: str):
+    def load_dtype_in_df(self, dtype: str) -> bool:
+        """ Load the datatype and merge into the dataframe. Takes care to load
+            aganst the appropriate calendar frequency.
+        """
         freq = self._df.index.freqstr
         if freq != _CALENDAR_TRANSFORM[self._freq]:
             if self._freq == 'M':
@@ -51,20 +49,41 @@ class Rate(Asset):
             elif self._freq == 'Y':
                 calendar = self._cal.yearly_calendar
             else:
-                raise ValueError('Rate(): calendar frequency not recognized')
+                msg = f'Rate(): calendar frequency not recognized for {self._uid}'
+                raise ValueError(msg)
             self._df = pd.DataFrame(index=calendar)
 
-        df = self.load_dtype(dt)
-        df.index = df.index + 0*pd.offsets.BDay()
+        success, df = self.load_dtype(dtype)
+        if success:
+            df.index = df.index + 0*pd.offsets.BDay()
 
-        self._df = self._df.merge(
-            df,
-            how='left',
-            left_index=True,
-            right_index=True
-        )
-        self._df.sort_index(inplace=True)
+            self._df = self._df.merge(
+                df,
+                how='left',
+                left_index=True,
+                right_index=True
+            )
+            self._df.sort_index(inplace=True)
 
-        if dt == 'price':
-            # The value from the database is in annual percentage points
-            self._df.loc[:, 'price'] *= .01
+            if dtype.split('.')[0] == 'Price':
+                code = self._dt.get(dtype)
+                # The value from the database is in annual percentage points
+                self._df.loc[:, code] *= .01
+
+        return success
+
+    def series_callback(self, dtype: str) -> tuple[Callable, tuple]:
+        """ Return the callback for converting series. """
+
+        # Since rates do not pay dividends and do not split, we transform any
+        # price or return request into a request for Raw data to avoid
+        # duplications of operations and memory
+        levels = dtype.split('.')
+        if levels[0] in ('Price', 'Return', 'LogReturn'):
+            dtype = dtype.replace(levels[1], 'Raw')
+            return self.load_dtype_in_df, (dtype,)
+
+        # Error if datatype is not in the list
+        else:
+            msg = f'Rate(): datatype {dtype} for {self._uid} not recognized!'
+            raise Ex.DatatypeError(msg)

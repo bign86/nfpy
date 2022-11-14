@@ -38,6 +38,10 @@ class ConfigurationError(RuntimeError):
     """ Thrown when errors happen with the Configuration module. """
 
 
+class DatatypeError(RuntimeError):
+    """ Thrown when a datatype is wrong or un-existent. """
+
+
 class ShapeError(RuntimeError):
     """ Thrown when an array has the wrong shape. """
 

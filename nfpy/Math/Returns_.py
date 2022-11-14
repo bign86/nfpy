@@ -11,7 +11,7 @@ import numpy as np
 from .TSUtils_ import (ffill_cols, last_valid_value, next_valid_value)
 
 
-def compound(r: Union[float, np.ndarray], t: Union[int, np.ndarray],
+def compound(r: Union[float, np.ndarray], t: Union[int, float, np.ndarray],
              n: int = 1) -> Union[float, np.ndarray]:
     """ Compound input rate of return.
 

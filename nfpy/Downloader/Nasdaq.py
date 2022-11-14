@@ -17,16 +17,16 @@ from .DownloadsConf import (NasdaqDividendsConf, NasdaqPricesConf)
 
 class ClosePricesItem(BaseImportItem):
     _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
-    select '{uid}', '1', date, close from NasdaqPrices where ticker = ?"""
+    select '{uid}', 124, date, close from NasdaqPrices where ticker = ?"""
     _Q_INCR = """ and date > ifnull((select max(date) from {dst_table}
-    where uid = '{uid}'), '1900-01-01')"""
+    where uid = '{uid}' and dtype = 124), '1900-01-01')"""
 
 
 class DividendsItem(BaseImportItem):
     _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
-    select '{uid}', '6', date, amount from NasdaqDividends where ticker = ?"""
+    select '{uid}', 611, date, amount from NasdaqDividends where ticker = ?"""
     _Q_INCR = """ and date > ifnull((select max(date) from {dst_table}
-    where uid = '{uid}'), '1900-01-01')"""
+    where uid = '{uid}' and dtype = 611), '1900-01-01')"""
 
 
 class NasdaqBasePage(BasePage):

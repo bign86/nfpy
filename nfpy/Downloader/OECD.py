@@ -16,7 +16,7 @@ from .DownloadsConf import OECDSeriesConf
 
 class ClosePricesItem(BaseImportItem):
     _MODE = 'SPLIT'
-    _Q_READ = """select '{uid}', '1', date_code, value from OECDSeries where ticker = ?"""
+    _Q_READ = """select '{uid}', 114, date_code, value from OECDSeries where ticker = ?"""
     _Q_WRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
     values (?, ?, ?, ?)"""
     _Q_INCR = """ and date_code > iif(substr(ticker, length(ticker)) == 'M',

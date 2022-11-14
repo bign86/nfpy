@@ -55,17 +55,16 @@ class Curve(AggregationMixin, Asset):
         for b, t in bucket_list:
             self._cnsts_df[t] = self._dict_cnsts[b].prices
 
-    # TODO: check if it works with a series of dates instead of a single one
-    def term_struct(self, date: pd.Timestamp) -> pd.DataFrame:
-        """ Gives the cross section of the curve at a given date. """
-        return self._cnsts_df.loc[date]
-
     def bucket_ts(self, uid: str) -> pd.Series:
         """ Gives the bucket time series. """
         return self._cnsts_df[uid]
 
-    # TODO: to be written in some way
     def rate(self, t: float, date: pd.Timestamp) -> Union[float, np.ndarray]:
         """ Return the rate for the given maturity. """
         ts = self.term_struct(date)
         return np.interp(t, ts.index.values, ts.values)
+
+    # TODO: check if it works with a series of dates instead of a single one
+    def term_struct(self, date: pd.Timestamp) -> pd.DataFrame:
+        """ Gives the cross-section of the curve at a given date. """
+        return self._cnsts_df.loc[date]

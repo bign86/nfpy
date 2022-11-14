@@ -40,7 +40,7 @@ class FinancialItem(object):
             EXCLUDING the rolling keys
         """
         keys = [k for k in self._qb.get_keys(table) if k not in rolling]
-        # the self.datatype is needed for the getattr
+        # the self.dtype is needed for the getattr
         data = tuple(getattr(self, k) for k in keys)
         return data
 

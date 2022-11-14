@@ -64,10 +64,10 @@ class AggregationMixin(object):
         """ Save to the database the constituents of the aggregation. """
         self._write_cnsts()
 
-    def calc_returns(self):
+    def _calc_returns(self):
         raise NotImplementedError('To be implemented in child classes')
 
-    def calc_log_returns(self):
+    def _calc_log_returns(self):
         raise NotImplementedError('To be implemented in child classes')
 
     def _load_cnsts(self):

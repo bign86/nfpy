@@ -5,7 +5,7 @@
 
 import numpy as np
 import pandas as pd
-from typing import Optional
+from typing import (Callable, Optional)
 
 import nfpy.Calendar as Cal
 import nfpy.Math as Math
@@ -22,14 +22,12 @@ class Equity(Asset):
     _BASE_TABLE = 'Equity'
     _TS_TABLE = 'EquityTS'
     _TS_ROLL_KEY_LIST = ['date']
+    _DEF_PRICE_DTYPE = 'Price.Adj.Close'
 
     def __init__(self, uid: str):
         super().__init__(uid)
         self._index = None
-        self._div = None
-        self._div_special = None
         self._ticker = None
-        self._split = None
 
     @property
     def index(self) -> str:
@@ -40,34 +38,6 @@ class Equity(Asset):
         self._index = v
 
     @property
-    # TODO: dividends are not adjusted for splits in the current implementation
-    def dividends(self) -> pd.Series:
-        """ Loads the regular dividends series for the equity. The dividends are
-            first converted in the base currency.
-        """
-        if self._div is None:
-            try:
-                res = self.load_dtype('dividend')['dividend']
-            except Ex.MissingData:
-                res = pd.Series(dtype=float)
-            self._div = res
-        return self._div
-
-    @property
-    # TODO: dividends are not adjusted for splits in the current implementation
-    def dividends_special(self) -> pd.Series:
-        """ Loads the special dividends series for the equity. The dividends are
-            first converted in the base currency.
-        """
-        if self._div_special is None:
-            try:
-                res = self.load_dtype('dividendSpecial')
-            except Ex.MissingData:
-                res = pd.Series(dtype=float)
-            self._div_special = res
-        return self._div_special
-
-    @property
     def ticker(self) -> str:
         return self._ticker
 
@@ -75,90 +45,140 @@ class Equity(Asset):
     def ticker(self, v: str):
         self._ticker = v
 
-    @property
-    def splits(self) -> pd.Series:
-        """ Loads the splits series for the equity. """
-        if self._split is None:
-            try:
-                res = self.load_dtype('split')
-            except Ex.MissingData:
-                res = pd.Series(dtype=float)
-            self._split = res
-        return self._split
-
-    @property
-    def adjusting_factors(self) -> pd.Series:
-        """ Returns the series of adjusting factors for splits and dividends. """
-        try:
-            adj_f = self._df['adj_factors']
-        except KeyError:
-            self._adjust_prices()
-            adj_f = self._df['adj_factors']
-        return adj_f
-
-    # TODO: splits are not considered in the current implementation
-    @property
-    def prices(self) -> pd.Series:
-        """ Returns the series of prices adjusted for dividends. """
-        try:
-            adj_p = self._df['adj_price']
-        except KeyError:
-            self._adjust_prices()
-            adj_p = self._df['adj_price']
-        return adj_p
-
-    @property
-    def raw_prices(self) -> pd.Series:
-        """ Loads the raw price series for the equity. """
-        try:
-            res = self._df["price"]
-        except KeyError:
-            self.load_dtype_in_df("price")
-            res = self._df["price"]
-        return res
-
-    def _adjust_prices(self) -> None:
-        div = self.dividends
-        rp = self.raw_prices
-        adj_p, adj_f = rp, 1.
-
-        # If the equity does pay dividends calculate adj_factors
-        if div is not None:
-            adj_f = self.adj_factors(rp.values, rp.index.values,
-                                     div.values, div.index.values)
-            adj_p = adj_f * rp
-
-        self._df['adj_price'] = adj_p
-        self._df['adj_factors'] = adj_f
-
-    @staticmethod
-    def adj_factors(ts: np.ndarray, dt: np.ndarray, div: np.ndarray,
-                    div_dt: np.ndarray) -> np.ndarray:
-        """ Calculate the adjustment factors given a dividend series.
-
-            Input:
-                ts [np.ndarray]: price series to calculate the yield
-                dt [np.ndarray]: price series date index
-                div [np.ndarray]: dividend series
-                div_dt [np.ndarray]: dividend series date index
-
-            Output:
-                adjfc [np.ndarray]: series of adjustment factors
+    def _dividends_loader(self, dtype: str, target: str) -> bool:
+        """ Load the dividends and, if missing, try sequentially to calculate
+            them from other price data available in the database.
         """
-        adj = np.ones(ts.shape)
+        if self.load_dtype_in_df(dtype):
+            return True
 
-        # Calculate conversion factors
-        idx = np.searchsorted(dt, div_dt)
-        for n, i in enumerate(idx):
-            try:
-                v = Math.last_valid_index(ts, i)
-            except ValueError:
-                pass
+        # The series is not available, take the other one and (un-)adjust it.
+        operation = ('Raw', 1) if target == 'SplitAdj' else ('SplitAdj', -1)
+        other_dtype = dtype.replace(target, operation[0])
+        other_code = self._dt.get(other_dtype)
+        if other_code not in self._df.columns:
+            if not self.load_dtype_in_df(other_dtype):
+                return False
+
+        # We take the splits and create the series of the adjustment factors
+        split = self.splits
+        if split.empty:
+            split_adj = 1.
+        else:
+            split = Math.fillna(split.values, 1., inplace=False)
+            split_adj = np.cumprod(split[::-1])[::-1]
+
+        # We apply the adjusting factors to the loaded series
+        other_values = self._df[other_code].values
+        if operation[1] == 1:
+            res = other_values * split_adj
+        else:
+            res = other_values / split_adj
+
+        # Add target series to dataframe
+        code = self._dt.get(dtype)
+        self._df[code] = res
+        return True
+
+    def _prices_loader(self, dtype: str, target: str) -> bool:
+        """ Load the prices and, if missing, try sequentially to calculate them
+            from other price data available in the database.
+        """
+        # If the price series is available, load it and exit
+        if self.load_dtype_in_df(dtype):
+            return True
+
+        # The series is not available, search for another that can be used to
+        # calculate it. The tuple is:
+        #   <start_data>, <adj_for_dividends>, <adj_for_splits>, <direction>
+        # where direction is:
+        #    1: sum/multiply
+        #   -1: subtract/divide
+        if target == 'Adj':
+            seq = [
+                ('Raw', True, True, 1),
+                ('SplitAdj', True, False, 1)
+            ]
+        elif target == 'SplitAdj':
+            seq = [
+                ('Adj', True, False, -1),
+                ('Raw', False, True, 1)
+            ]
+        else:
+            seq = [
+                ('Adj', True, True, -1),
+                ('SplitAdj', False, True, -1)]
+
+        success = ()
+        while len(seq) > 0:
+            operation = seq.pop()
+            other_dtype = dtype.replace(target, operation[0])
+            other_code = self._dt.get(other_dtype)
+            if other_code not in self._df.columns:
+                if self.load_dtype_in_df(other_dtype):
+                    success = (other_code,) + operation[1:]
+                    break
+                else:
+                    continue
             else:
-                adj[i] -= div[n] / ts[v]
+                success = (other_code,) + operation[1:]
+                break
 
-        cp = np.nancumprod(adj)
-        return adj / cp * cp[-1]
+        # Raise exception if no prices are available in general
+        if not success:
+            raise Ex.MissingData(f'Equity(): no prices found for {self._uid}')
+
+        # Take the available series
+        other_values = self._df[success[0]].values
+        nan_mask = np.isnan(other_values)
+        res = Math.ffill_cols(other_values)
+
+        # If we apply the adjustments
+        if success[3] == 1:
+
+            # Build factor from splits if needed
+            if success[2] != 0:
+                split = self.splits
+                if not split.empty:
+                    split = Math.fillna(split.values, 1., inplace=False)
+                    split_adj = np.cumprod(split[::-1])[::-1]
+                    res *= split_adj
+
+            # Build factor from dividends if needed
+            if success[1] != 0:
+                dividends = self.series('Dividend.SplitAdj.Regular')
+                if not dividends.empty:
+                    dividends = Math.fillna(dividends.values, .0, inplace=False)
+                    div_adj = 1. - dividends[1:] / res[:-1]
+                    div_adj = np.cumprod(div_adj[::-1])[::-1]
+                    res[:-1] *= div_adj
+
+        # If we remove the adjustments
+        else:
+
+            # Build factor from dividends if needed
+            if success[1] != 0:
+                dividends = self.series('Dividend.SplitAdj.Regular')
+                if not dividends.empty:
+                    dividends = Math.fillna(dividends.values, .0, inplace=False)
+                    div_adj = res[:-1] / (res[:-1] + dividends[1:])
+                    div_adj = np.cumprod(div_adj[::-1])[::-1]
+                    res[:-1] /= div_adj
+
+            # Build factor from splits if needed
+            if success[2] != 0:
+                split = self.splits
+                if not split.empty:
+                    split = Math.fillna(split.values, 1., inplace=False)
+                    split_adj = np.cumprod(split[::-1])[::-1]
+                    res /= split_adj
+
+        # Insert the newly calculated series into the dataframe putting back
+        # the original NaNs
+        res[nan_mask] = np.nan
+        code = self._dt.get(dtype)
+        self._df[code] = res
+        return True
 
     def beta(self, benchmark: Optional[TyAsset] = None,
              start: Optional[Cal.TyDate] = None,
@@ -235,3 +255,55 @@ class Equity(Asset):
             start=Cal.pd_2_np64(start),
             end=Cal.pd_2_np64(end),
         )[0, 1]
+
+    @property
+    def dividends(self) -> pd.Series:
+        """ Loads the regular dividends series for the equity. The dividends are
+            first converted in the base currency.
+        """
+        return self.series('Dividend.Raw.Regular')
+
+    @property
+    def dividends_special(self) -> pd.Series:
+        """ Loads the special dividends series for the equity. The dividends are
+            first converted in the base currency.
+        """
+        return self.series('Dividend.Raw.Special')
+
+    @property
+    def raw_prices(self) -> pd.Series:
+        """ Returns the raw price series for the equity. """
+        return self.series('Price.Raw.Close')
+
+    def series_callback(self, dtype: str) -> tuple[Callable, tuple]:
+        """ Return the callback for converting series. The callback must return
+            a bool indicating success/failure.
+        """
+        if dtype in ('Split', 'Volume'):
+            return self.load_dtype_in_df, (dtype,)
+
+        data = dtype.split('.')
+
+        # Prices
+        if data[0] == 'Price':
+            return self._prices_loader, (dtype, data[1])
+
+        # Dividends
+        elif data[0] == 'Dividend':
+            return self._dividends_loader, (dtype, data[1])
+
+        # Returns
+        elif data[0] == 'Return':
+            return self._calc_returns, (dtype.replace('Return', 'Price'),)
+        elif data[0] == 'LogReturn':
+            return self._calc_log_returns, (dtype.replace('LogReturn', 'Price'),)
+
+        # Error if datatype is not in the list
+        else:
+            msg = f'Equity(): datatype {dtype} for {self._uid} not recognized!'
+            raise Ex.DatatypeError(msg)
+
+    @property
+    def splits(self) -> pd.Series:
+        """ Loads the splits series for the equity. """
+        return self.series('Split')
