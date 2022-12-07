@@ -10,13 +10,13 @@ import pandas as pd
 from tabulate import tabulate
 
 from nfpy.Calendar import (get_calendar_glob, today)
-from nfpy.Financial.EquityValuation import DDM2s
+from nfpy.Financial import DDM
 import nfpy.IO as IO
 
 plt.interactive(False)
 np.set_printoptions(precision=3, suppress=True)
 
-__version__ = '0.3'
+__version__ = '0.4'
 _TITLE_ = "<<< Price equity DDM charts script >>>"
 
 _TCOLS = ('year', 'rate %', 'no_growth', 'growth')
@@ -74,21 +74,21 @@ if __name__ == '__main__':
     # Calculations
     v1 = np.empty((4, n))
     for p in range(1, n + 1):
-        ddm = DDM2s(cmp, projection=p)
-        res = ddm.result(d_rate=dr)
+        ddm = DDM(cmp, stage1=(p, None, False))
+        res = ddm.result(cost_equity=dr)
         v1[0, p - 1] = curr_year + p
         v1[1, p - 1] = res.d_rate * 100.
         v1[2, p - 1] = res.fair_value_no_growth
         v1[3, p - 1] = res.fair_value_with_growth
 
-    ddm = DDM2s(cmp, projection=fp)
+    ddm = DDM(cmp, stage1=(fp, None, False))
     rates_list = list(np.arange(.01, vr + .001, .01))
     v2 = np.empty((4, len(rates_list)))
     for i, r in enumerate(rates_list):
         v2[0, i] = curr_year + fp
         v2[1, i] = r * 100.
         try:
-            res = ddm.result(d_rate=r)
+            res = ddm.result(cost_equity=r)
             v2[2, i] = res.fair_value_no_growth
             v2[3, i] = res.fair_value_with_growth
         except ValueError:

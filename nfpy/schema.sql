@@ -35,6 +35,19 @@ CREATE TABLE [BondTS] (
     PRIMARY KEY ([uid], [dtype], [date])
 ) WITHOUT ROWID;
 
+CREATE TABLE [BorsaItalianaDividends] (
+    [ticker] TEXT NOT NULL,
+    [type] TEXT NOT NULL,
+    [dps_bod] REAL,
+    [dps_agm] REAL,
+    [currency] TEXT,
+    [ex_date] DATE NOT NULL,
+    [payment] DATE,
+    [agm] DATE,
+    [notice] INTEGER,
+    PRIMARY KEY ([ticker], [type], [ex_date])
+) WITHOUT ROWID;
+
 CREATE TABLE [Company] (
     [uid] TEXT NOT NULL,
     [description] TEXT,
@@ -359,6 +372,7 @@ CREATE TABLE [Reports] (
 CREATE TABLE [SystemInfo] (
     [field] TEXT NOT NULL,
     [value] REAL,
+    [date] DATE,
     PRIMARY KEY ([field])
 ) WITHOUT ROWID;
 
@@ -376,12 +390,18 @@ CREATE TABLE [Trades] (
     foreign key ([ptf_uid]) references Portfolio([uid])
 ) WITHOUT ROWID;
 
-CREATE TABLE [YahooEvents] (
+CREATE TABLE [YahooDividends] (
     [ticker] TEXT NOT NULL,
     [date] DATE NOT NULL,
-    [dtype] TEXT NOT NULL,
     [value] REAL,
-    PRIMARY KEY ([ticker], [date], [dtype])
+    PRIMARY KEY ([ticker], [date])
+) WITHOUT ROWID;
+
+CREATE TABLE [YahooSplits] (
+    [ticker] TEXT NOT NULL,
+    [date] DATE NOT NULL,
+    [value] TEXT,
+    PRIMARY KEY ([ticker], [date])
 ) WITHOUT ROWID;
 
 CREATE TABLE [YahooFinancials] (

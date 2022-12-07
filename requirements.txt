@@ -1,4 +1,5 @@
 beautifulsoup4==4.11.1
+html5lib==1.1
 certifi>=2021.10.8
 charset-normalizer>=2.0.12
 cycler==0.11.0

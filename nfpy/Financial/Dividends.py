@@ -10,9 +10,7 @@ from typing import Optional
 from nfpy.Assets import TyAsset
 import nfpy.Calendar as Cal
 from nfpy.Math import (dropna, search_trim_pos)
-from nfpy.Tools import (Constants as Cn)
-
-from .FundamentalsFactory import FundamentalsFactory
+from nfpy.Tools import Constants as Cn
 
 _DAYS_FREQ_T = (
     Cn.DAYS_IN_1Y,
@@ -64,7 +62,12 @@ class DividendFactory(object):
             raise ValueError(msg)
 
         # Initialize dividends stopping at t0
-        div = self._eq.dividends
+        div = self._eq.series('Dividend.SplitAdj.Regular').dropna()
+        if div.empty:
+            self._num = 0
+            self._is_div_payer = False
+            return
+
         slc = search_trim_pos(
             div.index.values,
             end=Cal.pd_2_np64(Cal.get_calendar_glob().t0)
@@ -138,7 +141,7 @@ class DividendFactory(object):
         if not self._is_div_payer:
             return np.array([]), np.array([])
 
-        prices = self._eq.prices
+        prices = self._eq.series('Price.SplitAdj.Close')
 
         dt = np.r_[
             self._yearly_dt,
@@ -163,12 +166,10 @@ class DividendFactory(object):
 
     @property
     def dividends_special(self) -> tuple[np.ndarray, np.ndarray]:
+        divs = self._eq.dividends_special.dropna()
         return (
-            self._eq.dividends_special.values,
-            self._eq.dividends_special
-            .index
-            .values
-            .astype('datetime64[D]')
+            divs.values,
+            divs.index.values.astype('datetime64[D]')
         )
 
     def div_yield(self, w: int) -> float:
@@ -187,7 +188,7 @@ class DividendFactory(object):
             return .0
 
         price = np.nanmean(
-            self._eq.prices
+            self._eq.series('Price.SplitAdj.Close')
             .values[-abs(w):]
         )
         return self.ttm_div() / price
@@ -216,7 +217,7 @@ class DividendFactory(object):
             return np.ndarray([]), np.ndarray([])
 
         # FIXME: for longer forecasts, the error due to 1Y == 360D accumulates
-        dt = np.arange(1, num+1) * _DAYS_FREQ_D[self._freq]
+        dt = np.arange(1, num + 1) * _DAYS_FREQ_D[self._freq]
 
         divs = intercept + slope * dt
         dt = self._div_dt[-1] + dt.astype('timedelta64[D]')
@@ -271,7 +272,7 @@ class DividendFactory(object):
 
         # If this year dividend has not been paid yet, not consider it
         if self._yearly_div[-1] == .0:
-            idx -= 1
+            idx = max(idx-1, 0)
             end = -1
         else:
             end = None
@@ -283,7 +284,7 @@ class DividendFactory(object):
         # Check the resulting length
         if yd.shape[0] < 2:
             msg = f'DividendFactory(): at least 2 years of dividends required ' \
-                  f'for the dividend drift of {self._eq.uid}'
+                  f'({yd.shape[0]} provided) for the dividend drift of {self._eq.uid}'
             raise ValueError(msg)
 
         # The number of return periods is the number of yields - 1 plus any
@@ -418,7 +419,7 @@ class DividendFactory(object):
 
         start = self._t0 - np.timedelta64(Cn.DAYS_IN_1Y, 'D')
 
-        prices = self._eq.prices
+        prices = self._eq.series('Price.SplitAdj.Close')
         p = prices.values
         p_dt = prices.index.values
 

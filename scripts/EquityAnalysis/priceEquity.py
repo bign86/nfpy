@@ -9,11 +9,11 @@ from tabulate import tabulate
 from nfpy.Assets import get_af_glob
 from nfpy.Calendar import (get_calendar_glob, today)
 import nfpy.DB as DB
-from nfpy.Financial.EquityValuation import DDM2s
+from nfpy.Financial import DDMModel
 import nfpy.IO as IO
 from nfpy.Tools import Constants as Cn
 
-__version__ = '0.3'
+__version__ = '0.4'
 _TITLE_ = "<<< Price equity script >>>"
 
 if __name__ == '__main__':
@@ -41,11 +41,11 @@ if __name__ == '__main__':
     print(f'\n\nAvailable companies:\n'
           f'{tabulate(res, headers=f, showindex=True)}')
     uid = inh.input("\nGive a company index: ", idesc='int')
-    eq = res[uid][0]
+    # eq = res[uid][0]
 
     rrr = inh.input("Enter your required rate of return: ", idesc='float')
 
-    res = DDM2s(eq, future_proj=years).result(d_rate=rrr)
+    res = DDMModel(uid, stage1=(years, None, False), ke=rrr)
 
     print(f"\n----------------------------------\nInputs\n"
           f"\tNum of dividends:\t\t{res['div_num']:.0f}\n"

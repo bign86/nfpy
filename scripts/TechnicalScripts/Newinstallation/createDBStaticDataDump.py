@@ -11,13 +11,13 @@ import pickle
 from nfpy import NFPY_ROOT_DIR
 import nfpy.DB as DB
 
-__version__ = '0.4'
+__version__ = '0.5'
 _TITLE_ = "<<< Database static data dump creation script >>>"
 
 PKL_FILE = 'db_static_data.p'
 JSN_FILE = 'db_static_data.json'
 
-TBL_LIST = ('Currency', 'DecDatatype', 'MapFinancials', 'Providers', 'SystemInfo')
+TBL_LIST = ('Currency', 'DecDatatype', 'MapFinancials', 'Providers')  # 'SystemInfo'
 
 
 def get_db_data():

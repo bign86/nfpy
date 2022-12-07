@@ -12,7 +12,7 @@ from nfpy.Tools import (Singleton, Exceptions as Ex,
 
 from .DBTypes import *
 
-_MIN_DB_VERSION = 1.04
+MIN_DB_VERSION = 1.05
 
 
 class DBHandler(metaclass=Singleton):
@@ -103,11 +103,11 @@ class DBHandler(metaclass=Singleton):
         self._conn = get_db_connection(self.db_path)
 
         # Sanity check on the database version
-        q = "select value from SystemInfo where field = 'DBVersion'"
+        q = "select [value] from SystemInfo where [field] = 'DBVersion'"
         v = self.execute(q).fetchone()[0]
         self._db_version = float(v)
-        if v < _MIN_DB_VERSION:
-            msg = f'DB version {v} < {_MIN_DB_VERSION} (minimum version)'
+        if v < MIN_DB_VERSION:
+            msg = f'DB version {v} < {MIN_DB_VERSION} (minimum version)'
             # logger.error(msg)
             raise Ex.DatabaseError(msg)
 

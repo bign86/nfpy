@@ -92,12 +92,12 @@ class HistoricalPricesPage(NasdaqBasePage):
 
         message = j['status']['bCodeMessage']
         if message is not None:
-            raise ConnectionError(f'{self.ticker} | {message[0]["errorMessage"]}')
+            raise ConnectionError(f'Nasdaq(): {self.ticker} | {message[0]["errorMessage"]}')
 
         count = j['data']['totalRecords']
 
         if count == 0:
-            raise RuntimeWarning(f'{self.ticker} | no new data downloaded')
+            raise RuntimeWarning(f'Nasdaq(): {self.ticker} | no new data downloaded')
 
         data = j['data']['tradesTable']['rows']
         v = np.empty((count, 6), dtype='object')
@@ -129,7 +129,7 @@ class DividendsPage(NasdaqBasePage):
         data = j['data']['dividends']['rows']
 
         if data is None:
-            raise RuntimeWarning(f'{self.ticker} | no new data downloaded')
+            raise RuntimeWarning(f'Nasdaq(): {self.ticker} | no new data downloaded')
 
         v = np.empty((len(data), 6), dtype='object')
         to_remove = []

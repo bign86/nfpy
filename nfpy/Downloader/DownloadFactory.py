@@ -205,7 +205,7 @@ class DownloadFactory(metaclass=Singleton):
                      override_active: bool = False) -> None:
         """ Performs a bulk update of the system based on the 'auto' flag in the
             Downloads table. The entries are updated only in case the last
-            last update has been done at least 'frequency' days ago.
+            update has been done at least 'frequency' days ago.
 
             Input:
                 do_save [bool]: save in database (default: True)
@@ -281,6 +281,10 @@ class DownloadFactory(metaclass=Singleton):
             f'\nItems skipped:    {count_skipped:>4}'
             f'\nItems failed:     {count_failed:>4}\n'
         )
+        self._db.execute(
+            'update SystemInfo set [date] = ? where [field] = "lastDownload"',
+            (today_dt,), commit=True
+        )
 
     def run_import(self, uid: Optional[str] = None,
                    provider: Optional[str] = None,
@@ -311,6 +315,10 @@ class DownloadFactory(metaclass=Singleton):
                     RuntimeError, ValueError, RequestException) as e:
                 Ut.print_exc(e)
 
+        self._db.execute(
+            'update SystemInfo set [date] = ? where [field] = "lastImport"',
+            (Cal.today(mode='date'),), commit=True
+        )
 
 def get_dwnf_glob() -> DownloadFactory:
     """ Returns the pointer to the global Downloads Factory. """

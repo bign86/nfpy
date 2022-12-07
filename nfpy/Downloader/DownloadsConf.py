@@ -558,3 +558,12 @@ OECDSeriesConf = [
     "measure", "frequency_code", "frequency", "date_code", "date", "unit_code",
     "unit", "powercode_code", "powercode", "value"
 ]
+
+#
+# Borsa Italiana
+#
+
+BorsaItalianaDividendsConf = [
+    'ticker', 'type', 'dps_bod', 'dps_agm', 'currency',
+    'ex_date', 'payment', 'agm', 'notice'
+]

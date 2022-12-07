@@ -41,7 +41,13 @@ class InputHandler(object):
     @staticmethod
     def _to_bool(v: str, **kwargs) -> bool:
         _ = kwargs
-        return True if v.lower() in ('y', 'yes', '1', 'true') else False
+        vl = v.lower()
+        if vl in ('y', 'yes', '1', 'true'):
+            return True
+        elif vl in ('n', 'no', '0', 'false'):
+            return False
+        else:
+            raise ValueError(f'InputHandler(): boolean {v} not recognized')
 
     @staticmethod
     def _to_datetime(v: str, **kwargs) -> Cal.TyDate:

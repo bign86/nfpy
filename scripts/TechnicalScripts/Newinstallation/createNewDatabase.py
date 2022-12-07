@@ -14,14 +14,14 @@ from nfpy import NFPY_ROOT_DIR
 import nfpy.DB as DB
 from nfpy.Tools import get_conf_glob
 
-__version__ = '0.8'
+__version__ = '0.9'
 _TITLE_ = "<<< Database creation script >>>"
 
 Q_CCY = "insert into Currency (name, symbol, country, pegged, factor) values (?, ?, ?, ?, ?);"
 Q_DEC = "insert into DecDatatype (datatype, encoding) values (?, ?);"
 Q_FMAP = "insert into MapFinancials (short_name, category, long_name) values (?, ?, ?);"
 Q_PROV = "insert into Providers (provider, page, item) values (?, ?, ?);"
-Q_SYS = "insert into SystemInfo (field, value) values (?, ?);"
+Q_SYS = "insert into SystemInfo (field, value, date) values (?, ?, ?);"
 
 PKL_FILE = 'db_static_data.p'
 JSN_FILE = 'db_static_data.json'
@@ -77,7 +77,14 @@ def populate_database(conn_: sqlite3.Connection) -> None:
     conn_.cursor().executemany(Q_DEC, data_dict['DecDatatype'])
     conn_.cursor().executemany(Q_FMAP, data_dict['MapFinancials'])
     conn_.cursor().executemany(Q_PROV, data_dict['Providers'])
-    conn_.cursor().executemany(Q_SYS, data_dict['SystemInfo'])
+
+    # Adding SystemInfo data
+    sysinfo_data = [
+        ('DBVersion', DB.MIN_DB_VERSION, None),
+        ('lastDownload', None, None),
+        ('lastImport', None, None)
+    ]
+    conn_.cursor().executemany(Q_SYS, sysinfo_data)
     conn_.commit()
     print("--- Setup completed! ---")
 

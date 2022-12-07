@@ -39,7 +39,7 @@ def dropna(v: np.ndarray, axis: int = 0) -> tuple:
         _v = _v.reshape(v_sh)
         mask = mask.reshape((max(mask.shape),))
     else:
-        raise Ex.ShapeError('3D+ arrays not supported')
+        raise Ex.ShapeError('dropna(): 3D+ arrays not supported')
 
     return _v, mask
 
@@ -295,7 +295,7 @@ def next_valid_value(v: np.ndarray, dt: Optional[np.ndarray] = None,
             ValueError: if the series is all nans
     """
     if len(v.shape) > 1:
-        raise Ex.ShapeError('Only 1D arrays supported')
+        raise Ex.ShapeError('next_valid_value(): Only 1D arrays supported')
 
     if t0:
         pos = np.searchsorted(dt, t0, side='right')
@@ -319,14 +319,14 @@ def search_trim_pos(dt: np.ndarray, start: Optional[np.datetime64] = None,
             slc [slice]: slice object
     """
     if len(dt.shape) > 1:
-        raise Ex.ShapeError('Only 1D arrays supported')
+        raise Ex.ShapeError('search_trim_pos(): Only 1D arrays supported')
 
     # Quick exit
-    if ((start is None) and (end is None)) or (len(dt) == 0):
+    if ((start is None) and (end is None)) or (dt.shape[0] == 0):
         return slice(None, None)
 
     # If the dates array has length 1, return quickly
-    if len(dt) == 1:
+    if dt.shape[0] == 1:
         t = dt[0]
         if ((start is not None) and (t < start)) or \
                 ((end is not None) and (t > end)):
@@ -390,7 +390,7 @@ def trim_ts(v: Optional[np.ndarray], dt: np.ndarray,
             dt [np.ndarray]: dates series trimmed
     """
     if len(dt.shape) > 1:
-        raise Ex.ShapeError('The dates array must be 1D')
+        raise Ex.ShapeError('trim_ts(): The dates array must be 1D')
 
     slice_obj = search_trim_pos(dt, start, end)
 
