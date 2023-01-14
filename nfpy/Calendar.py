@@ -4,6 +4,7 @@
 #
 
 import datetime
+from enum import Enum
 import itertools
 
 import numpy as np
@@ -27,18 +28,29 @@ _WEEKEND_MASK_STR_ = ('Sat', 'Sun')
 _WEEK_MASK_INT_ = (0, 1, 2, 3, 4)
 _WEEK_MASK_STR_ = ('Mon', 'Tue', 'Wen', 'Thu', 'Fri')
 
-_FREQ_LABELS = {'D': ('D', off.Day),
-                'B': ('B', off.BDay),
-                'W': ('W', off.Week),
-                'MS': ('MS', off.MonthBegin),
-                'BMS': ('AMS', off.BMonthBegin),
-                'M': ('M', off.MonthEnd),
-                'Q': ('Q', off.QuarterEnd),
-                'BQ': ('BQ', off.BQuarterEnd),
-                'AS': ('AS', off.YearBegin),
-                'BAS': ('BAS', off.BYearBegin),
-                'A': ('A', off.YearEnd),
-                'BA': ('BA', off.BYearEnd)}
+_OFFSET_LABELS = {
+    'D': ('D', off.Day),
+    'B': ('B', off.BDay),
+    'W': ('W', off.Week),
+    'MS': ('MS', off.MonthBegin),
+    'BMS': ('AMS', off.BMonthBegin),
+    'M': ('M', off.MonthEnd),
+    'Q': ('Q', off.QuarterEnd),
+    'BQ': ('BQ', off.BQuarterEnd),
+    'AS': ('AS', off.YearBegin),
+    'BAS': ('BAS', off.BYearBegin),
+    'A': ('A', off.YearEnd),
+    'BA': ('BA', off.BYearEnd)
+}
+
+
+class Frequency(Enum):
+    D = 'D'
+    B = 'B'
+    W = 'W'
+    M = 'M'
+    Q = 'Q'
+    Y = 'Y'
 
 
 class Calendar(metaclass=Singleton):
@@ -155,18 +167,22 @@ class Calendar(metaclass=Singleton):
         # offset = min(2, max(0, (self.end.weekday() + 6) % 7 - 3))
         self._t0 = self.end - off.BDay(offset)
 
-        print(f' * Calendar dates: {self._start.date()} -> '
-              f'{self._end.date()} : {self._t0.date()}',
-              end='\n\n')
-
         # Monthly calendar
+        start = self._start - off.MonthBegin(1)
         self._monthly_calendar = pd.date_range(
-            start=self._start, end=self._end, freq='BMS'
+            start=start, end=self._end, freq='BMS'
         )
 
         # Yearly calendar
+        start = self._start - off.YearBegin(1)
         self._yearly_calendar = pd.date_range(
-            start=self._start, end=self._end, freq='BAS'
+            start=start, end=self._end, freq='BAS'
+        )
+
+        print(
+            f' * Calendar dates:\n'
+            f'    {self._start.date()} -> {self._end.date()} : {self._t0.date()}',
+            end='\n\n'
         )
 
         self._initialized = True
@@ -174,7 +190,7 @@ class Calendar(metaclass=Singleton):
     @staticmethod
     def get_offset(freq: str) -> off:
         """ Get a DateOffset object dependent on the frequency """
-        return _FREQ_LABELS[freq][1]
+        return _OFFSET_LABELS[freq][1]
 
     def run_len(self, start: TyDatetime, end: TyDatetime) -> int:
         """ Returns the number of periods between the two datetimes in input. """
@@ -206,7 +222,7 @@ class Calendar(metaclass=Singleton):
         else:
             raise ValueError(f'Calendar.shift(): frequency {freq} not recognized')
 
-        offset = _FREQ_LABELS[freq][1]
+        offset = _OFFSET_LABELS[freq][1]
         shifted = dt + offset(int(n))
         target = cal.get_indexer([shifted], method=method)[0]
         return cal[target]
@@ -222,7 +238,7 @@ def date_2_datetime(dt: Union[TyDate, TyTimeSequence], fmt: str = '%Y-%m-%d') \
         elif isinstance(dt[0], datetime.datetime):
             pass
         else:
-            raise TypeError(f'Date type ({type(dt)}) not accepted')
+            raise TypeError(f'Calendar.date_2_datetime(): Date type ({type(dt)}) not accepted')
         return dt
     else:
         if isinstance(dt, str):
@@ -232,7 +248,7 @@ def date_2_datetime(dt: Union[TyDate, TyTimeSequence], fmt: str = '%Y-%m-%d') \
         elif isinstance(dt, datetime.datetime):
             pass
         else:
-            raise TypeError(f'Date type ({type(dt)}) not accepted')
+            raise TypeError(f'Calendar.date_2_datetime(): Date type ({type(dt)}) not accepted')
         return dt
 
 
@@ -336,7 +352,7 @@ def shift(dt: pd.Timestamp, n: int, freq: str) -> pd.Timestamp:
         Output:
             target [pd.Timestamp]: target calendar date
     """
-    offset = _FREQ_LABELS[freq][1]
+    offset = _OFFSET_LABELS[freq][1]
     return dt + offset(int(n))
 
 

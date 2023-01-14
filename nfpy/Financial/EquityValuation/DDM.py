@@ -115,7 +115,6 @@ class DDM(BaseFundamentalModel):
         self._im_lt_premium = None
         self._im_st_premium = None
         self._inflation = None
-        self._last_price = None
         self._lt_growth = None
 
         self._check_applicability()
@@ -151,7 +150,6 @@ class DDM(BaseFundamentalModel):
         # - the implied cost of equity (from GGM)
         # - premium over long-term inflation
         # - premium over short-term inflation
-        self._last_price = self._eq.last_price()[0]
         _, yd = self._df.annual_dividends
 
         self._im_ke = yd[-1] * (1. + self._lt_growth) / self._last_price \

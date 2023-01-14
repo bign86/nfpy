@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <title>Report NFPY</title>
+  </head>
+  <body>
+    <!-- TITLE -->
+    <a name="head"></a>
+    <div class="header">
+      <div class="titleBox">
+        <h1>{{ title }}</h1>
+        <a name="main_title" href="index.html">Index</a>
+        <hr>
+      </div>
+    </div>
+
+    {%- set res_list = res.values()|list -%}
+    {%- set val = res_list[0] -%}
+    <!-- REPORTS -->
+    <div class="reportBody">
+
+      <!-- Equities -->
+      <div class="base-container">
+        <div class="titleReport">
+          <h3>General Information</h3>
+        </div>
+
+        <!-- Market model -->
+        <div class="container-small">
+          <div class="container-normal">
+            <table class="simple">
+              <thead>
+                <tr>
+                  <th colspan="2">General data</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class='anag-prop'>Isin</td><td class='anag-value'>{{ val.info["isin"] }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Company</td><td class='anag-value'>{{ val.info["company"] }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Name</td><td class='anag-value'>{{ val.info["description"] }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Index</td><td class='anag-value'>{{ val.info["index"] }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Country</td><td class='anag-value'>{{ val.info["country"] }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Currency</td><td class='anag-value'>{{ val.info["currency"] }}</td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="font-weight:bold;text-align:center;padding-top:5px;">Performance</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Date</td><td class='anag-value'>{{ val.last_price_date }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Last price</td><td class='anag-value'>{{ '%.2f'| format(val.last_price|float) }} {{ val.info["currency"] }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="container-normal">
+            <div style="text-align:center">
+              {{ val.alerts_table }}
+            </div>
+            <div style="text-align:center">
+              {{ val.stats }}
+            </div>
+          </div>
+        </div>
+        <div class="container-large">
+          <div class="container-normal">
+            <img src="{{ val.img_ma_plot }}" alt="MA crosses" class="normal-plot">
+          </div>
+          <div class="container-normal">
+            <img src="{{ val.img_prices_long }}" alt="Price history vs benchmark" class="normal-plot">
+          </div>
+        </div>
+      </div>
+
+      {%- if val.freq_div != 0 -%}
+      <div class="base-container">
+        <div class="titleReport">
+          <h3>Dividends valuation</h3>
+        </div>
+
+        <div class="container-small">
+          <table class="simple">
+            <thead>
+              <tr>
+                <th colspan="3">Dividends</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class='anag-prop'># per year</td><td colspan="2" class='anag-value'>{{ val.freq_div }}</td>
+              </tr>
+              <tr>
+                <td class='anag-prop'>YTD</td><td colspan="2" class='anag-value'>{{ '%.2f'| format(val.ytd_yrl_div|float) }}</td>
+              </tr>
+              <tr>
+                <td class='anag-prop'>Yield YTD</td><td colspan="2" class='anag-value'>{{ '%.2f'| format(val.ytd_yrl_yield|float) }}%</td>
+              </tr>
+              <tr>
+                <td class='anag-prop'>Last year</td><td colspan="2" class='anag-value'>{{ '%.2f'| format(val.last_yrl_div|float) }}</td>
+              </tr>
+              <tr>
+                <td class='anag-prop'>Yield Last year</td><td colspan="2" class='anag-value'>{{ '%.2f'| format(val.last_yrl_yield|float) }}%</td>
+              </tr>
+              <tr>
+                <td colspan="3" style="font-weight:bold;text-align:center;padding-top:5px;">General results</td>
+              </tr>
+              <tr>
+                <td class='anag-prop'>Cost of equity</td><td colspan="2" class='anag-value'>{{ '%.2f'| format(val.ddm_ke|float) }} %</td>
+              </tr>
+              <tr>
+                <td class='anag-prop'> - including premium</td><td colspan="2" class='anag-value'>{{ '%.2f'| format(val.ddm_premium|float) }} %</td>
+              </tr>
+              <tr>
+                <td class='anag-prop'>LT growth</td><td colspan="2" class='anag-value'>{{ '%.2f'| format(val.ddm_lt_g|float) }} %</td>
+              </tr>
+              <tr>
+                <td colspan="3" style="font-weight:bold;text-align:center;padding-top:5px;">Implied results</td>
+              </tr>
+              <tr>
+                <td class='anag-prop'>Impl. cost of equity</td><td colspan="2" class='anag-value'>{{ '%.2f'| format(val.ddm_im_ke|float) }} %</td>
+              </tr>
+              <tr>
+                <td class='anag-prop'>Impl. LT premium</td><td colspan="2" class='anag-value'>{{ '%.2f'| format(val.ddm_im_lt_prm|float) }} %</td>
+              </tr>
+              <tr>
+                <td class='anag-prop'>Impl. ST premium</td><td colspan="2" class='anag-value'>{{ '%.2f'| format(val.ddm_im_st_prm|float) }} %</td>
+              </tr>
+              <tr>
+                <td colspan="3" style="font-weight:bold;text-align:center;padding-top:5px;">Dividend Valuations</td>
+              </tr>
+              <tr>
+                <td class='anag-prop'></td><td class='anag-prop'>FV</td><td class='anag-prop'>Return</td>
+              </tr>
+              <tr>
+                <td class='anag-prop'>No growth</td><td class='anag-value'>{{ '%.2f'| format(val.ddm_res_no_gwt["fv"]|float) }} {{ val.info["currency"] }}</td><td class='anag-value'>{{ '%.2f'| format((val.ddm_res_no_gwt["ret"]*100)|float) }} %</td>
+              </tr>
+              {%- if "ddm_res_manual" in val -%}
+              <tr>
+                <td class='anag-prop'>Manual growth</td><td class='anag-value'>{{ '%.2f'| format(val.ddm_res_manual["fv"]|float) }} {{ val.info["currency"] }}</td><td class='anag-value'>{{ '%.2f'| format((val.ddm_res_manual["ret"]*100)|float) }} %</td>
+              </tr>
+              {%- endif -%}
+              {%- if "ddm_res_hist" in val -%}
+              <tr>
+                <td class='anag-prop'>Hist growth</td><td class='anag-value'>{{ '%.2f'| format(val.ddm_res_hist["fv"]|float) }} {{ val.info["currency"] }}</td><td class='anag-value'>{{ '%.2f'| format((val.ddm_res_hist["ret"]*100)|float) }} %</td>
+              </tr>
+              {%- endif -%}
+              {%- if "ddm_res_roe" in val -%}
+              <tr>
+                <td class='anag-prop'>ROE growth</td><td class='anag-value'>{{ '%.2f'| format(val.ddm_res_roe["fv"]|float) }} {{ val.info["currency"] }}</td><td class='anag-value'>{{ '%.2f'| format((val.ddm_res_roe["ret"]*100)|float) }} %</td>
+              </tr>
+              {%- endif -%}
+              {%- if "ddm_res_booth" in val -%}
+              <tr>
+                <td class='anag-prop'>Booth growth</td><td class='anag-value'>{{ '%.2f'| format(val.ddm_res_booth["fv"]|float) }} {{ val.info["currency"] }}</td><td class='anag-value'>{{ '%.2f'| format((val.ddm_res_booth["ret"]*100)|float) }} %</td>
+              </tr>
+              {%- endif -%}
+            </tbody>
+          </table>
+        </div>
+        <div class="container-small">
+          <img src="{{ val.div_rates_fig }}" alt="Dividend rates plot" class="normal-plot">
+        </div>
+        <div class="container-small">
+          <img src="{{ val.div_fig }}" alt="Dividends plot" class="normal-plot">
+        </div>
+      </div>
+      {%- endif -%}
+      {%- if val.has_ddm -%}
+      {%- endif -%}
+
+    </div>
+
+  </body>
+</html>

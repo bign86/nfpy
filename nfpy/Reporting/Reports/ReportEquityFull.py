@@ -12,7 +12,7 @@ from typing import (Any, Optional)
 from nfpy.Assets import TyAsset
 from nfpy.Calendar import today
 from nfpy.Financial import DividendFactory
-from nfpy.Financial.EquityValuation import (DDM, DCF)
+from nfpy.Financial.EquityValuation import (DCF, DDM)
 import nfpy.IO as IO
 import nfpy.Math as Math
 from nfpy.Tools import (
@@ -32,21 +32,10 @@ else:
     PD_STYLE_PROP = {'na_rep': "-"}
 
 
-class ReportMarketShort(BaseReport):
+class ReportEquityFull(BaseReport):
     DEFAULT_P = {
-        'years_price_hist': 2.,
+        'history': 5,
         'w_alerts_days': 14,
-        'ewma': {
-            'w_ma_fast': 20,
-            'w_ma_slow': 120,
-            'w_plot': 250
-        },
-        'sr': {
-            'w_sr': [120, 20],
-            'w_check': 10,
-            'tolerance': 1.5,
-            'w_multi': 2.,
-        },
         'DCF': {
             'past_horizon': 8,
             'future_proj': 5,
@@ -59,6 +48,17 @@ class ReportMarketShort(BaseReport):
             'stage1': (5, None, True),
             'stage2': None,
             'gwt_mode': ['historical', 'ROE', 'booth'],
+        },
+        'ewma': {
+            'w_ma_fast': 20,
+            'w_ma_slow': 120,
+            'w_plot': 250
+        },
+        'sr': {
+            'w_sr': [120, 20],
+            'w_check': 10,
+            'tolerance': 1.5,
+            'w_multi': 2.,
         },
     }
 
@@ -86,7 +86,7 @@ class ReportMarketShort(BaseReport):
         """ Perform all non-uid dependent calculations for efficiency. """
         # Calculate price history length and save the slice object for later use
         t0 = self._cal.t0
-        hist_y = -self._p['years_price_hist'] * Cn.DAYS_IN_1Y
+        hist_y = -self._p['history'] * Cn.DAYS_IN_1Y
         start = self._cal.shift(t0, hist_y, 'D')
         self._hist_slc = Math.search_trim_pos(
             self._cal.calendar.values,
@@ -113,22 +113,145 @@ class ReportMarketShort(BaseReport):
         """
         outputs = defaultdict(dict)
         self._one_off_calculations()
-        for uid in self.uids:
-            print(f'  > {uid}')
-            try:
-                asset = self._af.get(uid)
-                if asset.type != 'Equity':
-                    raise Ex.AssetTypeError(f'{uid} is not an equity')
+        try:
+            asset = self._af.get(self.uids[0])
+            if asset.type == 'Company':
+                asset = self._af.get(asset.equity)
+            else:
+                msg = f'{self.uids[0]} is not an equity or a company'
+                raise Ex.AssetTypeError(msg)
 
-                res = Ut.AttributizedDict()
-                self._calc_equity(asset, res)
-                self._calc_trading(asset, res)
-                outputs[asset.ticker] = res
+            res = Ut.AttributizedDict()
+            self._calc_equity(asset, res)
+            self._calc_ddm(asset, res)
+            self._calc_trading(asset, res)
+            outputs[asset.ticker] = res
 
-            except (RuntimeError, ValueError, Ex.AssetTypeError) as ex:
-                Ut.print_exc(ex)
+        except (RuntimeError, Ex.AssetTypeError) as ex:
+            Ut.print_exc(ex)
 
         return outputs
+
+    def _calc_dcf(self, asset: TyAsset, res: Ut.AttributizedDict) -> None:
+        # Discounted Cash Flow calculation
+        try:
+            p = self._p.get('DCF', {})
+            dcf_res = DCF(asset.uid, **p) \
+                .result(**p)
+        except Exception as ex:
+            res.has_dcf = False
+            Ut.print_exc(ex)
+        else:
+            res.has_dcf = True
+            res.dcf_ret = (dcf_res.fair_value / res.last_price - 1.) * 100.
+            res.dcf_fair_value = dcf_res.fair_value
+            res.dcf_wacc = dcf_res.wacc
+            res.dcf_coe = dcf_res.cost_of_equity
+            res.dcf_cod = dcf_res.cost_of_debt
+            res.dcf_history = dcf_res.history
+            res.dcf_project = dcf_res.projection
+
+            df = dcf_res.df
+            df.index = df.index.strftime("%Y-%m-%d")
+            res.df = df.T.to_html(
+                index=True,
+                na_rep='-',
+                float_format='{:,.2f}'.format,
+                border=None,
+            )
+
+    def _calc_ddm(self, asset: TyAsset, res: Ut.AttributizedDict) -> None:
+        # Dividends Discount Model Calculation
+        try:
+            p = self._p.get('DDM', {})
+            ddm_res = DDM(asset.uid, **p).result(**p)
+        except Ex.MissingData as ex:
+            res.has_ddm = False
+            Ut.print_exc(ex)
+        else:
+            res.has_ddm = True
+            res.ddm_im_ke = ddm_res.implied_ke * 100.
+            res.ddm_im_lt_prm = ddm_res.implied_lt_premium * 100.
+            res.ddm_im_st_prm = ddm_res.implied_st_premium * 100.
+
+            res.ddm_ke = ddm_res.ke * 100.
+            res.ddm_premium = ddm_res.premium * 100.
+            res.ddm_lt_g = ddm_res.lt_growth * 100.
+
+            res.ddm_res_no_gwt = ddm_res.no_growth
+
+            labels = ((ddm_res.uid,), ('DDM',), ('div', 'rates'))
+            fig_full, fig_rel = self._get_image_paths(labels)
+            res.div_fig = fig_rel[0]
+            res.div_rates_fig = fig_rel[1]
+
+            # Save out dividend figure
+            pl_d = IO.TSPlot(yl=('Dividend',)) \
+                .lplot(0, ddm_res.div_ts, marker='o', label='Historical', color='dimgrey')
+
+            if ddm_res.stages > 0:
+                pl_d.lplot(
+                    0, ddm_res.dates, ddm_res.no_growth['cf'][1, :],
+                    marker='o', label='No growth', color='C0'
+                )
+
+                pl_r = IO.TSPlot(yl=('Dividend growth',)) \
+                    .line(0, 'xh', res.ddm_lt_g, label='Long-Term growth rate',
+                          linestyle='--', color='dimgrey')
+                # .lplot(0, ddm_res.macro_growth, label='Macro growth') \
+
+                if hasattr(ddm_res, 'manual_growth'):
+                    res.ddm_res_manual = ddm_res.manual_growth
+                    pl_d.lplot(
+                        0, ddm_res.dates, ddm_res.manual_growth['cf'][1, :],
+                        label='Manual growth', color='C1'
+                    )
+                    pl_r.lplot(
+                        0, ddm_res.dates, ddm_res.manual_growth['rates'] * 100.,
+                        label='Manual rates', color='C1'
+                    )
+
+                if hasattr(ddm_res, 'historical_growth'):
+                    res.ddm_res_hist = ddm_res.historical_growth
+                    pl_d.lplot(
+                        0, ddm_res.dates, ddm_res.historical_growth['cf'][1, :],
+                        label='Hist growth', color='C2'
+                    )
+                    pl_r.lplot(
+                        0, ddm_res.dates, ddm_res.historical_growth['rates'] * 100.,
+                        label='Hist rates', color='C2'
+                    )
+
+                if hasattr(ddm_res, 'ROE_growth'):
+                    res.ddm_res_roe = ddm_res.ROE_growth
+                    pl_d.lplot(
+                        0, ddm_res.dates, ddm_res.ROE_growth['cf'][1, :],
+                        label='ROE growth', color='C3'
+                    )
+                    pl_r.lplot(
+                        0, ddm_res.dates, ddm_res.ROE_growth['rates'] * 100.,
+                        label='ROE rates', color='C3'
+                    )
+
+                if hasattr(ddm_res, 'booth_growth'):
+                    res.ddm_res_booth = ddm_res.booth_growth
+                    pl_d.lplot(
+                        0, ddm_res.dates, ddm_res.booth_growth['cf'][1, :],
+                        label='Booth growth', color='C4'
+                    )
+                    pl_r.lplot(
+                        0, ddm_res.dates, ddm_res.booth_growth['rates'] * 100.,
+                        label='Booth rates', color='C4'
+                    )
+
+                # Save out dividend growth figure
+                pl_r.plot() \
+                    .save(fig_full[1]) \
+                    .close(True)
+
+            pl_d.plot() \
+                .save(fig_full[0]) \
+                .close(True)
 
     def _calc_equity(self, asset: TyAsset, res: Ut.AttributizedDict) -> None:
         # General infos
@@ -252,52 +375,6 @@ class ReportMarketShort(BaseReport):
             },
         )
 
-        # Dividends Discount Model Calculation
-        try:
-            p = self._p.get('DDM', {})
-            ddm_res = DDM(asset.uid, **p).result(**p)
-        except Ex.MissingData as ex:
-            res.has_ddm = False
-            Ut.print_exc(ex)
-        else:
-            res.has_ddm = True
-            res.ddm_im_ke = ddm_res.implied_ke * 100.
-            res.ddm_im_lt_prm = ddm_res.implied_lt_premium * 100.
-            res.ddm_im_st_prm = ddm_res.implied_st_premium * 100.
-
-            res.ddm_ke = ddm_res.ke * 100.
-            res.ddm_premium = ddm_res.premium * 100.
-            res.ddm_lt_g = ddm_res.lt_growth * 100.
-
-            res.ddm_res_no_gwt = ddm_res.no_growth
-
-            if hasattr(ddm_res, 'manual_growth'):
-                res.ddm_res_manual = ddm_res.manual_growth
-            if hasattr(ddm_res, 'historical_growth'):
-                res.ddm_res_hist = ddm_res.historical_growth
-            if hasattr(ddm_res, 'ROE_growth'):
-                res.ddm_res_roe = ddm_res.ROE_growth
-            if hasattr(ddm_res, 'booth_growth'):
-                res.ddm_res_booth = ddm_res.booth_growth
-
-        # Dividends Cash FLow Model Calculation
-        try:
-            p = self._p.get('DCF', {})
-            dcf_res = DCF(asset.uid, **p).result(**p)
-        except Ex.MissingData as ex:
-            res.has_dcf = False
-            Ut.print_exc(ex)
-        else:
-            res.has_dcf = True
-            res.dcf_last_price = dcf_res.last_price
-            res.dcf_fair_value = dcf_res.fair_value
-            res.dcf_return = dcf_res.ret * 100.
-            res.dcf_wacc = dcf_res.wacc * 100.
-            res.dcf_coe = dcf_res.cost_of_equity * 100.
-            res.dcf_cod = dcf_res.cost_of_debt * 100.
-            res.dcf_history = dcf_res.history
-            res.dcf_project = dcf_res.projection
-
     def _calc_trading(self, asset: TyAsset, res: Ut.AttributizedDict) -> None:
         fig_full, fig_rel = self._get_image_paths(
             (
@@ -337,19 +414,19 @@ class ReportMarketShort(BaseReport):
                 status = ''
             alerts_data.append((a.cond, status, a.value, is_today, dt_trigger))
 
-        # S/R lines alerts & add to the common list
-        w_sr = self._p['sr']['w_sr']
-        sr_check = self._p['sr']['w_check']
-        sr_tol = self._p['sr']['tolerance']
-        sr_multi = self._p['sr']['w_multi']
+        # # S/R lines alerts & add to the common list
+        # w_sr = self._p['sr']['w_sr']
+        # sr_check = self._p['sr']['w_check']
+        # sr_tol = self._p['sr']['tolerance']
+        # sr_multi = self._p['sr']['w_multi']
 
-        smooth_w = max(w_sr) * sr_multi
-        sr_checker = Trd.SRBreach(
-            v_p[-smooth_w:],
-            sr_check, sr_tol, 'smooth', w_sr
-        )
-        for b in sr_checker.get():
-            alerts_data.append((b[0], b[2], b[1], '', ''))
+        # smooth_w = int(round(max(w_sr) * sr_multi))
+        # sr_checker = Trd.SRBreach(
+        #     v_p[-smooth_w:],
+        #     sr_check, sr_tol, 'smooth', w_sr
+        # )
+        # for b in sr_checker.get():
+        #     alerts_data.append((b[0], b[2], b[1], '', ''))
 
         # Strategy and moving averages
         w_fast = self._p['ewma']['w_ma_fast']

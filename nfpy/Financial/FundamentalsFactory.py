@@ -60,7 +60,7 @@ class FundamentalsFactory(object):
             res[mask] = v[mask]
 
         if np.isnan(res).all():
-            raise KeyError(f'FundamentalsFactory(): {code}|{freq} not found for {self._comp.uid}')
+            raise Ex.MissingData(f'FundamentalsFactory(): {code}|{freq} not found for {self._comp.uid}')
 
         return df.index.values, res
 
@@ -97,9 +97,9 @@ class FundamentalsFactory(object):
         return idx, n - m
 
     def cost_of_debt(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
-        return self._financial('0CODB', freq, self._cost_debt, (freq,))
+        return self._financial('0CODB', freq, self._cost_of_debt, (freq,))
 
-    def _cost_debt(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+    def _cost_of_debt(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
         """ Return the cost of debt as:
                 Interest Expenses / Total Liabilities
         """
@@ -158,13 +158,26 @@ class FundamentalsFactory(object):
         return self._financial('0FCFE', freq, self._fcfe, (freq,))
 
     def _fcfe(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
-        """ Return Free Cash Flow as:
+        """ Return Free Cash Flow to Equity as:
                 Operating Cash Flow - Capital Expenditures + Net Borrowings
         """
         idx, n = self._financial('OTLO', freq)
         _, m = self._financial('SCEX', freq)
         _, b = self._financial('FPRD', freq)
         return idx, n - m + b
+
+    def fcff(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        return self._financial('0FCFF', freq, self._fcff, (freq,))
+
+    def _fcff(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+        """ Return Free Cash Flow to the Firm as:
+                Operating Cash Flow + Interest Paid Net of Tax - Capital Expenditures
+        """
+        idx, n = self._financial('OTLO', freq)
+        _, m = self._financial('SCEX', freq)
+        _, i = self.interest_expenses(freq)
+        _, t = self.tax_rate(freq)
+        return idx, n - m + i * (1. - t)
 
     def get_index(self, freq: str) -> np.ndarray:
         df = self._df_a if freq == 'A' else self._df_q
@@ -174,8 +187,10 @@ class FundamentalsFactory(object):
         return self._financial('EIBT', freq)
 
     def income_tax_paid(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
-        return self._financial('TTAX', freq, self._income_tax_paid, (freq,))
+        # return self._financial('TTAX', freq, self._income_tax_paid, (freq,))
+        return self._financial('TTAX', freq)
 
+    # FIXME: this calculation doesn't work. There must be some other adjustment.
     def _income_tax_paid(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
         """ Return Provision for Income Tax as:
                 Net Income Before Taxes - Net Income After Taxes
@@ -265,23 +280,23 @@ class FundamentalsFactory(object):
     ######################
 
     # TODO
-    def fcff(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
-        return self._financial('0FCFF', freq, self._fcff, (freq,))
-
-    def _fcff(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
-        """ Return Free Cash Flow to Firm as:
-                1. Net Income + Dep&Amor + Interest Expenses(1 – Tax Rate)
-                    – Capital Expenditures + Change Working Capital
-        """
-        # https://www.wallstreetmojo.com/free-cash-flow-firm-fcff/
-        labels = ['TIAT', 'SDPR', 'STIE', 'SOCF', 'SCEX']
-        if all(f in self._labels for f in labels):
-            idx, res = self._financial('TIAT', freq)
-            for lb in labels[1:]:
-                _, d = self._financial(lb, freq)
-                mask = np.isnan(res)
-                res[mask] = d[mask]
-                res[~mask] += d[~mask]
-        else:
-            raise Ex.MissingData(f'FCFF [0FCFF] for {self._comp.uid} not found')
-        return idx, res
+    # def fcff(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+    #     return self._financial('0FCFF', freq, self._fcff, (freq,))
+    #
+    # def _fcff(self, freq: str) -> tuple[np.ndarray, np.ndarray]:
+    #     """ Return Free Cash Flow to Firm as:
+    #             1. Net Income + Dep&Amor + Interest Expenses(1 – Tax Rate)
+    #                 – Capital Expenditures + Change Working Capital
+    #     """
+    #     # https://www.wallstreetmojo.com/free-cash-flow-firm-fcff/
+    #     labels = ['TIAT', 'SDPR', 'STIE', 'SOCF', 'SCEX']
+    #     if all(f in self._labels for f in labels):
+    #         idx, res = self._financial('TIAT', freq)
+    #         for lb in labels[1:]:
+    #             _, d = self._financial(lb, freq)
+    #             mask = np.isnan(res)
+    #             res[mask] = d[mask]
+    #             res[~mask] += d[~mask]
+    #     else:
+    #         raise Ex.MissingData(f'FCFF [0FCFF] for {self._comp.uid} not found')
+    #     return idx, res

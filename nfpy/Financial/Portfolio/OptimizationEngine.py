@@ -96,7 +96,11 @@ class OptimizationEngine(object):
         self._corr = np.corrcoef(ret, rowvar=False)
 
         if (self._rf_ret is None) and ('CALModel' in self._algo):
-            self._rf_ret = self._rf.get_rf(ccy).last_price()[0]
+            rf_asset = self._rf.get_rf(ccy)
+            self._rf_ret = Math.compound(
+                rf_asset.last_price()[0],
+                Cn.BDAYS[rf_asset.frequency]
+            )
 
     def run(self) -> None:
         res_list = []

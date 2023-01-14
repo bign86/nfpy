@@ -57,6 +57,8 @@ CREATE TABLE [Company] (
     [equity] TEXT,
     [currency] TEXT,
     [country] TEXT,
+    [rating] TEXT,
+    [outlook] TEXT,
     PRIMARY KEY ([uid])
 ) WITHOUT ROWID;
 
@@ -159,6 +161,15 @@ CREATE TABLE [EtfTS] (
     [date] DATETIME NOT NULL,
     [value] REAL,
     PRIMARY KEY ([uid], [dtype], [date])
+) WITHOUT ROWID;
+
+CREATE TABLE [FREDSeries] (
+    [ticker] TEXT NOT NULL,
+    [realtime_start] DATE NOT NULL,
+    [realtime_end] DATE NOT NULL,
+    [date] DATE NOT NULL,
+    [value] REAL,
+    PRIMARY KEY ([ticker], [realtime_start], [realtime_end], [date])
 ) WITHOUT ROWID;
 
 CREATE TABLE [Fx] (

@@ -47,6 +47,9 @@ PARAMS_DICT__ = {
         'ib_client_id': (str, 'IBAPI client ID'),
         'ib_tws_port': (int, 'IBAPI TWS port'),
     },
+    'API': {
+        'fred_api_key': (str, 'FRED API key'),
+    },
     'LOGGING': {
         'log_level': (int, 'Log level'),
         'log_path': (str, 'Log file full path'),

@@ -10,7 +10,7 @@ from typing import (Any, Optional)
 from nfpy.Assets import TyAsset
 import nfpy.IO as IO
 from nfpy.Financial.EquityValuation import (
-    DiscountedCashFlowModel, DDM
+    DCF, DDM
 )
 import nfpy.Math as Math
 from nfpy.Tools import (
@@ -127,15 +127,20 @@ class ReportCompanies(BaseReport):
         # Render DCF
         try:
             p = self._p.get('DCF', {})
-            dcf_res = DiscountedCashFlowModel(asset.uid, **p) \
+            dcf_res = DCF(asset.uid, **p) \
                 .result(**p)
         except Exception as ex:
             res.has_dcf = False
             Ut.print_exc(ex)
         else:
             res.has_dcf = True
-            res.ret_dcf = (dcf_res.fair_value / res.last_price - 1.) * 100.
-            res.fair_value_dcf = dcf_res.fair_value
+            res.dcf_ret = (dcf_res.fair_value / res.last_price - 1.) * 100.
+            res.dcf_fair_value = dcf_res.fair_value
+            res.dcf_wacc = dcf_res.wacc
+            res.dcf_coe = dcf_res.cost_of_equity
+            res.dcf_cod = dcf_res.cost_of_debt
+            res.dcf_history = dcf_res.history
+            res.dcf_project = dcf_res.projection
 
             df = dcf_res.df
             df.index = df.index.strftime("%Y-%m-%d")

@@ -3,7 +3,7 @@
 # Class to handle rate and curves
 #
 
-from nfpy.Assets import get_af_glob
+from nfpy.Assets import (get_af_glob, TyAsset)
 import nfpy.DB as DB
 from nfpy.Tools import (Singleton, Exceptions as Ex)
 
@@ -29,41 +29,41 @@ class RateFactory(metaclass=Singleton):
 
         self._initialize()
 
-    def _initialize(self):
+    def _initialize(self) -> None:
         res = self._db.execute(self._Q_GET_RATES).fetchall()
         if not res:
             raise Ex.MissingData('RateFactory._initialize(): No data found in the database')
 
         self._rates = {t[0]: t[1:] for t in res}
 
-    def get_gdp(self, country: str):
+    def get_gdp(self, country: str) -> TyAsset:
         try:
             uid = self._rates[country][1]
         except KeyError:
-            raise Ex.MissingData(f'No GDP rate set for country {country}')
+            raise Ex.MissingData(f'RateFactory(): No GDP rate set for country {country}')
         else:
             if uid is None:
-                raise Ex.MissingData(f'No GDP rate rate set for country {country}')
+                raise Ex.MissingData(f'RateFactory(): No GDP rate rate set for country {country}')
         return self._af.get(uid)
 
-    def get_inflation(self, country: str):
+    def get_inflation(self, country: str) -> TyAsset:
         try:
             uid = self._rates[country][2]
         except KeyError:
-            raise Ex.MissingData(f'No inflation rate set for country {country}')
+            raise Ex.MissingData(f'RateFactory(): No inflation rate set for country {country}')
         else:
             if uid is None:
-                raise Ex.MissingData(f'No inflation rate set for country {country}')
+                raise Ex.MissingData(f'RateFactory(): No inflation rate set for country {country}')
         return self._af.get(uid)
 
-    def get_rf(self, label: str):
+    def get_rf(self, label: str) -> TyAsset:
         try:
             uid = self._rates[label][0]
         except KeyError:
-            raise Ex.MissingData(f'No risk free set for ID {label}')
+            raise Ex.MissingData(f'RateFactory(): No risk free set for ID {label}')
         else:
             if uid is None:
-                raise Ex.MissingData(f'No risk free rate set for country {label}')
+                raise Ex.MissingData(f'RateFactory(): No risk free rate set for country {label}')
         return self._af.get(uid)
 
 

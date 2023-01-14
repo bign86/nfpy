@@ -67,7 +67,6 @@ class DividendsPage(BorsaItalianaBasePage):
             data = row.select('td')
             table_data.append(
                 (
-                    self._ticker,
                     _mutate(data[0].text, str),
                     _mutate(data[1].text, float),
                     _mutate(data[2].text, float),
@@ -86,4 +85,5 @@ class DividendsPage(BorsaItalianaBasePage):
             table_data,
             columns=self._COLUMNS
         )
+        df.insert(0, 'ticker', self.ticker)
         self._res = df

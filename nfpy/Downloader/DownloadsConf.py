@@ -564,6 +564,15 @@ OECDSeriesConf = [
 #
 
 BorsaItalianaDividendsConf = [
-    'ticker', 'type', 'dps_bod', 'dps_agm', 'currency',
+    'type', 'dps_bod', 'dps_agm', 'currency',
     'ex_date', 'payment', 'agm', 'notice'
 ]
+
+#
+# FRED database
+#
+
+FREDSeriesConf = [
+    'realtime_start', 'realtime_end', 'date', 'value'
+]
+

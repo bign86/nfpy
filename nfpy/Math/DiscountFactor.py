@@ -38,16 +38,16 @@ def ccdf(r: float, t: int) -> float:
 
 
 def dcf(cf: np.ndarray, r: Union[float, np.ndarray],
-        t: Optional[np.ndarray] = None, n: int = 1) -> np.ndarray:
+        interpolate: Optional[np.ndarray] = None, n: int = 1) -> np.ndarray:
     """ Discounted cash flow. Cash flow must contain the terminal or repaying value.
         
         Input:
             cf [np.ndarray]: 2D data (periods, value) of cash flows
             r [Union[float, np.ndarray]]: if float is the rate corresponding to
-                the yield to maturity. If np.ndarray calculate from the term
+                the yield to maturity. If np.ndarray calculates from the term
                 structure
-            t [Optional[np.ndarray]]: array of tenors of the supplied rate term
-                structure
+            interpolate [Optional[np.ndarray]]: array of tenors at which to
+                interpolate the supplied rate term structure
             n [int]: frequency of compounding
         
         Output:
@@ -57,21 +57,22 @@ def dcf(cf: np.ndarray, r: Union[float, np.ndarray],
     #        structure as an 2D-array as for cf and avoid the use of 't'
     if isinstance(r, np.ndarray):
         # FIXME: a ndarray is returned, we need only rates not tenors
-        r = rate_interpolate(r, t, cf[0, :])
+        r = rate_interpolate(r, cf[0, :], interpolate)
 
     comp = compound(r, cf[0, :], n) + 1.
     return cf[1, :] / comp
 
 
 # TODO: move into the Rate Factory or in another more appropriate place
-def rate_interpolate(r: np.ndarray, t: np.ndarray,
-                     maturity: Union[float, np.ndarray], method: str = 'spline') \
+def rate_interpolate(r: np.ndarray, tenors: np.ndarray,
+                     interpolate: Union[float, np.ndarray],
+                     method: str = 'spline') \
         -> np.ndarray:
     """ Interpolate """
     if method == 'spline':
-        m = t.shape[0] * .3
-        spl = splrep(t, r, k=3, s=m)
-        r_intp = splev(maturity, spl)
+        m = tenors.shape[0] * .3
+        spl = splrep(tenors, r, k=3, s=m)
+        r_intp = splev(interpolate, spl)
     else:
         raise ValueError(f'rate_interpolate method {method} not recognized')
 

@@ -4,6 +4,7 @@
 #
 
 import pandas as pd
+from typing import Optional
 import warnings
 
 from .AggregationMixin import AggregationMixin
@@ -20,6 +21,7 @@ class Company(AggregationMixin, FinancialItem):
     def __init__(self, uid: str):
         super().__init__(uid)
         self._equity = None
+        self._rating = None
 
     @property
     def equity(self) -> str:
@@ -28,6 +30,14 @@ class Company(AggregationMixin, FinancialItem):
     @equity.setter
     def equity(self, v: str):
         self._equity = v
+
+    @property
+    def rating(self) -> Optional[str]:
+        return self._rating
+
+    @rating.setter
+    def rating(self, v: str) -> None:
+        self._rating = v
 
     def _load_cnsts(self) -> None:
         """ Fetch from the database the fundamentals. """

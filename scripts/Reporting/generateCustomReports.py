@@ -3,6 +3,7 @@
 # Run the report engine on custom reports defined on-the-fly
 #
 
+import argparse
 import json
 import os.path as path
 
@@ -12,19 +13,9 @@ import nfpy.IO as IO
 from nfpy.Reporting import (get_re_glob, ReportData)
 from nfpy.Tools import (get_conf_glob, Utilities as Ut)
 
-__version__ = '0.2'
+__version__ = '0.3'
 _TITLE_ = "<<< Custom report generation script >>>"
 
-# _FIELDS = (
-#     ('id', 'custom', 'str'),
-#     ('title', 'custom', 'str'),
-#     ('description', '', 'str'),
-#     ('report', None, 'str'),
-#     ('template', None, 'str'),
-#     ('uids', '[]', 'json'),
-#     ('parameters', '{}', 'json'),
-#     ('active', False, 'bool')
-# )
 
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
@@ -34,6 +25,12 @@ if __name__ == '__main__':
     db = DB.get_db_glob()
     qb = DB.get_qb_glob()
     inh = IO.InputHandler()
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        'input', type=str, help='Input file'
+    )
+    args = parser.parse_args()
 
     # Fields
     cols = qb.get_columns('Reports')
@@ -51,33 +48,19 @@ if __name__ == '__main__':
           f' - active: 1 if to generate automatically, 0 otherwise\n' \
           f' - parameters: dictionary of required parameters\n\n' \
           f'Insert nothing for manual input of the required data.\n'
-    file_name = inh.input(msg, optional=True)
-    if file_name:
-        try:
-            fp = open(
-                path.join(conf.working_folder, file_name),
-                'r'
-            )
-        except RuntimeError:
-            try:
-                fp = open(file_name, 'r')
-            except RuntimeError as ex:
-                Ut.print_exc(FileNotFoundError('File not found!'))
-                raise ex
-        json_file = json.load(fp)
+    try:
+        fp = open(
+            path.join(args.input),
+            'r'
+        )
+    except RuntimeError as ex:
+        Ut.print_exc(FileNotFoundError('File not found!'))
+        raise ex
+    json_file = json.load(fp)
 
-        data = [json_file[f.field] for f in cols.values()]
-        start = json_file['start']
-        end = json_file['end']
-    else:
-        start = inh.input('Insert a start date: ', idesc='timestamp')
-        end = inh.input('Insert an end date: ', idesc='timestamp',
-                        default=today(mode='timestamp'))
-        data = [
-            inh.input(f'Insert {f.field}: ', idesc=f.type)
-            for f in cols.values()
-        ]
-        print()
+    data = [json_file[f.field] for f in cols.values()]
+    start = json_file['start']
+    end = json_file['end']
 
     # Create ReportData object and run
     cal.initialize(end, start)

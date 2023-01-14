@@ -46,6 +46,7 @@ class BaseFundamentalModel(metaclass=ABCMeta):
         self._res = self._RES_OBJ()
         self._is_calculated = False
         self._freq = None
+        self._last_price = self._eq.last_price()[0]
 
     @property
     def frequency(self) -> Any:

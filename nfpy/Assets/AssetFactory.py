@@ -12,9 +12,9 @@ from .FinancialItem import TyFI
 class AssetFactory(metaclass=Singleton):
     """ Factory to create asset objects from their types """
 
-    _INFO_TABLE = 'Assets'
-    _ASSET_TYPES = ('Bond', 'Company', 'Curve', 'Etf', 'Equity', 'Fx',
-                    'Indices', 'Portfolio', 'Rate')
+    _ASSETS_VIEW = 'Assets'
+    _ASSET_TYPES = {'Bond', 'Company', 'Curve', 'Etf', 'Equity', 'Fx',
+                    'Indices', 'Portfolio', 'Rate'}
 
     def __init__(self):
         self._db = DB.get_db_glob()
@@ -22,7 +22,7 @@ class AssetFactory(metaclass=Singleton):
         self._known_assets = {}
 
     @property
-    def asset_types(self) -> tuple:
+    def asset_types(self) -> set:
         return self._ASSET_TYPES
     #
     # def reset_calendar(self, start, end):
@@ -34,7 +34,7 @@ class AssetFactory(metaclass=Singleton):
         """ Fetch the correct asset type. """
         res = self._db.execute(
             self._qb.select(
-                self._INFO_TABLE,
+                self._ASSETS_VIEW,
                 fields=('uid', 'type'),
                 keys=('uid',)
             ),
@@ -48,11 +48,11 @@ class AssetFactory(metaclass=Singleton):
         """ Given the asset_type creates the correct asset object. """
         a_type = self._fetch_type(uid)
 
-        # atype = res[1]
         symbol = '.'.join(['nfpy.Assets', a_type, a_type])
         class_ = Ut.import_symbol(symbol)
         obj = class_(uid)
         obj.load()
+
         self._known_assets[uid] = obj
         return obj
 
@@ -80,11 +80,25 @@ class AssetFactory(metaclass=Singleton):
             a_type = self._fetch_type(uid)
         return a_type
 
+    def get_asset_class_list(self, asset_type: str) -> list:
+        """ Return the list of all assets for a given asset type. """
+        if asset_type not in self._ASSET_TYPES:
+            raise ValueError(f'AssetFactory(): asset class {asset_type} not recognized')
+
+        return self._db.execute(
+            self._qb.select(
+                self._ASSETS_VIEW,
+                fields=('uid', 'type'),
+                keys=('type',)
+            ),
+            (asset_type,)
+        ).fetchall()
+
     def add(self, uid: str, asset_type: str) -> None:
         """ Add a new uid to the factory table. """
         r = self._db.execute(
             self._qb.select(
-                self._INFO_TABLE,
+                self._ASSETS_VIEW,
                 fields=('uid',),
                 keys=('uid',)
             ),
@@ -94,7 +108,7 @@ class AssetFactory(metaclass=Singleton):
             raise ValueError(f"\'uid\' = {uid} already present!")
 
         self._db.execute(
-            self._qb.insert(self._INFO_TABLE),
+            self._qb.insert(self._ASSETS_VIEW),
             (uid, asset_type),
             commit=True
         )
@@ -103,7 +117,7 @@ class AssetFactory(metaclass=Singleton):
         """ Remove an uid from the factory table. """
         self._db.execute(
             self._qb.delete(
-                self._INFO_TABLE,
+                self._ASSETS_VIEW,
                 fields=('uid',)
             ),
             (uid,),

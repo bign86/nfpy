@@ -28,14 +28,14 @@ _DAYS_FREQ_D = {
 
 class DividendFactory(object):
 
-    def __init__(self, eq: TyAsset, suspension: float = 1.):
+    def __init__(self, eq: TyAsset, suspension: float = .5):
         # INPUTS
         self._eq = eq
         self._suspension = max(suspension, .0) + 1.
 
         # WORKING VARIABLES
         # Flags + date
-        self._t0 = Cal.get_calendar_glob().t0.asm8
+        self._t0 = None
         self._is_div_payer = False
         self._is_div_suspended = False
 
@@ -46,19 +46,19 @@ class DividendFactory(object):
 
         # RESULTS
         # Derived quantities on regular dividends
-        self._dist = np.array([])
         self._freq = 0
 
         # Annualized dividend quantities
         self._yearly_div = np.array([])
         self._yearly_dt = np.array([])
+        self._yearly_count = np.array([])
 
         self._initialize()
 
     def _initialize(self) -> None:
         """ Initialize the factory. """
         if self._eq.type != 'Equity':
-            msg = f'DividendFactory() supports only equities not {self._eq.type}'
+            msg = f'DividendFactory(): supports only equities not {self._eq.type}'
             raise ValueError(msg)
 
         # Initialize dividends stopping at t0
@@ -80,46 +80,81 @@ class DividendFactory(object):
         if not self._is_div_payer:
             return
 
+        calendar = Cal.get_calendar_glob()
+
         self._div_dt = div.index \
             .values[slc] \
             .astype('datetime64[D]')
 
-        if self._num > 1:
-            self._dist = np.diff(self._div_dt)
+        use_old_code = False
+        if use_old_code:
+            # Calculate frequency
+            div_dt_y = self._div_dt.astype('datetime64[Y]')
+            self._yearly_num = np.unique(div_dt_y, return_counts=True)[1]
+            wgt = np.arange(1, self._yearly_num.shape[0] + 1)
+            wgt_mean = np.sum(self._yearly_num * wgt) / np.sum(wgt)
 
-        # Calculate frequency
-        div_dt_y = self._div_dt.astype('datetime64[Y]')
-        counts = np.unique(div_dt_y, return_counts=True)[1]
-        self._freq = min(
-            [1, 2, 4, 12],
-            key=lambda v: abs(v - np.mean(counts))
-        )
+            self._freq = min(
+                [1, 2, 4, 12],
+                key=lambda v: abs(v - wgt_mean)
+            )
 
-        # Get series of years
-        self._yearly_dt = np.arange(
-            str(div_dt_y[0].astype('int') + 1970),
-            str(Cal.today().year + 1),
-            dtype='datetime64[Y]'
-        )
-        years_idx = np.searchsorted(self._div_dt, self._yearly_dt)
-        if years_idx[-1] != self._div_dt.shape[0]:
-            years_idx = np.r_[years_idx, self._div_dt.shape[0]]
+            # Get series of years
+            self._yearly_dt = np.arange(
+                str(div_dt_y[0].astype('int') + 1970),
+                str(Cal.today().year + 1),
+                dtype='datetime64[Y]'
+            )
+            years_idx = np.searchsorted(self._div_dt, self._yearly_dt)
+            if years_idx[-1] != self._div_dt.shape[0]:
+                years_idx = np.r_[years_idx, self._div_dt.shape[0]]
 
-        # Calculate yearly dividend as a sum
-        divs = np.zeros(self._yearly_dt.shape)
-        for n in range(years_idx.shape[0] - 1):
-            divs[n] += np.sum(self._div[years_idx[n]:years_idx[n + 1]])
+            # Calculate yearly dividend as a sum
+            divs = np.zeros(self._yearly_dt.shape)
+            for n in range(years_idx.shape[0] - 1):
+                divs[n] += np.sum(self._div[years_idx[n]:years_idx[n + 1]])
 
-        # Adjust the first year using the inferred frequency
-        divs[-1] *= self._freq / counts[-1]
-        self._yearly_div = divs
+            # Adjust the first year using the inferred frequency
+            divs[-1] *= self._freq / self._yearly_num[-1]
+            self._yearly_div = divs
+
+        else:
+            self._yearly_dt = calendar \
+                .yearly_calendar \
+                .to_numpy() \
+                .astype('datetime64[Y]')
+            size = self._yearly_dt.shape[0]
+            self._yearly_div = np.zeros(size, dtype=float)
+            self._yearly_count = np.zeros(size, dtype=int)
+
+            start_year = self._yearly_dt[0].astype(int)
+            for i in range(self._div.shape[0]):
+                dt = self._div_dt[i].astype('datetime64[Y]').astype(int)
+                pos = dt - start_year
+
+                self._yearly_div[pos] += self._div[i]
+                self._yearly_count[pos] += 1
+
+            for c in self._yearly_count[size-2::-1]:
+                if c in [1, 2, 4, 12]:
+                    self._freq = c
+                    break
+
+            if self._freq == 0:
+                self._freq = min(
+                    [1, 2, 4, 12],
+                    key=lambda v: abs(v - np.nanmean(self._yearly_div[:-1]))
+                )
 
         # Check whether dividend is likely to have been suspended
-        t0 = self._t0.astype('datetime64[D]')
+        t0 = calendar.t0.asm8.astype('datetime64[D]')
         div_gap = (t0 - self._div_dt[-1]).astype(int)
         limit = Cn.DAYS_IN_1Y * self._suspension / self.frequency
         if div_gap > limit:
             self._is_div_suspended = True
+
+        # Store the current date reference point
+        self._t0 = t0
 
     def __len__(self) -> int:
         return self._num
@@ -142,23 +177,28 @@ class DividendFactory(object):
             return np.array([]), np.array([])
 
         prices = self._eq.series('Price.SplitAdj.Close')
+        price_arr = prices.to_numpy()
 
-        dt = np.r_[
-            self._yearly_dt,
-            np.datetime64(str(self._yearly_dt[-1] + 1) + '-01-01')
+        dt = self._yearly_dt
+        idx = np.r_[
+            np.searchsorted(prices.index.values, dt),
+            price_arr.shape[0]
         ]
-        idx = np.searchsorted(prices.index.values, dt)
-        dy = np.empty(len(idx) - 1)
 
-        for i in range(1, idx.shape[0]):
-            dy[i - 1] = self._yearly_div[i - 1] / \
-                        np.nanmean(prices.values[idx[i - 1]:idx[i]])
+        # There is a corner case the 1st of january where the last two indexes
+        # are the same giving rise to an extra spurious array element
+        if idx[-1] == idx[-2]:
+            idx = idx[:-1]
+
+        idx_size = idx.shape[0]
+        dy = np.empty(idx_size - 1)
+
+        for i in range(0, idx_size - 1):
+            dy[i] = self._yearly_div[i] / \
+                        np.nanmean(price_arr[idx[i]:idx[i + 1]])
+        dy[np.isnan(dy)] = .0
 
         return self._yearly_dt, dy
-
-    @property
-    def distance(self) -> np.array:
-        return self._dist
 
     @property
     def dividends(self) -> tuple[np.ndarray, np.ndarray]:
@@ -173,7 +213,7 @@ class DividendFactory(object):
         )
 
     def div_yield(self, w: int) -> float:
-        """ Returns the current dividend yield calculated as the TTMM dividend
+        """ Returns the current dividend yield calculated as the TTM dividend
             over the average price calculated on the given window. If not a
             dividend payer or if dividend has been suspended, it returns 0.
 
@@ -376,7 +416,7 @@ class DividendFactory(object):
             msg = f'Tolerance for dividends should be in [0, 1], given {tolerance}'
             raise ValueError(msg)
 
-        dt = (self._div_dt - self._div_dt[0]).astype('int')
+        dt = (self._div_dt - self._div_dt[0]).astype(int)
         days = Cn.DAYS_IN_1Y / self.frequency
         grid = np.round(dt / days) * days
         anomaly = 2 * np.abs(dt - grid) / days
@@ -403,9 +443,6 @@ class DividendFactory(object):
         start = self._t0 - np.timedelta64(Cn.DAYS_IN_1Y, 'D')
         idx = np.searchsorted(self._div_dt, start)
         return float(np.sum(self._div[idx:]))
-
-    def ttm_payout_ratio(self):
-        pass
 
     def ttm_yield(self) -> float:
         """ Computes the TTM dividend yield. If the issuer is not a dividend

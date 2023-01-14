@@ -13,12 +13,17 @@
 #
 
 from abc import abstractmethod
+from base64 import b64decode
+from cryptography.hazmat.primitives import padding
+from cryptography.hazmat.primitives.ciphers import (Cipher, algorithms, modes)
+import hashlib
 from io import StringIO
 import json
 import numpy as np
 import pandas as pd
 import pandas.tseries.offsets as off
 import re
+from typing import (Optional, Union)
 
 import nfpy.Calendar as Cal
 from nfpy.Tools import Utilities as Ut
@@ -142,7 +147,8 @@ class FinancialsPage(YahooBasePage):
         """ Parse the fetched object. """
         json_string = re.search(self._JSON_PATTERN, self._robj.text)
         json_dict = json.loads(json_string.group(1))
-        stores = json_dict['context']['dispatcher']['stores']
+        # stores = json_dict['context']['dispatcher']['stores']
+        stores = decrypt_cryptojs_aes(json_dict)
         data = stores['QuoteSummaryStore']
         if not data:
             msg = f'Data group not found in Yahoo financials for {self.ticker}'
@@ -379,3 +385,75 @@ class SplitsPage(YahooHistoricalBasePage):
         )
 
         self._res = df
+
+
+# Taken from the yfinance package
+def decrypt_cryptojs_aes(data: dict) -> json:
+    encrypted_stores = data['context']['dispatcher']['stores']
+    _cs = data["_cs"]
+    _cr = data["_cr"]
+
+    _cr = b"".join(int.to_bytes(i, length=4, byteorder="big", signed=True) for i in json.loads(_cr)["words"])
+    password = hashlib.pbkdf2_hmac("sha1", _cs.encode("utf8"), _cr, 1, dklen=32).hex()
+
+    encrypted_stores = b64decode(encrypted_stores)
+    assert encrypted_stores[0:8] == b"Salted__"
+    salt = encrypted_stores[8:16]
+    encrypted_stores = encrypted_stores[16:]
+
+    key, iv = evpkdf(
+        password, salt,
+        key_size=32, iv_size=16, iterations=1,
+        hash_algorithm="md5"
+    )
+
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv))
+    decryptor = cipher.decryptor()
+    plaintext = decryptor.update(encrypted_stores) + decryptor.finalize()
+    unpadder = padding.PKCS7(128).unpadder()
+    plaintext = unpadder.update(plaintext) + unpadder.finalize()
+
+    return json.loads(plaintext.decode("utf-8"))
+
+
+# Taken from the yfinance package
+def evpkdf(password: Union[str, bytes, bytearray],
+           salt: Union[bytes, bytearray],
+           key_size: Optional[int] = 32, iv_size: Optional[int] = 16,
+           iterations: Optional[int] = 1,
+           hash_algorithm: Optional[str] = "md5") -> tuple:
+    """OpenSSL EVP Key Derivation Function
+    Args:
+        password (Union[str, bytes, bytearray]): Password to generate key from.
+        salt (Union[bytes, bytearray]): Salt to use.
+        key_size (int, optional): Output key length in bytes. Defaults to 32.
+        iv_size (int, optional): Output Initialization Vector (IV) length in bytes. Defaults to 16.
+        iterations (int, optional): Number of iterations to perform. Defaults to 1.
+        hash_algorithm (str, optional): Hash algorithm to use for the KDF. Defaults to 'md5'.
+    Returns:
+        key, iv: Derived key and Initialization Vector (IV) bytes.
+    Taken from: https://gist.github.com/rafiibrahim8/0cd0f8c46896cafef6486cb1a50a16d3
+    OpenSSL original code: https://github.com/openssl/openssl/blob/master/crypto/evp/evp_key.c#L78
+    """
+
+    assert iterations > 0, "Iterations can not be less than 1."
+
+    if isinstance(password, str):
+        password = password.encode("utf-8")
+
+    final_length = key_size + iv_size
+    key_iv = b""
+    block = None
+
+    while len(key_iv) < final_length:
+        hasher = hashlib.new(hash_algorithm)
+        if block:
+            hasher.update(block)
+        hasher.update(password)
+        hasher.update(salt)
+        block = hasher.digest()
+        for _ in range(1, iterations):
+            block = hashlib.new(hash_algorithm, block).digest()
+        key_iv += block
+
+    return key_iv[:key_size], key_iv[key_size:final_length]

@@ -71,7 +71,7 @@ class SeriesPage(BasePage):
         ld = self._fetch_last_data_point((self.ticker,))
         self._p.update({
             'startTime': pd.to_datetime(ld).strftime('%Y-%m'),
-            'endTime': today(fmt='%Y-%m')
+            'endTime': today(mode='str', fmt='%Y-%m')
         })
 
     @property
@@ -161,7 +161,7 @@ class SeriesPage(BasePage):
                         frequency_list[dims[3]]['id'],
                         frequency_list[dims[3]]['name'],
                         # pd.to_datetime(dt, format=_format).date(),
-                        time_list[dims[3]]['id'],
+                        time_list[dims[4]]['id'],
                         time_list[dims[4]]['name'],
                     ]
                 )

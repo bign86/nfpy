@@ -34,7 +34,7 @@ class BasePage(metaclass=ABCMeta):
     _USE_UPSERT = False
     _Q_MAX_DATE = ''
     _Q_SELECT = ''
-    _DATE0 = '1990-01-01'
+    _DATE0 = '1950-01-01'
     _HEADER = {
         'Accept-Encoding': 'gzip, deflate',
         'Connection': 'keep-alive',

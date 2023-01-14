@@ -8,6 +8,7 @@ import json
 import pandas as pd
 import pandas.tseries.offsets as off
 from random import randint
+from uuid import uuid4
 
 from nfpy.Calendar import today
 from nfpy.DatatypeFactory import get_dt_glob
@@ -22,9 +23,9 @@ from .DownloadsConf import (
 
 class ClosePricesItem(BaseImportItem):
     _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
-    select '{uid}', '1', date, price from InvestingPrices where ticker = ?"""
+    select '{uid}', 124, date, price from InvestingPrices where ticker = ?"""
     _Q_INCR = """ and date > ifnull((select max(date) from {dst_table}
-    where uid = '{uid}'), '1900-01-01')"""
+    where uid = '{uid}' and dtype = 124), '1900-01-01')"""
 
 
 class FinancialsItem(BaseImportItem):
@@ -94,12 +95,15 @@ class InvestingBasePage(BasePage):
 
     _ENCODING = 'utf-8-sig'
     _PROVIDER = 'Investing'
-    _BASE_URL = u'https://www.investing.com'
+    _BASE_URL = u'https://tvc4.investing.com/'
     _URL_SUFFIX = ''
     _REQ_METHOD = 'post'
     _HEADER = {
         'Accept': 'text/html',
         'X-Requested-With': 'XMLHttpRequest',
+        'Origin': 'https://tvc-invdn-com.investing.com/',
+        'Referer': 'https://tvc-invdn-com.investing.com/',
+        'Content-Type': 'application/json',
     }
 
     @property
@@ -125,18 +129,22 @@ class HistoricalPricesPage(InvestingBasePage):
     _PAGE = 'HistoricalPrices'
     _COLUMNS = InvestingSeriesConf
     _TABLE = 'InvestingPrices'
-    _URL_SUFFIX = '/instruments/HistoricalDataAjax'
+    _URL_SUFFIX = f'{uuid4().hex}/0/0/0/0/history'
     _PARAMS = {
-        "curr_id": None,
-        "smlID": None,
-        "interval_sec": "Daily",
-        "st_date": None,
-        "end_date": None,
-        "sort_col": "date",
-        "sort_ord": "ASC",
-        "action": "historical_data",
+        # "curr_id": None,
+        # "smlID": None,
+        # "interval_sec": "Daily",
+        # "st_date": None,
+        # "end_date": None,
+        # "sort_col": "date",
+        # "sort_ord": "ASC",
+        # "action": "historical_data",
+        'symbol': None,
+        'from': None,
+        'to': None,
+        'resolution': '1',
     }
-    _MANDATORY = ("curr_id",)
+    _MANDATORY = ('symbol',)  # 'curr_id',)
     _Q_MAX_DATE = "select max(date) from InvestingPrices where ticker = ?"
     _Q_SELECT = "select * from InvestingPrices where ticker = ?"
 
@@ -144,21 +152,24 @@ class HistoricalPricesPage(InvestingBasePage):
         self._p = self._PARAMS
         ld = self._fetch_last_data_point((self.ticker,))
         self._p.update({
-            'curr_id': self.ticker,
-            'smlID': str(randint(1000000, 99999999)),
-            'st_date': pd.to_datetime(ld).strftime('%m/%d/%Y'),
-            'end_date': today(mode='str', fmt='%m/%d/%Y')
+            # 'curr_id': self.ticker,
+            # 'smlID': str(randint(1000000, 99999999)),
+            # 'st_date': pd.to_datetime(ld).strftime('%m/%d/%Y'),
+            # 'end_date': today(mode='str', fmt='%m/%d/%Y')
+            'symbol': self.ticker,
+            'from': int(pd.Timestamp(ld).timestamp()),
+            'to': int(today(mode='timestamp').timestamp()),
         })
 
     def _local_initializations(self) -> None:
         """ Local initializations for the single page. """
         p = {}
-        if self._ext_p:
-            for t in [('start', 'st_date'), ('end', 'end_date')]:
-                if t[0] in self._ext_p:
-                    d = self._ext_p[t[0]]
-                    p[t[1]] = pd.to_datetime(d).strftime('%m/%d/%Y')
-            self.params = p
+        # if self._ext_p:
+        #     for t in [('start', 'st_date'), ('end', 'end_date')]:
+        #         if t[0] in self._ext_p:
+        #             d = self._ext_p[t[0]]
+        #             p[t[1]] = pd.to_datetime(d).strftime('%m/%d/%Y')
+        #     self.params = p
 
     def _parse(self) -> None:
         """ Parse the fetched object. """

@@ -9,6 +9,7 @@ html {
 body {
     min-height: 100vh;
     max-width: 80%;
+    min-width: 2000px;
     margin: auto;
     background-color: #fff;
     position: relative;
@@ -56,6 +57,12 @@ a:hover {
 a:visited {
     color: #9d2c1d;
     text-decoration: none;
+}
+td.section-sep {
+    padding: 3px;
+    vertical-align: middle;
+    text-align: center;
+    font-variant: small-caps;
 }
 td.anag-prop {
     padding: 3px;
