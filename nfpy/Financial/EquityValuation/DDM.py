@@ -52,9 +52,8 @@ class DDM(BaseFundamentalModel):
 
         TODO:
             1. shares outstanding should be split adjusted
-            2. introduce correction for the future outlook in the growth average
-            3. check best approach for long-term growth
-            4. recheck whether the max/min approach for LT/ST growth is appropriate
+            2. check best approach for long-term growth
+            3. recheck whether the max/min approach for LT/ST growth is appropriate
     """
     _RES_OBJ = DDMResult
 
@@ -64,7 +63,6 @@ class DDM(BaseFundamentalModel):
 
         # Factories
         self._df = Fin.DividendFactory(self._eq)
-        self._rf = Fin.get_rf_glob()
 
         # Inputs
         if (stage1 is None) & (stage2 is not None):
@@ -106,7 +104,6 @@ class DDM(BaseFundamentalModel):
         self._manual_growth = {}
         self._historical_growth = {}
         self._ROE_growth = {}
-        self._booth_growth = {}
 
         # Outputs - general
         self._div_ts = None
@@ -132,14 +129,14 @@ class DDM(BaseFundamentalModel):
         country = self._eq.country
         gdp_rate = self._rf \
             .get_gdp(country) \
-            .prices.values
+            .prices.to_numpy()
         idx_gdp = self._gdp_w - 1
         lt_gdp = np.nanmean(gdp_rate[-idx_gdp:])
 
         # Get Inflation rate
         self._inflation = self._rf \
             .get_inflation(country) \
-            .prices.values
+            .prices.to_numpy()
         idx_infl = (self._infl_w - 1) * 12
         lt_infl = np.nanmean(self._inflation[-idx_infl:])
 
@@ -151,7 +148,6 @@ class DDM(BaseFundamentalModel):
         # - premium over long-term inflation
         # - premium over short-term inflation
         _, yd = self._df.annual_dividends
-
         self._im_ke = yd[-1] * (1. + self._lt_growth) / self._last_price \
                       + self._lt_growth
         self._im_lt_premium = self._im_ke - lt_infl
@@ -184,24 +180,17 @@ class DDM(BaseFundamentalModel):
             self._calc_future_divs_growth(self._manual_growth, t, d0)
         if 'historical' in self._growth_mode:
             try:
-                self._calc_historical_g(yd)
+                self._calc_historical_g(self._stage1[0])
                 self._calc_future_divs_growth(self._historical_growth, t, d0)
             except ValueError as ex:
                 Ut.print_exc(ex)
         if 'ROE' in self._growth_mode:
             self._calc_roe_g(yd)
             self._calc_future_divs_growth(self._ROE_growth, t, d0)
-        if 'booth' in self._growth_mode:
-            self._calc_booth_g()
-            self._calc_future_divs_growth(self._booth_growth, t, d0)
 
         # Calculate the series for plotting
         divs = self._df.dividends
         self._div_ts = pd.Series(divs[1], index=divs[0])
-
-    def _calc_booth_g(self) -> None:
-        # TODO: implement me!
-        self._booth_growth['st_gwt'] = .0
 
     def _calc_freq(self) -> None:
         """ Calculates model frequency. """
@@ -283,19 +272,13 @@ class DDM(BaseFundamentalModel):
         res['ret'] = ret
         return res
 
-    def _calc_historical_g(self, yd: np.ndarray) -> None:
+    def _calc_historical_g(self, horizon: int) -> None:
         """ Calculates the growth as the average dividend growth YoY. """
-        years = yd.shape[0]
         try:
-            st_growth = self._df.growth(years=years)
+            st_growth = self._df.growth(horizon=horizon)
         except ValueError as ex:
             self._growth_mode.remove('historical')
             raise ex
-
-        # Calculate a short term correction for the actual tendency
-        if years > 2:
-            adjustment = self._df.growth(years=2)
-            st_growth = .5 * st_growth + .5 * adjustment
 
         self._historical_growth['st_gwt'] = st_growth
 
@@ -311,12 +294,11 @@ class DDM(BaseFundamentalModel):
             ni_ps = ni / so[-1]
             eq_ps = eq / so[-1]
 
-            n = min(yd.shape[0] - 1, eq.shape[0])
-            growth = (ni_ps[-n:] - yd[-n - 1:-1]) / eq_ps[-n:]
+            n = min(yd.shape[0], eq.shape[0])
+            growth = (ni_ps[-n:] - yd[-n:]) / eq_ps[-n:]
 
-            # TODO: adjust the mean with a drift
             annual_drift = np.nanmean(growth)
-            macro_growth = pd.Series(growth * 100., index=dt[-n:])
+            macro_growth = pd.Series(growth, index=dt[-n:])
         except ValueError:
             annual_drift = .0
             macro_growth = pd.Series([], dtype=float)
@@ -344,15 +326,13 @@ class DDM(BaseFundamentalModel):
             msg = f'DDM(): Dividends for {self._uid} [{self._eq.uid}] appear to have been suspended'
             raise Ex.MissingData(msg)
 
-    def _otf_calculate(self, cost_equity: Optional[float] = None,
-                       premium: float = .0, **kwargs) -> dict:
+    def _otf_calculate(self, ke: Optional[float] = None,
+                       premium: Optional[float] = None, **kwargs) -> dict:
         """ Calculate equity cost and denominator for the perpetual dividend.
             In input give the annual required rate of return. If not supplied,
             the equity cost is calculated as:
                 dr = inflation + premium
         """
-
-        ke = cost_equity
         premium = .0 if premium is None else premium
         if ke is None:
             ke, _ = Math.last_valid_value(self._inflation)
@@ -373,7 +353,6 @@ class DDM(BaseFundamentalModel):
             # Historical
             'last_price': self._last_price,
             'div_ts': self._div_ts,
-            # 'macro_growth': self._macro_growth,
 
             # Implied
             'implied_ke': self._im_ke,
@@ -404,10 +383,6 @@ class DDM(BaseFundamentalModel):
         if 'ROE' in self._growth_mode:
             final_res['ROE_growth'] = self._calc_fv(
                 self._ROE_growth, den, ke
-            )
-        if 'booth' in self._growth_mode:
-            final_res['booth_growth'] = self._calc_fv(
-                self._booth_growth, den, ke
             )
 
         return final_res

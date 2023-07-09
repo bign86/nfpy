@@ -46,6 +46,9 @@ class ShapeError(RuntimeError):
     """ Thrown when an array has the wrong shape. """
 
 
+class InputHandlingError(RuntimeError):
+    """ Thrown when there is a issue with the input handler. """
+
 class MissingDataWarn(RuntimeWarning):
     """ Thrown when something non-critical is not found in the database. """
 

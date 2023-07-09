@@ -117,9 +117,24 @@ def print_exc(ex: BaseException) -> None:
     print(f'{Col.FAIL.value}!!!{type(ex).__name__}{Col.ENDC.value} - {ex}')
 
 
-def print_wrn(wrn: Warning) -> None:
+def print_header(msg: str, end: str = '\n') -> None:
+    """ Print a message in header style. """
+    print(f'{Col.HEADER.value}{Col.BOLD.value}{msg}{Col.ENDC.value}', end=end)
+
+
+def print_highlight(msg: str, end: str = '\n') -> None:
+    """ Print a message in highlighted style. """
+    print(f'{Col.OKCYAN.value}{msg}{Col.ENDC.value}', end=end)
+
+
+def print_ok(msg: str, end: str = '\n') -> None:
+    """ Print a *all good* message. """
+    print(f'{Col.OKGREEN.value}OK{Col.ENDC.value} - {msg}', end=end)
+
+
+def print_wrn(wrn: Warning, end: str = '\n') -> None:
     """ Print a raised warning. Gives consistency across the library. """
-    print(f'{Col.WARNING.value}---{type(wrn).__name__}{Col.ENDC.value} - {wrn}')
+    print(f'{Col.WARNING.value}---{type(wrn).__name__}{Col.ENDC.value} - {wrn}', end=end)
 
 
 def ordered_unique(v: Sequence) -> Sequence:
@@ -127,3 +142,14 @@ def ordered_unique(v: Sequence) -> Sequence:
     seen = set()
     seen_add = seen.add
     return [x for x in v if not (x in seen or seen_add(x))]
+
+
+def to_bool(v: str) -> bool:
+    """ Transform a string into a boolean. Return an exception if not possible. """
+    vl = v.lower()
+    if vl in ('y', 'yes', '1', 'true', 't'):
+        return True
+    elif vl in ('n', 'no', '0', 'false', 'f'):
+        return False
+    else:
+        raise ValueError(f'InputHandler(): {v} not recognized as boolean')

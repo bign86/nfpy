@@ -10,9 +10,8 @@ __all__ = [
 
     # Equity Valuation
     'TyFundamentalModel', 'TyFundamentalModelResult',
-    'DCFModel', 'DiscountedCashFlowModel',
-    'DDMResult',
-    'DDMModel', 'DDM',
+    'DCF', 'DCFModel',
+    'DDM', 'DDMModel',
     'GGMModel',
 
     # Fundamentals Factory

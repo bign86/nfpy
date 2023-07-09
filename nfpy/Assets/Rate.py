@@ -55,8 +55,6 @@ class Rate(Asset):
 
         success, df = self.load_dtype(dtype)
         if success:
-            df.index = df.index + 0*pd.offsets.BDay()
-
             self._df = self._df.merge(
                 df,
                 how='left',

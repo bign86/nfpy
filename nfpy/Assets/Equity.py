@@ -207,12 +207,12 @@ class Equity(Asset):
             ty = type(benchmark).__name__
             raise TypeError(f'Objects of type {ty} cannot be used as benchmarks')
 
-        eq = self.log_returns if is_log else self.returns
-        idx = benchmark.log_returns if is_log else benchmark.returns
+        eq_ret = self.log_returns if is_log else self.returns
+        index_ret = benchmark.log_returns if is_log else benchmark.returns
         dts, beta, adj_b, itc = Math.beta(
-            eq.index.values,
-            eq.values,
-            idx.values,
+            eq_ret.index.to_numpy(),
+            eq_ret.to_numpy(),
+            index_ret.to_numpy(),
             start=Cal.pd_2_np64(start),
             end=Cal.pd_2_np64(end),
             w=w
@@ -249,9 +249,9 @@ class Equity(Asset):
         eq = self.log_returns if is_log else self.returns
         idx = benchmark.log_returns if is_log else benchmark.returns
         return Math.correlation(
-            eq.index.values,
-            eq.values,
-            idx.values,
+            eq.index.to_numpy(),
+            eq.to_numpy(),
+            idx.to_numpy(),
             start=Cal.pd_2_np64(start),
             end=Cal.pd_2_np64(end),
         )[0, 1]

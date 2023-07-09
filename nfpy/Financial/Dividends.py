@@ -28,10 +28,27 @@ _DAYS_FREQ_D = {
 
 class DividendFactory(object):
 
-    def __init__(self, eq: TyAsset, suspension: float = .5):
+    def __init__(self, eq: TyAsset, suspension: float = .5,
+                 start_date: Optional[np.datetime64] = None,
+                 years: Optional[int] = None):
+        """ Create an instance of the Dividend Factory.
+
+            Input:
+                eq [TyAsset]: dividend paying equity object (not UID)
+                suspension [float]: factor used to determine whether dividends
+                    have been suspended. It represents the percentage of the
+                    confidence interval around the time distance between two
+                    successive dividends (default 0.5)
+                start_year [Optional[np.datetime64]: start from this here
+                    instead of using all the available data. If defined has
+                    priority over <years> (default None)
+                years [Optional[int]]: use this number of years from the current
+                    instead of using all the available data. Is overridden by
+                    <start_date> if defined (default None)
+        """
+
         # INPUTS
         self._eq = eq
-        self._suspension = max(suspension, .0) + 1.
 
         # WORKING VARIABLES
         # Flags + date
@@ -47,15 +64,19 @@ class DividendFactory(object):
         # RESULTS
         # Derived quantities on regular dividends
         self._freq = 0
+        self._slc = None
+        self._yearly_slc = None
 
         # Annualized dividend quantities
         self._yearly_div = np.array([])
         self._yearly_dt = np.array([])
         self._yearly_count = np.array([])
 
-        self._initialize()
+        self._initialize(suspension, start_date, years)
 
-    def _initialize(self) -> None:
+    def _initialize(self, suspension: float = .5,
+                    start_date: Optional[np.datetime64] = None,
+                    years: Optional[int] = None) -> None:
         """ Initialize the factory. """
         if self._eq.type != 'Equity':
             msg = f'DividendFactory(): supports only equities not {self._eq.type}'
@@ -68,62 +89,54 @@ class DividendFactory(object):
             self._is_div_payer = False
             return
 
-        slc = search_trim_pos(
-            div.index.values,
-            end=Cal.pd_2_np64(Cal.get_calendar_glob().t0)
-        )
-        self._div = div.values[slc]
-        self._num = len(self._div)
-        self._is_div_payer = True if self._num > 0 else False
-
-        # If not dividend payer, quick exit
-        if not self._is_div_payer:
-            return
-
+        # Select the data up to t0
         calendar = Cal.get_calendar_glob()
+        t0 = calendar.t0.asm8.astype('datetime64[D]')
+        self._t0 = t0
 
+        slc = search_trim_pos(div.index.values, end=t0)
+        self._div = div.values[slc]
         self._div_dt = div.index \
             .values[slc] \
             .astype('datetime64[D]')
 
-        use_old_code = False
-        if use_old_code:
-            # Calculate frequency
-            div_dt_y = self._div_dt.astype('datetime64[Y]')
-            self._yearly_num = np.unique(div_dt_y, return_counts=True)[1]
-            wgt = np.arange(1, self._yearly_num.shape[0] + 1)
-            wgt_mean = np.sum(self._yearly_num * wgt) / np.sum(wgt)
+        # Calculate the start date and get the number of usable dividends
+        if start_date is None:
+            if years is not None:
+                start_date = t0 - np.timedelta64(years * Cn.DAYS_IN_1Y, 'D')
+            else:
+                start_date = self._div_dt[0]
 
-            self._freq = min(
-                [1, 2, 4, 12],
-                key=lambda v: abs(v - wgt_mean)
+        self._start_date = start_date \
+            if start_date < calendar.start.asm8 \
+            else calendar.start.asm8
+
+        self._slc = search_trim_pos(div.index.values, start=self._start_date)
+        self._num = len(self._div[self._slc])
+
+        # Check if dividend payer, else quick exit
+        self._is_div_payer = True if self._num > 0 else False
+        if not self._is_div_payer:
+            return
+
+        # We transform the daily calendar as the yearly one may have a different
+        # length.
+        self._yearly_dt = np.unique(
+            calendar.calendar
+            .to_numpy()
+            .astype('datetime64[Y]')
+        )
+
+        # If we have a single year it means there is no history enough to have
+        # a yearly series. In this case we pass.
+        size = self._yearly_dt.shape[0]
+        if size > 1:
+            self._yearly_slc = search_trim_pos(
+                self._yearly_dt,
+                start=self._start_date.astype('datetime64[Y]'),
+                end=self._yearly_dt[-2]
             )
 
-            # Get series of years
-            self._yearly_dt = np.arange(
-                str(div_dt_y[0].astype('int') + 1970),
-                str(Cal.today().year + 1),
-                dtype='datetime64[Y]'
-            )
-            years_idx = np.searchsorted(self._div_dt, self._yearly_dt)
-            if years_idx[-1] != self._div_dt.shape[0]:
-                years_idx = np.r_[years_idx, self._div_dt.shape[0]]
-
-            # Calculate yearly dividend as a sum
-            divs = np.zeros(self._yearly_dt.shape)
-            for n in range(years_idx.shape[0] - 1):
-                divs[n] += np.sum(self._div[years_idx[n]:years_idx[n + 1]])
-
-            # Adjust the first year using the inferred frequency
-            divs[-1] *= self._freq / self._yearly_num[-1]
-            self._yearly_div = divs
-
-        else:
-            self._yearly_dt = calendar \
-                .yearly_calendar \
-                .to_numpy() \
-                .astype('datetime64[Y]')
-            size = self._yearly_dt.shape[0]
             self._yearly_div = np.zeros(size, dtype=float)
             self._yearly_count = np.zeros(size, dtype=int)
 
@@ -135,7 +148,8 @@ class DividendFactory(object):
                 self._yearly_div[pos] += self._div[i]
                 self._yearly_count[pos] += 1
 
-            for c in self._yearly_count[size-2::-1]:
+            # Count the dividends paid per year and the frequency of payments
+            for c in self._yearly_count[size - 2::-1]:
                 if c in [1, 2, 4, 12]:
                     self._freq = c
                     break
@@ -147,21 +161,31 @@ class DividendFactory(object):
                 )
 
         # Check whether dividend is likely to have been suspended
-        t0 = calendar.t0.asm8.astype('datetime64[D]')
         div_gap = (t0 - self._div_dt[-1]).astype(int)
-        limit = Cn.DAYS_IN_1Y * self._suspension / self.frequency
+        suspension_limit = max(suspension, .0) + 1.
+        limit = Cn.DAYS_IN_1Y * suspension_limit / self.frequency
         if div_gap > limit:
             self._is_div_suspended = True
-
-        # Store the current date reference point
-        self._t0 = t0
 
     def __len__(self) -> int:
         return self._num
 
     @property
-    def annual_dividends(self) -> tuple[np.ndarray, np.ndarray]:
+    def all_annual_dividends(self) -> tuple[np.ndarray, np.ndarray]:
         return self._yearly_dt, self._yearly_div
+
+    @property
+    def all_dividends(self) -> tuple[np.ndarray, np.ndarray]:
+        return self._div_dt, self._div
+
+    @property
+    def annual_dividends(self) -> tuple[np.ndarray, np.ndarray]:
+        """ Returns the yearly dividend series beginning the starting date
+            provided in input (if given) and ending last year. Current year is
+            not considered as it is not possible to be sure that all dividends
+            have been paid (some companies pay on an irregular schedule).
+        """
+        return self._yearly_dt[self._yearly_slc], self._yearly_div[self._yearly_slc]
 
     def annual_yields(self) -> tuple[np.ndarray, np.ndarray]:
         """ Computes the series of annual dividend yields as annual dividend
@@ -179,7 +203,7 @@ class DividendFactory(object):
         prices = self._eq.series('Price.SplitAdj.Close')
         price_arr = prices.to_numpy()
 
-        dt = self._yearly_dt
+        dt = self._yearly_dt[self._yearly_slc]
         idx = np.r_[
             np.searchsorted(prices.index.values, dt),
             price_arr.shape[0]
@@ -195,14 +219,95 @@ class DividendFactory(object):
 
         for i in range(0, idx_size - 1):
             dy[i] = self._yearly_div[i] / \
-                        np.nanmean(price_arr[idx[i]:idx[i + 1]])
+                    np.nanmean(price_arr[idx[i]:idx[i + 1]])
         dy[np.isnan(dy)] = .0
 
-        return self._yearly_dt, dy
+        return dt, dy
+
+    def _calc_growth(self, horizon: int = 1) -> np.ndarray:
+        """ Returns the dividend growth calculated over the selected period from
+            the dividend series and projected over the horizon in input. The
+            calculation is performed over annual dividends. The current year
+            dividends are excluded from the calculation if not all paid to avoid
+            an additional forecasting error in estimating the remaining dividends.
+
+            If the issuer is not a dividend payer or the dividend is
+            suspended, NaN is returned.
+
+            Input:
+                horizon [int]: future horizon on which to apply the
+                    calculated growth. If 0 return current mean, if > 0 apply
+                    the calculated trend and take the average (default 1)
+
+            Output:
+                growth [np.ndarray]: dividend growth over the horizon
+        """
+        # Quick exit if not a dividends payer
+        if (not self._is_div_payer) | self._is_div_suspended:
+            return np.nan
+
+        # We check how many dividends have been paid in the current year vs the
+        # frequency. If some are missing, we exclude the current year from the
+        # calculation. It is possible that this creates an error when a company
+        # pais dividends on a very uneven schedule (or no schedule at all).
+        divs = self._yearly_div[self._yearly_slc]
+        dt = self._yearly_dt[self._yearly_slc]
+        if self._yearly_count[-1] < self._freq:
+            divs = divs[:-1]
+            dt = dt[:-1]
+
+        # Check the resulting length
+        if divs.shape[0] < 3:
+            raise ValueError(
+                f'DividendFactory(): at least 3 dividend payments required '
+                f'({divs.shape[0]} provided) to calculate the dividend '
+                f'growth of {self._eq.uid}'
+            )
+
+        # Calculate the returns
+        ret = divs[1:] / divs[:-1] - 1.
+        np.nan_to_num(ret, copy=False, posinf=np.nan)
+        dt = dt[1:].astype(int)
+
+        # Remove the outliers from the calculation, the tolerance band is set
+        # to 2 sigmas. Repeat until ok.
+        mask = [True]
+        while np.any(mask):
+            ret_mean = np.nanmean(ret)
+            ret_std = 2. * np.nanstd(ret)
+            up, low = ret_mean + ret_std, ret_mean - ret_std
+            mask = (ret < low) | (ret > up)
+
+            ret = ret[~mask]
+            dt = dt[~mask]
+
+        ret, mask = dropna(ret)
+        dt = dt[mask]
+
+        # Check if we still have enough data
+        if ret.shape[0] < 2:
+            raise ValueError(
+                f'DividendFactory(): at least 3 dividend returns required after '
+                f'after outliers cleaning ({ret.shape[0]} provided) to '
+                f'calculate the dividend growth of {self._eq.uid}'
+            )
+
+        # Perform regression
+        growth_mean = np.mean(ret)
+
+        if horizon == 0:
+            return growth_mean
+        else:
+            beta = stats.linregress(dt, ret)[0]
+
+            return float(growth_mean) + beta * (1 + np.arange(abs(horizon)))
 
     @property
     def dividends(self) -> tuple[np.ndarray, np.ndarray]:
-        return self._div_dt, self._div
+        """ Returns the dividend series beginning the starting date provided in
+            input (if given) and ending at the last available dividend.
+        """
+        return self._div_dt[self._slc], self._div[self._slc]
 
     @property
     def dividends_special(self) -> tuple[np.ndarray, np.ndarray]:
@@ -233,16 +338,14 @@ class DividendFactory(object):
         )
         return self.ttm_div() / price
 
-    def forecast(self, num: int, years: Optional[int] = None,
-                 start_year: Optional[int] = None) \
-            -> tuple[np.ndarray, np.ndarray]:
+    def forecast(self, horizon: int = 1) -> tuple[np.ndarray, np.ndarray]:
         """ Performs a forecast of the future <num> dividends using a linear
             regression of the past history.
 
             Input:
-                num [int]: number of dividends to forecast
-                years [Optional[int]]: number of years to use
-                start_year [Optional[int]]: start year of the series to use
+                horizon [int]: future horizon on which to apply the
+                    calculated growth. If 0 return current mean, if > 0 apply
+                    the calculated trend and take the average (default 1)
 
             Output:
                 dates [np.ndarray]: dates of the forecasted series
@@ -252,85 +355,38 @@ class DividendFactory(object):
                 ValueError: if neither <years> nor <start_year> are provided
                 ValueError: if there is a single dividend in the series
         """
-        slope, intercept = self.regression(years, start_year)
-        if np.isnan(slope):
-            return np.ndarray([]), np.ndarray([])
-
-        # FIXME: for longer forecasts, the error due to 1Y == 360D accumulates
-        dt = np.arange(1, num + 1) * _DAYS_FREQ_D[self._freq]
-
-        divs = intercept + slope * dt
-        dt = self._div_dt[-1] + dt.astype('timedelta64[D]')
-
-        return dt, divs
+        growth = self._calc_growth(horizon)
+        return self._yearly_div[-1] * np.cumprod(growth)
 
     @property
     def frequency(self) -> int:
         return self._freq
 
-    def growth(self, years: Optional[int] = None,
-               start_year: Optional[int] = None) -> float:
-        """ Returns the annual dividend growth calculated from the annual
-            dividend series. If at least one dividend has been paid in the
-            current year, the year is considered for the calculation using the
-            inferred annual dividend.
-            Example: if the first quarterly dividend of 3$ has been paid out,
-            the annual dividend is assumed to be 12$.
-            Priority in the inputs is given to <start_year>.
+    def growth(self, horizon: int = 1) -> float:
+        """ Returns the average dividend growth calculated over the selected
+            period calculate from the dividend series and projected over the
+            horizon in input. The calculation is performed over annual
+            dividends. The current year dividends are excluded from the
+            calculation if not all paid to avoid an additional error in
+            forecasting the remaining dividends in the year.
 
             If the issuer is not a dividend payer or the dividend is
             suspended, NaN is returned.
 
             Input:
-                years [Optional[int]]: number of years to use
-                start_year [Optional[int]]: start year of the series to use
+                horizon [int]: future horizon on which to apply the
+                    calculated growth. If 0 return current mean, if > 0 apply
+                    the calculated trend and take the average (default 1)
 
             Output:
-                dr [Optional[float]]: drift of the yields
-
-            Exceptions:
-                ValueError: if neither <years> nor <start_year> are provided
-                ValueError: if there is a single dividend in the series
+                growth [float]: dividend growth
         """
-        # Quick exit if not a dividends payer
-        if (not self._is_div_payer) | self._is_div_suspended:
-            return np.nan
+        growth = self._calc_growth(horizon)
 
-        # Check inputs
-        if (years is None) & (start_year is None):
-            msg = f'DividendFactory(): either <years> or <start_year> must be provided.'
-            raise ValueError(msg)
-
-        if start_year is None:
-            start_year = Cal.today().year - years
-        start_dt = str(start_year) + '-01-01'
-
-        # Search the start of the series and exclude nans
-        start_dt = np.datetime64(start_dt) \
-            .astype('datetime64[Y]')
-        idx = np.searchsorted(self._yearly_dt, start_dt)
-
-        # If this year dividend has not been paid yet, not consider it
-        if self._yearly_div[-1] == .0:
-            idx = max(idx-1, 0)
-            end = -1
+        if growth.shape[0] == 1:
+            return growth[0]
         else:
-            end = None
-
-        yd, mask = dropna(
-            self._yearly_div[idx:end]
-        )
-
-        # Check the resulting length
-        if yd.shape[0] < 2:
-            msg = f'DividendFactory(): at least 2 years of dividends required ' \
-                  f'({yd.shape[0]} provided) for the dividend drift of {self._eq.uid}'
-            raise ValueError(msg)
-
-        # The number of return periods is the number of yields - 1 plus any
-        # missing yield but the very first if missing.
-        length = yd.shape[0] + np.sum(~mask[1:]) - 1
-        return (yd[-1] / yd[0]) ** (1. / length) - 1.
+            return .5 * (growth[0] + growth[-1])
 
     @property
     def is_dividend_payer(self) -> bool:
@@ -356,52 +412,6 @@ class DividendFactory(object):
 
     def payout_ratio(self):
         pass
-
-    def regression(self, years: Optional[int] = None,
-                   start_year: Optional[int] = None) -> tuple[float, float]:
-        """ Performs a regression on the series of dividends. The results may be
-            used to forecast the future path of dividends.
-
-            Input:
-                years [Optional[int]]: number of years to use
-                start_year [Optional[int]]: start year of the series to use
-
-            Output:
-                slope [float]: slope of the regression
-                intercept [float]: intercept of the regression
-
-            Exception:
-                ValueError: if neither <years> nor <start_year> are provided
-                ValueError: if there is a single dividend in the series
-        """
-        # Quick exit if not a dividends payer
-        if (not self._is_div_payer) | self._is_div_suspended:
-            return np.nan, np.nan
-
-        # Check inputs
-        if (years is None) & (start_year is None):
-            msg = f'DividendFactory(): either <years> or <start_year> must be provided.'
-            raise ValueError(msg)
-
-        if start_year is None:
-            start_year = Cal.today().year - years
-
-        # Search the start of the series and exclude nans
-        start_date = np.datetime64(
-            str(start_year) + '-01-01'
-        ).astype('datetime64[D]')
-        idx = np.searchsorted(self._div_dt, start_date)
-        divs, mask = dropna(self._div[idx:])
-        dts = self._div_dt[idx:][mask]
-
-        # Check the resulting length
-        if divs.shape[0] < 2:
-            msg = f'DividendFactory(): at least 2 dividends required ' \
-                  f'for the regression of {self._eq.uid} dividends'
-            raise ValueError(msg)
-
-        days = (dts - dts[-1]).astype(int)
-        return stats.linregress(days, divs)[:2]
 
     def search_sp_div(self, tolerance: float = .1) -> tuple:
         """ Function to search for special dividends. Creates a grid of
@@ -464,3 +474,39 @@ class DividendFactory(object):
         idx_p = np.searchsorted(p_dt, start)
 
         return np.sum(self._div[idx_d:]) / np.nanmean(p[idx_p:])
+
+    def ytd_div(self) -> float:
+        """ Computes the YTD dividend. If the issuer is not a dividend payer, or
+            the dividend is suspended zero is returned.
+
+            Output:
+                div [float]: dividend YTD
+        """
+        if (not self._is_div_payer) | self._is_div_suspended:
+            return .0
+
+        start = np.datetime64(str(self._t0.astype('datetime64[Y]')) + '-01-01')
+        idx = np.searchsorted(self._div_dt, start)
+        return float(np.sum(self._div[idx:]))
+
+    def ytd_yield(self) -> float:
+        """ Computes the YTD dividend yield. If the issuer is not a dividend
+            payer, or the dividend is suspended zero is returned.
+
+            Output:
+                yield [float]: dividend yield YTD
+        """
+        if (not self._is_div_payer) | self._is_div_suspended:
+            return .0
+
+        start = np.datetime64(str(self._t0.astype('datetime64[Y]')) + '-01-01')
+
+        prices = self._eq.series('Price.SplitAdj.Close')
+        p = prices.values
+        p_dt = prices.index.values
+
+        idx_d = np.searchsorted(self._div_dt, start)
+        idx_p = np.searchsorted(p_dt, start)
+
+        return np.sum(self._div[idx_d:]) / np.nanmean(p[idx_p:])
+

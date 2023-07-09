@@ -7,6 +7,7 @@ from abc import (ABCMeta, abstractmethod)
 from typing import (Any, TypeVar)
 
 import nfpy.Assets as Ast
+import nfpy.Financial as Fin
 from nfpy.Tools import Utilities as Ut
 
 
@@ -28,6 +29,7 @@ class BaseFundamentalModel(metaclass=ABCMeta):
     def __init__(self, uid: str):
         # Handlers
         self._af = Ast.get_af_glob()
+        self._rf = Fin.get_rf_glob()
 
         # Input variables
         self._uid = uid

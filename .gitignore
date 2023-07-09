@@ -73,7 +73,7 @@ analyze.py
 tests/.ipynb_checkpoints
 
 # Unwanted parts of development
-nfpy/todo/
+nfpy/obsolete/
 nfpy/nfpyConf.ini
 scripts/Development/
 

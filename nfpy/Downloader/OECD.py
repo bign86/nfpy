@@ -9,7 +9,7 @@ import pandas.tseries.offsets as off
 
 from nfpy.Calendar import today
 
-from .BaseDownloader import BasePage
+from .BaseDownloader import (BasePage, DwnParameter)
 from .BaseProvider import BaseImportItem
 from .DownloadsConf import OECDSeriesConf
 
@@ -34,13 +34,12 @@ class ClosePricesItem(BaseImportItem):
             # Adjust the date
             dt = str(item[2])
             if len(dt) == 4:
+                dt += '-01-01'
+            elif len(dt) == 7:
                 dt += '-01'
-            ref = off.BMonthBegin().rollforward(dt)
 
             # Build the new tuple
-            data_ins.append(
-                (item[0], item[1], ref.strftime('%Y-%m-%d'), item[3])
-            )
+            data_ins.append((item[0], item[1], dt, item[3]))
 
         return data_ins
 
@@ -59,25 +58,31 @@ class SeriesPage(BasePage):
     _TABLE = "OECDSeries"
     _Q_MAX_DATE = "select max(date) from OECDSeries where ticker = ?"
     _PARAMS = {
-        "startTime": None,
-        "endTime": None,
-        "dimensionAtObservation": "allDimensions"
+        'startTime': DwnParameter('startTime', True, None),
+        'endTime': DwnParameter('endTime', True, None),
+        'dimensionAtObservation': DwnParameter('dimensionAtObservation', False, 'allDimensions'),
     }
-    _MANDATORY = ("startTime", "endTime")
 
     def _set_default_params(self) -> None:
         """ Set the starting default of the parameters for the page. """
-        self._p = self._PARAMS
-        ld = self._fetch_last_data_point((self.ticker,))
-        self._p.update({
-            'startTime': pd.to_datetime(ld).strftime('%Y-%m'),
-            'endTime': today(mode='str', fmt='%Y-%m')
-        })
+        defaults = {}
+        for p in self._PARAMS.values():
+            if p.default is not None:
+                defaults[p.code] = p.default
+
+        ld = self._fetch_last_data_point((self._ticker,))
+        defaults.update(
+            {
+                'startTime': pd.to_datetime(ld).strftime('%Y-%m'),
+                'endTime': today(mode='str', fmt='%Y-%m')
+            }
+        )
+        self._p = [defaults]
 
     @property
     def baseurl(self) -> str:
         """ Return the base url for the page. """
-        request = self.ticker.split('/')
+        request = self._ticker.split('/')
 
         dataset_id = request[0]
         data_subject = '.'.join(
@@ -92,26 +97,26 @@ class SeriesPage(BasePage):
             dataset_id=dataset_id, data_subject=data_subject
         )
 
-    def _local_initializations(self) -> None:
+    def _local_initializations(self, ext_p: dict) -> None:
         """ Page-dependent initializations of parameters. """
-        if self._ext_p:
+        if ext_p:
+            translate = {'start': 'startTime', 'end': 'endTime'}
             p = {}
-            for t in [('start', 'startTime'), ('end', 'endTime')]:
-                if t[0] in self._ext_p:
-                    d = self._ext_p[t[0]]
-                    p[t[1]] = pd.to_datetime(d).strftime('%Y-%m')
-            self.params = p
+            for ext_k, ext_v in ext_p.items():
+                if ext_k in translate:
+                    p[translate[ext_k]] = pd.to_datetime(ext_v).strftime('%Y-%m')
+            self._p[0].update(p)
 
     def _parse(self) -> None:
         """ Parse the fetched object. """
-        j = json.loads(self._robj.text)
+        j = json.loads(self._robj[0].text)
 
         dimensions = j["structure"]["dimensions"]["observation"]
         attributes = j["structure"]["attributes"]["observation"]
         data_points = j["dataSets"][0]["observations"]
 
         if len(data_points) == 0:
-            raise RuntimeWarning(f'{self.ticker} | no new data downloaded')
+            raise RuntimeWarning(f'{self._ticker} | no new data downloaded')
 
         location_list = [v for v in dimensions if v['id'] == 'LOCATION'][0]['values']
         measure_list = [v for v in dimensions if v['id'] == 'MEASURE'][0]['values']
@@ -142,25 +147,19 @@ class SeriesPage(BasePage):
                 measure_list[dims[2]]['name'],
             ]
             if len(dims) == 4:
-                # dt = time_list[dims[3]]['id']
-                # _format = '%Y' if len(dt) == 4 else '%Y-%m'
                 row.extend(
                     [
                         frequency_list[0]['id'],
                         frequency_list[0]['name'],
-                        # pd.to_datetime(dt, format=_format).date(),
                         time_list[dims[3]]['id'],
                         time_list[dims[3]]['name'],
                     ]
                 )
             elif len(dims) == 5:
-                # dt = time_list[dims[4]]['id']
-                # _format = '%Y' if len(dt) == 4 else '%Y-%m'
                 row.extend(
                     [
                         frequency_list[dims[3]]['id'],
                         frequency_list[dims[3]]['name'],
-                        # pd.to_datetime(dt, format=_format).date(),
                         time_list[dims[4]]['id'],
                         time_list[dims[4]]['name'],
                     ]
@@ -190,5 +189,5 @@ class SeriesPage(BasePage):
             data.append(row)
 
         df = pd.DataFrame(data, columns=self._COLUMNS)
-        df.insert(0, 'ticker', self.ticker)
+        df.insert(0, 'ticker', self._ticker)
         self._res = df

@@ -3,9 +3,10 @@
 #
 
 from abc import (ABCMeta, abstractmethod)
+from collections import namedtuple
 import os
 from pathlib import Path
-from typing import (Any, Optional, Sequence, Union)
+from typing import (Optional, Sequence, Union)
 
 import pandas as pd
 import requests
@@ -16,6 +17,11 @@ from nfpy.DatatypeFactory import get_dt_glob
 from nfpy.Tools import (Exceptions as Ex, get_conf_glob, Utilities as Ut)
 
 
+# Tuple to define parameters
+DwnParameter = namedtuple('DwnParameter', ['code', 'mandatory', 'default'])
+
+
+# Base class for every download
 class BasePage(metaclass=ABCMeta):
     """ Base metaclass for pages downloading. Every downloadable page should be
         derived from this class defining class attributes and writing the proper
@@ -23,7 +29,6 @@ class BasePage(metaclass=ABCMeta):
     """
 
     _PARAMS = {}
-    _MANDATORY = ()
     _PROVIDER = ''
     _PAGE = ''
     _TABLE = ''
@@ -46,11 +51,10 @@ class BasePage(metaclass=ABCMeta):
         self._dt = get_dt_glob()
         self._ticker = ticker
 
-        self._p = None
-        self._robj = None
+        self._p = []
+        self._robj = []
         self._res = None
         self._jar = None
-        self._ext_p = None
         self._fname = None
 
         self._is_initialized = False
@@ -61,23 +65,8 @@ class BasePage(metaclass=ABCMeta):
     @property
     def ticker(self) -> str:
         if self._ticker is None:
-            raise Ex.IsNoneError("The ticker must be given!")
+            raise Ex.IsNoneError("BaseDownloader(): The ticker must be given!")
         return self._ticker
-
-    @property
-    def params(self) -> dict[str, Any]:
-        return self._p
-
-    @params.setter
-    def params(self, v: dict[str, Any]) -> None:
-        """ Filter out unwanted parameters, update the dictionary, downloaded
-            page is deleted to allow for a new download.
-        """
-        to_delete_ = set(v.keys()) - set(self._p.keys())
-        for k in to_delete_:
-            v.pop(k, None)
-        self._p.update(v)
-        self._robj = None
 
     @property
     def provider(self) -> str:
@@ -104,7 +93,7 @@ class BasePage(metaclass=ABCMeta):
 
     @property
     def is_downloaded(self) -> bool:
-        return False if self._robj is None else True
+        return False if len(self._robj) == 0 else True
 
     @property
     def is_parsed(self) -> bool:
@@ -136,13 +125,16 @@ class BasePage(metaclass=ABCMeta):
         return self._res
 
     def _check_params(self) -> None:
-        _l = []
-        for p in self._MANDATORY:
-            if (p not in self._p) or (self._p[p] is None):
-                _l.append(p)
+        _missing = set()
+        for p in self._PARAMS.values():
+            if p.mandatory:
+                code = p.code
+                for param_set in self._p:
+                    if (code not in param_set) or (param_set[code] is None):
+                        _missing.add(code)
 
-        if _l:
-            msg = f"The following parameters are required: {', '.join(_l)}"
+        if _missing:
+            msg = f"BaseDownloader(): The following required parameters are missing: {', '.join(_missing)}"
             raise Ex.IsNoneError(msg)
 
     def save(self) -> None:
@@ -182,13 +174,10 @@ class BasePage(metaclass=ABCMeta):
         if self._is_initialized is True:
             return self
 
-        if params is not None:
-            self._ext_p = params
-
         if fname is not None:
             self._fname = fname
         else:
-            self._local_initializations()
+            self._local_initializations(params)
 
         self._is_initialized = True
         return self
@@ -216,11 +205,11 @@ class BasePage(metaclass=ABCMeta):
     def _load_file(self) -> None:
         """ Load a file to be parsed. """
         if self._fname is None:
-            raise ValueError("File to load not specified!")
+            raise ValueError("BaseDownloader(): File to load not specified!")
 
         r = Ut.FileObject(self._fname)
         r.encoding = self._ENCODING
-        self._robj = r
+        self._robj = [r]
 
     def _download(self) -> None:
         """ Fetch from the remote url the page data. The object must be initialized
@@ -232,7 +221,7 @@ class BasePage(metaclass=ABCMeta):
                 RuntimeWarning: if page downloaded with negative status_code
         """
         if not self._is_initialized:
-            raise RuntimeError("The object must be initialized first")
+            raise RuntimeError("BaseDownloader(): The object must be initialized first")
 
         req = requests.Session()
 
@@ -242,21 +231,25 @@ class BasePage(metaclass=ABCMeta):
         headers = self._HEADER
         headers['User-Agent'] = self.user_agent
 
-        if self.req_method == 'get':
-            r = req.get(self.baseurl, params=self._p, headers=headers, timeout=10)
-        elif self.req_method == 'post':
-            r = req.post(self.baseurl, data=self._p, headers=headers)
-        else:
-            raise ValueError(f'Request method {self.req_method} not recognized')
+        # Run through the list of parameters for each call
+        for param_set in self._p:
 
-        if r.status_code == 200:
-            r.encoding = self._ENCODING
-            self._jar = r.cookies
-            self._robj = r
-        else:
-            msg = f"Error in downloading {self.__class__.__name__}|{self.ticker}: " \
-                  f"[{r.status_code}] {r.reason}"
-            raise requests.HTTPError(msg)
+            # Make the call
+            if self.req_method == 'get':
+                r = req.get(self.baseurl, params=param_set, headers=headers, timeout=10)
+            elif self.req_method == 'post':
+                r = req.post(self.baseurl, data=param_set, headers=headers)
+            else:
+                raise ValueError(f'Request method {self.req_method} not recognized')
+
+            if r.status_code == 200:
+                r.encoding = self._ENCODING
+                self._jar = r.cookies
+                self._robj.append(r)
+            else:
+                msg = f"BaseDownloader(): Error in downloading {self.__class__.__name__}|{self.ticker}: " \
+                      f"[{r.status_code}] {r.reason}"
+                raise requests.HTTPError(msg)
 
     def _write_to_file(self, fname: Optional[str] = None) -> None:
         """ Write to a text file. """
@@ -268,7 +261,8 @@ class BasePage(metaclass=ABCMeta):
         bak_dir = get_conf_glob().backup_folder
         fd = Path(os.path.join(bak_dir, fname))
         with fd.open(mode='w') as f:
-            f.write(self._robj.text)
+            for result in self._robj:
+                f.write(result.text)
 
     def _write_to_db(self) -> None:
         """ Write to the database table. """
@@ -343,7 +337,7 @@ class BasePage(metaclass=ABCMeta):
         """ Return the base url for the page. """
 
     @abstractmethod
-    def _local_initializations(self) -> None:
+    def _local_initializations(self, ext_p: dict) -> None:
         """ Page-dependent initializations of parameters. """
 
     @abstractmethod

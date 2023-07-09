@@ -2,8 +2,9 @@
 # Asset class
 # Base class for a single asset
 #
-import abc
 
+import abc
+from datetime import timedelta
 import numpy as np
 import pandas as pd
 from typing import (Callable, Optional, TypeVar)
@@ -159,14 +160,14 @@ class Asset(FinancialItem):
         self.dtype = dtype_code
 
         # Take results and append to the unique dataframe indexed on the calendar
-        data = (
+        data = [
             *self._get_dati_for_query(
                 self.ts_table,
                 rolling=self.ts_roll_key_list
             ),
-            self._cal.start.to_pydatetime(),
-            self._cal.end.to_pydatetime()
-        )
+            self._df.index[0].to_pydatetime() - timedelta(days=1),
+            self._df.index[-1].to_pydatetime()
+        ]
         self.dtype = -1
 
         try:

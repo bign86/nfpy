@@ -11,7 +11,7 @@ import requests
 from nfpy.Calendar import today
 from nfpy.Tools import Exceptions as Ex
 
-from .BaseDownloader import BasePage
+from .BaseDownloader import (BasePage, DwnParameter)
 from .BaseProvider import BaseImportItem
 from .DownloadsConf import ECBSeriesConf
 
@@ -67,41 +67,46 @@ class SeriesPage(ECBBasePage):
     _PAGE = 'Series'
     _COLUMNS = ECBSeriesConf
     _PARAMS = {
-        "trans": "N",
-        "start": None,
-        "end": None,
-        "SERIES_KEY": None,
-        "type": "csv"
+        'trans': DwnParameter('trans', False, 'N'),
+        'start': DwnParameter('start', False, None),
+        'end': DwnParameter('end', False, None),
+        'SERIES_KEY': DwnParameter('SERIES_KEY', True, None),
+        'type': DwnParameter('type', False, "csv"),
     }
-    _MANDATORY = ("SERIES_KEY",)
     _TABLE = "ECBSeries"
     _BASE_URL = u"http://sdw.ecb.europa.eu/quickviewexport.do;jsessionid={}?"
     _Q_MAX_DATE = "select max(date) from ECBSeries where ticker = ?"
 
     def _set_default_params(self) -> None:
-        self._p = self._PARAMS
-        ld = self._fetch_last_data_point((self.ticker,))
-        self._p.update({
+        defaults = {}
+        for p in self._PARAMS.values():
+            if p.default is not None:
+                defaults[p.code] = p.default
+
+        ld = self._fetch_last_data_point((self._ticker,))
+        defaults.update({
             'SERIES_KEY': self._ticker,
             'start': pd.to_datetime(ld).strftime('%d-%m-%Y'),
             'end': today(fmt='%d-%m-%Y')
         })
+        self._p = [defaults]
 
-    def _local_initializations(self) -> None:
+    def _local_initializations(self, ext_p: dict) -> None:
         """ Local initializations for the single page. """
-        if self._ext_p:
+        if ext_p:
+            translate = {'start': 'st_date', 'end': 'end_date'}
             p = {}
-            for t in [('start', 'st_date'), ('end', 'end_date')]:
-                if t[0] in self._ext_p:
-                    d = self._ext_p[t[0]]
-                    p[t[1]] = pd.to_datetime(d).strftime('%d-%m-%Y')
-            self.params = p
+            for ext_k, ext_v in ext_p.items():
+                if ext_k in translate:
+                    p[translate[ext_k]] = pd.to_datetime(ext_v).strftime('%d-%m-%Y')
+            self._p[0].update(p)
+
         self._crumb = self._fetch_crumb()
 
     def _parse(self) -> None:
         """ Parse the fetched object. """
         df = pd.read_csv(
-            StringIO(self._robj.text),
+            StringIO(self._robj[0].text),
             sep=',',
             header=None,
             names=self._COLUMNS,
@@ -110,8 +115,8 @@ class SeriesPage(ECBBasePage):
         )
 
         if df.empty:
-            raise RuntimeWarning(f'{self.ticker} | no new data downloaded')
+            raise RuntimeWarning(f'{self._ticker} | no new data downloaded')
 
         df.drop(columns=self._COLUMNS[-1], inplace=True)
-        df.insert(0, 'ticker', self.ticker)
+        df.insert(0, 'ticker', self._ticker)
         self._res = df

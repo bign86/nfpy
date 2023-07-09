@@ -20,8 +20,8 @@ def dropna(v: np.ndarray, axis: int = 0) -> tuple:
             axis [int]: apply along axis (default: 0)
 
         Ouput:
-            arr [np.ndarray]: output array
-            mask [np.ndarray]: boolean mask of nan values
+            arr [np.ndarray]: output array w/o NaNs
+            mask [np.ndarray]: boolean mask of not-NaN values
     """
     if len(v.shape) == 1:
         mask = ~np.isnan(v)
@@ -312,8 +312,8 @@ def search_trim_pos(dt: np.ndarray, start: Optional[np.datetime64] = None,
 
         Input:
             dt [np.ndarray]: dates series to trim
-            start [np.datetime64]: trimming start date (default: None)
-            end [np.datetime64]: trimming end date (default: None)
+            start [Optional[np.datetime64]]: trimming start date (default: None)
+            end [Optional[np.datetime64]]: trimming end date (default: None)
 
         Output:
             slc [slice]: slice object
@@ -370,7 +370,7 @@ def smooth(ts: np.ndarray, w: int) -> np.ndarray:
     return c[h:-h]
 
 
-def trim_ts(v: Optional[np.ndarray], dt: np.ndarray,
+def trim_ts(dt: np.ndarray, v: Optional[np.ndarray],
             start: Optional[np.datetime64] = None,
             end: Optional[np.datetime64] = None, axis: int = 0) \
         -> tuple[Optional[np.ndarray], np.ndarray]:
@@ -379,10 +379,10 @@ def trim_ts(v: Optional[np.ndarray], dt: np.ndarray,
         place.
 
         Input:
-            v [np.ndarray]: value series to trim
             dt [np.ndarray]: dates series to trim
-            start [np.datetime64]: trimming start date (default: None)
-            end [np.datetime64]: trimming end date (default: None)
+            v [Optional[np.ndarray]]: value series to trim
+            start [Optional[np.datetime64]]: trimming start date (default: None)
+            end [Optional[np.datetime64]]: trimming end date (default: None)
             axis [int]: axis along which to cut
 
         Output:

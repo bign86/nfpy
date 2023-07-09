@@ -9,7 +9,7 @@ import xml.etree.ElementTree as ET
 from nfpy.Calendar import today
 from nfpy.Tools import get_conf_glob
 
-from .BaseDownloader import BasePage
+from .BaseDownloader import (BasePage, DwnParameter)
 from .BaseProvider import BaseImportItem
 from .DownloadsConf import FREDSeriesConf
 
@@ -33,43 +33,43 @@ class SeriesPage(BasePage):
     _TABLE = "FREDSeries"
     _Q_MAX_DATE = "select max(date) from FREDSeries where ticker = ?"
     _PARAMS = {
-        'api_key': None,
-        'series_id': None,
-        'observation_start': None,
-        'observation_end': None,
+        'api_key': DwnParameter('api_key', True, None),
+        'series_id': DwnParameter('series_id', True, None),
+        'observation_start': DwnParameter('observation_start', False, None),
+        'observation_end': DwnParameter('observation_end', False, None),
     }
-    _MANDATORY = ('api_key', 'series_id')
 
     def _set_default_params(self) -> None:
         """ Set the starting default of the parameters for the page. """
-        self._p = self._PARAMS
         # ld = self._fetch_last_data_point((self.ticker,))
-        ld = '1950-01-01'
-        self._p.update({
-            'api_key': get_conf_glob().fred_api_key,
-            'series_id': self._ticker,
-            'observation_start': pd.to_datetime(ld).strftime('%Y-%m-%d'),
-            'observation_end': today(mode='str', fmt='%Y-%m-%d')
-        })
+        ld = self._DATE0
+        self._p = [
+            {
+                'api_key': get_conf_glob().fred_api_key,
+                'series_id': self._ticker,
+                'observation_start': pd.to_datetime(ld).strftime('%Y-%m-%d'),
+                'observation_end': today(mode='str', fmt='%Y-%m-%d')
+            }
+        ]
 
     @property
     def baseurl(self) -> str:
         """ Return the base url for the page. """
         return self._BASE_URL
 
-    def _local_initializations(self) -> None:
+    def _local_initializations(self, ext_p: dict) -> None:
         """ Page-dependent initializations of parameters. """
-        if self._ext_p:
+        if ext_p:
+            translate = {'start': 'startTime', 'end': 'endTime'}
             p = {}
-            for t in [('start', 'startTime'), ('end', 'endTime')]:
-                if t[0] in self._ext_p:
-                    d = self._ext_p[t[0]]
-                    p[t[1]] = pd.to_datetime(d).strftime('%Y-%m-%d')
-            self.params = p
+            for ext_k, ext_v in ext_p.items():
+                if ext_k in translate:
+                    p[translate[ext_k]] = pd.to_datetime(ext_v).strftime('%Y-%m-%d')
+            self._p[0].update(p)
 
     def _parse(self) -> None:
         """ Parse the fetched object. """
-        tree = ET.fromstring(self._robj.text)
+        tree = ET.fromstring(self._robj[0].text)
 
         data = []
         for obs in tree.findall('observation'):
@@ -91,8 +91,3 @@ class SeriesPage(BasePage):
         df = pd.DataFrame(data, columns=self._COLUMNS)
         df.insert(0, 'ticker', self.ticker)
         self._res = df
-
-
-
-
-

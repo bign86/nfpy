@@ -32,7 +32,7 @@ class BorsaItalianaBasePage(BasePage):
         """ Return the base url for the page. """
         return self._BASE_URL + self._URL_SUFFIX.format(isin=self._ticker)
 
-    def _local_initializations(self) -> None:
+    def _local_initializations(self, ext_p: dict) -> None:
         """ Local initializations for the single page. """
         pass
 
@@ -46,11 +46,15 @@ class DividendsPage(BorsaItalianaBasePage):
     _Q_SELECT = 'select * from BorsaItalianaDividends where ticker = ?'
 
     def _set_default_params(self) -> None:
-        self._p = self._PARAMS
+        defaults = {}
+        for p in self._PARAMS.values():
+            if p.default is not None:
+                defaults[p.code] = p.default
+        self._p = [defaults]
 
     def _parse(self) -> None:
         """ Parse the fetched object. """
-        table = BeautifulSoup(self._robj.text, "html5lib") \
+        table = BeautifulSoup(self._robj[0].text, "html5lib") \
             .find('table', {'class': "m-table -responsive -list -clear-m"}) \
             .find('tbody')
         if table is None:

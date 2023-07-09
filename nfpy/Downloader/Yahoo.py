@@ -13,25 +13,20 @@
 #
 
 from abc import abstractmethod
-from base64 import b64decode
-from cryptography.hazmat.primitives import padding
-from cryptography.hazmat.primitives.ciphers import (Cipher, algorithms, modes)
-import hashlib
 from io import StringIO
 import json
 import numpy as np
 import pandas as pd
 import pandas.tseries.offsets as off
-import re
-from typing import (Optional, Union)
+import time
 
 import nfpy.Calendar as Cal
 from nfpy.Tools import Utilities as Ut
 
-from .BaseDownloader import BasePage
+from .BaseDownloader import (BasePage, DwnParameter)
 from .BaseProvider import BaseImportItem
 from .DownloadsConf import (
-    YahooFinancialsConf, YahooFinancialsMapping,
+    YahooFinancialsConf, YahooFinancialsMapping, YahooFinancialsDownloadList,
     YahooHistDividendsConf, YahooHistPricesConf, YahooHistSplitsConf
 )
 
@@ -54,17 +49,17 @@ class FinancialsItem(BaseImportItem):
     def _clean_data(data: list[tuple]) -> list[tuple]:
         """ Prepare results for import. """
         data_ins = []
+        mapping = {v.name: v for v in YahooFinancialsMapping}
+
         while data:
             item = data.pop(0)
 
             # Map the field
-            try:
-                field = YahooFinancialsMapping[item[1]][item[2]]
-            except KeyError as ex:
-                Ut.print_exc(ex)
+            field = mapping.get(item[2], None)
+            if field is None:
                 continue
 
-            if field[0] == '':
+            if field.code == '':
                 continue
 
             # Adjust the date
@@ -72,11 +67,11 @@ class FinancialsItem(BaseImportItem):
             ref = off.BMonthEnd().rollforward(dt)
 
             # Divide to millions
-            value = item[5] * field[2]
+            value = item[5] * field.mult
 
             # Build the new tuple
             data_ins.append(
-                (item[0], field[0], ref.strftime('%Y-%m-%d'), item[4], value)
+                (item[0], field.code, ref.strftime('%Y-%m-%d'), item[4], value)
             )
 
         return data_ins
@@ -118,7 +113,6 @@ class YahooBasePage(BasePage):
     """ Base class for all Yahoo downloads. It cannot be used by itself but the
         derived classes for single download instances should always be used.
     """
-
     _ENCODING = "utf-8-sig"
     _PROVIDER = "Yahoo"
     _REQ_METHOD = 'get'
@@ -132,133 +126,103 @@ class YahooBasePage(BasePage):
 class FinancialsPage(YahooBasePage):
     _PAGE = 'Financials'
     _COLUMNS = YahooFinancialsConf
-    _JSON_PATTERN = r'\s*root\.App\.main\s*=\s*({.*?});\n'
-    _BASE_URL = u"https://finance.yahoo.com/quote/{}/financials?"
+    _BASE_URL = u"https://query2.finance.yahoo.com/ws/fundamentals-timeseries/v1/finance/timeseries/{}"
     _TABLE = "YahooFinancials"
+    _PARAMS = {
+        'type': DwnParameter('type', True, None),
+        'period1': DwnParameter('period1', True, 493590046),
+        'period2': DwnParameter('period2', True, None),
+        'merge': DwnParameter('merge', False, False),
+        'padTimeSeries': DwnParameter('padTimeSeries', False, False),
+        'lang': DwnParameter('lang', False, 'en-US'),
+        'region': DwnParameter('region', False, 'US'),
+        'corsDomain': DwnParameter('corsDomain', True, 'finance.yahoo.com'),
+    }
 
     def _set_default_params(self) -> None:
-        pass
+        n = len(YahooFinancialsDownloadList) // 2
+        keys_list = [
+            [f'annual{key}' for key in YahooFinancialsDownloadList[:n]],
+            [f'annual{key}' for key in YahooFinancialsDownloadList[n:]],
+            [f'quarterly{key}' for key in YahooFinancialsDownloadList[:n]],
+            [f'quarterly{key}' for key in YahooFinancialsDownloadList[n:]]
+        ]
 
-    def _local_initializations(self) -> None:
+        # Calculate the dates
+        # ld = self._fetch_last_data_point((self.ticker,))
+        ld = self._DATE0
+        period1 = int(pd.to_datetime(ld).value / 1e9)
+        period2 = int(time.time())
+
+        # Collect defaults
+        defaults = {}
+        for p in self._PARAMS.values():
+            if p.default is not None:
+                defaults[p.code] = p.default
+
+        # Go through the parameters
+        for keys in keys_list:
+            d = defaults.copy()
+            d.update(
+                {
+                    'type': ','.join(keys),
+                    'period1': period1,
+                    'period2': period2,
+                }
+            )
+            self._p.append(d)
+
+    def _local_initializations(self, ext_p: dict) -> None:
         """ Local initializations for the single page. """
         pass
 
     def _parse(self) -> None:
         """ Parse the fetched object. """
-        json_string = re.search(self._JSON_PATTERN, self._robj.text)
-        json_dict = json.loads(json_string.group(1))
-        # stores = json_dict['context']['dispatcher']['stores']
-        stores = decrypt_cryptojs_aes(json_dict)
-        data = stores['QuoteSummaryStore']
-        if not data:
-            msg = f'Data group not found in Yahoo financials for {self.ticker}'
-            raise RuntimeError(msg)
+        all_keys = {v.name: v.statement for v in YahooFinancialsMapping}
+        data = []
 
-        rows = []
+        for json_data in self._robj:
+            js = json.loads(json_data.text)
+            result = js['timeseries']['result']
 
-        # Helper function for financial statements
-        def _extract_f(_p, _data):
-            for _item in _data:
-                _dt = _item['endDate']['fmt']
-                for _field, _entry in _item.items():
-                    if _field in ('endDate', 'maxAge'):
-                        continue
-                    if _entry:
-                        _row = _p + (_dt, _field, _entry.get('raw'))
-                        rows.append(_row)
-
-        to_download = (
-            ('INC', ('incomeStatementHistory', 'incomeStatementHistory'), 'A'),
-            ('INC', ('incomeStatementHistoryQuarterly', 'incomeStatementHistory'), 'Q'),
-            ('BAL', ('balanceSheetHistory', 'balanceSheetStatements'), 'A'),
-            ('BAL', ('balanceSheetHistoryQuarterly', 'balanceSheetStatements'), 'Q'),
-            ('CAS', ('cashflowStatementHistory', 'cashflowStatements'), 'A'),
-            ('CAS', ('cashflowStatementHistoryQuarterly', 'cashflowStatements'), 'Q'),
-        )
-        for td in to_download:
-            data_list = data[td[1][0]][td[1][1]]
-            _extract_f(
-                (self._ticker, td[2], self._ext_p['currency'], td[0]),
-                data_list
-            )
-
-        # Helper function for EPS
-        def _extract_e(_p, _data):
-            for _item in _data:
-                _dt = _item['date']
-                for _field, _entry in _item.items():
-                    if _field in ('date', 'revenue'):
-                        continue
-                    elif _field in ('actual', 'estimate'):
-                        _field = 'EPS' + _field
-                    if _entry:
-                        _row = _p + (_dt, _field, _entry.get('raw'))
-                        rows.append(_row)
-
-        to_download = (
-            ('TS', ('earnings', 'earningsChart', 'quarterly'), 'Q'),
-            ('TS', ('earnings', 'financialsChart', 'yearly'), 'A'),
-            ('TS', ('earnings', 'financialsChart', 'quarterly'), 'Q'),
-        )
-        for td in to_download:
-            v = td[1]
-            data_list = data[v[0]][v[1]][v[2]]
-            _extract_e(
-                (self._ticker, td[2], self._ext_p['currency'], td[0]),
-                data_list
-            )
-
-        # Helper function for time series
-        def _extract_ts(_p, _field, _data):
-            for _item in _data:
-                if not _item:
-                    continue
-                _dt = _item['asOfDate']
-                _v = _item['reportedValue']
-                if _v:
-                    _row = _p + (_dt, _field, _v.get('raw'))
-                    rows.append(_row)
-
-        data = stores['QuoteTimeSeriesStore']['timeSeries']
-        for k, v in data.items():
-            if k == 'timestamp':
-                continue
-            elif k[:6] == 'annual':
-                st = 'A'
-                code = k[6:]
-            elif k[:8] == 'trailing':
-                st = 'TTM'
-                code = k[8:]
+            if 'annual' in result[0]['meta']['type'][0]:
+                freq = 'A'
+            elif 'quarterly' in result[0]['meta']['type'][0]:
+                freq = 'Q'
             else:
-                raise ValueError(f'YahooFinancialsPage(): {k} not conformant')
-            _extract_ts(
-                (self._ticker, st, self._ext_p['currency'], 'TS'),
-                code, v
-            )
+                raise ValueError(f'YahooDownloader(): {self._ticker} | no new data downloaded')
 
-        # Create dataframe
-        df = pd.DataFrame.from_records(
-            rows,
-            columns=self._COLUMNS
-        )
+            # data = []
+            key_copy = all_keys.copy()
+            for r in result:
+                prefixed_code = r['meta']['type'][0]
+                if prefixed_code in r:
+                    entries = r[prefixed_code]
+                    code = prefixed_code.removeprefix('annual').removeprefix('quarterly')
+                    sheet = key_copy.pop(code)
+                    for entry in entries:
+                        data.append((
+                            self._ticker, freq,
+                            entry.get('currencyCode', None),
+                            sheet,
+                            entry['asOfDate'],
+                            code,
+                            entry['reportedValue']['raw']
+                        ))
 
-        # I want a cleaner version of the _robj for backup purposes
-        self._robj = json_string
-        self._res = df
+        self._res = pd.DataFrame(data, columns=self._COLUMNS)
 
 
 class YahooHistoricalBasePage(YahooBasePage):
     """ Base page for historical downloads. """
     _PARAMS = {
-        "period1": None,
-        "period2": None,
-        "interval": "1d",
-        "events": None,
-        "crumb": None
+        'period1': DwnParameter('period1', True, None),
+        'period2': DwnParameter('period2', True, None),
+        'interval': DwnParameter('interval', False, '1d'),
+        'events': DwnParameter('events', False, None),
+        'crumb': DwnParameter('crumb', False, None),
     }
-    _MANDATORY = ("period1", "period2")
     _BASE_URL = u"https://query1.finance.yahoo.com/v7/finance/download/{}?"
-    # _BASE_URL = u"https://query1.finance.yahoo.com/v8/finance/chart/{}?"
     _SKIP = [1]
 
     @property
@@ -267,53 +231,56 @@ class YahooHistoricalBasePage(YahooBasePage):
         """ Return the event to complete the request url. """
 
     def _set_default_params(self) -> None:
-        self._p = self._PARAMS
-        ld = self._fetch_last_data_point((self.ticker,))
+        ld = self._fetch_last_data_point((self._ticker,))
         # We add 2 days instead of 1 since with 1 day of offset the previous
         # split is downloaded again
         start = pd.to_datetime(ld) + pd.DateOffset(days=2)
-        self._p.update(
+        period1 = str(int(start.timestamp()))
+        period2 = Cal.today(mode='str', fmt='%s')
+
+        # Collect defaults
+        defaults = {}
+        for p in self._PARAMS.values():
+            if p.default is not None:
+                defaults[p.code] = p.default
+
+        # Go through the parameters
+        defaults.update(
             {
-                'period1': str(int(start.timestamp())),
-                'period2': Cal.today(mode='str', fmt='%s')
+                'period1': period1,
+                'period2': period2,
             }
         )
+        self._p = [defaults]
 
-    def _local_initializations(self) -> None:
+    def _local_initializations(self, ext_p: dict) -> None:
         """ Local initializations for the single page. """
         p = {'events': self.event}
-        if self._ext_p:
-            for t in [('start', 'period1'), ('end', 'period2')]:
-                if t[0] in self._ext_p:
-                    d = self._ext_p[t[0]]
-                    p[t[1]] = str(int(pd.to_datetime(d).timestamp()))
 
-        self.params = p
+        translate = {'start': 'period1', 'end': 'period2'}
+        for ext_k, ext_v in ext_p.items():
+            if ext_k in translate:
+                p[translate[ext_k]] = str(int(pd.to_datetime(ext_v).timestamp()))
+
+        self._p[0].update(p)
 
     def _parse_csv(self) -> pd.DataFrame:
-
-        # FIXME: there are errors flying around. This is to intercept them and
-        #        understand what is going on.
-        try:
-            df = pd.read_csv(
-                StringIO(self._robj.text),
-                sep=',',
-                header=None,
-                names=self._COLUMNS,
-                skiprows=1
-            )
-        except pd.errors.ParserError as ex:
-            print(self._robj.text)
-            raise RuntimeError(ex)
+        df = pd.read_csv(
+            StringIO(self._robj[0].text),
+            sep=',',
+            header=None,
+            names=self._COLUMNS,
+            skiprows=1
+        )
 
         if df.empty:
-            raise RuntimeWarning(f'{self.ticker} | no new data downloaded')
+            raise RuntimeWarning(f'{self._ticker} | no new data downloaded')
 
         # When downloading prices the oldest row is often made of nulls,
         # this is to remove it
         df.replace(to_replace='null', value=np.nan, inplace=True)
         df.dropna(subset=self._COLUMNS[1:], inplace=True)
-        df.insert(0, 'ticker', self.ticker)
+        df.insert(0, 'ticker', self._ticker)
         return df
 
 
@@ -330,15 +297,24 @@ class HistoricalPricesPage(YahooHistoricalBasePage):
         return "history"
 
     def _set_default_params(self) -> None:
-        self._p = self._PARAMS
-        ld = self._fetch_last_data_point((self.ticker,))
-        self._p.update(
+        ld = self._fetch_last_data_point((self._ticker,))
+        period1 = str(int(pd.to_datetime(ld).timestamp()))
+        period2 = Cal.today(mode='str', fmt='%s')
+
+        # Collect defaults
+        defaults = {}
+        for p in self._PARAMS.values():
+            if p.default is not None:
+                defaults[p.code] = p.default
+
+        # Go through the parameters
+        defaults.update(
             {
-                # NOTE: pd.to_datetime(ld).strftime('%s') yields a different output
-                'period1': str(int(pd.to_datetime(ld).timestamp())),
-                'period2': Cal.today(mode='str', fmt='%s')
+                'period1': period1,
+                'period2': period2,
             }
         )
+        self._p = [defaults]
 
     def _parse(self) -> None:
         """ Parse the fetched object. """
@@ -355,7 +331,7 @@ class DividendsPage(YahooHistoricalBasePage):
 
     @property
     def event(self) -> str:
-        return "dividend"
+        return "div"
 
     def _parse(self) -> None:
         """ Parse the fetched object. """
@@ -380,80 +356,8 @@ class SplitsPage(YahooHistoricalBasePage):
 
         Ut.print_wrn(
             Warning(
-                f' >>> New split found for {self.ticker}!\n{df.to_string}'
+                f' >>> New split found for {self._ticker}!\n{df.to_string}'
             )
         )
 
         self._res = df
-
-
-# Taken from the yfinance package
-def decrypt_cryptojs_aes(data: dict) -> json:
-    encrypted_stores = data['context']['dispatcher']['stores']
-    _cs = data["_cs"]
-    _cr = data["_cr"]
-
-    _cr = b"".join(int.to_bytes(i, length=4, byteorder="big", signed=True) for i in json.loads(_cr)["words"])
-    password = hashlib.pbkdf2_hmac("sha1", _cs.encode("utf8"), _cr, 1, dklen=32).hex()
-
-    encrypted_stores = b64decode(encrypted_stores)
-    assert encrypted_stores[0:8] == b"Salted__"
-    salt = encrypted_stores[8:16]
-    encrypted_stores = encrypted_stores[16:]
-
-    key, iv = evpkdf(
-        password, salt,
-        key_size=32, iv_size=16, iterations=1,
-        hash_algorithm="md5"
-    )
-
-    cipher = Cipher(algorithms.AES(key), modes.CBC(iv))
-    decryptor = cipher.decryptor()
-    plaintext = decryptor.update(encrypted_stores) + decryptor.finalize()
-    unpadder = padding.PKCS7(128).unpadder()
-    plaintext = unpadder.update(plaintext) + unpadder.finalize()
-
-    return json.loads(plaintext.decode("utf-8"))
-
-
-# Taken from the yfinance package
-def evpkdf(password: Union[str, bytes, bytearray],
-           salt: Union[bytes, bytearray],
-           key_size: Optional[int] = 32, iv_size: Optional[int] = 16,
-           iterations: Optional[int] = 1,
-           hash_algorithm: Optional[str] = "md5") -> tuple:
-    """OpenSSL EVP Key Derivation Function
-    Args:
-        password (Union[str, bytes, bytearray]): Password to generate key from.
-        salt (Union[bytes, bytearray]): Salt to use.
-        key_size (int, optional): Output key length in bytes. Defaults to 32.
-        iv_size (int, optional): Output Initialization Vector (IV) length in bytes. Defaults to 16.
-        iterations (int, optional): Number of iterations to perform. Defaults to 1.
-        hash_algorithm (str, optional): Hash algorithm to use for the KDF. Defaults to 'md5'.
-    Returns:
-        key, iv: Derived key and Initialization Vector (IV) bytes.
-    Taken from: https://gist.github.com/rafiibrahim8/0cd0f8c46896cafef6486cb1a50a16d3
-    OpenSSL original code: https://github.com/openssl/openssl/blob/master/crypto/evp/evp_key.c#L78
-    """
-
-    assert iterations > 0, "Iterations can not be less than 1."
-
-    if isinstance(password, str):
-        password = password.encode("utf-8")
-
-    final_length = key_size + iv_size
-    key_iv = b""
-    block = None
-
-    while len(key_iv) < final_length:
-        hasher = hashlib.new(hash_algorithm)
-        if block:
-            hasher.update(block)
-        hasher.update(password)
-        hasher.update(salt)
-        block = hasher.digest()
-        for _ in range(1, iterations):
-            block = hashlib.new(hash_algorithm, block).digest()
-        key_iv += block
-
-    return key_iv[:key_size], key_iv[key_size:final_length]

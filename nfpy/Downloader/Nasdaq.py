@@ -10,7 +10,7 @@ import pandas as pd
 
 from nfpy.Calendar import today
 
-from .BaseDownloader import BasePage
+from .BaseDownloader import (BasePage, DwnParameter)
 from .BaseProvider import BaseImportItem
 from .DownloadsConf import (NasdaqDividendsConf, NasdaqPricesConf)
 
@@ -38,12 +38,11 @@ class NasdaqBasePage(BasePage):
     _PROVIDER = "Nasdaq"
     _REQ_METHOD = 'get'
     _PARAMS = {
-        'assetclass': 'stocks',
-        'fromdate': None,
-        'limit': 9999,
-        'todate': None
+        'assetclass': DwnParameter('assetclass', False, 'stocks'),
+        'fromdate': DwnParameter('fromdate', True, None),
+        'limit': DwnParameter('limit', False, 9999),
+        'todate': DwnParameter('todate', True, None),
     }
-    _MANDATORY = ('fromdate', 'todate')
     _HEADER = {
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         # 'Host': 'api.nasdaq.com',
@@ -53,28 +52,32 @@ class NasdaqBasePage(BasePage):
     @property
     def baseurl(self) -> str:
         """ Return the base url for the page. """
-        return self._BASE_URL.format(self.ticker)
+        return self._BASE_URL.format(self._ticker)
 
     def _set_default_params(self) -> None:
-        self._p = self._PARAMS
-        ld = self._fetch_last_data_point((self.ticker,))
-        self._p.update(
+        defaults = {}
+        for p in self._PARAMS.values():
+            if p.default is not None:
+                defaults[p.code] = p.default
+
+        ld = self._fetch_last_data_point((self._ticker,))
+        defaults.update(
             {
                 'fromdate': pd.to_datetime(ld).strftime('%Y-%m-%d'),
                 'todate': today(mode='str', fmt='%Y-%m-%d')
             }
         )
+        self._p = [defaults]
 
-    def _local_initializations(self) -> None:
+    def _local_initializations(self, ext_p: dict) -> None:
         """ Local initializations for the single page. """
-        p = {}
-        if self._ext_p:
-            for t in [('start', 'fromdate'), ('end', 'todate')]:
-                if t[0] in self._ext_p:
-                    d = self._ext_p[t[0]]
-                    p[t[1]] = pd.to_datetime(d).strftime('%Y-%m-%d')
-
-        self.params = p
+        if ext_p:
+            translate = {'start': 'fromdate', 'end': 'todate'}
+            p = {}
+            for ext_k, ext_v in ext_p.items():
+                if ext_k in translate:
+                    p[translate[ext_k]] = pd.to_datetime(ext_v).strftime('%Y-%m-%d')
+            self._p[0].update(p)
 
 
 class HistoricalPricesPage(NasdaqBasePage):
@@ -88,16 +91,16 @@ class HistoricalPricesPage(NasdaqBasePage):
     _Q_SELECT = "select * from NasdaqPrices where ticker = ?"
 
     def _parse(self) -> None:
-        j = json.loads(self._robj.text)
+        j = json.loads(self._robj[0].text)
 
         message = j['status']['bCodeMessage']
         if message is not None:
-            raise ConnectionError(f'Nasdaq(): {self.ticker} | {message[0]["errorMessage"]}')
+            raise ConnectionError(f'Nasdaq(): {self._ticker} | {message[0]["errorMessage"]}')
 
         count = j['data']['totalRecords']
 
         if count == 0:
-            raise RuntimeWarning(f'Nasdaq(): {self.ticker} | no new data downloaded')
+            raise RuntimeWarning(f'Nasdaq(): {self._ticker} | no new data downloaded')
 
         data = j['data']['tradesTable']['rows']
         v = np.empty((count, 6), dtype='object')
@@ -110,7 +113,7 @@ class HistoricalPricesPage(NasdaqBasePage):
             v[i, 5] = row['low'].replace('$', '')
 
         df = pd.DataFrame(v, columns=self._COLUMNS)
-        df.insert(0, 'ticker', self.ticker)
+        df.insert(0, 'ticker', self._ticker)
         self._res = df
 
 
@@ -125,11 +128,11 @@ class DividendsPage(NasdaqBasePage):
     _Q_SELECT = "select * from NasdaqDividends where ticker = ?"
 
     def _parse(self) -> None:
-        j = json.loads(self._robj.text)
+        j = json.loads(self._robj[0].text)
         data = j['data']['dividends']['rows']
 
         if data is None:
-            raise RuntimeWarning(f'Nasdaq(): {self.ticker} | no new data downloaded')
+            raise RuntimeWarning(f'Nasdaq(): {self._ticker} | no new data downloaded')
 
         v = np.empty((len(data), 6), dtype='object')
         to_remove = []
@@ -154,5 +157,5 @@ class DividendsPage(NasdaqBasePage):
         v = np.delete(v, to_remove, axis=0)
 
         df = pd.DataFrame(v, columns=self._COLUMNS)
-        df.insert(0, 'ticker', self.ticker)
+        df.insert(0, 'ticker', self._ticker)
         self._res = df

@@ -97,18 +97,19 @@ class FinancialsPage(IBBasePage):
     _COLUMNS = IBFinancialsConf
     _TABLE = 'IBFinancials'
 
-    def _local_initializations(self) -> None:
+    def _local_initializations(self, ext_p: dict) -> None:
         """ Local initializations for the single page. """
         tck = self.ticker.split('/')
         self._app = IBAppFundamentals("ReportsFinStatements")
-        self._app.addContracts(tck, self._ext_p['currency'])
+        self._app.addContracts(tck, ext_p['currency'])
+        self.params = ext_p
 
     def _parse(self) -> None:
         tree = ET.fromstring(self._robj)
         financial = tree.find('FinancialStatements')
 
         tck = self.ticker.split('/')[0]
-        ccy = self._ext_p['currency']
+        ccy = self._p['currency']
 
         data = []
         for freq in ('AnnualPeriods', 'InterimPeriods'):
@@ -123,39 +124,3 @@ class FinancialsPage(IBBasePage):
                         data.append((tck, f_, dt_, ccy, st_, cd_, item.text))
 
         self._res = pd.DataFrame(data, columns=self._COLUMNS)
-
-
-class EPSPage(IBBasePage):
-    _PAGE = 'EPS'
-    _COLUMNS = IBFinancialsConf
-    _TABLE = ''
-
-    def _local_initializations(self) -> None:
-        """ Local initializations for the single page. """
-        tck = self.ticker.split('/')
-        self._app = IBAppFundamentals("ReportsFinSummary")
-        self._app.addContracts(tck, self._ext_p['currency'])
-
-    def _parse(self) -> None:
-        tree = ET.fromstring(self._robj)
-        print(self._robj)
-
-        self._res = pd.DataFrame([], columns=self._COLUMNS)
-
-
-class RatiosPage(IBBasePage):
-    _PAGE = 'Ratios'
-    _COLUMNS = IBFinancialsConf
-    _TABLE = ''
-
-    def _local_initializations(self) -> None:
-        """ Local initializations for the single page. """
-        tck = self.ticker.split('/')
-        self._app = IBAppFundamentals("ReportRatios")
-        self._app.addContracts(tck, self._ext_p['currency'])
-
-    def _parse(self) -> None:
-        tree = ET.fromstring(self._robj)
-        print(self._robj)
-
-        self._res = pd.DataFrame([], columns=self._COLUMNS)

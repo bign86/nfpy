@@ -5,8 +5,6 @@
 
 import pandas.tseries.offsets as off
 
-from nfpy.Tools import Utilities as Ut
-
 from .BaseProvider import BaseImportItem
 from .DownloadsConf import (
     IBFinancialsMapping,  # InvestingFinancialsMapping,
@@ -16,8 +14,8 @@ from .DownloadsConf import (
 
 class FinancialsItem(BaseImportItem):
     _PROVIDERS = [
-        ('IB', 'IBFinancials', IBFinancialsMapping),
         ('Yahoo', 'YahooFinancials', YahooFinancialsMapping),
+        ('IB', 'IBFinancials', IBFinancialsMapping),
         # ('Investing', 'InvestingFinancials', InvestingFinancialsMapping),
     ]
     _MODE = 'SPLIT'
@@ -59,18 +57,15 @@ class FinancialsItem(BaseImportItem):
             if len(data) == 0:
                 continue
 
-            mapping = prov_data[3]
+            mapping = {v.name: v for v in prov_data[3]}
             while data:
                 item = data.pop(0)
 
-                # Map the field
-                try:
-                    field = mapping[item[1]][item[2]]
-                except KeyError as ex:
-                    Ut.print_exc(ex)
+                field = mapping.get(item[2], None)
+                if field is None:
                     continue
 
-                if field[0] == '':
+                if field.code == '':
                     continue
 
                 # Adjust the date
@@ -79,7 +74,7 @@ class FinancialsItem(BaseImportItem):
                     .rollforward(dt) \
                     .strftime('%Y-%m-%d')
 
-                key = (field[0], ref, item[4])
+                key = (field.code, ref, item[4])
 
                 # Check if the data is already present and in case skip it
                 if key in data_dict:
@@ -89,16 +84,16 @@ class FinancialsItem(BaseImportItem):
                 if key in new_data:
                     # If there is a new data already present with higher
                     # priority (lower number) then we skip it
-                    if field[1] > new_data[key][2]:
+                    if field.priority > new_data[key][2]:
                         continue
 
                 # Adjust the base
-                value = item[5] * field[2]
+                value = item[5] * field.mult
 
                 # If we are here it means that the new data point is not in the
                 # data from other providers, not in the new data, or in the new
                 # data but with lower priority. Hence, we add it to the new data
-                new_data[key] = (uid, value, field[1])
+                new_data[key] = (uid, value, field.priority)
 
             # We add all new data to the general results dictionary
             data_dict.update(new_data)

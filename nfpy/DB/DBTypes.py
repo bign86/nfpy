@@ -78,6 +78,7 @@ def convert_date(val) -> date:
         val = b'-'.join(quarter)
     return isoparse(val).date()
 
+
 def adapt_parameters(val) -> Any:
     """ Converts from PARAMETERS to json. """
     return json.dumps(val)

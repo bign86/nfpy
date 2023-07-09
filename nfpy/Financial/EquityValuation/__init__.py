@@ -3,10 +3,10 @@ from .BaseFundamentalModel import (
 )
 from .BuildingBlocks import CAPM
 from .DCF import (
-    DCFModel, DCF
+    DCF, DCFModel
 )
 from .DDM import (
-    DDMModel, DDM, DDMResult, GGMModel
+    DDM, DDMModel, GGMModel
 )
 
 __all__ = [
@@ -17,8 +17,8 @@ __all__ = [
     'CAPM',
 
     # DCF
-    'DCFModel', 'DCF',
+    'DCF', 'DCFModel',
 
     # DDMGeneric
-    'DDMModel', 'DDM', 'DDMResult', 'GGMModel'
+    'DDM', 'DDMModel', 'GGMModel'
 ]

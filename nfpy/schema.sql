@@ -343,6 +343,7 @@ CREATE TABLE [Providers] (
     [provider] TEXT NOT NULL,
     [page] TEXT NOT NULL,
     [item] TEXT NOT NULL,
+    [deprecated] BOOL NOT NULL DEFAULT False,
     PRIMARY KEY ([provider], [page], [item])
 ) WITHOUT ROWID;
 

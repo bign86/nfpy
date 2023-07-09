@@ -10,7 +10,7 @@ from typing import (Any, Optional)
 import nfpy.Assets as Ast
 import nfpy.Calendar as Cal
 import nfpy.Downloader as Dwn
-from nfpy.Tools import (Constants as Cn, Utilities as Ut)
+from nfpy.Tools import (Constants as Cn, Exceptions as Ex, Utilities as Ut)
 
 
 class InputHandler(object):
@@ -27,30 +27,46 @@ class InputHandler(object):
         self._converters = {
             'str': self._to_string, 'float': self._to_float,
             'int': self._to_int, 'bool': self._to_bool,
-            'uid': self._to_string, 'datetime': self._to_datetime,
-            'currency': self._to_string, 'timestamp': self._to_timestamp,
-            'country': self._to_string, 'dict': self._to_json,
+            'uid': self._to_uid, 'datetime': self._to_datetime,
+            'currency': self._to_ccy, 'timestamp': self._to_timestamp,
+            'country': self._to_country, 'dict': self._to_json,
             'json': self._to_json, 'uint': self._to_uint,
-        }
-        self._validators = {
-            'uid': self._check_uid, 'currency': self._check_ccy,
-            'isin': self._check_isin, 'country': self._check_country,
-            'provider': self._check_provider
+            'index': self._to_index, 'isin': self._to_isin,
+            'date': self._to_date,
         }
 
     @staticmethod
     def _to_bool(v: str, **kwargs) -> bool:
         _ = kwargs
-        vl = v.lower()
-        if vl in ('y', 'yes', '1', 'true'):
-            return True
-        elif vl in ('n', 'no', '0', 'false'):
-            return False
-        else:
-            raise ValueError(f'InputHandler(): boolean {v} not recognized')
+        return Ut.to_bool(v)
+
+    def _to_ccy(self, v: str, **kwargs) -> str:
+        ccy = self._to_string(v)
+        if not self._ccy.is_ccy(ccy):
+            raise Ex.InputHandlingError(f'InputHandler(): {ccy} not recognized')
+        return ccy
+
+    def _to_country(self, v: str, **kwargs) -> str:
+        country = self._to_string(v)
+        if country not in Cn.KNOWN_COUNTRIES:
+            raise Ex.InputHandlingError(f'InputHandler(): {country} not recognized')
+        return country
 
     @staticmethod
-    def _to_datetime(v: str, **kwargs) -> Cal.TyDate:
+    def _to_date(v: str, **kwargs) -> Cal.TyTime:
+        """ Transforms a date from string to datetime.
+
+            Input:
+                v [str]: date in string format
+                kwargs [dict]: 'fmt' argument to specify the date format
+
+            Output:
+                date [datetime.date]: formatted date
+        """
+        return Cal.date_2_datetime(v, fmt=kwargs['fmt'])
+
+    @staticmethod
+    def _to_datetime(v: str, **kwargs) -> Cal.TyTime:
         """ Transforms a date from string to datetime.
 
             Input:
@@ -67,10 +83,29 @@ class InputHandler(object):
         _ = kwargs
         return float(v)
 
+    def _to_index(self, v: str, limits: Any, **kwargs) -> int:
+        num = self._to_int(v)
+        if (limits[0] > num) or (num > limits[1]):
+            raise Ex.InputHandlingError(f'InputHandler(): {num} out of limits')
+        return num
+
     @staticmethod
     def _to_int(v: str, **kwargs) -> int:
         _ = kwargs
         return int(v)
+
+    def _to_isin(self, v: str, **kwargs) -> str:
+        isin = self._to_string(v)
+        pattern = re.compile("^([a-zA-Z]{2}[a-zA-Z0-9]{9}[0-9])$")
+        if not pattern.match(isin):
+            raise Ex.InputHandlingError(f'InputHandler(): {isin} malformed')
+        return isin
+
+    def _to_provider(self, v: str, **kwargs) -> str:
+        prov = self._to_string(v)
+        if not self._dwn.provider_exists(prov):
+            raise Ex.InputHandlingError(f'InputHandler(): {prov} not recognized')
+        return prov
 
     @staticmethod
     def _to_string(v: str, **kwargs) -> str:
@@ -95,45 +130,18 @@ class InputHandler(object):
         _ = kwargs
         return json.loads(v)
 
+    def _to_uid(self, v: str, **kwargs) -> str:
+        uid = self._to_string(v)
+        if not self._af.exists(uid):
+            raise Ex.InputHandlingError(f'InputHandler(): {uid} not found')
+        return uid
+
     @staticmethod
     def _to_uint(v: str, **kwargs) -> int:
         _ = kwargs
         return abs(int(v))
 
-    def _check_uid(self, uid: str) -> tuple:
-        """ Validate a candidate uid checking existence. """
-        if not self._af.exists(uid):
-            return False, 'Uid not found'
-        return True, 'Ok'
-
-    def _check_ccy(self, v: str) -> tuple:
-        """ Validate a candidate currency checking existence. """
-        if not self._ccy.is_ccy(v):
-            return False, 'Currency not recognized'
-        return True, 'Ok'
-
-    def _check_provider(self, v: str) -> tuple:
-        """ Validate a candidate downloading provider checking existence. """
-        if not self._dwn.provider_exists(v):
-            return False, 'Provider not recognized'
-        return True, 'Ok'
-
-    @staticmethod
-    def _check_country(v: str) -> tuple:
-        """ Validate a candidate country checking existence. """
-        if v not in Cn.KNOWN_COUNTRIES:
-            return False, 'Country not recognized'
-        return True, 'Ok'
-
-    @staticmethod
-    def _check_isin(v: str) -> tuple:
-        """ Validate a candidate isin format. """
-        pattern = re.compile("^([a-zA-Z]{2}[a-zA-Z0-9]{9}[0-9])$")
-        if not pattern.match(v):
-            return False, 'ISIN malformed'
-        return True, 'Ok'
-
-    def _convert(self, vin: str, idesc: str, **kwargs) -> Any:
+    def _convert(self, vin: str, idesc: str, limits: Any, **kwargs) -> Any:
         """ Converts the supplied input by cleaning the string and casting to
             the appropriate data type. An exception is cast if casting is
             impossible or if inputs are empty.
@@ -141,6 +149,7 @@ class InputHandler(object):
             Input:
                 msg [str]: message string
                 idesc [str]: converted type
+                limits [Any]: limits to apply to the converter
 
             Exceptions:
                 KeyError: if input descriptor not recognized
@@ -162,9 +171,12 @@ class InputHandler(object):
 
         try:
             if is_list:
-                v_out = [cf(c.lstrip().rstrip(), fmt=fmt) for c in vin.split(sep)]
+                v_out = [
+                    cf(c.lstrip().rstrip(), fmt=fmt, limits=limits)
+                    for c in vin.split(sep)
+                ]
             else:
-                v_out = cf(vin, fmt=fmt)
+                v_out = cf(vin, fmt=fmt, limits=limits)
         except TypeError:
             raise TypeError("Cannot convert input")
         except ValueError as e:
@@ -172,15 +184,8 @@ class InputHandler(object):
 
         return v_out
 
-    def _validate(self, value: Any, checker: str) -> tuple:
-        try:
-            valf = self._validators[checker]
-        except KeyError:
-            raise KeyError(f'Input descriptor {checker} not recognized')
-        return valf(value)
-
     def input(self, msg: str, idesc: str = 'str', optional: bool = False,
-              default: Optional[Any] = None, checker: Optional[str] = None,
+              default: Optional[Any] = None, limits: Optional[Any] = None,
               **kwargs) -> Any:
         """ Validates the supplied input by cleaning the string and casting to
             the appropriate data type. An exception is cast if casting is
@@ -191,10 +196,10 @@ class InputHandler(object):
                 idesc [str]: converted type (default str)
                 optional [bool]: whether the input is optional (default False)
                 default [Any]: default input value (default None)
-                checker [Any]: check function (default None)
                 sep [str]: list separator (default comma ',')
                 fmt [str]: format string for dates (default %Y-%m-%d)
                 is_list [bool]: true if list in input (default False)
+                limits [Any]: limits to apply to the converter (default None)
 
             Output:
                 out [Union[int, float, list, bool, Cal.TyDate]]: value validated
@@ -215,11 +220,10 @@ class InputHandler(object):
             elif (not _v) and (optional is True):
                 _validated = True
             else:
-                value = self._convert(_v, idesc, **kwargs)
-                if checker:
-                    _validated, msg_out = self._validate(value, checker)
-                    if not _validated:
-                        print(f'{Ut.Col.WARNING.value}--- Not valid: {msg_out}{Ut.Col.ENDC.value}')
+                try:
+                    value = self._convert(_v, idesc, limits, **kwargs)
+                except Ex.InputHandlingError as ex:
+                    print(f'{Ut.Col.WARNING.value}--- Not valid: {ex.__str__()}{Ut.Col.ENDC.value}')
                 else:
                     _validated = True
         return value

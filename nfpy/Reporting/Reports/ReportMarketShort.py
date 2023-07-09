@@ -48,17 +48,21 @@ class ReportMarketShort(BaseReport):
             'w_multi': 2.,
         },
         'DCF': {
-            'past_horizon': 8,
-            'future_proj': 5,
-            'perpetual_rate': .0,
+            'history': 8,
+            'projection': 5,
+            'growth': None,
+            'premium': 0.02,
+            'gdp_w': 20,
+            'infl_w': 20,
         },
         'DDM': {
             'ke': None,
-            'history': 5,
             'premium': 0.02,
             'stage1': (5, None, True),
             'stage2': None,
-            'gwt_mode': ['historical', 'ROE', 'booth'],
+            'gdp_w': 20,
+            'infl_w': 20,
+            'gwt_mode': ['historical', 'ROE'],
         },
     }
 
@@ -164,17 +168,13 @@ class ReportMarketShort(BaseReport):
         # Dividends
         df = DividendFactory(asset)
         res.freq_div = df.frequency
-        _, yrl_div = df.annual_dividends
+        res.ytd_yrl_div = df.ytd_div()
+        res.ytd_yrl_yield = df.ytd_yield() * 100.
+
         _, yrl_yield = df.annual_yields()
-        if len(yrl_yield) > 0:
-            res.ytd_yrl_div = yrl_div[-1]
-            res.ytd_yrl_yield = yrl_yield[-1] * 100.
-        else:
-            res.ytd_yrl_div = 0.
-            res.ytd_yrl_yield = 0.
-        if len(yrl_yield) > 1:
-            res.last_yrl_div = yrl_div[-2]
-            res.last_yrl_yield = yrl_yield[-2] * 100.
+        if len(yrl_yield) >= 1:
+            res.last_yrl_div = df.annual_dividends[1][-1]
+            res.last_yrl_yield = yrl_yield[-1] * 100.
         else:
             res.last_yrl_div = 0.
             res.last_yrl_yield = 0.
@@ -232,10 +232,10 @@ class ReportMarketShort(BaseReport):
         # Render dataframes
         df = pd.DataFrame(
             stats.T,
-            index=self._time_spans,
-            columns=(
+            index=list(self._time_spans),
+            columns=[
                 '\u03C3 (Y)', 'return', '\u03B2', 'adj. \u03B2', '\u03C1'
-            )
+            ]
         )
         res.stats = df.to_html(
             index=True,
@@ -256,7 +256,7 @@ class ReportMarketShort(BaseReport):
         try:
             p = self._p.get('DDM', {})
             ddm_res = DDM(asset.uid, **p).result(**p)
-        except Ex.MissingData as ex:
+        except (Ex.MissingData, ValueError) as ex:
             res.has_ddm = False
             Ut.print_exc(ex)
         else:
@@ -277,14 +277,12 @@ class ReportMarketShort(BaseReport):
                 res.ddm_res_hist = ddm_res.historical_growth
             if hasattr(ddm_res, 'ROE_growth'):
                 res.ddm_res_roe = ddm_res.ROE_growth
-            if hasattr(ddm_res, 'booth_growth'):
-                res.ddm_res_booth = ddm_res.booth_growth
 
         # Dividends Cash FLow Model Calculation
         try:
             p = self._p.get('DCF', {})
             dcf_res = DCF(asset.uid, **p).result(**p)
-        except Ex.MissingData as ex:
+        except (Ex.MissingData, ValueError) as ex:
             res.has_dcf = False
             Ut.print_exc(ex)
         else:
@@ -422,7 +420,7 @@ class ReportMarketShort(BaseReport):
             alerts_to_plot.sort(key=lambda x: x[2])
             df = pd.DataFrame(
                 alerts_to_plot,
-                columns=('condition', 'status', 'price', 'new', 'date trigger')
+                columns=['condition', 'status', 'price', 'new', 'date trigger']
             )
             res.alerts_table = df.to_html(
                 index=False,

@@ -13,7 +13,7 @@ from pandas.core.tools.datetimes import DatetimeScalar
 import pandas.tseries.offsets as off
 from typing import (Optional, Sequence, TypeVar, Union)
 
-from nfpy.Tools import Singleton
+from nfpy.Tools import (Singleton, Utilities as Ut)
 
 TyDatetime = TypeVar('TyDatetime', bound=Union[
     str, pd.Timestamp, datetime.datetime, np.datetime64
@@ -125,21 +125,33 @@ class Calendar(metaclass=Singleton):
     def __contains__(self, dt: TyDate) -> bool:
         return pd.Timestamp(dt) in self._calendar
 
-    def initialize(self, end: TyDate, start: Optional[TyDate] = None,
-                   periods: Optional[int] = None, fmt: str = '%Y-%m-%d'
-                   ) -> None:
+    def initialize(
+            self,
+            end: TyDate,
+            start: Optional[TyDate] = None,
+            periods: Optional[int] = None,
+            monthly_start: Optional[TyDate] = None,
+            monthly_periods: Optional[int] = None,
+            yearly_start: Optional[TyDate] = None,
+            yearly_periods: Optional[int] = None,
+            fmt: str = '%Y-%m-%d'
+    ) -> None:
         if self._initialized:
             return
 
         # Errors check
         if (start is None) & (periods is None):
-            msg = f"Either one of starting time and number of periods are " \
-                  f"required to initialize the calendar"
-            raise ValueError(msg)
+            raise ValueError(
+                f"Either one of daily starting time and number of periods (daily)"
+                f" are required to initialize the calendar"
+            )
 
         # Set the format string
         self.fmt = str(fmt)
 
+        #
+        # DAILY
+        #
         # Set start and end dates
         if isinstance(end, pd.Timestamp):
             self._end = end
@@ -167,21 +179,50 @@ class Calendar(metaclass=Singleton):
         # offset = min(2, max(0, (self.end.weekday() + 6) % 7 - 3))
         self._t0 = self.end - off.BDay(offset)
 
-        # Monthly calendar
-        start = self._start - off.MonthBegin(1)
-        self._monthly_calendar = pd.date_range(
-            start=start, end=self._end, freq='BMS'
+        #
+        # MONTHLY
+        #
+        # Calculate start and end dates
+        if monthly_start:
+            if not isinstance(monthly_start, pd.Timestamp):
+                monthly_start = pd.to_datetime(monthly_start, format=fmt)
+        else:
+            if monthly_periods is not None:
+                monthly_start = self._end - off.MonthBegin(monthly_periods)
+            else:
+                n = 0 if self._start.day == 1 else 1
+                monthly_start = self._start - off.MonthBegin(n)
+
+        # Generate the monthly calendar
+        self._monthly_calendar = pd.bdate_range(
+            start=monthly_start, end=self._end, freq='MS'
         )
 
-        # Yearly calendar
-        start = self._start - off.YearBegin(1)
-        self._yearly_calendar = pd.date_range(
-            start=start, end=self._end, freq='BAS'
+        #
+        # MONTHLY
+        #
+        # Calculate start and end dates
+        if yearly_start:
+            if not isinstance(yearly_start, pd.Timestamp):
+                yearly_start = pd.to_datetime(yearly_start, format=fmt)
+        else:
+            if yearly_periods is not None:
+                yearly_start = self._end - off.YearBegin(yearly_periods)
+            else:
+                n = 0 if self._start.month == 1 else 1
+                yearly_start = self._start - off.YearBegin(n)
+
+        # Generate the yearly calendar
+        self._yearly_calendar = pd.bdate_range(
+            start=yearly_start, end=self._end, freq='AS'
         )
 
+        # Print the results
+        Ut.print_highlight(' *** Calendar')
         print(
-            f' * Calendar dates:\n'
-            f'    {self._start.date()} -> {self._end.date()} : {self._t0.date()}',
+            f'   Daily:   {self._start.date()} -> {self._end.date()} | t0 = {self._t0.date()}\n'
+            f'   Monthly: {self._monthly_calendar[0].date()} -> {self._monthly_calendar[-1].date()}\n'
+            f'   Yearly:  {self._yearly_calendar[0].date()} -> {self._yearly_calendar[-1].date()}',
             end='\n\n'
         )
 
