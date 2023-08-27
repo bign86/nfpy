@@ -1,16 +1,18 @@
 #
 # Search Loose Stocks
+# Finds equities for which no company has been set and companies for which no
+# equity has been set.
 #
 
 import nfpy.Calendar as Cal
 import nfpy.DB as DB
 import nfpy.Tools.Utilities as Ut
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< Search Loose Stocks Script >>>"
 
 if __name__ == '__main__':
-    print(_TITLE_, end='\n\n')
+    Ut.print_header(_TITLE_, end='\n\n')
 
     db = DB.get_db_glob()
     qb = DB.get_qb_glob()
@@ -21,7 +23,7 @@ if __name__ == '__main__':
     )
 
     # Equities
-    print('>>> Equities')
+    Ut.print_header('>>> Equities')
     q_eq = qb.select(
         'Equity',
         fields=('uid', 'ticker', 'isin', 'company'),
@@ -30,7 +32,7 @@ if __name__ == '__main__':
     )
     eq_list = db.execute(q_eq).fetchall()
     if not eq_list:
-        print('No loose equities found...')
+        Ut.print_ok('No loose equities found...', end='\n\n')
     else:
         eq_dict = Ut.list_to_dict(eq_list)
         msg = f"{'uid':^12}: {'ticker':^8}\t{'isin':^12}\t{'company':^8}\n"
@@ -39,7 +41,7 @@ if __name__ == '__main__':
         print(msg, end='\n\n')
 
     # Companies
-    print('>>> Companies')
+    Ut.print_header('>>> Companies')
     q_cmp = qb.select(
         'Company',
         fields=('uid', 'name', 'equity'),
@@ -48,7 +50,7 @@ if __name__ == '__main__':
     )
     cmp_list = db.execute(q_cmp).fetchall()
     if not cmp_list:
-        print('No loose companies found...')
+        Ut.print_ok('No loose companies found...', end='\n\n')
     else:
         cmp_dict = Ut.list_to_dict(cmp_list)
         msg = f"{'uid':^8}: {'name':^25}\t{'equity':^12}\n"
@@ -56,4 +58,4 @@ if __name__ == '__main__':
             msg += f'{cmp:8}: {data[0]:25}\t{data[1]:12}\n'
         print(msg, end='\n\n')
 
-    print('All done!')
+    Ut.print_ok('All done!')

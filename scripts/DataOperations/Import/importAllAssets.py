@@ -8,12 +8,13 @@ import argparse
 import nfpy.Calendar as Cal
 import nfpy.Downloader as Dwn
 import nfpy.IO as IO
+from nfpy.Tools import Utilities as Ut
 
-__version__ = '0.8'
+__version__ = '0.9'
 _TITLE_ = "<<< Import into elaboration database script >>>"
 
 if __name__ == '__main__':
-    print(_TITLE_, end='\n\n')
+    Ut.print_header(_TITLE_, end='\n\n')
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--interactive', action='store_true',
@@ -34,7 +35,7 @@ if __name__ == '__main__':
         inh = IO.InputHandler()
 
         give_p = inh.input(
-            'Do you want to specify parameters (default: No)?: ',
+            'Do you want to specify parameters (default No)?: ',
             idesc='bool', default=False, optional=True
         )
         if give_p:
@@ -67,4 +68,4 @@ if __name__ == '__main__':
                     override_active=args.override_active,
                     incremental=args.no_incremental)
 
-    print("All done!")
+    Ut.print_ok('All done!')

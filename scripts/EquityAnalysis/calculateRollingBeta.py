@@ -9,12 +9,13 @@ from nfpy.Assets import get_af_glob
 from nfpy.Calendar import (get_calendar_glob, today)
 import nfpy.DB as DB
 import nfpy.IO as IO
+from nfpy.Tools import Utilities as Ut
 
-__version__ = '0.4'
+__version__ = '0.5'
 _TITLE_ = "<<< Rolling Beta calculation script >>>"
 
 if __name__ == '__main__':
-    print(_TITLE_, end='\n\n')
+    Ut.print_header(_TITLE_, end='\n\n')
 
     cal = get_calendar_glob()
     af = get_af_glob()
@@ -32,7 +33,7 @@ if __name__ == '__main__':
 
     # Get equity
     eq_uid = inh.input("Give an equity uid (press Enter for a list): ",
-                       optional=True)
+                       idesc='uid', optional=True)
     if not eq_uid:
         q = "select * from Assets where type = 'Equity'"
         res = db.execute(q).fetchall()
@@ -40,7 +41,7 @@ if __name__ == '__main__':
         msg = f'\n\nAvailable equities:\n' \
               f'{tabulate(res, headers=f, showindex=True)}\n' \
               f'Give an equity index: '
-        idx = inh.input(msg, idesc='int')
+        idx = inh.input(msg, idesc='index', limits=(0, len(res) - 1))
         eq_uid = res[idx][0]
     eq = af.get(eq_uid)
 
@@ -54,8 +55,8 @@ if __name__ == '__main__':
         msg = f'\n\nAvailable indices:\n' \
               f'{tabulate(res, headers=f, showindex=True)}\n' \
               f'Default index: {eq.index}\n' \
-              f'Give a list of indices comma separated (Default None): '
-        idx = inh.input(msg, idesc='int', optional=True, is_list=True)
+              f'Give a list of indices comma separated: '
+        idx = inh.input(msg, idesc='int', optional=False, is_list=True)
         bmk_uid = (
             res[i][0]
             for i in idx
@@ -86,4 +87,4 @@ if __name__ == '__main__':
         .plot() \
         .show()
 
-    print('All done!')
+    Ut.print_ok('All done!')

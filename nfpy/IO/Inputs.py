@@ -9,6 +9,7 @@ from typing import (Any, Optional)
 
 import nfpy.Assets as Ast
 import nfpy.Calendar as Cal
+import nfpy.DB as DB
 import nfpy.Downloader as Dwn
 from nfpy.Tools import (Constants as Cn, Exceptions as Ex, Utilities as Ut)
 
@@ -24,6 +25,7 @@ class InputHandler(object):
         self._af = Ast.get_af_glob()
         self._ccy = Ast.get_fx_glob()
         self._dwn = Dwn.get_dwnf_glob()
+        self._qb = DB.get_qb_glob()
         self._converters = {
             'str': self._to_string, 'float': self._to_float,
             'int': self._to_int, 'bool': self._to_bool,
@@ -32,7 +34,7 @@ class InputHandler(object):
             'country': self._to_country, 'dict': self._to_json,
             'json': self._to_json, 'uint': self._to_uint,
             'index': self._to_index, 'isin': self._to_isin,
-            'date': self._to_date,
+            'date': self._to_date, 'table': self._to_table,
         }
 
     @staticmethod
@@ -43,13 +45,13 @@ class InputHandler(object):
     def _to_ccy(self, v: str, **kwargs) -> str:
         ccy = self._to_string(v)
         if not self._ccy.is_ccy(ccy):
-            raise Ex.InputHandlingError(f'InputHandler(): {ccy} not recognized')
+            raise Ex.InputHandlingError(f'InputHandler(): currency {ccy} not recognized')
         return ccy
 
     def _to_country(self, v: str, **kwargs) -> str:
         country = self._to_string(v)
         if country not in Cn.KNOWN_COUNTRIES:
-            raise Ex.InputHandlingError(f'InputHandler(): {country} not recognized')
+            raise Ex.InputHandlingError(f'InputHandler(): country {country} not recognized')
         return country
 
     @staticmethod
@@ -104,13 +106,19 @@ class InputHandler(object):
     def _to_provider(self, v: str, **kwargs) -> str:
         prov = self._to_string(v)
         if not self._dwn.provider_exists(prov):
-            raise Ex.InputHandlingError(f'InputHandler(): {prov} not recognized')
+            raise Ex.InputHandlingError(f'InputHandler(): provider {prov} not recognized')
         return prov
 
     @staticmethod
     def _to_string(v: str, **kwargs) -> str:
         _ = kwargs
         return re.sub('[!@#$?*;:+]', '', v)
+
+    def _to_table(self, v: str, **kwargs) -> str:
+        table = self._to_string(v)
+        if not self._qb.exists_table(table):
+            raise Ex.InputHandlingError(f'InputHandler(): table {table} not recognized')
+        return table
 
     @staticmethod
     def _to_timestamp(v: str, **kwargs) -> Cal.TyDate:
@@ -177,7 +185,7 @@ class InputHandler(object):
                 ]
             else:
                 v_out = cf(vin, fmt=fmt, limits=limits)
-        except TypeError:
+        except TypeError as ex:
             raise TypeError("Cannot convert input")
         except ValueError as e:
             raise e

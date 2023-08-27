@@ -1,16 +1,17 @@
 #
 # Search Equity without Benchmark
-# Search for equities and without a default index
+# Finds equities that do not have a reference index set.
 #
 
 import nfpy.Calendar as Cal
 import nfpy.DB as DB
+from nfpy.Tools import Utilities as Ut
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< Search Equity without Benchmark Script >>>"
 
 if __name__ == '__main__':
-    print(_TITLE_, end='\n\n')
+    Ut.print_header(_TITLE_, end='\n\n')
 
     db = DB.get_db_glob()
     qb = DB.get_qb_glob()
@@ -34,4 +35,4 @@ if __name__ == '__main__':
             msg += f'{eq[0]:^12}: {eq[1]:^8}\t{eq[2]:^12}\t{eq[3]:^8}'
         print(msg, end='\n\n')
 
-    print('All done!')
+    Ut.print_ok('All done!')

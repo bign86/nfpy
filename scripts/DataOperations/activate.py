@@ -1,6 +1,6 @@
 #
-# Activate/Deactivate financial instruments
-# Script to change the status in Downloads and/or Imports.
+# Activate/Deactivate
+# Script to change the activation status in Downloads and Imports.
 #
 
 from collections import namedtuple
@@ -9,15 +9,19 @@ from tabulate import tabulate
 import nfpy.DB as DB
 import nfpy.Tools.Exceptions as Ex
 import nfpy.IO as IO
+from nfpy.Tools import Utilities as Ut
 
-__version__ = '0.5'
-_TITLE_ = "<<< Activate/Deactivate financial instruments >>>"
+__version__ = '0.6'
+_TITLE_ = "<<< Activate/Deactivate script >>>"
+_DESC_ = """Activate or deactivate downloads and imports."""
 
 
 def _mod_table(items: [], tbl: str) -> []:
+    fields = items[0]._fields
+
     msg = f'The following {tbl} have been found:\n' \
-          f'{tabulate(items, qb.get_fields(tbl), showindex=True)}\n\n' \
-          f'Give index list of selected {tbl} to change (Default None): '
+          f'{tabulate(items, fields, showindex=True)}\n\n' \
+          f'Give index list of selected {tbl} to change (default None): '
     idx = inh.input(msg, idesc='int', is_list=True, optional=True)
     if not idx:
         return []
@@ -32,8 +36,8 @@ def _mod_table(items: [], tbl: str) -> []:
         t = v._replace(active=int(not v.active))
         to_change.append(t)
     msg = f'The following will change:\n' \
-          f'{tabulate(to_change, qb.get_fields(tbl), showindex=True)}\n\n' \
-          f'Continue (Default False)?: '
+          f'{tabulate(to_change, fields, showindex=True)}\n\n' \
+          f'Continue? (default False): '
     if inh.input(msg, idesc='bool', default=False):
         return to_change
     else:
@@ -42,7 +46,8 @@ def _mod_table(items: [], tbl: str) -> []:
 
 def _wrt_to_db(wrt: [], tbl: str):
     if wrt:
-        keys = set(qb.get_fields(tbl)) - {'active'}
+        print('Updating table...', end='\n\n')
+        keys = tuple(set(qb.get_fields(tbl)) - {'active'})
 
         data = [
             (w.active,) + tuple(getattr(w, f) for f in keys)
@@ -54,20 +59,23 @@ def _wrt_to_db(wrt: [], tbl: str):
             data,
             commit=True
         )
+    else:
+        print('Skipping...', end='\n\n')
 
 
 if __name__ == '__main__':
-    print(_TITLE_, end='\n\n')
+    Ut.print_header(_TITLE_, end='\n')
+    print(_DESC_, end='\n\n')
 
     db = DB.get_db_glob()
     qb = DB.get_qb_glob()
     inh = IO.InputHandler()
 
     # Give inputs
-    # We do not perform sanity checks on the UID. Such check would make it
-    # impossible to operate on Downloads/Imports of assets already removed
-    # from the elaboration tables.
-    uid = inh.input('Give a UID: ', optional=False)
+    # We do not perform a check to confirm the existence of the UID. Such check
+    # would make it impossible to operate on Downloads/Imports of assets not
+    # present in the elaboration tables.
+    uid = inh.input('Give a UID for the Imports table: ', optional=False)
     tblNt = namedtuple('tblNt', qb.get_fields('Imports'))
     imports = list(
         map(
@@ -79,9 +87,12 @@ if __name__ == '__main__':
         )
     )
     if not imports:
-        raise Ex.MissingData(f'No Imports found for this UID!')
+        ex = Ex.MissingData(f'No Imports found for this UID!')
+        Ut.print_exc(ex)
+        raise ex
 
-    if inh.input(f'Modify Imports (Default False)?: ',
+    # Modify imports
+    if inh.input(f'Modify Imports? (default False): ',
                  idesc='bool', default=False):
         _wrt_to_db(
             _mod_table(imports, 'Imports'),
@@ -104,11 +115,11 @@ if __name__ == '__main__':
         print('No downloads on this UID.')
         exit()
 
-    if inh.input(f'Modify Downloads (Default False)?: ',
+    if inh.input(f'Modify Downloads? (default False): ',
                  idesc='bool', default=False):
         _wrt_to_db(
             _mod_table(downloads, 'Downloads'),
             'Downloads'
         )
 
-    print('All done!')
+    Ut.print_ok('All done!')

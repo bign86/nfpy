@@ -1,5 +1,5 @@
 #
-# Add Trade Script
+# Add Trade
 # Script to add or remove trades from portfolios.
 #
 
@@ -7,8 +7,9 @@ from tabulate import tabulate
 
 import nfpy.DB as DB
 import nfpy.IO as IO
+from nfpy.Tools import Utilities as Ut
 
-__version__ = '0.3'
+__version__ = '0.4'
 _TITLE_ = "<<< Add trade script >>>"
 
 _COLS_ORDER = ['date', 'pos_uid', 'buy_sell', 'currency',
@@ -33,9 +34,8 @@ def insert_trade_data():
     for col in _COLS_ORDER:
         col_obj = columns[col]
         q, idesc = _COLS_QUESTIONS[col]
-        optional = False if col_obj.notnull else True
 
-        in_data = inh.input(q, idesc=idesc, optional=optional,
+        in_data = inh.input(q, idesc=idesc, optional=not col_obj.notnull,
                             fmt='%Y-%m-%d %H:%M:%S')
 
         if col == 'buy_sell':
@@ -49,7 +49,7 @@ def insert_trade_data():
 
 
 if __name__ == '__main__':
-    print(_TITLE_, end='\n\n')
+    Ut.print_header(_TITLE_, end='\n\n')
 
     db = DB.get_db_glob()
     qb = DB.get_qb_glob()
@@ -60,10 +60,14 @@ if __name__ == '__main__':
     res = db.execute(q_ptf).fetchall()
 
     fa = list(qb.get_fields('Assets'))
-    print(f'\n\nAvailable portfolios:\n'
-          f'{tabulate(res, headers=fa, showindex=True)}',
-          end='\n\n')
-    idx = inh.input("Give a portfolio index: ", idesc='int')
+    print(
+        f'\n\nAvailable portfolios:\n{tabulate(res, headers=fa, showindex=True)}',
+        end='\n\n'
+    )
+    idx = inh.input(
+        "Give a portfolio index: ",
+        idesc='index', limits=(0, len(res) - 1)
+    )
     ptf = res[idx][0]
 
     # User provides data
@@ -73,4 +77,4 @@ if __name__ == '__main__':
         v = inh.input('\n -> Insert another trade?: ', idesc='bool',
                       default=False)
 
-    print("All done!")
+    Ut.print_ok('All done!')

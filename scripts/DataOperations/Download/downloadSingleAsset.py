@@ -11,9 +11,8 @@ import nfpy.Downloader as Dwn
 import nfpy.IO as IO
 from nfpy.Tools import Utilities as Ut
 
-__version__ = '0.6'
+__version__ = '0.7'
 _TITLE_ = "<<< Download single asset script >>>"
-
 
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
@@ -38,11 +37,7 @@ if __name__ == '__main__':
         headers=tuple(qb.get_fields(f.download_table)),
         showindex=True
     )
-    print(tab, end='\n\n')
-    choice = inh.input('Index: ', idesc='int')
-    while 0 > choice >= len(data):
-        print('*** Invalid index! ***')
-        choice = inh.input('Index: ', idesc='int')
+    choice = inh.input(f'{tab}\n\nIndex: ', idesc='index', limits=(0, len(data) - 1))
 
     dwn = data[choice]
     p = f.create_page_obj(dwn.provider, dwn.page, dwn.ticker)
@@ -60,7 +55,10 @@ if __name__ == '__main__':
     p.fetch()
     p.printout()
 
-    if inh.input('\nSave the results to database? ', idesc='bool', default=False):
+    if inh.input(
+            '\nSave the results to database? (default False): ',
+            idesc='bool', default=False
+    ):
         p.save()
         # TODO: write a logic inside the download factory to get rid of this
         #       external logic here. We don't want to deal with QueryBuilder and

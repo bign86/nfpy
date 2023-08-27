@@ -10,12 +10,12 @@ from datetime import timedelta, datetime
 from nfpy.Calendar import today
 from nfpy.Tools import (get_conf_glob, Utilities as Ut)
 
-__version__ = '0.2'
+__version__ = '0.3'
 _TITLE_ = "<<< Report archiving script >>>"
 
 
 if __name__ == '__main__':
-    print(_TITLE_, end='\n\n')
+    Ut.print_header(_TITLE_, end='\n\n')
 
     conf = get_conf_glob()
     src = conf.report_path
@@ -28,11 +28,11 @@ if __name__ == '__main__':
     print(f'Retention of {retention} days.\n'
           f'Will delete folders before {start.strftime("%Y-%m-%d")}')
 
-    # If destination does not exists create it
+    # If destination does not exist, create it
     if not os.path.isdir(dest):
-        print('Archive destination not found')
+        Ut.print_wrn(Warning('Archive destination not found, creating new one'))
         os.mkdir(dest)
-        print(f'Created folder {dest}')
+        Ut.print_ok(f'Created folder {dest}')
 
     # Extract all folders
     folders = [(f.path, f.name) for f in os.scandir(src) if f.is_dir()]
@@ -56,6 +56,6 @@ if __name__ == '__main__':
                 archived += 1
                 print('  -> Cleaned')
 
-    print(f'Archived {archived} of {len(folders)} reports')
+    Ut.print_ok(f'Archived {archived} of {len(folders)} reports', end='\n\n')
 
-    print('All done!')
+    Ut.print_ok('All done!')

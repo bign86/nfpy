@@ -1,78 +1,270 @@
 #
 # Price Details Dividend Discount Model
 # Calculate the fair value of company with the Dividend Discount Model and
-# plot calculation details.
+# show calculation details.
 #
 
-from matplotlib import pyplot as plt
+import argparse
 import numpy as np
 import pandas as pd
-from tabulate import tabulate
+from typing import Optional
 
 from nfpy.Assets import get_af_glob
 from nfpy.Calendar import (get_calendar_glob, today)
+from nfpy.Financial import DDM
 import nfpy.IO as IO
-from nfpy.Models import DividendDiscountModel
+from nfpy.Tools import Utilities as Ut
 
-plt.interactive(False)
 np.set_printoptions(precision=3, suppress=True)
 
-__version__ = '0.2'
+__version__ = '0.3'
 _TITLE_ = "<<< Price equity DDM details script >>>"
+_DESC_ = """Calculates the fair value of a single company using the DDM methodology."""
 
 _TCOLS = ['year', 'no_growth', 'growth']
 
+_ARGS_BLOCKS_ = [
+    {'interactive': True},
+    {
+        'uid': None,
+        's1': None
+    }
+]
+
+
+def build_stage(_input) -> Optional[tuple]:
+    n = len(_input)
+    if n == 0:
+        return None
+
+    _duration = int(_input[0])
+
+    _growth = None
+    if (n > 1) and (_input[1].lower() != 'none'):
+        _growth = float(_input[1])
+
+    _is_h = False
+    if (n > 2) and (_input[2].lower() != 'none'):
+        _is_h = Ut.to_bool(_input[2])
+
+    return _duration, _growth, _is_h
+
 
 def print_results(_r):
-    v = np.vstack((_r.future_dates + curr_year, _r.div_zg, _r.div_gwt)).T
-    lp = _r.last_price
-    fv_ng = _r.fair_value_no_growth
-    fv_wg = _r.fair_value_with_growth
-    print(f'\n--------------------------------------------------------------\n'
-          f' *** Input information ***\n'
-          f'Company:\t\t\t{_r.company} ({_r.equity})\n'
-          f'Past horizon:\t\t{_r.past_horizon:d} years\n'
-          f'Future projection:\t{_r.future_proj:d} years\n'
-          f'Discount factor:\t{_r.d_rate*100:.1f}%\n\n'
-          f' *** Cash flow projection ***\n'
-          f'{tabulate(v, headers=_TCOLS, floatfmt=("", ".3f", ".3f"))}\n\n'
-          f'Last price:\t\t\t\t\t{_r.last_price:.2f} ({_r.ccy})\n'
-          f'Fair value\t- no_growth:\t{fv_ng:.2f} ({(lp - fv_ng) / lp * 100.:.2f}%)\n'
-          f'\t\t\t- with_growth:\t{fv_wg:.2f} ({(lp - fv_wg) / lp * 100.:.2f}%)\n\n'
-          f'Drifts (yearly)\t- price:\t\t{_r.price_drift * 100.:.1f}%\n'
-          f'\t\t\t\t- dividends:\t{_r.div_drift * 100.:.1f}%',
-          end='\n\n')
+    ke_str = '-' if _r.ke is None else f'{_r.ke:>6.1%}'
+    premium_str = '-' if _r.premium is None else f'{_r.premium:>6.1%}'
+
+    print(f'\n----------------------------------------\n'
+          f'********** {"Input information":^18} **********\n'
+          f'Company:\t\t\t\t\t{_r.uid:>6}\n'
+          f'Last price:\t\t\t\t\t{_r.last_price:>6.2f} ({_r.ccy})\n'
+          f'Stages:\t\t\t\t\t\t{_r.stages:>6}\n\n'
+          f'---------- {"Implied measures":^18} ----------\n'
+          f'Impl. cost of equity:\t\t{_r.implied_ke:>6.1%}\n'
+          f'Impl. long term premium:\t{_r.implied_lt_premium:>6.1%}\n'
+          f'Impl. short term premium:\t{_r.implied_st_premium:>6.1%}\n\n'
+          f'********** {"General results":^18} **********\n'
+          f'LT growth:\t\t\t\t\t{_r.lt_growth:>6.1%}\n'
+          f'Cost of equity:\t\t\t\t{ke_str}\n'
+          f'Premium:\t\t\t\t\t{premium_str}\n\n'
+          f'********** {"Results":^18} **********\n'
+          f'---------- {"No growth":^18} ----------\n'
+          f'Fair value:\t\t\t\t\t{_r.no_growth["fv"]:>6.2f}\n'
+          f'Return:\t\t\t\t\t\t{_r.no_growth["ret"]:>6.1%}\n')
+
+    if 'manual' in _r:
+        print(f'---------- {"Manual":^18} ----------\n'
+              f'ST growth:\t\t\t\t\t{_r.historical_growth["st_gwt"]:>6.1%}\n'
+              f'Fair value:\t\t\t\t\t{_r.historical_growth["fv"]:>6.2f} ({_r.ccy})\n'
+              f'Return:\t\t\t\t\t\t{_r.historical_growth["ret"]:>6.1%}\n')
+
+    if 'historical_growth' in _r:
+        print(f'---------- {"Historical":^18} ----------\n'
+              f'ST growth:\t\t\t\t\t{_r.historical_growth["st_gwt"]:>6.1%}\n'
+              f'Fair value:\t\t\t\t\t{_r.historical_growth["fv"]:>6.2f} ({_r.ccy})\n'
+              f'Return:\t\t\t\t\t\t{_r.historical_growth["ret"]:>6.1%}\n')
+
+    if 'ROE_growth' in _r:
+        print(f'---------- {"ROE":^18} ----------\n'
+              f'ST growth:\t\t\t\t\t{_r.ROE_growth["st_gwt"]:>6.1%}\n'
+              f'Fair value:\t\t\t\t\t{_r.ROE_growth["fv"]:>6.2f} ({_r.ccy})\n'
+              f'Return:\t\t\t\t\t\t{_r.ROE_growth["ret"]:>6.1%}\n')
+
+
+def plot_results(_r):
+    pl = IO.Plotter(xl=('Date',), yl=(f'Price ({_r.ccy})',), x_zero=[.0]) \
+        .lplot(0, _r.div_ts, color='k', marker='o', label='paid divs.') \
+        .lplot(0, _r.dates, y=_r.no_growth['cf'][1],
+               color='C0', marker='o', label='no growth')
+
+    if 'manual_growth' in _r:
+        pl.lplot(0, _r.dates, y=_r.manual_growth['cf'][1],
+                 color='C1', marker='o', label='manual')
+
+    if 'historical_growth' in _r:
+        pl.lplot(0, _r.dates, y=_r.historical_growth['cf'][1],
+                 color='C2', marker='o', label='historical')
+
+    if 'ROE_growth' in _r:
+        pl.lplot(0, _r.dates, y=_r.ROE_growth['cf'][1],
+                 color='C3', marker='o', label='ROE')
+
+    pl.plot()
+
+    pl2 = IO.Plotter(xl=('Date',), yl=(f'Rate',), x_zero=[.0])
+
+    if 'manual_growth' in _r:
+        pl2.lplot(0, _r.dates, y=_r.manual_growth['rates'],
+                 color='C1', marker='o', label='manual')
+
+    if 'historical_growth' in _r:
+        pl2.lplot(0, _r.dates, y=_r.historical_growth['rates'],
+                 color='C2', marker='o', label='historical')
+
+    if 'ROE_growth' in _r:
+        pl2.lplot(0, _r.dates, y=_r.ROE_growth['rates'],
+                 color='C3', marker='o', label='ROE')
+
+
+    pl2.plot()
+    pl.show()
+    pl2.show()
 
 
 if __name__ == '__main__':
-    print(_TITLE_, end='\n\n')
+    Ut.print_header(_TITLE_, end='\n')
+    print(_DESC_, end='\n\n')
 
     # Handlers
     af = get_af_glob()
-    inh = IO.InputHandler()
 
-    # Get inputs
-    cmp = inh.input("Give a company uid: ", idesc='uid')
-    while not af.exists(cmp):
-        cmp = inh.input(" ! Supplied uid does not exist!\nGive a company uid: ",
-                        idesc='uid')
-    ph = inh.input("Give number of years of past horizon (default: 5): ",
-                   idesc='int', default=5, optional=True)
-    fp = inh.input("Give number of years for projection (default: 3): ",
-                   idesc='int', default=3, optional=True)
-    dr = inh.input("Give discount rate (default: 7%): ",
-                   idesc='float', default=.07, optional=True)
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '-i', '--interactive', action='store_true', help='use interactively'
+    )
+    parser.add_argument(
+        '-u', '--uid', type=str, dest='uid', help='UID of the company or the equity'
+    )
+    parser.add_argument(
+        '-H', '--history-w', type=int, dest='history',
+        help='Window length in years for the dividends', default=10
+    )
+    parser.add_argument(
+        '-k', '--ke', type=float, dest='ke', help='Cost of equity'
+    )
+    parser.add_argument(
+        '-p', '--premium', type=float, dest='premium',
+        help='Premium required by the investor above the current inflation or cost of equity'
+    )
+    parser.add_argument(
+        '-d', '--ddm-stage1', nargs='+', type=str, dest='s1',
+        help='DDM stage 1 as <duration> <dividend growth> <is_H-model>'
+    )
+    parser.add_argument(
+        '-D', '--ddm-stage2', nargs='+', type=str, dest='s2',
+        help='DDM stage 2 as <duration> <dividend growth> <is_H-model>'
+    )
+    parser.add_argument(
+        '--use-roe', action='store_true', dest='use_roe',
+        help='Employ the ROE methodology to calculate growth',
+    )
+    parser.add_argument(
+        '--use-historical', action='store_true', dest='use_hist',
+        help='Employ the Historical methodology to calculate growth',
+    )
+    parser.add_argument(
+        '-I', '--inflation-w', type=int, dest='infl_w',
+        help='Window length in years for the evaluation of inflation',
+        default=20
+    )
+    parser.add_argument(
+        '-G', '--gdp-w', type=int, dest='gdp_w',
+        help='Window length in years for the evaluation of GDP',
+        default=20
+    )
+    args = parser.parse_args()
+
+    Ut.check_mandatory_args(_ARGS_BLOCKS_, args)
+
+    if args.interactive is True:
+        inh = IO.InputHandler()
+
+        uid = inh.input('Insert:\n > UID: ', idesc='uid')
+        history = inh.input(' > length of historical data in years: ', idesc='int')
+        ke = inh.input(' > cost of equity (default None): ', idesc='float',
+                       default=None, optional=True)
+        premium = inh.input(' > premium (default None): ', idesc='float',
+                            default=None, optional=True)
+        infl_w = inh.input(' > years of inflation history (default 20): ',
+                           idesc='int', default=20, optional=True)
+        gdp_w = inh.input(' > years of GDP history (default 20): ',
+                          idesc='int', default=20, optional=True)
+        use_hist = inh.input(' > use Historical model of growth? (default False): ',
+                             idesc='bool', default=False, optional=True)
+        use_roe = inh.input(' > use ROE model of growth? (default False): ',
+                            idesc='bool', default=False, optional=True)
+        msg = f'\nDDM Stages:\n > fist stage as a list of:\n\tstage duration [mandatory]\n' \
+              f'\tdividend growth [optional]\n\tis H-model [optional]\n' \
+              f'   input must be given as a list, leave blank for no stage: '
+        s1 = inh.input(msg, idesc='str', is_list=True, default=[], optional=True)
+        msg = f' > second stage if needed, defined as above: '
+        s2 = inh.input(msg, idesc='str', is_list=True, default=[], optional=True)
+
+    else:
+        uid = args.uid
+        history = args.history
+        ke = args.ke
+        premium = args.premium
+        infl_w = args.infl_w
+        gdp_w = args.gdp_w
+        use_hist = args.use_hist
+        use_roe = args.use_roe
+        s1 = args.s1
+        s2 = args.s2
+
+    # Create the tuples for the stages with the right variable type
+    s1 = build_stage(s1) if s1 else None
+    s2 = build_stage(s2) if s2 else None
+
+    # Handle growth modes
+    gwt_mode = []
+    if use_hist:
+        gwt_mode.append('historical')
+    if use_roe:
+        gwt_mode.append('ROE')
+
+    # Calculate how far back we need to go with the daily calendar
+    min_history = 0
+    if s1 is not None:
+        min_history += s1[0]
+    if s2 is not None:
+        min_history += s2[0]
+
+    if history < min_history:
+        msg = f'History length too short ({history} < {min_history}).' \
+              f' Length increased to {min_history}.'
+        Ut.print_wrn(Warning(msg))
+        history = min_history
+
+    # Calculate the start of the yearly calendar
+    yearly_periods = max(infl_w, gdp_w)
+    monthly_periods = yearly_periods * 12
 
     # Calculate the starting date to ensure enough past data are loaded
     end_date = today(mode='datetime')
     curr_year = end_date.year
-    start_date = pd.Timestamp(curr_year - ph - 1, 1, 1)
-    get_calendar_glob().initialize(end_date, start_date)
+    start_date = pd.Timestamp(curr_year - history, 1, 1)
+    get_calendar_glob().initialize(
+        end_date, start_date,
+        yearly_periods=yearly_periods,
+        monthly_periods=monthly_periods
+    )
 
     # Calculate
-    res = DividendDiscountModel(cmp, past_horizon=ph, future_proj=fp)\
-        .result(d_rate=dr)
+    res = DDM(uid, s1, s2, gwt_mode=gwt_mode) \
+        .result(cost_equity=ke, premium=premium)
 
     print_results(res)
+    plot_results(res)
 
-    print('All done!')
+    Ut.print_ok('All done!')

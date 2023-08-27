@@ -5,12 +5,13 @@
 
 import nfpy.DB as DB
 import nfpy.IO as IO
+from nfpy.Tools import Utilities as Ut
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< Rename a table's column script >>>"
 
 if __name__ == '__main__':
-    print(_TITLE_, end='\n\n')
+    Ut.print_header(_TITLE_, end='\n\n')
 
     db = DB.get_db_glob()
     qb = DB.get_qb_glob()
@@ -18,25 +19,22 @@ if __name__ == '__main__':
     inh = IO.InputHandler()
 
     # Select table and fetch structure
-    table_name = inh.input("Which table you want to alter?: ", idesc='str')
-    if not qb.exists_table(table_name):
-        raise ValueError('The table you provided does not exists')
-
+    table_name = inh.input("Which table you want to alter?: ", idesc='table')
     print(f'Current structure:\n{qb.get_structure_string(table_name)}',
           end='\n\n')
 
     # Get column to rename and perform consistency checks
-    idx = inh.input('Give the index of the column to rename: ', idesc='int')
     old_fields = tuple(qb.get_fields(table_name))
-    while (idx < 0) | (idx >= len(old_fields)):
-        msg = '\tThe given index is out of the limits. Give another one: '
-        idx = inh.input(msg, idesc='int')
+    idx = inh.input(
+        'Give the index of the column to rename: ',
+        idesc='index', limit=(0, len(old_fields) - 1)
+    )
 
     new_name = inh.input(f'Rename [{old_fields[idx]}] to: ')
     while new_name in old_fields:
         new_name = inh.input(f'Cannot use this name. Choose another one: ')
 
-    # Create a the new table structure
+    # Create the new table structure
     new_struct = tf.rename_column(
         qb.get_table(table_name),
         old_fields[idx],
@@ -47,6 +45,7 @@ if __name__ == '__main__':
 
     # Confirmations and perform backup
     if not inh.input("Do you want to proceed?: ", idesc='bool', default=False):
+        print('Exiting...')
         exit()
 
     if inh.input("Do you want to backup the database?: ",
@@ -72,6 +71,7 @@ if __name__ == '__main__':
 
     # Drop old table
     if inh.input("Drop the old table?: ", idesc='bool', default=False):
+        print('Dropping the old table...')
         db.execute(qb.drop(old_table_name))
 
-    print('All done!')
+    Ut.print_ok('All done!')

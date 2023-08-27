@@ -137,6 +137,13 @@ def print_wrn(wrn: Warning, end: str = '\n') -> None:
     print(f'{Col.WARNING.value}---{type(wrn).__name__}{Col.ENDC.value} - {wrn}', end=end)
 
 
+def print_deprecation(msg: str) -> None:
+    """ Print a deprecation message. """
+    wrn = f'{Col.WARNING.value}Deprecation warning!: {msg}{Col.ENDC.value}'
+    print(wrn)
+    # warnings.warn(wrn, DeprecationWarning, stacklevel=2)
+
+
 def ordered_unique(v: Sequence) -> Sequence:
     """ Create an ordered list of unique elements. """
     seen = set()
@@ -153,3 +160,35 @@ def to_bool(v: str) -> bool:
         return False
     else:
         raise ValueError(f'InputHandler(): {v} not recognized as boolean')
+
+
+def check_mandatory_args(blocks: Sequence[dict], args) -> bool:
+    """ Check if arguments are consistent. The non-none arguments are compared
+        groups of arguments that constitute a complete set to identify whether
+        there is at least one complete configuration.
+        For example, it is usually the case that -i, --interactive constitutes
+        one block by itself, another block may be constituted by the minimal
+        configuration to provide if interactive is disabled.
+    """
+    good_block_found = False
+
+    for block in blocks:
+        block_valid = True
+
+        for key, val in block.items():
+            if key not in args:
+                block_valid = False
+                break
+            else:
+                if (val is not None) & (getattr(args, key) != val):
+                    block_valid = False
+                    break
+                elif (val is None) & (getattr(args, key) is None):
+                    block_valid = False
+                    break
+
+        if block_valid:
+            good_block_found = True
+            break
+
+    return good_block_found

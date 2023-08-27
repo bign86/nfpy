@@ -1,6 +1,6 @@
 #
 # Clean Database
-# Script to filter data from a table and delete them.
+# Script to filter and delete data from a database table.
 #
 
 from enum import Enum
@@ -8,81 +8,173 @@ from tabulate import tabulate
 
 import nfpy.DB as DB
 import nfpy.IO as IO
+from nfpy.Tools import Utilities as Ut
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< Delete data script >>>"
+
+_ITEM_SHOWED = 10
 
 
 class States(Enum):
     UNSET = 0
     PRINT = 1
     QUIT = 2
+    SHOWF = 3
+    GETF = 4
+    DELRC = 5
+    EXIT = 6
+    FETCH = 7
+    DELFT = 8
 
 
-def _get_filters(_c, _d):
-    field = inh.input('Column to filter for: ')
-    while field not in fields:
-        field = inh.input('Field doesn\'t exist. Try again: ')
-    _c.append(field)
-    search = inh.input('Search for: ')
-    _d.append(search)
+class StateMachine(object):
+    _ACTION_MSG = 'Press "a" to add a filter, "f" to show current filters, "p" to print found records,\n' \
+                  '"d" to delete a filter, "e" to erase records found, "q" to quit: '
+
+    def __init__(self, table: str):
+        self.table = table
+        self.keys = tuple(qb.get_keys(table))
+        self.fields = tuple(qb.get_fields(table))
+
+        self.STATE = States.UNSET
+        self.records_found = []
+        self.conditions = []
+
+    def run(self) -> None:
+        while self.STATE != States.EXIT:
+
+            if self.STATE == States.UNSET:
+                self._get_state()
+            elif self.STATE == States.PRINT:
+                self.print_results()
+                self.STATE = States.UNSET
+            elif self.STATE == States.QUIT:
+                self._quit()
+                self.STATE = States.EXIT
+            elif self.STATE == States.SHOWF:
+                self.print_filters()
+                self.STATE = States.UNSET
+            elif self.STATE == States.GETF:
+                self._get_filter()
+                self.STATE = States.FETCH
+            elif self.STATE == States.DELRC:
+                self._delete_records()
+                self.STATE = States.UNSET
+            elif self.STATE == States.FETCH:
+                self._fetch()
+                self.STATE = States.UNSET
+            elif self.STATE == States.DELFT:
+                self._delete_filter()
+                self.STATE = States.FETCH
+
+    def _delete_filter(self):
+        self.print_filters()
+        delete = inh.input(
+            'Choose which to delete: ', idesc='index',
+            limits=(0, len(self.conditions)-1)
+        )
+        self.conditions.pop(delete)
+
+    def _delete_records(self) -> None:
+        if inh.input(f'About to delete {len(self.records_found)} records!\n'
+                     f'SURE??? (default False): ', idesc='bool', default=False):
+            print('Ok...', end='')
+            db.executemany(
+                qb.delete(self.table, self.fields),
+                self.records_found,
+                commit=True
+            )
+            print(' Done!')
+            self.records_found = []
+        else:
+            print('Aborted!')
+
+        self.STATE = States.UNSET
+
+    def _fetch(self) -> None:
+        where = ' and '.join(self.conditions)
+        self.records_found = db.execute(
+            qb.select(self.table, keys=(), where=where),
+        ).fetchall()
+
+    def _get_filter(self):
+        self.print_fields()
+        condition = inh.input('Insert a condition like <field> <=> <value>: ')
+        elements = condition.split(' ')
+        while (len(elements) < 3) or \
+                (elements[0] not in self.fields) or \
+                (elements[1] not in ('=', '<', '>', '<=', '>=', '!=')):
+            condition = inh.input('Condition malformed. Try again: ')
+            elements = condition.split(' ')
+        condition_string = f"[{elements[0]}] {elements[1]} '{elements[2]}'"
+        self.conditions.append(condition_string)
+
+    def _get_state(self) -> None:
+        todo = inh.input(self._ACTION_MSG)
+        while todo not in ('a', 'q', 'f', 'p', 'd', 'e'):
+            todo = inh.input(f'{todo} not recognized! Again, please: ')
+
+        if todo == 'a':
+            self.STATE = States.GETF
+        elif todo == 'q':
+            self.STATE = States.QUIT
+        elif todo == 'f':
+            self.STATE = States.SHOWF
+        elif todo == 'p':
+            self.STATE = States.PRINT
+        elif todo == 'd':
+            self.STATE = States.DELFT
+        elif todo == 'e':
+            self.STATE = States.DELRC
+
+    def _quit(self) -> None:
+        print('So long... quitting!')
+
+    def print_fields(self) -> None:
+        _msg = f'Currently, {len(self.records_found)} records found.\n' \
+               f'The following fields exists (* for keys)\n'
+        for _field in self.fields:
+            _ind = ' * ' if _field in self.keys else '   '
+            _msg += _ind + _field + '\n'
+        print(_msg)
+
+    def print_filters(self) -> None:
+        _msg = f'Currently, {len(self.records_found)} records found.\n' \
+               f'The following conditions exists:\n'
+        for i, condition in enumerate(self.conditions):
+            _msg += f'{i} | {condition}\n'
+        print(_msg)
+
+    def print_results(self) -> None:
+        n = len(self.records_found)
+        msg = f'Total of {n} found.\n'
+        if n > _ITEM_SHOWED:
+            msg += f' Only the first {_ITEM_SHOWED} showed.\n'
+        print(msg, end='\n')
+        print(tabulate(self.records_found[-_ITEM_SHOWED:], headers=self.fields))
 
 
-def _get_results(_c, _d) -> []:
-    return db.execute(
-        qb.select(table, keys=_c),
-        _d
-    ).fetchall()
-
-
-def _do_delete(_r):
-    db.executemany(
-        qb.delete(table, fields),
-        _r,
-        commit=True
-    )
+def _print_fields(_f, _k):
+    _msg = 'The following fields exists (* for keys)\n'
+    for _field in _f:
+        _ind = ' * ' if _field in _k else '   '
+        _msg += _ind + _field + '\n'
+    print(_msg)
 
 
 if __name__ == '__main__':
-    print(_TITLE_, end='\n\n')
+    Ut.print_header(_TITLE_, end='\n\n')
 
     db = DB.get_db_glob()
     qb = DB.get_qb_glob()
     inh = IO.InputHandler()
 
-    table = inh.input('Give a table to clean: ')
-    while not qb.exists_table(table):
-        table = inh.input('Table not found. Try again: ')
+    tbl = inh.input('Give a table to clean: ')
+    while not qb.exists_table(tbl):
+        tbl = inh.input(f'Table {tbl} not found. Try again: ')
 
-    keys = tuple(qb.get_keys(table))
-    fields = qb.get_fields(table)
-    msg = 'The following fields exists (* for keys)\n'
-    for f in fields:
-        ind = ' * ' if f in keys else '   '
-        msg += ind + f + '\n'
-    print(msg)
+    sm = StateMachine(tbl)
+    sm.run()
 
-    state = States.UNSET
-    columns, data = [], []
-    result = None
-    in_msg = 'Press "f" to filter, "d" to delete, "q" to quit: '
-    while state != States.QUIT:
-        if state == States.PRINT:
-            print(tabulate(result, headers=fields))
-            state = States.UNSET
-
-        do = inh.input(in_msg)
-        if do == 'f':
-            _get_filters(columns, data)
-            result = _get_results(columns, data)
-            state = States.PRINT
-        elif do == 'q':
-            state = States.QUIT
-        elif do == 'd':
-            if inh.input('Sure (Default False)?: ', idesc='bool', default=False):
-                _do_delete(result)
-                state = States.QUIT
-            else:
-                state = States.UNSET
-
-    print('All done!')
+    Ut.print_ok('All done!')

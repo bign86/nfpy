@@ -7,14 +7,10 @@ import os
 
 from nfpy import NFPY_ROOT_DIR
 import nfpy.DB as DB
+from nfpy.Tools import Utilities as Ut
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< Database schema dump creation script >>>"
-
-PKL_FILE = 'db_static_data.p'
-JSN_FILE = 'db_static_data.json'
-
-TBL_LIST = ('Currency', 'DecDatatype', 'MapFinancials', 'Providers', 'SystemInfo')
 
 
 def get_db_data() -> str:
@@ -32,7 +28,7 @@ def get_db_data() -> str:
 
 
 if __name__ == '__main__':
-    print(_TITLE_, end='\n\n')
+    Ut.print_header(_TITLE_, end='\n\n')
 
     outf = open(
         os.path.join(NFPY_ROOT_DIR, 'schema.sql'),
@@ -41,4 +37,4 @@ if __name__ == '__main__':
     outf.write(get_db_data())
     outf.close()
 
-    print("All done!")
+    Ut.print_ok('All done!')

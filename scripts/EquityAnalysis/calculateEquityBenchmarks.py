@@ -1,7 +1,7 @@
 #
 # Calculate Equity benchmarks
 # Script to calculate the Beta exposure and correlation of an instrument
-# against a number of different indices
+# against all known indices.
 #
 
 from tabulate import tabulate
@@ -12,8 +12,12 @@ import nfpy.DB as DB
 import nfpy.IO as IO
 from nfpy.Tools import (Exceptions as Ex, Utilities as Ut)
 
-__version__ = '0.8'
+__version__ = '0.9'
 _TITLE_ = "<<< Equity benchmark calculation script >>>"
+_DESC_ = """Calculates Beta exposure and Correlation of an instrument against all known indices.
+The instrument search is treated as partial (similarly to 'like' in databases) and is performed
+on the 'uid', 'ticker' and 'description' fields.
+To exit type 'quit' in the search field."""
 
 
 def update_index(_eq) -> None:
@@ -25,7 +29,6 @@ def update_index(_eq) -> None:
         try:
             _uid = _tup[0]
             _bmk = af.get(_uid)
-            # d = '*' if _eq.index == _uid else ''
             _res.append(
                 (
                     '*' if _eq.index == _uid else '',
@@ -50,9 +53,10 @@ def update_index(_eq) -> None:
         idesc='bool', default=False, optional=True
     )
     if update:
-        new_idx = 9999
-        while (new_idx < 0) or (new_idx >= len(_res)):
-            new_idx = inh.input("Choose a new index: ", idesc='int')
+        new_idx = inh.input(
+            "Choose a new index: ",
+            idesc='index', limits=(0, len(_res) - 1)
+        )
 
         _q_upd = qb.update('Equity', fields=('index',))
         db.execute(_q_upd, (_res[new_idx][1], _eq.uid), commit=True)
@@ -80,12 +84,10 @@ def search_equity() -> bool:
         f'{tabulate(list_instr, headers=header, showindex=True)}',
         end='\n\n'
     )
-
-    eq_idx = inh.input("Give an equity index: ", idesc='int')
-    while (eq_idx < 0) or (eq_idx >= len(list_instr)):
-        msg = f'{Ut.Col.WARNING.value} ! Wrong index !{Ut.Col.ENDC.value}\n' \
-              f'Give an equity index: '
-        eq_idx = inh.input(msg, idesc='int')
+    eq_idx = inh.input(
+        "Give an equity index: ",
+        idesc='index', limits=(0, len(list_instr) - 1)
+    )
 
     update_index(
         af.get(list_instr[eq_idx][0])
@@ -96,7 +98,8 @@ def search_equity() -> bool:
 
 
 if __name__ == '__main__':
-    print(_TITLE_, end='\n\n')
+    Ut.print_header(_TITLE_, end='\n')
+    print(_DESC_, end='\n\n')
 
     af = get_af_glob()
     qb = DB.get_qb_glob()
@@ -109,8 +112,7 @@ if __name__ == '__main__':
                          default=today(), idesc='timestamp', optional=True)
     get_calendar_glob().initialize(end_date, start_date)
 
-    print("The search input is always treated as partial. Type 'quit' to exit.")
     while search_equity():
         pass
 
-    print('All done!')
+    Ut.print_ok('All done!')

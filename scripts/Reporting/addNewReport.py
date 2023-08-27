@@ -1,6 +1,6 @@
 #
 # Add new report
-# Add a new report to the database
+# Create a new report into the database
 #
 
 import json
@@ -12,11 +12,11 @@ import nfpy.IO as IO
 import nfpy.Reporting as Re
 from nfpy.Tools import Utilities as Ut
 
-__version__ = '0.4'
+__version__ = '0.5'
 _TITLE_ = "<<< New report add script >>>"
 
 if __name__ == '__main__':
-    print(_TITLE_, end='\n\n')
+    Ut.print_header(_TITLE_, end='\n\n')
 
     conf = get_conf_glob()
     db = DB.get_db_glob()
@@ -27,9 +27,7 @@ if __name__ == '__main__':
     # Insert a new report name
 
     # Get report data
-    msg = f'Give a JSON file with data. Path is assumed relative to the working\n' \
-          f'folder {conf.working_folder}.\n' \
-          f'If not found the file is searched assuming an absolute path.\n' \
+    msg = f'Give the path to a JSON file with data.\n' \
           f'The JSON shall contain the following fields:\n' \
           f' - name: name given to report, must be unique\n' \
           f' - description: text\n - template: html template file\n' \
@@ -38,18 +36,15 @@ if __name__ == '__main__':
           f' - parameters: dictionary of required parameters\n\n' \
           f'Insert nothing for manual input of the required data.\n'
     file_name = inh.input(msg, optional=True)
+    while (file_name is not None) and (not path.isfile(file_name)):
+        file_name = inh.input('File not found, retry: ', optional=True, default=None)
+
     if file_name:
         try:
-            fp = open(
-                path.join(conf.working_folder, file_name),
-                'r'
-            )
-        except RuntimeError:
-            try:
-                fp = open(file_name, 'r')
-            except RuntimeError as ex:
-                Ut.print_exc(FileNotFoundError('File not found!'))
-                raise ex
+            fp = open(file_name, 'r')
+        except RuntimeError as ex:
+            Ut.print_exc(FileNotFoundError('File not found!'))
+            raise ex
         data = json.load(fp)
 
         _id = data['id']
@@ -64,8 +59,8 @@ if __name__ == '__main__':
         parameters = data['parameters']
     else:
         _id = inh.input("Insert report id: ", idesc='str')
-        if re.exists(_id):
-            raise ValueError("Unique report name already in use.")
+        while re.exists(_id):
+            _id = inh.input("Id already in use, retry: ", idesc='str')
 
         title = inh.input("Insert a title: ")
         desc = inh.input("Insert a description: ", optional=True)
@@ -84,7 +79,7 @@ if __name__ == '__main__':
           f'description = {desc}\n' \
           f'report      = {report}\n' \
           f'template    = {template}\n' \
-          f'#uids       = {len(uids)}\n' \
+          f'# uids      = {len(uids)}\n' \
           f'active      = {"Yes" if bool(active) else "No"}\n' \
           f'parameters  = {parameters}\n' \
           f'\nSave the current report?: '
@@ -99,6 +94,6 @@ if __name__ == '__main__':
             (_id, title, desc, report, template, uids, parameters, active),
             commit=True
         )
-        print('Saved!')
+        Ut.print_ok('Saved!')
 
-    print('All done!')
+    Ut.print_ok('All done!')

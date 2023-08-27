@@ -7,9 +7,9 @@ import xml.etree.ElementTree as ET
 
 import nfpy.DB as DB
 from nfpy.Downloader.IBApp import IBAppFundamentals
-from nfpy.Tools import get_conf_glob
+from nfpy.Tools import (get_conf_glob, Utilities as Ut)
 
-__version__ = '0.2'
+__version__ = '0.3'
 _TITLE_ = "<<< Interactive Brokers financials mapping download script >>>"
 
 
@@ -46,6 +46,8 @@ def fetchfromdb(db_, qb_) -> tuple:
 
 
 if __name__ == '__main__':
+    Ut.print_header(_TITLE_, end='\n\n')
+
     qb = DB.get_qb_glob()
     db = DB.get_db_glob()
     conf = get_conf_glob()
@@ -77,4 +79,4 @@ if __name__ == '__main__':
         _nl = '\n'.join(list(diff_map))
         print(f'MapFinancials\n{_nl}')
 
-    print('All done!')
+    Ut.print_ok('All done!')

@@ -1,17 +1,17 @@
 #
-# Reorder Table Columns Script
+# Reorder Table Columns
 # Script to rebuild the table's columns order
 #
 
 import nfpy.DB as DB
 import nfpy.IO as IO
+from nfpy.Tools import Utilities as Ut
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< Reorder the table's columns script >>>"
 
-
 if __name__ == '__main__':
-    print(_TITLE_, end='\n\n')
+    Ut.print_header(_TITLE_, end='\n\n')
 
     db = DB.get_db_glob()
     qb = DB.get_qb_glob()
@@ -19,12 +19,9 @@ if __name__ == '__main__':
     inh = IO.InputHandler()
 
     # Select table and fetch structure
-    table_name = inh.input("Which table you want to reorder?: ", idesc='str')
-    if not qb.exists_table(table_name):
-        raise ValueError('The table you provided does not exists')
-
+    table_name = inh.input("Which table you want to reorder?: ", idesc='table')
     print(f'Current structure:\n{qb.get_structure_string(table_name)}',
-        end='\n\n')
+          end='\n\n')
 
     # Get new order
     order = inh.input("Insert new order of the columns (empty for no action): ",
@@ -68,6 +65,7 @@ if __name__ == '__main__':
 
     # Drop old table
     if inh.input("Drop the old table?: ", idesc='bool', default=False):
+        print('Dropping the old table...')
         db.execute(qb.drop(old_table_name))
 
-    print('All done!')
+    Ut.print_ok('All done!')

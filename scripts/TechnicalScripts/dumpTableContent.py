@@ -9,14 +9,14 @@ from os.path import join
 from nfpy.Calendar import now
 import nfpy.DB as DB
 import nfpy.IO as IO
-from nfpy.Tools import get_conf_glob
+from nfpy.Tools import (get_conf_glob, Utilities as Ut)
 
-__version__ = '0.2'
+__version__ = '0.3'
 _TITLE_ = "<<< Dump Table script >>>"
 
 
 if __name__ == '__main__':
-    print(_TITLE_, end='\n\n')
+    Ut.print_header(_TITLE_, end='\n\n')
 
     db = DB.get_db_glob()
     qb = DB.get_qb_glob()
@@ -24,16 +24,13 @@ if __name__ == '__main__':
     inh = IO.InputHandler()
 
     # get the table to dump
-    table = inh.input("Table to dump: ", idesc='str')
-    while not qb.exists_table(table):
-        msg = "The table does not exists in the database. Please give another: "
-        table = inh.input(msg)
+    table = inh.input("Table to dump: ", idesc='table')
 
     q = f"select * from {table}"
     l = db.execute(q).fetchall()
 
     fname = f'{table}_{now(mode="str", fmt="%Y%m%d%H%M")}.csv'
-    path = join(conf.backup_dir, fname)
+    path = join(conf.backup_folder, fname)
 
     columns = list(qb.get_fields(table))
     with open(path, 'w') as f:
@@ -41,4 +38,4 @@ if __name__ == '__main__':
         out.writerow(columns)
         out.writerows(l)
 
-    print("All done!")
+    Ut.print_ok('All done!')

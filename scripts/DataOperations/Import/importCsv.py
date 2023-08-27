@@ -11,13 +11,14 @@ from operator import itemgetter
 from nfpy.Tools import get_conf_glob
 import nfpy.DB as DB
 import nfpy.IO as IO
+from nfpy.Tools import Utilities as Ut
 
-__version__ = '0.3'
+__version__ = '0.4'
 _TITLE_ = "<<< Import Csv script >>>"
 
 
 if __name__ == '__main__':
-    print(_TITLE_, end='\n\n')
+    Ut.print_header(_TITLE_, end='\n\n')
 
     conf = get_conf_glob()
     db = DB.get_db_glob()
@@ -25,11 +26,9 @@ if __name__ == '__main__':
     inh = IO.InputHandler()
 
     # get and validate inputs
-    dsrc = conf.backup_dir
-    msg = f"Give me filename to upload (must be present in the data source folder {dsrc}): "
-    name = inh.input(msg, idesc='str')
-    src_file = os.path.join(dsrc, name)
-    if not os.path.isfile(src_file):
+    msg = "Give a full path to the csv to upload. Make sure there is exactly one header row\n"
+    file_path = inh.input(msg, idesc='str')
+    if not os.path.isfile(file_path):
         raise ValueError('Supplied file does not exist! Please give a valid one.')
 
     table = inh.input("Give me a table to update: ", idesc='str')
@@ -38,7 +37,7 @@ if __name__ == '__main__':
         raise ValueError('Supplied table name does not exist! Please give a valid one.')
 
     # read data
-    with open(src_file, 'r') as f:
+    with open(file_path, 'r') as f:
         reader = csv.reader(f, dialect='excel')
         _ = next(reader)
         data = list(reader)
@@ -55,9 +54,9 @@ if __name__ == '__main__':
 
     # update database
     q_del = qb.delete(table, fields=keys)
-    db.executemany(q_del, ddel)
+    db.executemany(q_del, ddel, commit=False)
 
     q_ins = qb.insert(table)
     db.executemany(q_ins, data, commit=True)
 
-    print("All done!")
+    Ut.print_ok('All done!')

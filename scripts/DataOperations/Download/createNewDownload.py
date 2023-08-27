@@ -9,7 +9,7 @@ import nfpy.Downloader as Dwn
 import nfpy.IO as IO
 from nfpy.Tools import Utilities as Ut
 
-__version__ = '0.6'
+__version__ = '0.7'
 _TITLE_ = '<<< Create new download script >>>'
 
 _IMPORT_HINTS = {
@@ -17,6 +17,7 @@ _IMPORT_HINTS = {
     'Splits': 'Splits',
     'Dividends': 'Dividends',
     'Financials': 'Financials',
+    'Series': 'ClosePrices',
 }
 
 
@@ -27,9 +28,12 @@ def columns_data(_table: str, _data: dict, *args) -> tuple:
         if _n in _data:
             _d.append(_data[_n])
             continue
-        _col_type = DB.SQLITE2PY_CONVERSION[_c.type]
+
+        if _n in ('country', 'currency', 'isin'):
+            _col_type = _n
+        else:
+            _col_type = DB.SQLITE2PY_CONVERSION[_c.type]
         _opt = not (_c.is_primary | _c.notnull)
-        _check = _n if _n in ('currency', 'isin') else None
         _hint = _c.type + ', OPTIONAL' if _opt else _c.type
 
         if _n == 'item':
@@ -39,15 +43,14 @@ def columns_data(_table: str, _data: dict, *args) -> tuple:
             _msg = f'Insert {_n} ({_hint}): '
             _default = None
 
-        _v = inh.input(_msg, idesc=_col_type, checker=_check,
-                       optional=_opt, default=_default)
+        _v = inh.input(_msg, idesc=_col_type, optional=_opt, default=_default)
         _d.append(_v)
 
     return tuple(_d)
 
 
 if __name__ == '__main__':
-    print(_TITLE_, end='\n\n')
+    Ut.print_header(_TITLE_, end='\n\n')
 
     af = As.get_af_glob()
     db = DB.get_db_glob()
@@ -67,32 +70,40 @@ if __name__ == '__main__':
         print(f'UID has been found in the database:\n{a_type} {uid}', end='\n\n')
     else:
         # Asset type
-        at, at_idx = af.asset_types, -1
-        Ut.print_sequence(at, showindex=True)
-        while (at_idx < 0) or (at_idx > len(at)):
-            at_idx = inh.input('Insert asset_type index: ', idesc='int')
-        a_type = at[at_idx]
+        types = sorted(af.asset_types)
+        Ut.print_sequence(types, showindex=True)
+        at_idx = inh.input(
+            'Insert asset_type index: ',
+            idesc='index', limits=(0, len(types)-1)
+        )
+        a_type = types[at_idx]
         a_obj = Ut.import_symbol('.'.join(['nfpy.Assets', a_type, a_type]))
         table = a_obj._BASE_TABLE
-        asset_data = columns_data(table, {'uid': uid})
-        queries[table] = (qb.insert(table), (asset_data,))
+        queries[table] = (
+            qb.insert(table),
+            (columns_data(table, {'uid': uid}),)
+        )
 
     # DOWNLOADS
     dwn_data = []
     dwn_keys = ('provider', 'page', 'ticker')
-    while inh.input('Add new download?: ', idesc='bool', default=False):
+    while inh.input('Add new download (default False)?: ', idesc='bool', default=False):
         # Provider
-        providers, prov_idx = tuple(dwn.providers), -1
+        providers = tuple(dwn.providers)
         Ut.print_sequence(providers, showindex=True)
-        while (prov_idx < 0) or (prov_idx > len(providers)):
-            prov_idx = inh.input('Give the provider index: ', idesc='int')
+        prov_idx = inh.input(
+            'Give the provider index: ',
+            idesc='index', limits=(0, len(providers)-1)
+        )
         provider = providers[prov_idx]
 
         # Page
-        pages, pg_idx = dwn.pages(provider), -1
+        pages = dwn.pages(provider)
         Ut.print_sequence(pages, showindex=True)
-        while (pg_idx < 0) or (pg_idx > len(pages)):
-            pg_idx = inh.input('Give the download page index: ', idesc='int')
+        pg_idx = inh.input(
+            'Give the download page index: ',
+            idesc='index', limits=(0, len(pages)-1)
+        )
         page = pages[pg_idx]
 
         # Ticker
@@ -139,9 +150,9 @@ if __name__ == '__main__':
             print(f"{', '.join(map(str, q))}")
 
     # Final insert
-    if inh.input('\nDo you want to proceed?: ', idesc='bool'):
+    if inh.input('\nDo you want to proceed?: ', idesc='bool', default=False):
         for t in queries.values():
             db.executemany(*t)
         print('Insert done')
 
-    print('All done!')
+    Ut.print_ok('All done!')
