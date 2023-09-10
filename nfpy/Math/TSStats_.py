@@ -3,12 +3,13 @@
 # Low level functions for time series to Cythonize
 #
 
+import cutils
 import numpy as np
 from typing import Optional
 
-from nfpy.Tools import Exceptions as Ex
+from nfpy.Tools import (Exceptions as Ex)
 
-from .TSUtils_ import (dropna, search_trim_pos)
+from .TSUtils_ import (search_trim_pos)
 
 
 def correlation(dt: np.ndarray, ts: np.ndarray, bmk: np.ndarray,
@@ -30,12 +31,12 @@ def correlation(dt: np.ndarray, ts: np.ndarray, bmk: np.ndarray,
         raise Ex.ShapeError('The series must have the same length')
 
     slc = search_trim_pos(dt, start=start, end=end)
-    return np.corrcoef(
-        dropna(
-            np.vstack((ts[slc], bmk[slc])),
-            axis=0
-        )[0]
+    v = cutils.dropna(
+        np.vstack((ts[slc], bmk[slc])),
+        1
     )
+
+    return np.corrcoef(v)
 
 
 def kurtosis(ts: np.ndarray, axis: int = 0) -> float:

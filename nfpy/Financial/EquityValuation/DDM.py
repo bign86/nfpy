@@ -288,14 +288,16 @@ class DDM(BaseFundamentalModel):
         try:
             dt, eq = ff.total_equity('A')
             _, ni = ff.net_income('A')
-            _, so = ff.common_shares('A')
+            _, td = ff.cash_dividends_paid('A')
+            # _, so = ff.common_shares('A')
 
             # FIXME: the values should be split-adjusted
-            ni_ps = ni / so[-1]
-            eq_ps = eq / so[-1]
+            # ni_ps = ni / so[-1]
+            # eq_ps = eq / so[-1]
 
-            n = min(yd.shape[0], eq.shape[0])
-            growth = (ni_ps[-n:] - yd[-n:]) / eq_ps[-n:]
+            n = min(td.shape[0], eq.shape[0])
+            # growth = (ni_ps[-n:] - yd[-n:]) / eq_ps[-n:]
+            growth = (ni[-n:] + td[-n:]) / eq[-n:]
 
             annual_drift = np.nanmean(growth)
             macro_growth = pd.Series(growth, index=dt[-n:])

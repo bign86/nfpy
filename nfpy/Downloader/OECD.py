@@ -5,11 +5,10 @@
 
 import json
 import pandas as pd
-import pandas.tseries.offsets as off
 
 from nfpy.Calendar import today
 
-from .BaseDownloader import (BasePage, DwnParameter)
+from .BaseDownloader import (BasePage, DwnParameter, TLSAdapter)
 from .BaseProvider import BaseImportItem
 from .DownloadsConf import OECDSeriesConf
 
@@ -106,6 +105,10 @@ class SeriesPage(BasePage):
                 if ext_k in translate:
                     p[translate[ext_k]] = pd.to_datetime(ext_v).strftime('%Y-%m')
             self._p[0].update(p)
+
+    def _mount(self, session) -> None:
+        """ To apply a custom SSL context to the call. """
+        session.mount('https://', TLSAdapter())
 
     def _parse(self) -> None:
         """ Parse the fetched object. """

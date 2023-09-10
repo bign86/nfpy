@@ -89,7 +89,8 @@ class IBBasePage(BasePage):
         )
         self._app.run()
         sleep(self._SLEEP_TIME)
-        self._robj = self._app.return_data
+        data = self._app.return_data
+        self._robj = data if data is not None else []
 
 
 class FinancialsPage(IBBasePage):
@@ -99,17 +100,17 @@ class FinancialsPage(IBBasePage):
 
     def _local_initializations(self, ext_p: dict) -> None:
         """ Local initializations for the single page. """
-        tck = self.ticker.split('/')
+        tck = self._ticker.split('/')
         self._app = IBAppFundamentals("ReportsFinStatements")
         self._app.addContracts(tck, ext_p['currency'])
-        self.params = ext_p
+        self._p.append(ext_p)
 
     def _parse(self) -> None:
         tree = ET.fromstring(self._robj)
         financial = tree.find('FinancialStatements')
 
-        tck = self.ticker.split('/')[0]
-        ccy = self._p['currency']
+        tck = self._ticker.split('/')[0]
+        ccy = self._p[0]['currency']
 
         data = []
         for freq in ('AnnualPeriods', 'InterimPeriods'):

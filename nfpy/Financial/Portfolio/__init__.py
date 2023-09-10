@@ -1,10 +1,8 @@
 from .Optimizer import *
-from .OptimizationEngine import (
-    OptimizationEngine, OptimizationEngineResult
-)
+from .Optimization import optimize_portfolio
 from .PortfolioEngine import PortfolioEngine
 
 __all__ = [
-    'OptimizationEngine', 'OptimizationEngineResult',
+    'optimize_portfolio',
     'PortfolioEngine', 'TyOptimizer'
 ]

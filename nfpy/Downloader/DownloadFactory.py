@@ -40,7 +40,7 @@ class DownloadFactory(metaclass=Singleton):
         self._splits = []
 
         objs = self._db.execute(
-            f'select provider, page, item from {self._PROV_TABLE}'
+            f'select [provider], [page], [item] from [{self._PROV_TABLE}] where [deprecated] is False'
         ).fetchall()
         self._dwn_obj = defaultdict(list)
         for k, v in set((v[0], v[1]) for v in objs):
@@ -67,18 +67,6 @@ class DownloadFactory(metaclass=Singleton):
     @splits.setter
     def splits(self, v: tuple) -> None:
         self._splits.append(v)
-
-    @staticmethod
-    def print_parameters(page_obj: BasePage) -> None:
-        """ Print out the parameters available to a page object. """
-        if not page_obj.params:
-            buf = 'No parameters required for this downloading page\n'
-        else:
-            buf = 'Available parameters\n req | name\n'
-            for p in sorted(page_obj.params.keys()):
-                prfx = '*' if p in page_obj._MANDATORY else ' '
-                buf += f'  {prfx}  | {p}\n'
-        print(buf)
 
     def provider_exists(self, provider: str) -> bool:
         """ Check if the provider is supported. """
@@ -156,6 +144,9 @@ class DownloadFactory(metaclass=Singleton):
             )
         )
 
+    # TODO: this should be made private to the class and not used by a couple of
+    #       scripts for their operations. To be changed together with the to do
+    #       in run_download() and run_import()
     def create_page_obj(self, provider: str, page: str, ticker: str) -> BasePage:
         """ Return an un-initialized page object of the correct type.
 
@@ -286,6 +277,8 @@ class DownloadFactory(metaclass=Singleton):
             (today_dt,), commit=True
         )
 
+    # TODO: like for run_download() the actual import should be taken out from
+    #       the rest.
     def run_import(self, uid: Optional[str] = None,
                    provider: Optional[str] = None,
                    item: Optional[str] = None, override_active: bool = False,
@@ -316,9 +309,10 @@ class DownloadFactory(metaclass=Singleton):
                 Ut.print_exc(e)
 
         self._db.execute(
-            'update SystemInfo set [date] = ? where [field] = "lastImport"',
+            'update [SystemInfo] set [date] = ? where [field] = "lastImport"',
             (Cal.today(mode='date'),), commit=True
         )
+
 
 def get_dwnf_glob() -> DownloadFactory:
     """ Returns the pointer to the global Downloads Factory. """

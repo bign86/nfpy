@@ -18,7 +18,7 @@ __all__ = [
 
     # MATH FUNCTIONS
     # Returns_
-    'comp_ret', 'compound', 'cumulate_ret', 'e_ret', 'logret', 'ret', 'tot_ret',
+    'comp_ret', 'compound', 'e_ret', 'tot_ret',
 
     # Risk_
     'beta', 'capm_beta', 'drawdown', 'sharpe', 'sml', 'te',
@@ -28,8 +28,9 @@ __all__ = [
     'rolling_window', 'series_momenta', 'skewness',
 
     # TSUtils_
-    'dropna', 'ffill_cols', 'ffill_rows', 'fillna', 'find_extrema',
-    'find_relative_extrema',
-    'last_valid_index', 'last_valid_value', 'next_valid_index',
+    'dropna', 'find_relative_extrema', 'last_valid_value',
     'next_valid_value', 'smooth', 'trim_ts', 'search_trim_pos',
+
+    # DEPRECATED!!!
+    'fillna', 'ffill_cols',
 ]

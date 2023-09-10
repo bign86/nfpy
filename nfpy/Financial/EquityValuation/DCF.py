@@ -6,10 +6,12 @@
 import numpy as np
 import pandas as pd
 import pandas.tseries.offsets as off
-from typing import Any
+from scipy import stats
+from typing import (Any, Optional)
 
 import nfpy.Financial as Fin
 import nfpy.Math as Math
+from nfpy.Tools import Utilities as Ut
 
 from .BaseFundamentalModel import (BaseFundamentalModel, FundamentalModelResult)
 from .BuildingBlocks import CAPM
@@ -41,42 +43,39 @@ class DCF(BaseFundamentalModel):
     _RES_OBJ = DCFResult
     _COLS_FCF = [
         'fcf', 'calc_fcf', 'revenues', 'revenues_returns', 'cfo',
-        'cfo_cov', 'capex', 'capex_cov', 'tax', 'intexp', 'intexp_cov'
+        'cfo_cov', 'capex', 'capex_cov'  # , 'tax', 'intexp', 'intexp_cov'
     ]
     _MIN_DEPTH_DATA = 3
 
-    def __init__(self, uid: str, past_horizon: int = 5, future_proj: int = 3,
-                 perpetual_rate: float = 0., **kwargs):
+    def __init__(self, uid: str, history: int = 10, future_proj: int = 5,
+                 growth: Optional[float] = None, premium: Optional[float] = None,
+                 **kwargs):
         super().__init__(uid)
 
-        self._idx = self._af.get(self._eq.index)
-        self._ph = int(past_horizon)
-        self._fp = int(future_proj)
-        self._p_rate = perpetual_rate
         self._ff = Fin.FundamentalsFactory(self._comp)
+        self._idx = self._af.get(self._eq.index)
+
+        self._history = int(history)
+        self._projection = int(future_proj)
+        self._growth = growth
+        self._premium = premium
+        self._gdp_w = kwargs.get('gdp_w', 20)
+        self._infl_w = kwargs.get('infl_w', 20)
 
         self._check_applicability()
-
-        self._res_update(
-            {
-                'ccy': self._comp.currency,
-                'perpetual_growth': self._p_rate,
-                'uid': self._uid,
-                'equity': self._eq.uid,
-                'past_horizon': self._ph,
-                'future_proj': self._fp
-            }
-        )
 
     def _check_applicability(self) -> None:
         y = min(
             len(self._ff.get_index(self.frequency)),
-            self._ph
+            self._history
         )
-        if y < self._MIN_DEPTH_DATA:
-            raise ValueError(f'Not enough data found for {self._uid}')
-
-        self._ph = y
+        if y < self._history:
+            if y < self._MIN_DEPTH_DATA:
+                raise ValueError(f'Not enough historical data found for {self._uid}')
+            else:
+                msg = f'Available data is only {y} years. Adjusted <history>.'
+                Ut.print_wrn(Warning(msg))
+                self._history = y
 
     def _calc_freq(self) -> None:
         """ Calculate the frequency. """
@@ -87,17 +86,15 @@ class DCF(BaseFundamentalModel):
         return {}
 
     def _get_index(self) -> np.ndarray:
-        f = self.frequency
+        f, ph, fp = self.frequency, self._history, self._projection
 
-        index = np.empty(self._ph + self._fp, dtype='datetime64[ns]')
-        index[:self._ph] = self._ff.get_index(f)[-self._ph:]
+        index = np.empty(ph + fp, dtype='datetime64[ns]')
+        index[:ph] = self._ff.get_index(f)[-ph:]
 
-        year = index[self._ph - 1].astype('datetime64[Y]') \
-                   .astype(int) + 1970
-        month = index[self._ph - 1].astype('datetime64[M]') \
-                    .astype(int) % 12 + 1
+        year = index[ph - 1].astype('datetime64[Y]').astype(int) + 1970
+        month = index[ph - 1].astype('datetime64[M]').astype(int) % 12 + 1
 
-        for i in range(self._ph, self._ph + self._fp):
+        for i in range(ph, ph + fp):
             year += 1
             ts = pd.Timestamp(year, month, 15)
             dt = off.BMonthEnd().rollforward(ts)
@@ -106,8 +103,8 @@ class DCF(BaseFundamentalModel):
         return index
 
     def _calc_fcff(self) -> np.ndarray:
-        f, ph = self.frequency, self._ph
-        array = np.empty((len(self._COLS_FCF), ph + self._fp))
+        f, ph = self.frequency, self._history
+        array = np.empty((len(self._COLS_FCF), ph + self._projection))
         array.fill(np.nan)
 
         # FCFF
@@ -115,38 +112,84 @@ class DCF(BaseFundamentalModel):
 
         # REVENUES
         array[2, :ph] = self._ff.total_revenues(f)[1][-ph:]
-        array[3, 1:ph] = array[2, 1:ph] / array[2, :ph - 1]
-        mean_growth = np.nanmean(array[3, :ph])
+        array[3, 1:ph] = array[2, 1:ph] / array[2, :ph - 1] - 1.
+        mean_growth = np.nanmean(array[3, 1:ph])
         array[3, ph:] = mean_growth
-        array[2, ph:] = mean_growth
+        array[2, ph:] = mean_growth + 1.
         array[2, ph - 1:] = np.cumprod(array[2, ph - 1:])
 
         # CFO
-        array[4, :ph] = self._ff._financial('OTLO', f)[1][-ph:]
+        array[4, :ph] = self._ff.cfo(f)[1][-ph:]
         array[5, :ph] = array[4, :ph] / array[2, :ph]
         array[5, ph:] = np.nanmean(array[5, :ph])
 
         # CAPEX
-        array[6, :ph] = self._ff._financial('SCEX', f)[1][-ph:]
+        array[6, :ph] = self._ff.capex(f)[1][-ph:]
         array[7, :ph] = array[6, :ph] / array[2, :ph]
         array[7, ph:] = np.nanmean(array[7, :ph])
 
-        # TAX
-        array[8, :ph] = self._ff.tax_rate(f)[1][-ph:]
-
-        # INTEREST EXPENSE
-        array[9, :ph] = self._ff.interest_expenses(f)[1][-ph:] \
-                        * (1 - array[8, :ph])
-        array[10, :ph] = array[9, :ph] / array[2, :ph]
-        array[10, ph:] = np.nanmean(array[10, :ph])
-
         # FORECAST OF FCFF
-        array[1, :] = (array[5, :] + array[10, :] - array[7, :]) \
-                      * array[2, :]
+        # The calculation assumes a negative CAPEX and that interest expenses
+        # are still included in the CFO, so that do not need to be added back.
+        array[1, :] = (array[5, :] + array[7, :]) * array[2, :]
         return array
 
+    def _calc_fcff_2(self) -> np.ndarray:
+        f, ph = self.frequency, self._history
+        array = np.empty((len(self._COLS_FCF), ph + self._projection))
+        array.fill(np.nan)
+
+        # FCFF
+        array[0, :ph] = self._ff.fcff(f)[1][-ph:]
+
+        # REVENUES
+        array[2, :ph] = self._ff.total_revenues(f)[1][-ph:]
+        array[3, 1:ph] = array[2, 1:ph] / array[2, :ph - 1] - 1.
+        mean_growth = np.nanmean(array[3, 1:ph])
+        array[3, ph:] = mean_growth
+        array[2, ph:] = mean_growth + 1.
+        array[2, ph - 1:] = np.cumprod(array[2, ph - 1:])
+
+        # CFO
+        array[4, :ph] = self._ff.cfo(f)[1][-ph:]
+        array[5, :ph] = array[4, :ph] / array[2, :ph]
+        slope = stats.linregress(np.arange(1, ph+1), array[5, :ph])[0]
+        array[5, ph:] = slope * np.arange(1, self._projection+1) + array[5, ph - 1]
+
+        # CAPEX
+        array[6, :ph] = self._ff.capex(f)[1][-ph:]
+        array[7, :ph] = array[6, :ph] / array[2, :ph]
+        slope = stats.linregress(np.arange(1, ph+1), array[7, :ph])[0]
+        array[7, ph:] = slope * np.arange(1, self._projection+1) + array[7, ph - 1]
+
+        # FORECAST OF FCFF
+        # The calculation assumes a negative CAPEX and that interest expenses
+        # are still included in the CFO, so that do not need to be added back.
+        array[1, :] = (array[5, :] + array[7, :]) * array[2, :]
+        return array
+
+    def _calc_growth(self) -> float:
+        # Calculate the perpetual/long-term growth
+        # Get GDP rate
+        country = self._eq.country
+        gdp_rate = self._rf \
+            .get_gdp(country) \
+            .prices.to_numpy()
+        idx_gdp = self._gdp_w - 1
+        lt_gdp = np.nanmean(gdp_rate[-idx_gdp:])
+
+        # Get Inflation rate
+        self._inflation = self._rf \
+            .get_inflation(country) \
+            .prices.to_numpy()
+        idx_infl = (self._infl_w - 1) * 12
+        lt_infl = np.nanmean(self._inflation[-idx_infl:])
+
+        # Long-term drift
+        return lt_gdp + lt_infl
+
     def _calc_wacc(self) -> tuple:
-        f, ph = self.frequency, self._ph
+        f, ph = self.frequency, self._history
 
         dt, equity = self._ff.total_equity(f)
         equity = equity[-1]
@@ -155,14 +198,14 @@ class DCF(BaseFundamentalModel):
         equity_share = equity / (equity + debt)
         debt_share = debt / (equity + debt)
 
-        index = self._ff.get_index(f)[-self._ph:]
+        index = self._ff.get_index(f)[-ph:]
         capm = CAPM(self._eq).calculate(
             np.datetime64(str(index[0].astype('datetime64[Y]')) + '-01-01'),
             np.datetime64(str(index[-1].astype('datetime64[Y]')) + '-12-31')
         )
         coe = capm.capm_return
 
-        rf = Fin.get_rf_glob() \
+        rf = self._rf \
             .get_rf(self._eq.country) \
             .last_price()[0]
 
@@ -177,16 +220,20 @@ class DCF(BaseFundamentalModel):
         return wacc, coe, cod
 
     def _calculate(self) -> None:
-        f, ph, fp = self.frequency, self._ph, self._fp
+        f, ph, fp = self.frequency, self._history, self._projection
         fcff = self._calc_fcff()
         wacc, coe, cod = self._calc_wacc()
+
+        # Calculate growth
+        lt_gwt = self._calc_growth() if self._growth is None else self._growth
+        premium = .0 if self._premium is None else self._premium
+        tot_gwt = lt_gwt + premium
 
         # Get Cash Flows to discount
         cf = np.zeros((2, fp + 1))
         cf[0, :] = np.arange(1, fp + 2, 1)
         cf[1, :fp] = fcff[1, -fp:]
-        cf[1, -1] = float(fcff[1, -1]) * (1. + self._p_rate) / \
-                    (wacc - self._p_rate)
+        cf[1, -1] = float(fcff[1, -1]) * (1. + tot_gwt) / (wacc - tot_gwt)
 
         # Calculate Fair Value
         shares = float(self._ff.common_shares(f)[1][-1])
@@ -199,6 +246,11 @@ class DCF(BaseFundamentalModel):
         # Accumulate
         self._res_update(
             {
+                'ccy': self._comp.currency,
+                'perpetual_growth': self._growth,
+                'premium': self._premium,
+                'uid': self._uid,
+                'equity': self._eq.uid,
                 'fcff_calc': pd.DataFrame(
                     fcff.T,
                     columns=self._COLS_FCF,
@@ -212,6 +264,8 @@ class DCF(BaseFundamentalModel):
                 'cost_of_debt': cod,
                 'history': ph,
                 'projection': fp,
+                'lt_growth': lt_gwt,
+                'tot_growth': tot_gwt,
             }
         )
 

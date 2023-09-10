@@ -99,6 +99,7 @@ CREATE TABLE [DecDatatype] (
     [encoding] INTEGER,
     PRIMARY KEY ([datatype])
 ) WITHOUT ROWID;
+CREATE UNIQUE INDEX unique_encoding on DecDatatype([encoding]);
 
 CREATE TABLE [Downloads] (
     [provider] TEXT NOT NULL,

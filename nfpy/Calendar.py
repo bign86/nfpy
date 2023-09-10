@@ -63,6 +63,7 @@ class Calendar(metaclass=Singleton):
         self._start = None
         self._end = None
         self._t0 = None
+        self._fft0 = None
         self._calendar = None
         self._monthly_calendar = None
         self._yearly_calendar = None
@@ -104,9 +105,19 @@ class Calendar(metaclass=Singleton):
     def t0(self) -> pd.Timestamp:
         return self._t0
 
+    # Offset between end and t0
+    @property
+    def fft0(self) -> int:
+        return self._fft0
+
     @t0.setter
     def t0(self, v: pd.Timestamp) -> None:
         self._t0 = v
+
+        i = 1
+        while self._t0 != self._calendar[-i]:
+            i += 1
+        self._fft0 = i
 
     @property
     def is_initialized(self) -> bool:
@@ -178,6 +189,12 @@ class Calendar(metaclass=Singleton):
         offset = max(0, self._end.weekday() - 4)
         # offset = min(2, max(0, (self.end.weekday() + 6) % 7 - 3))
         self._t0 = self.end - off.BDay(offset)
+
+        i = 1
+        while self._t0 != self._calendar[-i]:
+            i += 1
+        self._fft0 = i
+        assert self._t0 == self._calendar[-self._fft0]
 
         #
         # MONTHLY

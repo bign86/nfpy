@@ -3,13 +3,14 @@
 # Low level functions for risk to Cythonize
 #
 
+import cutils
 import numpy as np
 from scipy import stats
 from typing import Optional
 
 from .TSStats_ import (rolling_sum, rolling_window)
 from .TSUtils_ import (dropna, fillna, search_trim_pos)
-from nfpy.Tools import Exceptions as Ex
+from nfpy.Tools import (Exceptions as Ex, Utilities as Ut)
 
 
 def beta(dt: np.ndarray, ts: np.ndarray, proxy: np.ndarray,
@@ -43,7 +44,18 @@ def beta(dt: np.ndarray, ts: np.ndarray, proxy: np.ndarray,
     if not w:
         # scipy.linregress() is not robust against nans, therefore we clean them
         # and keep the dates series consistent.
-        v, mask = dropna(v)
+
+        Ut.print_deprecation('Risk.beta()')
+        v_, mask = dropna(v)
+        v = cutils.dropna(v, 1)
+
+        assert v_.size == v.size, f'Math.beta(): {v_.size} != {v.size}'
+        assert v_.shape[0] == v.shape[0], f'Math.beta(): {v_.shape[0]} != {v.shape[0]}'
+        assert v_.shape[1] == v.shape[1], f'Math.beta(): {v_.shape[1]} != {v.shape[1]}'
+        for i in range(v_.shape[0]):
+            for j in range(v_.shape[1]):
+                assert v_[i, j] == v[i, j], f'Math.beta(): @[{i}, {j}]: {v_[i, j]} != {v[i, j]}'
+
         dts = dts[-1:]
         slope, intercept, _, _, std_err = stats.linregress(v[1, :], v[0, :])
 
@@ -81,9 +93,9 @@ def capm_beta(dt: np.ndarray, ts: np.ndarray, idx: np.ndarray,
         raise Ex.ShapeError('The series must have the same length')
 
     slc = search_trim_pos(dt, start=start, end=end)
-    v = dropna(
-        np.vstack((ts[slc], idx[slc]))
-    )[0]
+    v = cutils.dropna(
+        np.vstack((ts[slc], idx[slc])), 1
+    )
 
     prx_var = np.var(v[1, :])
     covar = np.cov(v[0, :], v[1, :], bias=True)
@@ -110,7 +122,17 @@ def drawdown(ts: np.ndarray, w: int) -> tuple[np.ndarray, np.ndarray]:
     idx_max += np.arange(len(idx_max))
     dd = np.take(ts, idx_max) / ts[w - 1:] - 1.
     mdd = np.empty_like(dd)
-    mdd[:w] = np.maximum.accumulate(fillna(dd[:w], -1., inplace=True))
+    # mdd[:w] = np.maximum.accumulate(fillna(dd[:w], -1., inplace=True))
+
+    Ut.print_deprecation('Risk.drawdown()')
+    filled_ = fillna(dd[:w], -1., inplace=False)
+    filled = cutils.fillna(dd[:w], -1.)
+
+    assert filled_.size == filled.size, f'Math.drawdown(): assert on cutils.fillna() failed | sizes {filled_.size} != {filled.size}'
+    for i in range(filled_.size):
+        assert filled[i] == filled_[i], f'Math.drawdown(): assert on cutils.fillna() failed'
+
+    mdd[:w] = np.maximum.accumulate(filled)
     mdd[w - 1:] = np.nanmax(rolling_window(dd, w), axis=1)
     return dd, mdd
 
@@ -168,7 +190,7 @@ def te(dt: np.ndarray, r: np.ndarray, bkr: np.ndarray,
        start: Optional[np.datetime64] = None,
        end: Optional[np.datetime64] = None, w: Optional[int] = None) \
         -> tuple[np.ndarray, np.ndarray]:
-    """ Calculates the Tracking Error (TE) between a the returns of an asset and
+    """ Calculates the Tracking Error (TE) between the returns of an asset and
         its benchmark.
 
         Input:

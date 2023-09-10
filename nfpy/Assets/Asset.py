@@ -4,6 +4,7 @@
 #
 
 import abc
+import cutils
 from datetime import timedelta
 import numpy as np
 import pandas as pd
@@ -35,14 +36,6 @@ class Asset(FinancialItem):
         else:
             raise Ex.CalendarError("Calendar not initialized as required!!!")
         self._cal = c
-        # self._df = None
-        # self._cal = Cal.get_calendar_glob()
-        # self.new_df()
-
-    # def reset_df(self):
-    #     if self._cal is None:
-    #         raise Ex.CalendarError("Calendar not initialized as required!!!")
-    #     self._df = pd.DataFrame(index=self._cal.calendar)
 
     @property
     def ts_table(self) -> str:
@@ -67,26 +60,30 @@ class Asset(FinancialItem):
 
     @property
     def returns(self) -> pd.Series:
-        """ Returns the default returns :) series for the asset. """
+        """ Returns the default returns :) series for the asset.
+            This function does not use Asset._calc_returns() to avoid going
+            through the Asset.series() call.
+        """
         code = self._dt.get(
             self._DEF_PRICE_DTYPE.replace('Price', 'Return')
         )
         if code not in self._df.columns:
-            self._df[code] = self.prices \
-                .pct_change(1, fill_method='pad')
+            self._calc_returns(self._DEF_PRICE_DTYPE, code)
+
         return self._df[code]
 
     @property
     def log_returns(self) -> pd.Series:
-        """ Returns the default log returns :) series for the asset. """
-        code = self._dt(
+        """ Returns the default log returns :) series for the asset.
+            This function does not use Asset._calc_log_returns() to avoid going
+            through the Asset.series() call.
+        """
+        code = self._dt.get(
             self._DEF_PRICE_DTYPE.replace('Price', 'LogReturn')
         )
         if code not in self._df.columns:
-            self._df[code] = self.prices \
-                .pct_change(1, fill_method='pad') \
-                .add(1.) \
-                .log()
+            self._calc_log_returns(self._DEF_PRICE_DTYPE, code)
+
         return self._df[code]
 
     @abc.abstractmethod
@@ -130,14 +127,16 @@ class Asset(FinancialItem):
                 idx [int]: index of the last valid price
         """
         prices = self.prices
-        ts = prices.values
-        date = prices.index.values
+        ts = prices.to_numpy()[:-self._cal.fft0]
+        date = prices.index.to_numpy()[:-self._cal.fft0]
 
         pos = None
         if dt:
             dt = Cal.pd_2_np64(dt)
             pos = np.searchsorted(date, [dt])[0]
-        idx = Math.last_valid_index(ts, pos)
+
+        pos = ts.shape[0] - 1 if pos is None else int(pos)
+        idx = cutils.last_valid_index(ts, 0, 0, pos)
 
         return ts[idx], date[idx], idx
 
@@ -204,19 +203,25 @@ class Asset(FinancialItem):
             self._df.sort_index(inplace=True)
         return success
 
-    def _calc_returns(self, dtype: str) -> None:
+    def _calc_returns(self, dtype: str, code: Optional[int] = None) -> None:
         """ Calculates the returns from the series of the prices. """
-        code = self._dt.get(dtype)
-        self._df[code] = self.series(dtype) \
-            .pct_change(1, fill_method='pad')
+        if code is None:
+            code = self._dt.get(dtype.replace('Price', 'Return'))
 
-    def _calc_log_returns(self, dtype: str) -> None:
+        self._df[code] = cutils.ret_nans(
+            self.series(dtype).to_numpy(),
+            False
+        )
+
+    def _calc_log_returns(self, dtype: str, code: Optional[int] = None) -> None:
         """ Calculates the log returns from the series of the prices. """
-        code = self._dt.get(dtype)
-        self._df[code] = self.series(dtype) \
-            .pct_change(1, fill_method='pad') \
-            .add(1.) \
-            .log()
+        if code is None:
+            code = self._dt.get(dtype.replace('Price', 'LogReturn'))
+
+        self._df[code] = cutils.ret_nans(
+            self.series(dtype).to_numpy(),
+            True
+        )
 
     # TODO: This has NOT been TESTED!!!
     def write_dtype(self, dt: str) -> None:
@@ -261,15 +266,14 @@ class Asset(FinancialItem):
                 mean_ret [float]: expected value for returns
         """
         _ret = self.log_returns if is_log else self.returns
+
+        end = self._cal.t0 if end is None else end
         slc = Math.search_trim_pos(
-            _ret.index.values,
+            _ret.index.to_numpy(),
             start=Cal.pd_2_np64(start),
             end=Cal.pd_2_np64(end),
         )
-        return Math.e_ret(
-            _ret.values[slc],
-            is_log=is_log
-        )
+        return float(np.nanmean(_ret.to_numpy()[slc]))
 
     def return_volatility(self, start: Optional[Cal.TyDate] = None,
                           end: Optional[Cal.TyDate] = None,
@@ -285,12 +289,14 @@ class Asset(FinancialItem):
                 vola_ret [float]: expected value for returns
         """
         _ret = self.log_returns if is_log else self.returns
+
+        end = self._cal.t0 if end is None else end
         slc = Math.search_trim_pos(
-            _ret.index.values,
+            _ret.index.to_numpy(),
             start=Cal.pd_2_np64(start),
             end=Cal.pd_2_np64(end)
         )
-        return float(np.nanstd(_ret.values[slc]))
+        return float(np.nanstd(_ret.to_numpy()[slc]))
 
     def total_return(self, start: Optional[Cal.TyDate] = None,
                      end: Optional[Cal.TyDate] = None,
@@ -306,13 +312,15 @@ class Asset(FinancialItem):
                 tot_ret [float]: expected value for returns
         """
         _p = self.prices
+
+        end = self._cal.t0 if end is None else end
         slc = Math.search_trim_pos(
-            _p.index.values,
+            _p.index.to_numpy(),
             start=Cal.pd_2_np64(start),
             end=Cal.pd_2_np64(end),
         )
         return Math.tot_ret(
-            _p.values[slc],
+            _p.to_numpy()[slc],
             is_log=is_log
         )
 
@@ -331,14 +339,16 @@ class Asset(FinancialItem):
                 perf [pd.Series]: Compounded returns series
         """
         r = self.returns
-        dt = r.index.values
+        dt = r.index.to_numpy()
+
+        end = self._cal.t0 if end is None else end
         slc = Math.search_trim_pos(
             dt,
             start=Cal.pd_2_np64(start),
             end=Cal.pd_2_np64(end),
         )
         p = Math.comp_ret(
-            r.values[slc],
+            r.to_numpy()[slc],
             is_log=is_log
         )
         return pd.Series(p * base, index=dt[slc])

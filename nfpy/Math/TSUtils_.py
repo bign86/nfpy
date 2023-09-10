@@ -4,12 +4,12 @@
 #
 
 from copy import deepcopy
+import cutils
 import numpy as np
 import scipy.signal as sig
 from typing import Optional
-import warnings
 
-from nfpy.Tools import Exceptions as Ex
+from nfpy.Tools import (Exceptions as Ex, Utilities as Ut)
 
 
 def dropna(v: np.ndarray, axis: int = 0) -> tuple:
@@ -23,6 +23,7 @@ def dropna(v: np.ndarray, axis: int = 0) -> tuple:
             arr [np.ndarray]: output array w/o NaNs
             mask [np.ndarray]: boolean mask of not-NaN values
     """
+    Ut.print_deprecation('Math.dropna() -> cutils.dropna()')
     if len(v.shape) == 1:
         mask = ~np.isnan(v)
         _v = v[mask]
@@ -57,6 +58,7 @@ def ffill_cols(v: np.ndarray, n: float = 0, inplace=False) -> np.ndarray:
         Output:
             out [np.ndarray]: array with NaNs filled column-wise
     """
+    Ut.print_deprecation('Math.ffill_cols() -> cutils.ffill()')
     # FIXME: this involves a copy in np.flatten(). In general, bad way to take
     #        into account dimensionality.
     flatten = False
@@ -76,81 +78,14 @@ def ffill_cols(v: np.ndarray, n: float = 0, inplace=False) -> np.ndarray:
     return out
 
 
-# TODO: implement the inplace option
-def ffill_rows(v: np.ndarray, n: float = .0, inplace=False) -> np.ndarray:
-    """ Forward fill nan with the last valid value row-wise.
-
-        Input:
-            v [np.ndarray]: input array either 1-D or 2-D
-            n [float]: fill up value for NaNs appearing at the beginning
-                of the data series (default: .0)
-            inplace [bool]: do it in-place (default: False)
-
-        Output:
-            out [np.ndarray]: array with NaNs filled column-wise
-    """
-    # FIXME: this involves a copy in np.flatten(). In general, bad way to take
-    #        into account dimensionality.
-    flatten = False
-    if len(v.shape) == 1:
-        v = v[None, :]
-        flatten = True
-    mask = np.isnan(v)
-    tmp = v[0].copy()
-    v[0][mask[0]] = n
-    mask[0] = False
-    idx = np.where(~mask, np.arange(mask.shape[1])[None, :], 0)
-    out = np.take_along_axis(v, np.maximum.accumulate(idx, axis=1), axis=1)
-    v[0] = tmp
-
-    if flatten:
-        out = out.flatten()
-    return out
-
-
 def fillna(v: np.ndarray, n: float, inplace=False) -> np.ndarray:
     """ Fill nan in the input array with the supplied value. """
+    Ut.print_deprecation('Math.fillna() -> cutils.fillna()')
     mask = np.where(np.isnan(v))
     if not inplace:
         v = v.copy()
     v[mask] = n
     return v
-
-
-def find_extrema(v: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """ Finds the sorted indexes corresponding to maxima/minima of a series.
-        Note: DEPRECATED! - Use find_relative_extrema() instead
-
-        Input:
-            v [np.ndarray]: Input values series
-
-        Output:
-            idx [np.ndarray]: sorted list of maxima/minima indices
-            flags [np.ndarray]: sorted list of maxima/minima flags.
-                maxima=True, minima=False
-    """
-    warnings.warn(
-        "Math.find_extrema() deprecated, use Math.find_relative_extrema()",
-        DeprecationWarning
-    )
-
-    mask = (np.diff(v) > .0).astype(int)
-    change = np.diff(mask)
-    idx_max = np.nonzero(change == -1)[0]
-    idx_min = np.nonzero(change == 1)[0]
-    idx = np.concatenate((idx_max, idx_min))
-
-    flags = np.empty(idx.shape[0], dtype=bool)
-    flags[:idx_max.shape[0]] = True
-    flags[idx_max.shape[0]:] = False
-
-    # Calculate returned quantities
-    sorting = np.argsort(idx)
-    idx = idx[sorting]
-    flags = flags[sorting]
-
-    idx += 1
-    return idx, flags
 
 
 def find_relative_extrema(v: np.ndarray, order: int) \
@@ -181,41 +116,6 @@ def find_relative_extrema(v: np.ndarray, order: int) \
     return idx, flags
 
 
-def last_valid_index(v: np.ndarray, start: Optional[int] = None,
-                     axis: int = 0) -> int:
-    """ Find the index of the last non-nan value. Similar to the Pandas method
-        last_valid_index(). It can be used with 1D arrays only.
-
-        Input:
-            v [np.ndarray]: input series
-            start [Optional[int]]: starting index (default: None)
-
-        Output:
-            i [int]: last valid index
-
-        Exceptions:
-            ShapeError: if array is not 1D or 2D
-            ValueError: if the series is all nans
-    """
-    if len(v.shape) == 1:
-        v = v[None, :]
-    elif (len(v.shape) == 2) & (axis == 1):
-        v = v.T
-    elif len(v.shape) > 2:
-        raise Ex.ShapeError('last_valid_index(): Only 1D and 2D arrays supported')
-
-    n = v.shape[1]
-    i = n - 1 \
-        if start is None \
-        else min(start, n - 1)
-
-    while np.any(np.isnan(v[:, i])) and (i >= 0):
-        i -= 1
-    if i < 0:
-        raise ValueError('last_valid_index(): The series is all nans')
-    return i
-
-
 def last_valid_value(v: np.ndarray, dt: Optional[np.ndarray] = None,
                      t0: Optional[np.datetime64] = None) -> tuple[float, int]:
     """ Find the last valid value at a date <= t0. It can be used with 1D arrays
@@ -235,45 +135,16 @@ def last_valid_value(v: np.ndarray, dt: Optional[np.ndarray] = None,
             ValueError: if the series is all nans
     """
     if len(v.shape) > 1:
-        raise Ex.ShapeError('Only 1D arrays supported')
+        raise Ex.ShapeError('Math.last_valid_value(): only 1D arrays supported')
 
     if t0:
+        if dt is None:
+            raise ValueError('Math.last_valid_value(): to constrain the search with t0 you need to pass the array of dates')
         pos = np.searchsorted(dt, t0, side='right')
         v = v[:pos+1]
-    idx = last_valid_index(v)
+
+    idx = cutils.last_valid_index(v, 0, 0, v.shape[0] - 1)
     return float(v[idx]), idx
-
-
-def next_valid_index(v: np.ndarray, start: int = 0, axis: int = 0) -> int:
-    """ Find the index of the next non-nan value starting from the given index.
-        It can be used with 1D arrays only.
-
-        Input:
-            v [np.ndarray]: input series
-            start [int]: starting index (default: 0)
-            axis [int]: search direction (0: across rows, 1: across columns)
-
-        Output:
-            i [int]: next valid index
-
-        Exceptions:
-            ShapeError: if array is not 1D or 2D
-            ValueError: if the series is all nans
-    """
-    if len(v.shape) == 1:
-        v = v[None, :]
-    elif (len(v.shape) == 2) & (axis == 1):
-        v = v.T
-    elif len(v.shape) > 2:
-        raise Ex.ShapeError('next_valid_index(): Only 1D and 2D arrays supported')
-
-    i = start
-    n = v.shape[1]
-    while (i < n) and np.any(np.isnan(v[:, i])):
-        i += 1
-    if i == n:
-        raise ValueError('next_valid_index(): The series is all nans')
-    return i
 
 
 def next_valid_value(v: np.ndarray, dt: Optional[np.ndarray] = None,
@@ -295,12 +166,15 @@ def next_valid_value(v: np.ndarray, dt: Optional[np.ndarray] = None,
             ValueError: if the series is all nans
     """
     if len(v.shape) > 1:
-        raise Ex.ShapeError('next_valid_value(): Only 1D arrays supported')
+        raise Ex.ShapeError('Math.next_valid_value(): only 1D arrays supported')
 
     if t0:
+        if dt is None:
+            raise ValueError('Math.next_valid_value(): to constrain the search with t0 you need to pass the array of dates')
         pos = np.searchsorted(dt, t0, side='right')
         v = v[pos:]
-    idx = next_valid_index(v, 0)
+
+    idx = cutils.next_valid_index(v, 0, 0, v.shape[0] - 1)
     return float(v[idx]), idx
 
 

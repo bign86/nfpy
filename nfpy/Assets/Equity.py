@@ -3,6 +3,7 @@
 # Base class for simple equity stock
 #
 
+import cutils
 import numpy as np
 import pandas as pd
 from typing import (Callable, Optional)
@@ -65,7 +66,7 @@ class Equity(Asset):
         if split.empty:
             split_adj = 1.
         else:
-            split = Math.fillna(split.values, 1., inplace=False)
+            split = cutils.fillna(split.to_numpy(), 1.)
             split_adj = np.cumprod(split[::-1])[::-1]
 
         # We apply the adjusting factors to the loaded series
@@ -131,7 +132,7 @@ class Equity(Asset):
         # Take the available series
         other_values = self._df[success[0]].values
         nan_mask = np.isnan(other_values)
-        res = Math.ffill_cols(other_values)
+        res = cutils.ffill(other_values.copy())
 
         # If we apply the adjustments
         if success[3] == 1:
@@ -140,7 +141,8 @@ class Equity(Asset):
             if success[2] != 0:
                 split = self.splits
                 if not split.empty:
-                    split = Math.fillna(split.values, 1., inplace=False)
+                    split = cutils.fillna(split.to_numpy().copy(), 1.)
+
                     split_adj = np.cumprod(split[::-1])[::-1]
                     res *= split_adj
 
@@ -148,7 +150,8 @@ class Equity(Asset):
             if success[1] != 0:
                 dividends = self.series('Dividend.SplitAdj.Regular')
                 if not dividends.empty:
-                    dividends = Math.fillna(dividends.values, .0, inplace=False)
+                    dividends = cutils.fillna(dividends.to_numpy().copy(), 0.)
+
                     div_adj = 1. - dividends[1:] / res[:-1]
                     div_adj = np.cumprod(div_adj[::-1])[::-1]
                     res[:-1] *= div_adj
@@ -160,7 +163,8 @@ class Equity(Asset):
             if success[1] != 0:
                 dividends = self.series('Dividend.SplitAdj.Regular')
                 if not dividends.empty:
-                    dividends = Math.fillna(dividends.values, .0, inplace=False)
+                    dividends = cutils.fillna(dividends.to_numpy().copy(), 0.)
+
                     div_adj = res[:-1] / (res[:-1] + dividends[1:])
                     div_adj = np.cumprod(div_adj[::-1])[::-1]
                     res[:-1] /= div_adj
@@ -169,7 +173,8 @@ class Equity(Asset):
             if success[2] != 0:
                 split = self.splits
                 if not split.empty:
-                    split = Math.fillna(split.values, 1., inplace=False)
+                    split = cutils.fillna(split.to_numpy().copy(), 1.)
+
                     split_adj = np.cumprod(split[::-1])[::-1]
                     res /= split_adj
 
@@ -209,6 +214,8 @@ class Equity(Asset):
 
         eq_ret = self.log_returns if is_log else self.returns
         index_ret = benchmark.log_returns if is_log else benchmark.returns
+
+        end = self._cal.t0 if end is None else end
         dts, beta, adj_b, itc = Math.beta(
             eq_ret.index.to_numpy(),
             eq_ret.to_numpy(),
@@ -248,6 +255,8 @@ class Equity(Asset):
 
         eq = self.log_returns if is_log else self.returns
         idx = benchmark.log_returns if is_log else benchmark.returns
+
+        end = self._cal.t0 if end is None else end
         return Math.correlation(
             eq.index.to_numpy(),
             eq.to_numpy(),

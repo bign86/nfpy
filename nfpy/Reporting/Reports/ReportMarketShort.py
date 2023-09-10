@@ -4,6 +4,7 @@
 #
 
 from collections import defaultdict
+import cutils
 from datetime import timedelta
 import numpy as np
 import pandas as pd
@@ -185,10 +186,12 @@ class ReportMarketShort(BaseReport):
         # oldest equity value would not be applied at the right time on the
         # index. Here we are ensuring a shorter history of the index as well.
         # Is NOT considered the case the index may be shorter than the equity.
-        slc = slice(
-            Math.next_valid_index(v_p, self._hist_slc.start),
-            self._hist_slc.stop
+        idx = cutils.next_valid_index(
+            v_p, 1,
+            self._hist_slc.start,
+            self._hist_slc.stop - 1
         )
+        slc = slice(idx, self._hist_slc.stop)
 
         pl = IO.TSPlot(figsize=(10, 4)) \
             .lplot(0, dt_p[slc], v_p[slc], label=asset.ticker)
@@ -196,9 +199,8 @@ class ReportMarketShort(BaseReport):
         bench_uid = asset.index
         if bench_uid is not None:
             bench_r = self._af.get(bench_uid).returns.values
-            bench_perf = Math.comp_ret(bench_r[slc], is_log=False) \
-                         * Math.next_valid_value(v_p[slc])[0]
-
+            bench_perf = cutils.compound_ret_from_ret_nans(bench_r[slc], False) + 1.
+            bench_perf *= Math.next_valid_value(v_p[slc])[0]
             pl.lplot(0, dt_p[slc], bench_perf, color='C2',
                      linewidth=1.5, label=bench_uid)
 
@@ -342,7 +344,7 @@ class ReportMarketShort(BaseReport):
         sr_multi = self._p['sr']['w_multi']
 
         smooth_w = max(w_sr) * sr_multi
-        sr_checker = Trd.SRBreach(
+        sr_checker = Trd.SRBreachEngine(
             v_p[-smooth_w:],
             sr_check, sr_tol, 'smooth', w_sr
         )
@@ -355,7 +357,8 @@ class ReportMarketShort(BaseReport):
         w_check = self._p['ewma']['w_plot']
 
         total_length = min(w_slow + w_check, v_p.shape[0])
-        shortened_v = Math.ffill_cols(v_p[-total_length:])
+        shortened_v = cutils.ffill(v_p[-total_length:].copy())
+
         shortened_dt = dt_p[-total_length:]
         ema_f = Ind.Ewma(shortened_v, True, w_fast)
         ema_s = Ind.Ewma(shortened_v, True, w_slow)

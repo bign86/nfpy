@@ -20,18 +20,19 @@ class Position(Ut.AttributizedDict):
         self.alp = alp
         self.quantity = quantity
         self.type = atype  # type of asset
+        self.trades = []
 
 
 class Trade(Ut.AttributizedDict):
 
     def __init__(self):
         super().__init__(self)
-        self.ptf_uid = ''
-        self.date = pd.Timestamp()
-        self.pos_uid = ''
-        self.buy_sell = -1
-        self.currency = ''
-        self.quantity = .0
-        self.price = .0
+        self.ptf = ''
+        self.date = None
+        self.uid = ''
+        self.side = -1
+        self.ccy = ''
+        self.q = .0
+        self.p = .0
         self.costs = .0
-        self.market = ''
+        self.market = None

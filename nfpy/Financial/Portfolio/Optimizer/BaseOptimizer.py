@@ -7,9 +7,9 @@ from abc import (ABCMeta, abstractmethod)
 import numpy as np
 import numpy.random as rnd
 from scipy.optimize import (minimize, OptimizeResult)
-from typing import Type
+from typing import (Sequence, Type)
 
-from nfpy.Tools import Utilities as Ut
+from nfpy.Tools import (Constants as Cn, Utilities as Ut)
 
 
 class OptimizerConf(Ut.AttributizedDict):
@@ -17,7 +17,7 @@ class OptimizerConf(Ut.AttributizedDict):
 
     def __init__(self):
         super().__init__()
-        self.constraints = ()
+        self.constraints = []
         self.tol = 1e-9
         self.method = 'SLSQP'
         self.options = {'disp': False, 'eps': 1e-08,
@@ -48,17 +48,25 @@ class BaseOptimizer(metaclass=ABCMeta):
 
     _LABEL = ''
 
-    def __init__(self, mean_returns: np.ndarray, covariance: np.ndarray,
-                 iterations: int = 50, gamma: float = None, **kwargs):
+    def __init__(self, returns: np.ndarray, freq: str, labels: Sequence[str],
+                 iterations: int = 50, gamma: float = .0,
+                 budget: float = 1., **kwargs):
         # Input variables
+        self._ret = returns
+        self._freq = freq
         self._iter = iterations
-        self._gamma = gamma
-        self._ret = mean_returns
-        self._cov = covariance
+        self._cnsts_labels = labels
+
+        self._gamma = abs(gamma)
 
         # Working variables
-        self._len = mean_returns.shape[0]
-        self._calc_var = self._fn_var_l2 if gamma else self._fn_var
+        assert returns.shape[0] == len(labels)
+        self._num_cnsts = returns.shape[0]
+        self._var_f = self._fn_var_l2 if gamma != 0 else self._fn_var
+        self._budget_constraint = self._set_budget(budget)
+        self._scaling = Cn.FREQ_2_D[freq]['Y']
+        self._mean_ret = None
+        self._cov = None
 
         # Output variables
         self._res = None
@@ -74,13 +82,50 @@ class BaseOptimizer(metaclass=ABCMeta):
             self._res = self._optimize()
         return self._res
 
+    @property
+    def covariance(self) -> np.ndarray:
+        return self._cov
+
+    @covariance.setter
+    def covariance(self, v: np.ndarray) -> None:
+        if v.ndim != 2:
+            raise ValueError('BaseOptimizer(): covariance matrix not 2D')
+        if v.shape[0] != v.shape[1]:
+            raise ValueError('BaseOptimizer(): covariance matrix not squared')
+        if v.shape[0] != self._num_cnsts:
+            raise ValueError(f'BaseOptimizer(): covariance matrix not of size {self._num_cnsts}')
+        self._cov = v
+
+    @property
+    def mean_returns(self) -> np.ndarray:
+        return self._mean_ret
+
+    @mean_returns.setter
+    def mean_returns(self, v: np.ndarray) -> None:
+        if v.ndim != 1:
+            raise ValueError('BaseOptimizer(): mean returns vector not 1D')
+        if v.shape[0] != self._num_cnsts:
+            raise ValueError(f'BaseOptimizer(): mean returns vector not of size {self._num_cnsts}')
+        self._mean_ret = v
+
+    def _abs_budget_f(self, v: np.ndarray) -> float:
+        return np.sum(np.abs(v)) - self._budget_constraint[1]
+
+    def _budget_f(self, v: np.ndarray) -> float:
+        return np.sum(v) - self._budget_constraint[0]
+
+    @staticmethod
+    def _set_budget(budget: float) -> tuple[float, float]:
+        budget = max(-1., min(1., budget))
+        return budget, 2.-abs(budget)
+
     @staticmethod
     def _fn_var(*args) -> float:
         """ Calculates the portfolio variance.
 
             Input:
-                wgt [np.array]: portfolio weights vector
-                cov [np.array]: portfolio covariance
+                wgt [np.ndarray]: portfolio weights vector
+                cov [np.ndarray]: portfolio covariance
 
             Output:
                 variance [float]: portfolio variance
@@ -93,8 +138,8 @@ class BaseOptimizer(metaclass=ABCMeta):
         """ Calculates the portfolio variance with L2 regularization.
 
             Input:
-                wgt [np.array]: portfolio weights vector
-                cov [np.array]: portfolio covariance
+                wgt [np.ndarray]: portfolio weights vector
+                cov [np.ndarray]: portfolio covariance
                 gamma [float]: regularization parameter
 
             Output:
@@ -112,22 +157,19 @@ class BaseOptimizer(metaclass=ABCMeta):
             Input:
                 conf [OptimizerConf]: configuration of the optimization
         """
-
-        def budget(x):
-            return np.sum(x) - 1.
-
-        constraints = ({'type': 'eq', 'fun': budget},) + conf.constraints
-        bounds = ((0.0, 1.0),) * self._len
+        bounds = ((-1.0, 1.0),) * self._num_cnsts
         best_conv = 1e6
 
         result = None
         for _ in range(self._iter):
-            _v = rnd.rand(self._len)
+            _v = rnd.rand(self._num_cnsts)
             _x0 = _v / np.sum(_v)
 
-            _optimum = minimize(conf.funct, _x0, args=conf.args, tol=conf.tol,
-                                method=conf.method, bounds=bounds,
-                                constraints=constraints, options=conf.options)
+            _optimum = minimize(
+                conf.funct, _x0, args=conf.args, tol=conf.tol,
+                method=conf.method, bounds=bounds,
+                constraints=conf.constraints, options=conf.options
+            )
 
             if _optimum.success and (_optimum.fun < best_conv):
                 best_conv = _optimum.fun
@@ -138,16 +180,27 @@ class BaseOptimizer(metaclass=ABCMeta):
     def _create_result_obj(self) -> OptimizerResult:
         obj = OptimizerResult()
         obj.model = self._LABEL
-        obj.const_ret = self._ret
+        obj.labels = self._cnsts_labels
+        obj.const_ret = self._mean_ret
         obj.const_var = self._cov.diagonal()
         return obj
 
     @abstractmethod
     def _optimize(self) -> OptimizerResult:
         """ Abstract method. Must create the configuration of the minimization
-            and call the minimization routine. Last, the returned results object
-            is created.
+            and call the minimization routine. Inputs to the minimization must
+            be created here. In particular,
+                * mean returns if not set before
+                * covariance matrix if not set before (_calc_cov() is available,
+                    override if not appropriate for the method)
+                * define all constraint functions including the budget()
         """
+
+    def _calc_cov(self) -> np.ndarray:
+        """ Calculate the covariance. Must be called by _optimize() and may be
+            overridden in child classes.
+        """
+        return np.cov(self._ret.T, rowvar=False) * self._scaling
 
 
 TyOptimizer = Type[BaseOptimizer]

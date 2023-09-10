@@ -4,6 +4,7 @@
 #
 
 from collections import defaultdict
+import cutils
 from datetime import timedelta
 import numpy as np
 import pandas as pd
@@ -309,7 +310,7 @@ class ReportEquityFull(BaseReport):
         # index. Here we are ensuring a shorter history of the index as well.
         # Is NOT considered the case the index may be shorter than the equity.
         slc = slice(
-            Math.next_valid_index(v_p, self._hist_slc.start),
+            cutils.next_valid_index(v_p, self._hist_slc.start),
             self._hist_slc.stop
         )
 
@@ -356,9 +357,9 @@ class ReportEquityFull(BaseReport):
         df = pd.DataFrame(
             stats.T,
             index=self._time_spans,
-            columns=(
+            columns=[
                 '\u03C3 (Y)', 'return', '\u03B2', 'adj. \u03B2', '\u03C1'
-            )
+            ]
         )
         res.stats = df.to_html(
             index=True,
@@ -434,7 +435,7 @@ class ReportEquityFull(BaseReport):
         w_check = self._p['ewma']['w_plot']
 
         total_length = min(w_slow + w_check, v_p.shape[0])
-        shortened_v = Math.ffill_cols(v_p[-total_length:])
+        shortened_v = cutils.ffill(v_p[-total_length:].copy())
         shortened_dt = dt_p[-total_length:]
         ema_f = Ind.Ewma(shortened_v, True, w_fast)
         ema_s = Ind.Ewma(shortened_v, True, w_slow)
@@ -499,7 +500,7 @@ class ReportEquityFull(BaseReport):
             alerts_to_plot.sort(key=lambda x: x[2])
             df = pd.DataFrame(
                 alerts_to_plot,
-                columns=('condition', 'status', 'price', 'new', 'date trigger')
+                columns=['condition', 'status', 'price', 'new', 'date trigger']
             )
             res.alerts_table = df.to_html(
                 index=False,

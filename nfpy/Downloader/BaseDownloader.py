@@ -5,11 +5,13 @@
 from abc import (ABCMeta, abstractmethod)
 from collections import namedtuple
 import os
-from pathlib import Path
-from typing import (Optional, Sequence, Union)
-
 import pandas as pd
+from pathlib import Path
 import requests
+from requests import adapters
+import ssl
+from typing import (Optional, Sequence, Union)
+from urllib3 import poolmanager
 
 from nfpy.Calendar import now
 import nfpy.DB as DB
@@ -19,6 +21,23 @@ from nfpy.Tools import (Exceptions as Ex, get_conf_glob, Utilities as Ut)
 
 # Tuple to define parameters
 DwnParameter = namedtuple('DwnParameter', ['code', 'mandatory', 'default'])
+
+
+class TLSAdapter(adapters.HTTPAdapter):
+
+    def init_poolmanager(self, connections, maxsize, block=False):
+        """Create and initialize the urllib3 PoolManager."""
+        # ctx = ssl.create_default_context()
+        ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+        ctx.options |= 0x4
+        ctx.set_ciphers('DEFAULT@SECLEVEL=1')
+        self.poolmanager = poolmanager.PoolManager(
+                num_pools=connections,
+                maxsize=maxsize,
+                block=block,
+                ssl_version=ssl.PROTOCOL_TLS,
+                ssl_context=ctx
+        )
 
 
 # Base class for every download
@@ -223,10 +242,11 @@ class BasePage(metaclass=ABCMeta):
         if not self._is_initialized:
             raise RuntimeError("BaseDownloader(): The object must be initialized first")
 
-        req = requests.Session()
+        session = requests.Session()
+        self._mount(session)
 
         if self._jar:
-            req.cookies = self._jar
+            session.cookies = self._jar
 
         headers = self._HEADER
         headers['User-Agent'] = self.user_agent
@@ -236,11 +256,11 @@ class BasePage(metaclass=ABCMeta):
 
             # Make the call
             if self.req_method == 'get':
-                r = req.get(self.baseurl, params=param_set, headers=headers, timeout=10)
+                r = session.get(self.baseurl, params=param_set, headers=headers, timeout=10)
             elif self.req_method == 'post':
-                r = req.post(self.baseurl, data=param_set, headers=headers)
+                r = session.post(self.baseurl, data=param_set, headers=headers)
             else:
-                raise ValueError(f'Request method {self.req_method} not recognized')
+                raise ValueError(f'BaseDownloader(): Request method {self.req_method} not recognized')
 
             if r.status_code == 200:
                 r.encoding = self._ENCODING
@@ -250,6 +270,10 @@ class BasePage(metaclass=ABCMeta):
                 msg = f"BaseDownloader(): Error in downloading {self.__class__.__name__}|{self.ticker}: " \
                       f"[{r.status_code}] {r.reason}"
                 raise requests.HTTPError(msg)
+
+    def _mount(self, session) -> None:
+        """ To apply a custom SSL context to the call. """
+        pass
 
     def _write_to_file(self, fname: Optional[str] = None) -> None:
         """ Write to a text file. """

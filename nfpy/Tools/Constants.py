@@ -28,6 +28,19 @@ MONTHS_IN_1Q = 3
 MONTHS_IN_1Y = 12
 MONTHS = {'M': 1, 'Q': MONTHS_IN_1Q, 'Y': MONTHS_IN_1Y}
 
+# Quarterly periods in larger time frames
+QUARTERS_IN_1Y = 4
+QUARTERS = {'Y': QUARTERS_IN_1Y}
+
+# Frequency to dict
+FREQ_2_D = {
+    'D': DAYS,
+    'B': BDAYS,
+    'W': WEEKS,
+    'M': MONTHS,
+    'Q': QUARTERS,
+}
+
 # Numerical limits
 IS_ZERO_THRS = 1e-8
 
