@@ -132,6 +132,11 @@ def print_ok(msg: str, end: str = '\n') -> None:
     print(f'{Col.OKGREEN.value}OK{Col.ENDC.value} - {msg}', end=end)
 
 
+def print_warn(msg: str, end: str = '\n') -> None:
+    """ Print a warning message. """
+    print(f'{Col.WARNING.value}--- {msg}', end=end)
+
+
 def print_wrn(wrn: Warning, end: str = '\n') -> None:
     """ Print a raised warning. Gives consistency across the library. """
     print(f'{Col.WARNING.value}---{type(wrn).__name__}{Col.ENDC.value} - {wrn}', end=end)

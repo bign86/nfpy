@@ -14,7 +14,7 @@ class FundamentalsFactory(object):
 
     def __init__(self, company):
         self._comp = company
-        self._cnst = company.cnsts_df
+        self._cnst = company.financials
         self._labels = company.constituents_uids
 
         dfa = self._cnst.loc[('A', slice(None)), :]
@@ -251,9 +251,8 @@ class FundamentalsFactory(object):
     def net_income(self, freq: str, level: int = 0) -> tuple[np.ndarray, np.ndarray]:
         return self._financial('NETINC', freq, level)
 
-    # FIXME: this is gone
-    def roe__(self, freq: str, level: int = 0) -> tuple[np.ndarray, np.ndarray]:
-        return self._financial('0ROE', freq, level, self._roe, (freq,))
+    def roe(self, freq: str, level: int = 0) -> tuple[np.ndarray, np.ndarray]:
+        return self._financial('ROEQTY', freq, level, self._roe, (freq,))
 
     def _roe(self, freq: str, level: int = 0) -> tuple[np.ndarray, np.ndarray]:
         """ Return ROE as:

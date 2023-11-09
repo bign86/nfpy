@@ -4,23 +4,19 @@
 #
 
 import argparse
-from pandas import DateOffset
 from tabulate import tabulate
 from typing import Optional
 
-from nfpy.Calendar import (get_calendar_glob, today)
 import nfpy.DB as DB
 import nfpy.IO as IO
-from nfpy.Reporting import get_re_glob
+from nfpy.Reporting import ReportingEngine
 from nfpy.Tools import Utilities as Ut
 
-__version__ = '0.4'
+__version__ = '0.5'
 _TITLE_ = "<<< Report generation script >>>"
 
 _SELECT_COLS = ('id', 'title', 'description', 'report', 'active')
 _TABLE = 'Reports'
-_OFFSET_DAILY_CAL_IN_MONTHS = 120
-_OFFSET_YEARLY_CAL_IN_MONTHS = 240
 
 
 def _get_report_manually() -> Optional[str]:
@@ -73,21 +69,10 @@ if __name__ == '__main__':
     db = DB.get_db_glob()
     qb = DB.get_qb_glob()
 
-    end = today(mode='timestamp')
-    start_daily = end - DateOffset(months=_OFFSET_DAILY_CAL_IN_MONTHS)
-    start_monthly = end - DateOffset(months=_OFFSET_YEARLY_CAL_IN_MONTHS)
-    start_yearly = end - DateOffset(months=_OFFSET_YEARLY_CAL_IN_MONTHS)
-    get_calendar_glob().initialize(
-        end,
-        start=start_daily,
-        monthly_start=start_monthly,
-        yearly_start=start_yearly
-    )
-
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--interactive', action='store_true',
                         help='use interactively')
-    parser.add_argument('id', nargs=1, help='report ID')
+    parser.add_argument('id', help='report ID')
     args = parser.parse_args()
 
     if args.interactive is True:
@@ -97,12 +82,12 @@ if __name__ == '__main__':
         report_id = args.id if args.id else None
 
     if report_id is None:
-        print('Nothing to produce, exiting...', end='\n\n')
+        Ut.print_warn('Nothing to produce, exiting...', end='\n\n')
         Ut.print_ok('All done!')
         exit()
 
     print(f'\nCreating the following report:\n -> {report_id}', end='\n\n')
 
-    get_re_glob().run(names=report_id)
+    ReportingEngine().run(report_id=report_id)
 
     Ut.print_ok('All done!')

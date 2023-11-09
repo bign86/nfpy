@@ -3,9 +3,11 @@
 # Algorithms to find Support/Resistance levels in a bulk form.
 #
 
+import cutils
 import numpy as np
 from typing import (Optional, Sequence)
 
+from nfpy.Assets import get_af_glob
 import nfpy.Math as Math
 
 
@@ -45,7 +47,7 @@ def _search_centroids(ts: np.ndarray, flags: np.ndarray, tol: float,
     ret[ret == np.inf] = .0
     sigma = float(np.nanstd(ret))
 
-    mask_grp = np.empty_like(sort_ext, dtype=np.bool)
+    mask_grp = np.empty_like(sort_ext, dtype=np.bool_)
     mask_grp[0] = True
     mask_grp[1:] = diff > sort_ext[1:] * sigma * tol
     groups = np.cumsum(mask_grp)
@@ -69,7 +71,7 @@ def _search_pivots(p: np.ndarray, thrs: float) -> np.ndarray:
     down_thrs = 1. - thrs
 
     flags = np.zeros(p.shape, dtype=int)
-    start_idx = Math.next_valid_index(p)
+    start_idx = cutils.next_valid_index(p)
 
     trend = _get_initial_trend(p[start_idx:], thrs)
     pivot_idx = 0
@@ -95,7 +97,7 @@ def _search_pivots(p: np.ndarray, thrs: float) -> np.ndarray:
             elif r > 1.:
                 pivot_idx = i
 
-    last_idx = Math.last_valid_index(p)
+    last_idx = cutils.last_valid_index(p)
     flags[last_idx] = 1 if p[last_idx] > p[last_found] else -1
 
     return flags
@@ -237,13 +239,25 @@ def sr_smooth(ts: np.ndarray, w: int, tol: float = 1.,
     )
 
 
-class SRBreach(object):
+class SRBreachEngine(object):
     """ Class to perform S/R lines breach checks. """
 
     def __init__(self, ts: np.ndarray, check_w: int, tol: float,
                  mode: str = 'smooth', w: Optional[Sequence[int]] = None,
                  thrs: Optional[Sequence[float]] = None):
-        self._ts = Math.ffill_cols(ts)
+        """ Construct a new instance.
+
+            Input:
+                ts [np.ndarray]: input values series
+                check_w [int]: how far in history to perform the check
+                tol [float]: multiplication factor to the volatility for grouping
+                mode [str]: methodology, 'smooth' or 'pivot' (default smooth)
+                w [Optional[Sequence[int]]]: for mode=smooth, the list of window
+                    length for the smoothing
+                thrs [Optional[Sequence[int]]]: for mode=pivot, return threshold
+                    to determine the pivot
+        """
+        self._ts = cutils.ffill(ts)
 
         self._check_w = check_w
         self._mode = mode
@@ -253,12 +267,12 @@ class SRBreach(object):
 
         if self._mode == 'smooth':
             if w is None:
-                raise ValueError(f'SRBreach: you must give a window length for {self._mode}')
+                raise ValueError(f'SRBreach(): you must give a window length for {self._mode}')
         elif self._mode == 'pivot':
             if thrs is None:
-                raise ValueError(f'SRBreach: you must give a threshold for {self._mode}')
+                raise ValueError(f'SRBreach(): you must give a threshold for {self._mode}')
         else:
-            raise ValueError(f'SRBreach: {self._mode} not recognized')
+            raise ValueError(f'SRBreach(): {self._mode} not recognized')
 
         self._vola = .0
         self._breaches = []
@@ -273,27 +287,32 @@ class SRBreach(object):
             return self._breaches
 
     def _check_breaches(self) -> None:
-
         if self._mode == 'smooth':
+            # TODO: why? WHY???
+            #    probably because like this is not possible to trigger an S/R
+            #    before it is generated.
             test_ts = self._ts[:-self._check_w]
             all_sr = [
                 sr_smooth(test_ts, w, self._tol)[0]
                 for w in self._w
             ]
-        else:
+        else:  # mode == 'pivot'
             all_sr = [
                 sr_pivot(self._ts, th, self._tol)[0]
                 for th in self._thrs
             ]
+
         all_sr = [v for v in all_sr if v.shape[0] > 0]
 
         if len(all_sr) == 0:
             return
 
-        ts_0 = self._ts[-self._check_w]
+        ts_0 = Math.next_valid_value(self._ts[-self._check_w:])[0]
         ts_t = Math.last_valid_value(self._ts)[0]
 
-        vola = float(np.std(Math.ret(self._ts)))
+        ret = cutils.ret_nans(self._ts, False)
+        vola = float(np.nanstd(ret))
+        # TODO: add input parameter for this
         ts_vola = 1.65 * vola * ts_t
 
         all_sr = np.concatenate(merge_sr(all_sr, vola))
@@ -318,3 +337,13 @@ class SRBreach(object):
 
         self._breaches = signals
         self._is_calculated = True
+
+
+def SRBreach(uid: str, check_w: int, tol: float, mode: str = 'smooth',
+             w: Optional[Sequence[int]] = None,
+             thrs: Optional[Sequence[float]] = None,
+             triggers_only: bool = False) -> list:
+    return SRBreachEngine(
+        get_af_glob().get(uid).prices.to_numpy(),
+        check_w=check_w, tol=tol, mode=mode, w=w, thrs=thrs
+    ).get(triggers_only=triggers_only)

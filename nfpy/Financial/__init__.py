@@ -2,7 +2,7 @@
 from .Dividends import DividendFactory
 from .EquityValuation import *
 from .FundamentalsFactory import FundamentalsFactory
-from .RateFactory import get_rf_glob
+from .FinancialsFactory import get_fin_glob
 
 __all__ = [
     # Dividends
@@ -18,5 +18,5 @@ __all__ = [
     'FundamentalsFactory',
 
     # Rate Factory
-    'get_rf_glob',
+    'get_fin_glob',
 ]

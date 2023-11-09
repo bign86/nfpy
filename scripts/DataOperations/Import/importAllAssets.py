@@ -61,7 +61,10 @@ if __name__ == '__main__':
             )
 
     cal = Cal.get_calendar_glob()
-    cal.initialize(Cal.today(), Cal.last_business())
+    cal.initialize(
+        Cal.last_business(),
+        Cal.shift(Cal.last_business(mode='timestamp'), -2, 'B')
+    )
     dwnf = Dwn.get_dwnf_glob()
 
     dwnf.run_import(provider=args.provider, item=args.item, uid=args.uid,

@@ -21,6 +21,13 @@ class ClosePricesItem(BaseImportItem):
     where uid = '{uid}' and dtype = 114), '1900-01-01')"""
 
 
+class AggregatesItem(BaseImportItem):
+    _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
+    select '{uid}', 114, date, value*1e6 from FREDSeries where ticker = ?"""
+    _Q_INCR = """ and date > ifnull((select max(date) from {dst_table}
+    where uid = '{uid}' and dtype = 114), '1900-01-01')"""
+
+
 class SeriesPage(BasePage):
     """ Base class for all FRED downloads. """
 

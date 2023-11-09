@@ -27,6 +27,7 @@ class Asset(FinancialItem):
     def __init__(self, uid: str):
         super().__init__(uid)
         self._currency = None
+        self._freq = None
         self.dtype = -1
 
         # takes the current calendar. It must have been initialized before!
@@ -115,7 +116,7 @@ class Asset(FinancialItem):
         return self._df
 
     def last_price(self, dt: Optional[Cal.TyDate] = None) \
-            -> tuple[float, pd.Timestamp, int]:
+            -> tuple[float, np.datetime64, int]:
         """ Returns the last valid daily raw close price at date.
 
             Input:
@@ -123,12 +124,12 @@ class Asset(FinancialItem):
 
             Output:
                 v [float]: last valid price
-                date [pd.Timestamp]: date of the last valid price
+                date [np.datetime64]: date of the last valid price
                 idx [int]: index of the last valid price
         """
         prices = self.prices
-        ts = prices.to_numpy()[:-self._cal.fft0]
-        date = prices.index.to_numpy()[:-self._cal.fft0]
+        ts = prices.to_numpy()[:self._cal.xt0+1]
+        date = prices.index.to_numpy()[:self._cal.xt0+1]
 
         pos = None
         if dt:
@@ -267,12 +268,15 @@ class Asset(FinancialItem):
         """
         _ret = self.log_returns if is_log else self.returns
 
-        end = self._cal.t0 if end is None else end
+        # end = self._cal.t0 if end is None else end
         slc = Math.search_trim_pos(
             _ret.index.to_numpy(),
             start=Cal.pd_2_np64(start),
-            end=Cal.pd_2_np64(end),
+            # end=Cal.pd_2_np64(end),
         )
+        if end is None:
+            slc.stop = self._cal.xt0
+
         return float(np.nanmean(_ret.to_numpy()[slc]))
 
     def return_volatility(self, start: Optional[Cal.TyDate] = None,
@@ -290,12 +294,15 @@ class Asset(FinancialItem):
         """
         _ret = self.log_returns if is_log else self.returns
 
-        end = self._cal.t0 if end is None else end
+        # end = self._cal.t0 if end is None else end
         slc = Math.search_trim_pos(
             _ret.index.to_numpy(),
             start=Cal.pd_2_np64(start),
-            end=Cal.pd_2_np64(end)
+            # end=Cal.pd_2_np64(end),
         )
+        if end is None:
+            slc.stop = self._cal.xt0
+
         return float(np.nanstd(_ret.to_numpy()[slc]))
 
     def total_return(self, start: Optional[Cal.TyDate] = None,
@@ -313,12 +320,15 @@ class Asset(FinancialItem):
         """
         _p = self.prices
 
-        end = self._cal.t0 if end is None else end
+        # end = self._cal.t0 if end is None else end
         slc = Math.search_trim_pos(
             _p.index.to_numpy(),
             start=Cal.pd_2_np64(start),
-            end=Cal.pd_2_np64(end),
+            # end=Cal.pd_2_np64(end),
         )
+        if end is None:
+            slc.stop = self._cal.xt0
+
         return Math.tot_ret(
             _p.to_numpy()[slc],
             is_log=is_log
@@ -341,12 +351,15 @@ class Asset(FinancialItem):
         r = self.returns
         dt = r.index.to_numpy()
 
-        end = self._cal.t0 if end is None else end
+        # end = self._cal.t0 if end is None else end
         slc = Math.search_trim_pos(
             dt,
             start=Cal.pd_2_np64(start),
-            end=Cal.pd_2_np64(end),
+            # end=Cal.pd_2_np64(end),
         )
+        if end is None:
+            slc.stop = self._cal.xt0
+
         p = Math.comp_ret(
             r.to_numpy()[slc],
             is_log=is_log

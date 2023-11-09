@@ -2,22 +2,22 @@
 # Reporting Engine
 # Main engine for reporting
 #
-
+import pandas as pd
 from bs4 import BeautifulSoup
 from jinja2 import (FileSystemLoader, Environment)
 import os
 import shutil
-from typing import (Generator, Optional, Sequence, Union)
+from typing import (Optional, Union)
 
 from nfpy import NFPY_ROOT_DIR
 import nfpy.Calendar as Cal
 import nfpy.DB as DB
-from nfpy.Tools import (get_conf_glob, Singleton, Utilities as Ut)
+from nfpy.Tools import (get_conf_glob, Utilities as Ut)
 
 from . import Reports as Rep
 
 
-class ReportingEngine(metaclass=Singleton):
+class ReportingEngine(object):
     """ Main class for reporting. """
 
     _TBL_REPORTS = 'Reports'
@@ -25,28 +25,25 @@ class ReportingEngine(metaclass=Singleton):
     _REPORTS = {
         Rep.ReportAlerts,
         Rep.ReportBacktester,
-        Rep.ReportCompanies,
         Rep.ReportEquityFull,
         Rep.ReportMarketShort,
         Rep.ReportPortfolio,
     }
     _TMPL_PATH = os.path.join(NFPY_ROOT_DIR, 'Reporting/Templates')
 
-    def __init__(self):
+    def __init__(self, end: Optional[Cal.TyDate] = None):
         self._qb = DB.get_qb_glob()
         self._db = DB.get_db_glob()
         self._conf = get_conf_glob()
 
         # Work variables
+        self._end = pd.Timestamp(end) if end else Cal.today(mode='timestamp')
         self._curr_report_dir = ''
         self._rep_path = ''
 
     def exists(self, report_id: str) -> bool:
         """ Report yes if a report with the input name exists. """
-        if len(list(self.list((report_id,)))) > 0:
-            return True
-        else:
-            return False
+        return True if self.search(report_id) is not None else False
 
     @staticmethod
     def get_report_obj(r: str) -> Rep.TyReport:
@@ -57,42 +54,33 @@ class ReportingEngine(metaclass=Singleton):
     def report_obj_exist(r: str) -> bool:
         return hasattr(Rep, r)
 
-    def list(self, ids: Sequence[str] = (), active: Optional[bool] = None) \
-            -> Generator[Rep.ReportData, Rep.ReportData, None]:
-        """ List reports matching the given input. """
-        where = ''
-        if ids:
-            name_list = "\', \'".join(ids)
-            where = f"id in ('{name_list}')"
-
-        keys, data = [], []
+    def search(self, report_id: str, active: Optional[bool] = None) -> Optional[Rep.ReportData]:
+        """ Search a report matching the given input. """
+        keys, data = ('id',), (report_id,)
         if active is not None:
-            keys = ('active',)
-            data = (active,)
+            keys += ('active',)
+            data += (active,)
 
-        return (
-            report for report in
+        return list(
             map(
                 Rep.ReportData._make,
                 self._db.execute(
                     self._qb.select(
                         self._TBL_REPORTS,
                         keys=keys,
-                        where=where
                     ),
                     data
                 ).fetchall()
             )
-        )
+        )[0]
 
-    def run(self, names: Sequence[str] = (), active: Optional[bool] = None) \
-            -> None:
+    def run(self, report_id: str, active: Optional[bool] = None) -> None:
         """ Run the report engine. """
-        self._run(self.list(names, active))
+        self._run(self.search(report_id, active))
 
-    def run_custom(self, rep_list: Sequence[Rep.ReportData]) -> None:
+    def run_custom(self, report: Rep.ReportData) -> None:
         """ Run the report engine. """
-        self._run(rep_list)
+        self._run(report)
 
     def _create_new_directory(self) -> None:
         """ Create a new directory for the today's reports. """
@@ -139,31 +127,54 @@ class ReportingEngine(metaclass=Singleton):
         outf.write(out)
         outf.close()
 
-    def _run(self, call_list: Union[Sequence, Generator]) -> None:
+    def _run(self, report_data: Optional[Rep.ReportData]) -> None:
         """ Run the report engine. """
-        # Create a new report directory
+        # Quick exit
+        if not report_data:
+            return
+
+        # Create a new report directory and set calendar
+        self._set_calendar(report_data)
         self._create_new_directory()
 
         # Calculate model results
-        completed, failed = 0, 0
-        for data in call_list:
-            print(f'>>> Generating {data.id} [{data.report}]')
-            try:
-                res = getattr(Rep, data.report)(
-                    data,
-                    path=self._curr_report_dir
-                ).result
-            except RuntimeError as ex:
-                Ut.print_exc(ex)
-                failed += 1
-                continue
-
+        print(f'>>> Generating {report_data.id} [{report_data.report}]')
+        try:
+            res = getattr(Rep, report_data.report)(
+                report_data,
+                path=self._curr_report_dir
+            ).result
+        except RuntimeError as ex:
+            Ut.print_exc(ex)
+            Ut.print_warn(f'Report failed!')
+            Ut.print_exc(ex)
+        else:
             # Generate the report and update the index
             self._generate(res)
-            self._update_index(data)
-            completed += 1
+            self._update_index(report_data)
+            Ut.print_ok(f'Report completed!')
 
-        print(f'Reports: {completed} completed | {failed} failed')
+    def _set_calendar(self, report_data: Rep.ReportData) -> None:
+        """ Set the global calendar. """
+        # start_daily = self._end - DateOffset(years=report_data.calendar_setting['D'])
+        start_daily = pd.Timestamp(
+            self._end.year - report_data.calendar_setting['D'],
+            1, 1
+        )
+        start_monthly = pd.Timestamp(
+            self._end.year - report_data.calendar_setting['M'],
+            1, 1
+        )
+        start_yearly = pd.Timestamp(
+            self._end.year - report_data.calendar_setting['Y'],
+            1, 1
+        )
+        Cal.get_calendar_glob().initialize(
+            self._end,
+            start=start_daily,
+            monthly_start=start_monthly,
+            yearly_start=start_yearly
+        )
 
     def _update_index(self, done: Rep.ReportData) -> None:
         # Extract information
@@ -189,7 +200,3 @@ class ReportingEngine(metaclass=Singleton):
         index.title = f"Reports list - {Cal.today(mode='str', fmt='%Y-%m-%d')}"
         index.output = sorted(set(to_print), key=lambda v: v[0])
         self._generate(index)
-
-
-def get_re_glob() -> ReportingEngine:
-    return ReportingEngine()

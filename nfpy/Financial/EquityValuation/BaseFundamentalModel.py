@@ -4,15 +4,33 @@
 #
 
 from abc import (ABCMeta, abstractmethod)
+from copy import deepcopy
+import dataclasses
 from typing import (Any, TypeVar)
 
 import nfpy.Assets as Ast
+import nfpy.Calendar as Cal
 import nfpy.Financial as Fin
-from nfpy.Tools import Utilities as Ut
 
 
-class FundamentalModelResult(Ut.AttributizedDict):
+@dataclasses.dataclass(init=False)
+class FundamentalModelResult:
     """ Base object containing the results of the model. """
+    applicable: bool = dataclasses.field(default=False, repr=False)
+    last_price: float = dataclasses.field(default=None, repr=False)
+    msg: str = dataclasses.field(default='', repr=True)
+    outputs: dict = dataclasses.field(default_factory=dict, repr=False)
+    success: bool = dataclasses.field(default=False, repr=True)
+    uid: str = dataclasses.field(default=None, repr=False)
+
+    def __bool__(self) -> bool:
+        return self.success
+
+    def __str__(self) -> str:
+        return self.msg
+
+    def set_outputs(self, dic):
+        self.outputs.update(dic)
 
 
 TyFundamentalModelResult = TypeVar(
@@ -29,7 +47,8 @@ class BaseFundamentalModel(metaclass=ABCMeta):
     def __init__(self, uid: str):
         # Handlers
         self._af = Ast.get_af_glob()
-        self._rf = Fin.get_rf_glob()
+        self._fnf = Fin.get_fin_glob()
+        self._cal = Cal.get_calendar_glob()
 
         # Input variables
         self._uid = uid
@@ -47,6 +66,7 @@ class BaseFundamentalModel(metaclass=ABCMeta):
         # Working data
         self._res = self._RES_OBJ()
         self._is_calculated = False
+        self._is_applicable = None
         self._freq = None
         self._last_price = self._eq.last_price()[0]
 
@@ -56,24 +76,51 @@ class BaseFundamentalModel(metaclass=ABCMeta):
             self._calc_freq()
         return self._freq
 
-    def _res_update(self, d: dict) -> TyFundamentalModelResult:
-        self._res.update(d)
-        return self._res
+    def _res_update(self, outputs: dict = None, success: bool = None,
+                    applicable: bool = None, msg: str = None,
+                    copy: bool = True) -> TyFundamentalModelResult:
+        if copy:
+            results = deepcopy(self._res)
+        else:
+            results = self._res
+
+        if applicable:
+            results.applicable = applicable
+        if success:
+            results.success = success
+        if msg:
+            results.msg = msg
+        if outputs:
+            results.set_outputs(outputs)
+
+        return results
 
     def result(self, **kwargs) -> TyFundamentalModelResult:
-        # Main calculations
-        if not self._is_calculated:
-            self._calculate()
-            self._is_calculated = True
+        if self._is_applicable is None:
+            applicable = self._check_applicability()
+            self._is_applicable = applicable
+            self._res.applicable = applicable
+            self._res.uid = self._uid
+            self._res.last_price = self._last_price
 
-        # On-the-fly calculations and outputs
-        return self._res_update(
-            self._otf_calculate(**kwargs)
-        )
+        if self._is_applicable:
+            # Main calculations
+            if not self._is_calculated:
+                self._calculate()
+                self._is_calculated = True
+
+            # On-the-fly calculations and outputs
+            self._res = self._res_update(
+                **self._otf_calculate(**kwargs)
+            )
+
+        return self._res
 
     @abstractmethod
-    def _check_applicability(self) -> None:
-        """ Verify model's applicability conditions. """
+    def _check_applicability(self) -> bool:
+        """ Verify model's applicability conditions. ***MUST*** return the
+            value of the _is_applicable flag.
+        """
 
     @abstractmethod
     def _calculate(self) -> None:

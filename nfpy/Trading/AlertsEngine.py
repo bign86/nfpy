@@ -10,8 +10,10 @@ from nfpy.Assets import get_af_glob
 import nfpy.Calendar as Cal
 import nfpy.DB as DB
 
-Alert = namedtuple('Alert',
-                   'uid, date, cond, value, triggered, date_triggered, date_checked')
+Alert = namedtuple(
+    'Alert',
+    'uid, date, cond, value, triggered, date_triggered, date_checked'
+)
 
 
 class AlertsEngine(object):
@@ -62,17 +64,17 @@ class AlertsEngine(object):
         # Where condition
         where = []
         if len(uid) == 1:
-            where.append(f'uid = "{uid[0]}"')
+            where.append(f'[uid] = "{uid[0]}"')
         elif len(uid) > 1:
             uid_list = "\', \'".join(uid)
-            where.append(f'uid in (\'{uid_list}\')')
+            where.append(f'[uid] in (\'{uid_list}\')')
 
         if date_checked is not None:
-            where.append(f'(date_checked >= ? or date_checked is NULL)')
+            where.append(f'([date_checked] >= ? or [date_checked] is NULL)')
             data.append(date_checked)
 
         if date_triggered:
-            where.append(f'date_triggered >= ?')
+            where.append(f'[date_triggered] >= ?')
             data.append(date_triggered)
 
         # Fetch data

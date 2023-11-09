@@ -14,7 +14,7 @@ from nfpy.Tools import (
 )
 import nfpy.Trading as Trd
 
-from .BaseReport import BaseReport
+from .BaseReport import (BaseReport, ReportData)
 
 # Remove a style property for Pandas version 0.x
 if int(pd.__version__.split('.')[0]) < 1:
@@ -24,27 +24,17 @@ else:
 
 
 class ReportAlerts(BaseReport):
-    DEFAULT_P = {
-        'years_price_hist': 2.,
-        'w_alerts_days': 14,
-        'sr': {
-            'w_sr': [120, 20],
-            'w_check': 10,
-            'tolerance': 1.5,
-            'w_multi': 2.,
-        }
-    }
 
-    def _init_input(self, type_: Optional[str] = None) -> None:
-        """ Prepare and validate the input parameters for the model. This
-            includes verifying the parameters are correct for the models in the
-            report. Takes the default parameters if any, applies the values from
-            the database and the asset-specific overlays if any.
-            The function must ensure the parameters from the database stored in
-            the self._p symbol are NOT altered for later usage by making copies
-            if required.
-        """
-        pass
+    def __init__(self, data: ReportData, path: Optional[str] = None):
+        super().__init__(data, path)
+
+        self._sr_tol = float(self._p['tolerance'])
+        self._w_sr = self._p['w_sr']
+        self._sr_check = int(self._p['w_check'])
+        self._smooth_w = max(self._w_sr) + self._sr_check + 1
+
+        if len(self._cal.calendar) < self._sr_check:
+            raise Ex.CalendarError(f'ReportAlerts(): calendar too short to have {self._smooth_w} periods')
 
     def _one_off_calculations(self) -> None:
         """ Perform all non-uid dependent calculations for efficiency. """
@@ -73,7 +63,7 @@ class ReportAlerts(BaseReport):
         ae.update_db()
 
         dt_today = today(mode='datetime')
-        check_start = dt_today - timedelta(days=self._p['w_alerts_days'])
+        check_start = dt_today - timedelta(days=self._p['w_start_check'])
         alerts = ae.fetch(
             triggered=True,
             date_checked=check_start
@@ -91,20 +81,16 @@ class ReportAlerts(BaseReport):
                          'breach', is_today, dt_trigger))
 
         # S/R alerts
-        sr = self._p['sr']
-        w_sr = sr['w_sr']
-        sr_check = sr['w_check']
-        sr_tol = sr['tolerance']
-        sr_multi = sr['w_multi']
-        smooth_w = max(w_sr) * sr_multi
-
         for uid in self._uids:
             eq = self._af.get(uid)
-            v_p = eq.prices.values[-smooth_w:]
+            v_p = eq.prices.values[-self._smooth_w:]
             key = eq.ticker if eq.type == 'Equity' else uid
             last_price = eq.last_price()[0]
 
-            sr_checker = Trd.SRBreach(v_p, sr_check, sr_tol, 'smooth', w_sr)
+            sr_checker = Trd.SRBreachEngine(
+                v_p, self._sr_check, self._sr_tol,
+                'smooth', self._w_sr
+            )
             for b in sr_checker.get(triggers_only=True):
                 data.append((key, uid, b[0], b[1], last_price, b[2], '', ''))
 
@@ -114,8 +100,8 @@ class ReportAlerts(BaseReport):
 
             df = pd.DataFrame(
                 data,
-                columns=('ticker', 'uid', 'condition', 'price',
-                         'last price', 'status', 'new', 'date trigger')
+                columns=['ticker', 'uid', 'condition', 'price',
+                         'last price', 'status', 'new', 'date trigger']
             )
             res.alerts_table = df.to_html(
                 formatters={

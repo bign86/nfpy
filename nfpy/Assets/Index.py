@@ -10,15 +10,29 @@ from nfpy.Tools import (Exceptions as Ex)
 
 from .Asset import Asset
 
+_CALENDAR_TRANSFORM = {
+    'D': 'C',
+    'M': 'BMS',
+    'Y': 'BAS-JAN',
+}
 
-class Indices(Asset):
-    """ Class for indices """
 
-    _TYPE = 'Indices'
-    _BASE_TABLE = 'Indices'
+class Index(Asset):
+    """ Class for indices. """
+
+    _TYPE = 'Index'
+    _BASE_TABLE = 'Index'
     _TS_TABLE = 'IndexTS'
     _TS_ROLL_KEY_LIST = ['date']
     _DEF_PRICE_DTYPE = 'Price.Raw.Close'
+
+    @property
+    def frequency(self) -> str:
+        return self._freq
+
+    @frequency.setter
+    def frequency(self, v: str) -> None:
+        self._freq = v
 
     def _prices_loader(self, dtype: str, level: str) -> bool:
         """ Load the prices and, if missing, try sequentially to calculate them
@@ -36,12 +50,39 @@ class Indices(Asset):
 
         # Raise error if data are missing
         if not success:
-            raise Ex.MissingData(f"{self.uid} {dtype} not found in the database!")
+            raise Ex.MissingData(f"Index(): {self.uid} {dtype} not found in the database!")
 
         code = self._dt.get(dtype)
         other_code = self._dt.get(other_dtype)
         self._df[code] = self._df[other_code].copy()
         return True
+
+    def load_dtype_in_df(self, dtype: str) -> bool:
+        """ Load the datatype and merge into the dataframe. Takes care to load
+            against the appropriate calendar frequency.
+        """
+        freq = self._df.index.freqstr
+        if freq != _CALENDAR_TRANSFORM[self._freq]:
+            if self._freq == 'M':
+                calendar = self._cal.monthly_calendar
+            elif self._freq == 'Y':
+                calendar = self._cal.yearly_calendar
+            else:
+                msg = f'Rate(): calendar frequency not recognized for {self._uid}'
+                raise ValueError(msg)
+            self._df = pd.DataFrame(index=calendar)
+
+        success, df = self.load_dtype(dtype)
+        if success:
+            self._df = self._df.merge(
+                df,
+                how='left',
+                left_index=True,
+                right_index=True
+            )
+            self._df.sort_index(inplace=True)
+
+        return success
 
     def series(self, dtype: str) -> pd.Series:
         """ Return the requested series. If data are not found an empty series

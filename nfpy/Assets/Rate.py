@@ -40,7 +40,7 @@ class Rate(Asset):
 
     def load_dtype_in_df(self, dtype: str) -> bool:
         """ Load the datatype and merge into the dataframe. Takes care to load
-            aganst the appropriate calendar frequency.
+            against the appropriate calendar frequency.
         """
         freq = self._df.index.freqstr
         if freq != _CALENDAR_TRANSFORM[self._freq]:

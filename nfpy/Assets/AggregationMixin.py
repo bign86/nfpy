@@ -48,13 +48,13 @@ class AggregationMixin(object):
 
     @property
     def num_constituents(self) -> int:
-        return len(self._cnsts_uids)
+        return len(self.constituents_uids)
 
-    @property
-    def cnsts_df(self) -> pd.DataFrame:
-        if not self._cnsts_loaded:
-            self._load_cnsts()
-        return self._cnsts_df
+    # @property
+    # def cnsts_df(self) -> pd.DataFrame:
+    #     if not self._cnsts_loaded:
+    #         self._load_cnsts()
+    #     return self._cnsts_df
 
     @property
     def prices(self):

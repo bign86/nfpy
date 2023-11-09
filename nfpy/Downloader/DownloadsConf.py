@@ -860,6 +860,19 @@ YahooHistSplitsConf = ["date", "value"]
 
 ECBSeriesConf = ["date", "value", "notes"]
 
+ECBAggregatesConf = ['ticker', 'freq', 'adjustment', 'ref_area', 'counterpart_area', 'ref_sector', 'counterpart_sector',
+                     'accounting_entry', 'sto', 'instr_asset', 'activity', 'expenditure', 'unit_measure', 'prices',
+                     'transformation', 'time_period', 'obs_value', 'action']
+
+ECBExrConf = ['ticker', 'freq', 'currency', 'currency_denom', 'exr_type',
+              'exr_suffix', 'time_period', 'obs_value', 'action']
+
+ECBRatesConf = ['ticker', 'freq', 'benchmark_item', 'data_type_est',
+                'time_period', 'obs_value', 'action']
+
+ECBYieldsConf = ['ticker', 'freq', 'ref_area', 'currency', 'provider_fm', 'instrument_fm',
+                 'provider_fm_id', 'data_type_fm', 'time_period', 'obs_value', 'action']
+
 #
 # Interactive Brokers
 #

@@ -21,7 +21,7 @@ __all__ = [
     'comp_ret', 'compound', 'e_ret', 'tot_ret',
 
     # Risk_
-    'beta', 'capm_beta', 'drawdown', 'sharpe', 'sml', 'te',
+    'beta', 'capm_beta', 'drawdown', 'pdi', 'sharpe', 'sml', 'te',
 
     # TSStats_
     'correlation', 'kurtosis', 'rolling_mad', 'rolling_mean', 'rolling_sum',

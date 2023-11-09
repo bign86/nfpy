@@ -15,7 +15,7 @@ from nfpy.Tools import Utilities as Ut
 
 ReportData = namedtuple('ReportData', (
     'id', 'title', 'description', 'report', 'template',
-    'uids', 'parameters', 'active'
+    'uids', 'calendar_setting', 'parameters', 'active'
 ))
 
 
@@ -25,7 +25,6 @@ class ReportResult(Ut.AttributizedDict):
 
 class BaseReport(metaclass=ABCMeta):
     _DIR_IMG = 'img'
-    DEFAULT_P = {}
 
     def __init__(self, data: ReportData, path: Optional[str] = None):
         # Factories
@@ -46,7 +45,6 @@ class BaseReport(metaclass=ABCMeta):
 
         # Work & Output variables
         self._is_calculated = False
-        # self._jinja_filters = {}
         self._res = ReportResult()
         self._res.id = data.id
         self._res.template = data.template
@@ -55,10 +53,6 @@ class BaseReport(metaclass=ABCMeta):
     @property
     def uids(self) -> Sequence[str]:
         return self._uids
-
-    # @property
-    # def filters(self) -> dict:
-    #     return self._jinja_filters
 
     @property
     def result(self) -> ReportResult:
@@ -101,17 +95,6 @@ class BaseReport(metaclass=ABCMeta):
         # Run
         self._res.output = self._calculate()
         self._is_calculated = True
-
-    @abstractmethod
-    def _init_input(self, type_: Optional[str] = None) -> None:
-        """ Prepare and validate the input parameters for the model. This
-            includes verifying the parameters are correct for the models in the
-            report. Takes the default parameters if any, applies the values from
-            the database and the asset-specific overlays if any.
-            The function must ensure the parameters from the database stored in
-            the self._p symbol are NOT altered for later usage by making copies
-            if required.
-        """
 
     @abstractmethod
     def _one_off_calculations(self) -> None:

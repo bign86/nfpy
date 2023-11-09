@@ -12,7 +12,7 @@ from nfpy.Tools import (Singleton, Exceptions as Ex,
 
 from .DBTypes import *
 
-MIN_DB_VERSION = 1.05
+MIN_DB_VERSION = 1.09
 
 
 class DBHandler(metaclass=Singleton):

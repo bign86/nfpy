@@ -50,15 +50,15 @@ def build_stage(_input) -> Optional[tuple]:
     return _duration, _growth, _is_h
 
 
-def print_results(_r):
+def print_results(_r, _in):
     ke_str = '-' if _r.ke is None else f'{_r.ke:>6.1%}'
-    premium_str = '-' if _r.premium is None else f'{_r.premium:>6.1%}'
+    premium_str = '-' if _in["premium"] is None else f'{_in["premium"]:>6.1%}'
 
     print(f'\n----------------------------------------\n'
           f'********** {"Input information":^18} **********\n'
           f'Company:\t\t\t\t\t{_r.uid:>6}\n'
-          f'Last price:\t\t\t\t\t{_r.last_price:>6.2f} ({_r.ccy})\n'
-          f'Stages:\t\t\t\t\t\t{_r.stages:>6}\n\n'
+          f'Last price:\t\t\t\t\t{_r.last_price:>6.2f} {_r.ccy}\n'
+          f'Stages:\t\t\t\t\t\t{_in["num_stages"]:>6}\n\n'
           f'---------- {"Implied measures":^18} ----------\n'
           f'Impl. cost of equity:\t\t{_r.implied_ke:>6.1%}\n'
           f'Impl. long term premium:\t{_r.implied_lt_premium:>6.1%}\n'
@@ -74,14 +74,14 @@ def print_results(_r):
 
     if 'manual' in _r:
         print(f'---------- {"Manual":^18} ----------\n'
-              f'ST growth:\t\t\t\t\t{_r.historical_growth["st_gwt"]:>6.1%}\n'
-              f'Fair value:\t\t\t\t\t{_r.historical_growth["fv"]:>6.2f} ({_r.ccy})\n'
-              f'Return:\t\t\t\t\t\t{_r.historical_growth["ret"]:>6.1%}\n')
+              f'ST growth:\t\t\t\t\t{_r.manual_growth["st_gwt"]:>6.1%}\n'
+              f'Fair value:\t\t\t\t\t{_r.manual_growth["fv"]:>6.2f} {_r.ccy}\n'
+              f'Return:\t\t\t\t\t\t{_r.manual_growth["ret"]:>6.1%}\n')
 
     if 'historical_growth' in _r:
         print(f'---------- {"Historical":^18} ----------\n'
               f'ST growth:\t\t\t\t\t{_r.historical_growth["st_gwt"]:>6.1%}\n'
-              f'Fair value:\t\t\t\t\t{_r.historical_growth["fv"]:>6.2f} ({_r.ccy})\n'
+              f'Fair value:\t\t\t\t\t{_r.historical_growth["fv"]:>6.2f} {_r.ccy}\n'
               f'Return:\t\t\t\t\t\t{_r.historical_growth["ret"]:>6.1%}\n')
 
     if 'ROE_growth' in _r:
@@ -91,40 +91,52 @@ def print_results(_r):
               f'Return:\t\t\t\t\t\t{_r.ROE_growth["ret"]:>6.1%}\n')
 
 
-def plot_results(_r):
+def plot_results(_r, _df):
+    yearly_div_dt, yearly_div = _df.annual_dividends
+    yearly_ret_div = yearly_div[1:] / yearly_div[:-1] - 1.
+    yearly_div_dt = yearly_div_dt + np.timedelta64(6, 'M')
+    all_div_dt, all_div = _df.all_dividends
+    ret_div = all_div[1:] / all_div[:-1] - 1.
+
     pl = IO.Plotter(xl=('Date',), yl=(f'Price ({_r.ccy})',), x_zero=[.0]) \
-        .lplot(0, _r.div_ts, color='k', marker='o', label='paid divs.') \
+        .lplot(0, yearly_div_dt, yearly_div, color='k',
+               marker='o', label='yearly paid divs.') \
+        .lplot(0, _r.div_ts, color='gray',
+               marker='X', linestyle='--', label='paid divs.') \
         .lplot(0, _r.dates, y=_r.no_growth['cf'][1],
-               color='C0', marker='o', label='no growth')
+               color='C0', label='no growth')
 
     if 'manual_growth' in _r:
         pl.lplot(0, _r.dates, y=_r.manual_growth['cf'][1],
-                 color='C1', marker='o', label='manual')
+                 color='C1', label='manual')
 
     if 'historical_growth' in _r:
         pl.lplot(0, _r.dates, y=_r.historical_growth['cf'][1],
-                 color='C2', marker='o', label='historical')
+                 color='C2', label='historical')
 
     if 'ROE_growth' in _r:
         pl.lplot(0, _r.dates, y=_r.ROE_growth['cf'][1],
-                 color='C3', marker='o', label='ROE')
+                 color='C3', label='ROE')
 
     pl.plot()
 
-    pl2 = IO.Plotter(xl=('Date',), yl=(f'Rate',), x_zero=[.0])
+    pl2 = IO.Plotter(xl=('Date',), yl=(f'Rate',), x_zero=[.0]) \
+        .lplot(0, yearly_div_dt[1:], yearly_ret_div,
+               color='k', marker='o', label='yearly divs. growth') \
+        .lplot(0, all_div_dt[1:], ret_div, color='gray',
+               marker='X', linestyle='--', label='divs. growth')
 
     if 'manual_growth' in _r:
         pl2.lplot(0, _r.dates, y=_r.manual_growth['rates'],
-                 color='C1', marker='o', label='manual')
+                  color='C1', label='manual')
 
     if 'historical_growth' in _r:
         pl2.lplot(0, _r.dates, y=_r.historical_growth['rates'],
-                 color='C2', marker='o', label='historical')
+                  color='C2', label='historical')
 
     if 'ROE_growth' in _r:
         pl2.lplot(0, _r.dates, y=_r.ROE_growth['rates'],
-                 color='C3', marker='o', label='ROE')
-
+                  color='C3', label='ROE')
 
     pl2.plot()
     pl.show()
@@ -261,10 +273,10 @@ if __name__ == '__main__':
     )
 
     # Calculate
-    res = DDM(uid, s1, s2, gwt_mode=gwt_mode) \
-        .result(cost_equity=ke, premium=premium)
+    ddm_obj = DDM(uid, s1, s2, gwt_mode=gwt_mode)
+    res = ddm_obj.result(cost_equity=ke, premium=premium)
 
-    print_results(res)
-    plot_results(res)
+    print_results(res, ddm_obj.inputs)
+    plot_results(res, ddm_obj._df)
 
     Ut.print_ok('All done!')

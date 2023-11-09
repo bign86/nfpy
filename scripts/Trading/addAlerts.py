@@ -8,9 +8,10 @@ from datetime import timedelta
 import nfpy.Assets as Ast
 import nfpy.Calendar as Cal
 import nfpy.IO as IO
+from nfpy.Tools import Utilities as Ut
 import nfpy.Trading as Trd
 
-__version__ = '0.2'
+__version__ = '0.3'
 _TITLE_ = '<<< Add manual alerts script >>>'
 
 
@@ -47,16 +48,10 @@ def save():
             print('  * Aborted!', end='\n\n')
     else:
         print('\nNothing to write', end='\n\n')
-    quit_()
-
-
-def quit_():
-    print('All done!')
-    exit()
 
 
 if __name__ == '__main__':
-    print(_TITLE_, end='\n\n')
+    Ut.print_header(_TITLE_, end='\n\n')
 
     af = Ast.get_af_glob()
     ae = Trd.AlertsEngine()
@@ -80,8 +75,11 @@ if __name__ == '__main__':
     while True:
         command = inh.input('\n>>> ', idesc='str')
         if command == 'quit':
-            quit_()
+            break
         elif command == 'save':
             save()
+            break
         else:
             add_alert(command)
+
+    Ut.print_ok('All done!')

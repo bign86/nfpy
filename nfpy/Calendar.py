@@ -3,6 +3,7 @@
 # Handle the calendars of the library
 #
 
+from copy import deepcopy
 import datetime
 from enum import Enum
 import itertools
@@ -13,7 +14,7 @@ from pandas.core.tools.datetimes import DatetimeScalar
 import pandas.tseries.offsets as off
 from typing import (Optional, Sequence, TypeVar, Union)
 
-from nfpy.Tools import (Singleton, Utilities as Ut)
+from nfpy.Tools import (Exceptions as Ex, Singleton, Utilities as Ut)
 
 TyDatetime = TypeVar('TyDatetime', bound=Union[
     str, pd.Timestamp, datetime.datetime, np.datetime64
@@ -60,13 +61,25 @@ class Calendar(metaclass=Singleton):
         """ Creates a new calendar with given frequency. """
         self._frequency = None
         self.fmt = None
+
+        # Daily
         self._start = None
         self._end = None
         self._t0 = None
         self._fft0 = None
+        self._xt0 = None
         self._calendar = None
+
+        # Monthly
+        self._t0m = None
+        self._xt0m = None
         self._monthly_calendar = None
+
+        # Yearly
+        self._t0y = None
+        self._xt0y = None
         self._yearly_calendar = None
+
         self._initialized = False
 
     @property
@@ -110,14 +123,74 @@ class Calendar(metaclass=Singleton):
     def fft0(self) -> int:
         return self._fft0
 
+    # t0 index
+    @property
+    def xt0(self) -> int:
+        return self._xt0
+
     @t0.setter
     def t0(self, v: pd.Timestamp) -> None:
+        if (v < self._start) or (v > self._end):
+            raise Ex.CalendarError(f'Calendar(): {v} outside the calendar range')
+
         self._t0 = v
 
         i = 1
         while self._t0 != self._calendar[-i]:
             i += 1
         self._fft0 = i
+        self._xt0 = self._calendar.shape[0] - i
+
+    # Monthly elaboration date
+    @property
+    def t0m(self) -> pd.Timestamp:
+        return self._t0m
+
+    # Offset between end and t0
+    @property
+    def xt0m(self) -> int:
+        return self._xt0m
+
+    @t0m.setter
+    def t0m(self, v: pd.Timestamp) -> None:
+        v = deepcopy(v)
+        v.day = 1
+
+        if (v < self._monthly_calendar[0]) or (v > self._monthly_calendar[-1]):
+            raise Ex.CalendarError(f'Calendar(): {v} outside the monthly calendar range')
+
+        self._t0m = v
+
+        i = 1
+        while self._t0m != self._monthly_calendar[-i]:
+            i += 1
+        self._xt0m = self._monthly_calendar.shape[0] - i
+
+    # Yearly elaboration date
+    @property
+    def t0y(self) -> pd.Timestamp:
+        return self._t0y
+
+    # Offset between end and t0
+    @property
+    def xt0y(self) -> int:
+        return self._xt0y
+
+    @t0y.setter
+    def t0y(self, v: pd.Timestamp) -> None:
+        v = deepcopy(v)
+        v.day = 1
+        v.month = 1
+
+        if (v < self._yearly_calendar[0]) or (v > self._yearly_calendar[-1]):
+            raise Ex.CalendarError(f'Calendar(): {v} outside the yearly calendar range')
+
+        self._t0y = v
+
+        i = 1
+        while self._t0y != self._yearly_calendar[-i]:
+            i += 1
+        self._xt0y = self._yearly_calendar.shape[0] - i
 
     @property
     def is_initialized(self) -> bool:
@@ -186,15 +259,20 @@ class Calendar(metaclass=Singleton):
             normalize=True, holidays=holidays
         )
 
-        offset = max(0, self._end.weekday() - 4)
-        # offset = min(2, max(0, (self.end.weekday() + 6) % 7 - 3))
-        self._t0 = self.end - off.BDay(offset)
+        if self._end.dayofweek > 4:
+            self._t0 = self.end - off.BDay(1)
+        else:
+            self._t0 = self.end
+        # offset = max(0, self._end.weekday() - 4)
+        # self._t0 = self.end - off.BDay(offset)
 
         i = 1
         while self._t0 != self._calendar[-i]:
             i += 1
         self._fft0 = i
+        self._xt0 = self._calendar.shape[0] - i
         assert self._t0 == self._calendar[-self._fft0]
+        assert self._t0 == self._calendar[self._xt0]
 
         #
         # MONTHLY
@@ -203,43 +281,58 @@ class Calendar(metaclass=Singleton):
         if monthly_start:
             if not isinstance(monthly_start, pd.Timestamp):
                 monthly_start = pd.to_datetime(monthly_start, format=fmt)
+            monthly_start = pd.Timestamp(monthly_start.asm8.astype('datetime64[M]'))
         else:
             if monthly_periods is not None:
                 monthly_start = self._end - off.MonthBegin(monthly_periods)
             else:
-                n = 0 if self._start.day == 1 else 1
-                monthly_start = self._start - off.MonthBegin(n)
+                # n = 0 if self._start.day == 1 else 1
+                # monthly_start = self._start - off.MonthBegin(n)
+                monthly_start = pd.Timestamp(self._start.asm8.astype('datetime64[M]'))
+
+        if monthly_start.month == self._start.month:
+            if monthly_start.year == self._start.year:
+                monthly_start -= off.MonthBegin(1)
 
         # Generate the monthly calendar
         self._monthly_calendar = pd.bdate_range(
             start=monthly_start, end=self._end, freq='MS'
         )
+        self._t0m = self._monthly_calendar[-2]
+        self._xt0m = self._monthly_calendar.shape[0] - 2
 
         #
-        # MONTHLY
+        # YEARLY
         #
         # Calculate start and end dates
         if yearly_start:
             if not isinstance(yearly_start, pd.Timestamp):
                 yearly_start = pd.to_datetime(yearly_start, format=fmt)
+            yearly_start = pd.Timestamp(yearly_start.asm8.astype('datetime64[Y]'))
         else:
             if yearly_periods is not None:
                 yearly_start = self._end - off.YearBegin(yearly_periods)
             else:
-                n = 0 if self._start.month == 1 else 1
-                yearly_start = self._start - off.YearBegin(n)
+                # n = 0 if self._start.month == 1 else 1
+                # yearly_start.day = self._start - off.YearBegin(n)
+                yearly_start = pd.Timestamp(self._start.asm8.astype('datetime64[Y]'))
+
+        if yearly_start.year == self._start.year:
+            yearly_start -= off.YearBegin(1)
 
         # Generate the yearly calendar
         self._yearly_calendar = pd.bdate_range(
             start=yearly_start, end=self._end, freq='AS'
         )
+        self._t0y = self._yearly_calendar[-2]
+        self._xt0y = self._yearly_calendar.shape[0] - 2
 
         # Print the results
         Ut.print_highlight(' *** Calendar')
         print(
-            f'   Daily:   {self._start.date()} -> {self._end.date()} | t0 = {self._t0.date()}\n'
-            f'   Monthly: {self._monthly_calendar[0].date()} -> {self._monthly_calendar[-1].date()}\n'
-            f'   Yearly:  {self._yearly_calendar[0].date()} -> {self._yearly_calendar[-1].date()}',
+            f'   Daily:   {self._start.date()} -> {self._end.date()} | t0  = {self._t0.date()}\n'
+            f'   Monthly: {self._monthly_calendar[0].date()} -> {self._monthly_calendar[-1].date()} | t0m = {self._monthly_calendar[self._xt0m].date()}\n'
+            f'   Yearly:  {self._yearly_calendar[0].date()} -> {self._yearly_calendar[-1].date()} | t0y = {self._yearly_calendar[self._xt0y].date()}',
             end='\n\n'
         )
 

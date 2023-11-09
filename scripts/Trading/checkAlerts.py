@@ -13,12 +13,17 @@ import nfpy.Calendar as Cal
 import nfpy.DB as DB
 import nfpy.IO as IO
 import nfpy.Trading as Trd
+from nfpy.Tools import Utilities as Ut
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = '<<< Check manual alerts script >>>'
 
+_LOOKBACK_W = 90
+_FMT = (None, None, None, '.2f', '.2%')
+
+
 if __name__ == '__main__':
-    print(_TITLE_, end='\n\n')
+    Ut.print_header(_TITLE_, end='\n\n')
 
     af = get_af_glob()
     ae = Trd.AlertsEngine()
@@ -27,7 +32,7 @@ if __name__ == '__main__':
     inh = IO.InputHandler()
 
     end = Cal.today(mode='datetime')
-    start = end - timedelta(days=90)
+    start = end - timedelta(days=_LOOKBACK_W)
     cal.initialize(end=end, start=start)
 
     # Get input
@@ -38,31 +43,28 @@ if __name__ == '__main__':
     if uids is None:
         uids = [
             u[0] for u in
-            db.execute('select distinct uid from Alerts')
-              .fetchall()
+            db.execute('select distinct [uid] from [Alerts]')
+            .fetchall()
         ]
         if not uids:
-            print('No alerts found in the database.')
+            Ut.print_warn('No alerts found in the database.')
             exit()
 
     # Check for all breaches
-    all_b = ae.fetch(
-        uids,
-        triggered=False,
-    )
+    all_b = ae.fetch(uids, triggered=False)
     all_b.sort(key=lambda f: f[0])
 
     data = []
     for uid, g in groupby(all_b, key=lambda f: f[0]):
-        p = af.get(uid) \
-              .last_price()[0]
+        eq = af.get(uid)
+        p = eq.last_price()[0]
 
         for a in g:
-            cond = f'{"P >" if a.cond == "G" else "P <"} {a.value:.2f}'
+            cond = f'{"P >" if a.cond == "G" else "P <"} {a.value:7.2f}'
             price = f'{p:.2f}'
-            delta = f'{100.*a.value / p - 100.:.2f} %'
-            data.append((a.uid, cond, price, delta))
-    fields = ('uid', 'cond', 'price', 'delta')
-    print(tabulate(data, fields), end='\n\n')
+            delta = a.value / p - 1.
+            data.append((a.uid, eq.ticker, cond, price, delta))
+    fields = ('uid', 'ticker', 'cond', 'price', 'delta')
+    print(tabulate(data, fields, floatfmt=_FMT), end='\n\n')
 
-    print('All done!')
+    Ut.print_ok('All done!')

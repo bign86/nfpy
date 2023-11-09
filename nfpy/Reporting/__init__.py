@@ -1,6 +1,6 @@
-from .ReportingEngine import get_re_glob
+from .ReportingEngine import ReportingEngine
 from .Reports import ReportData
 
 __all__ = [
-    'get_re_glob', 'ReportData'
+    'ReportingEngine', 'ReportData'
 ]

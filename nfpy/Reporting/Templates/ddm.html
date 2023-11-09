@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <title>Report NFPY</title>
+  </head>
+  <body>
+    <!-- TITLE -->
+    <a name="head"></a>
+    <div class="header">
+      <div class="titleBox">
+        <h1>{{ title }}</h1>
+        <a name="main_title" href="index.html">Index</a>
+        <hr>
+      </div>
+    </div>
+
+    <!-- REPORTS -->
+    <div class="reportBody">
+      <div class="titleReport">
+        <h3>Report</h3>
+      </div>
+
+      <div class="base-container">
+
+        {%- set ticker = res.keys() | list | last -%}
+        {%- set val = res.values() | list | last -%}
+        <!-- FIRST COLUMN -->
+        <div class="container-small">
+          <div class="section-box">
+            <!-- General -->
+            <div class="first-section-header">General data</div>
+            <table class="simple">
+              <tbody>
+                <tr>
+                  <td class='anag-prop'>Isin</td><td colspan="2" class='anag-value'>{{ val.info["isin"] }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Company</td><td colspan="2" class='anag-value'>{{ val.info["company"] }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Name</td><td colspan="2" class='anag-value'>{{ val.info["description"] }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Index</td><td colspan="2" class='anag-value'>{{ val.info["index"] }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Country</td><td colspan="2" class='anag-value'>{{ val.info["country"] }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Currency</td><td colspan="2" class='anag-value'>{{ val.info["currency"] }}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Performance -->
+            <div class="section-header">Performance</div>
+            <table class="simple">
+              <tbody>
+                <tr>
+                  <td class='anag-prop'></td>
+                  <td class='anag-prop' style="text-align: center;">Price</td>
+                  <td class='anag-prop' style="text-align: center;">Date</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'></td>
+                  <td class='anag-prop'>{{ '%.2f'| format(val.last_price|float) }} {{ val.info["currency"] }}</td>
+                  <td class='anag-prop'>{{ val.last_price_date }}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Dividends -->
+            <div class="sub-section-header">Dividends</div>
+            {%- if val.is_dividend_suspended -%}
+              <div class="warning-msg">Dividend looks suspended</div>
+            {%- endif -%}
+            <table class="simple">
+              <tbody>
+                <tr>
+                  <td class='anag-prop'># per year</td><td colspan="2" class='anag-value'>{{ val.freq_div }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'></td>
+                  <td class='anag-prop' style="text-align: center;">Value</td>
+                  <td class='anag-prop' style="text-align: center;">Yield</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>YTD</td><td class='anag-value'>{{ '%.2f'| format(val.ytd_yrl_div|float) }}</td><td class='anag-value'>{{ '%.2f'| format(val.ytd_yrl_yield|float) }}%</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Last year</td><td class='anag-value'>{{ '%.2f'| format(val.last_yrl_div|float) }}</td><td class='anag-value'>{{ '%.2f'| format(val.last_yrl_yield|float) }}%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <img src="{{ val.img_prices_long }}" alt="Price" class="normal-plot">
+        </div>
+
+        <!-- SECOND COLUMN -->
+        <div class="container-small">
+          <div class="section-box">
+            <div class="first-section-header">Dividend Discount Model Results</div>
+
+            {%- if val.has_ddm -%}
+              {%- if not val.ddm_success -%}
+                <div class="warning-msg">{{ val.dcf_msg }}</div>
+              {%- endif -%}
+              <div class="sub-section-header">Inputs</div>
+              <table class="simple">
+                <tbody>
+                  <tr>
+                    <td class='anag-prop'>Cost of equity</td>
+                    {%- if val.ddm_inputs['ke'] is none -%}
+                      <td class='anag-value'>-</td>
+                    {%- else -%}
+                      <td class='anag-value'>{{ '%.2f'| format(val.ddm_inputs['ke'] * 100|float) }} %</td>
+                    {%- endif -%}
+                    <td class='anag-prop'>Years inflation</td><td class='anag-value'>{{ val.ddm_inputs['infl_w'] }}</td>
+                  </tr>
+                  <tr>
+                    <td class='anag-prop'>Premium</td>
+                    {%- if val.ddm_inputs['premium'] is none -%}
+                      <td class='anag-value'>-</td>
+                    {%- else -%}
+                      <td class='anag-value'>{{ '%.1f'| format(val.ddm_inputs['premium'] * 100|float) }} %</td>
+                    {%- endif -%}
+                    <td class='anag-prop'>Years GDP</td><td class='anag-value'>{{ val.ddm_inputs['gdp_w'] }}</td>
+                  </tr>
+                  <tr>
+                    <td class='anag-prop'>Growth models</td>
+                    <td class='anag-value'>
+                      {%- if 'manual' in val.ddm_inputs['gwt_mode'] -%}
+                        <div class="rag-green">Manual</div>
+                      {%- else -%}
+                        <div class="rag-red">Manual</div>
+                      {%- endif -%}
+                    </td>
+                    <td class='anag-value'>
+                      {%- if 'historical' in val.ddm_inputs['gwt_mode'] -%}
+                        <div class="rag-green">Historical</div>
+                      {%- else -%}
+                        <div class="rag-red">Historical</div>
+                      {%- endif -%}
+                    </td>
+                    <td class='anag-value'>
+                      {%- if 'ROE' in val.ddm_inputs['gwt_mode'] -%}
+                        <div class="rag-green">ROE</div>
+                      {%- else -%}
+                        <div class="rag-red">ROE</div>
+                      {%- endif -%}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              {%- if val.ddm_inputs.stage1 is not none -%}
+                <table class="simple">
+                  <thead>
+                    <tr>
+                      <th>Stage</th><th>Years</th><th>Return</th><th>is H</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class='anag-prop'>#1</td><td class='anag-value'>{{ val.ddm_inputs['stage1'][0] }}</td>
+                      <td class='anag-value'>{{ val.ddm_inputs['stage1'][1] }}</td><td class='anag-value'>{{ val.ddm_inputs['stage1'][2] }}</td>
+                    </tr>
+                    {%- if val.ddm_inputs.stage2 is not none -%}
+                      <tr>
+                        <td class='anag-prop'>#2</td><td class='anag-value'>{{ val.ddm_inputs['stage2'][0] }}</td>
+                        <td class='anag-value'>{{ val.ddm_inputs['stage2'][1] }}</td><td class='anag-value'>{{ val.ddm_inputs['stage2'][2] }}</td>
+                      </tr>
+                    {%- else -%}
+                      <tr>
+                        <td class='anag-prop'>#2</td><td class='anag-value'>-</td><td class='anag-value'>-</td><td class='anag-value'>-</td>
+                      </tr>
+                    {%- endif -%}
+                  </tbody>
+                </table>
+              {%- endif -%}
+
+              <div class="sub-section-header">Macro variables</div>
+              <table class="simple">
+                <tbody>
+                  <tr>
+                    <td class='anag-prop'>ST inflation</td>
+                    <td></td>
+                    <td class='anag-value'>{{ '%.2f'| format(val.ddm_st_inflation|float) }} %</td>
+                  </tr>
+                  <tr>
+                    <td class='anag-prop'>LT inflation</td>
+                    <td></td>
+                    <td class='anag-value'>{{ '%.2f'| format(val.ddm_lt_inflation|float) }} %</td>
+                  </tr>
+                  <tr>
+                    <td class='anag-value' style="text-align: center; border: 1px solid var(--gray); padding: 0 30px 0 30px;" colspan="3">
+                      LT growth = LT GDP growth
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class='anag-prop'>LT growth</td>
+                    <td>=</td>
+                    <td class='anag-value'>{{ '%.2f'| format(val.ddm_lt_g|float) }} %</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div class="sub-section-header">Measurements</div>
+              <table class="simple">
+                <tbody>
+                  <tr>
+                    <td class='anag-prop'>Impl. cost of equity</td>
+                    <td class='anag-value'>{{ '%.2f'| format(val.ddm_im_ke|float) }} %</td>
+                    <td class='anag-description'>From the GGM formula<br>assuming LT growth</td>
+                  </tr>
+                  <tr>
+                    <td class='anag-prop'>Impl. LT premium</td>
+                    <td class='anag-value'>{{ '%.2f'| format(val.ddm_im_lt_prm|float) }} %</td>
+                    <td class='anag-description'>Impl. cost of equity - LT inflation</td>
+                  </tr>
+                  <tr>
+                    <td class='anag-prop'>Impl. ST premium</td>
+                    <td class='anag-value'>{{ '%.2f'| format(val.ddm_im_st_prm|float) }} %</td>
+                    <td class='anag-description'>Impl. cost of equity - ST inflation</td>
+                  </tr>
+                  <tr>
+                    <td class='anag-prop'>Cost of equity</td>
+                    <td class='anag-value'>{{ '%.2f'| format(val.ddm_ke|float) }} %</td>
+                    <td class='anag-description'>
+                      cost of equity + premium<br>OR<br>ST inflation + premium
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div class="sub-section-header">Valuations</div>
+              <table class="simple">
+                <tbody>
+                  <tr>
+                    <td class='anag-prop'></td>
+                    <td class='anag-prop' style="text-align: center;">FV</td>
+                    <td class='anag-prop' style="text-align: center;">Return</td>
+                  </tr>
+                  <tr>
+                    <td class='anag-prop'>No growth</td>
+                    <td class='anag-value'>{{ '%.2f'| format(val.ddm_res_no_gwt["fv"]|float) }} {{ val.info["currency"] }}</td>
+                    {%- if val.ddm_res_no_gwt["ret"] > 0 -%}
+                      <td class='positive-value'>{{ '%.0f'| format((val.ddm_res_no_gwt["ret"]*100)|float) }} %</td>
+                    {%- else -%}
+                      <td class='negative-value'>{{ '%.0f'| format((val.ddm_res_no_gwt["ret"]*100)|float) }} %</td>
+                    {%- endif -%}
+                  </tr>
+                  {%- if val.ddm_res_manual is not none -%}
+                    <tr>
+                      <td class='anag-prop'>Manual growth</td>
+                      <td class='anag-value'>{{ '%.2f'| format(val.ddm_res_manual["fv"]|float) }} {{ val.info["currency"] }}</td>
+                      {%- if val.ddm_res_manual["ret"] > 0 -%}
+                        <td class='positive-value'>{{ '%.0f'| format((val.ddm_res_manual["ret"]*100)|float) }} %</td>
+                      {%- else -%}
+                        <td class='negative-value'>{{ '%.0f'| format((val.ddm_res_manual["ret"]*100)|float) }} %</td>
+                      {%- endif -%}
+                    </tr>
+                  {%- endif -%}
+                  {%- if val.ddm_res_hist is not none -%}
+                    <tr>
+                      <td class='anag-prop'>Hist growth</td>
+                      <td class='anag-value'>{{ '%.2f'| format(val.ddm_res_hist["fv"]|float) }} {{ val.info["currency"] }}</td>
+                      {%- if val.ddm_res_hist["ret"] > 0 -%}
+                        <td class='positive-value'>{{ '%.0f'| format((val.ddm_res_hist["ret"]*100)|float) }} %</td>
+                      {%- else -%}
+                        <td class='negative-value'>{{ '%.0f'| format((val.ddm_res_hist["ret"]*100)|float) }} %</td>
+                      {%- endif -%}
+                    </tr>
+                  {%- endif -%}
+                  {%- if val.ddm_res_roe is not none -%}
+                    <tr>
+                      <td class='anag-prop'>ROE growth</td>
+                      <td class='anag-value'>{{ '%.2f'| format(val.ddm_res_roe["fv"]|float) }} {{ val.info["currency"] }}</td>
+                      {%- if val.ddm_res_roe["ret"] > 0 -%}
+                        <td class='positive-value'>{{ '%.0f'| format((val.ddm_res_roe["ret"]*100)|float) }} %</td>
+                      {%- else -%}
+                        <td class='negative-value'>{{ '%.0f'| format((val.ddm_res_roe["ret"]*100)|float) }} %</td>
+                      {%- endif -%}
+                    </tr>
+                  {%- endif -%}
+                  {%- if "ddm_res_booth" in val -%}
+                    <tr>
+                      <td class='anag-prop'>Booth growth</td>
+                      <td class='anag-value'>{{ '%.2f'| format(val.ddm_res_booth["fv"]|float) }} {{ val.info["currency"] }}</td>
+                      {%- if val.ddm_res_booth["ret"] > 0 -%}
+                        <td class='positive-value'>{{ '%.0f'| format((val.ddm_res_booth["ret"]*100)|float) }} %</td>
+                      {%- else -%}
+                        <td class='negative-value'>{{ '%.0f'| format((val.ddm_res_booth["ret"]*100)|float) }} %</td>
+                      {%- endif -%}
+                    </tr>
+                  {%- endif -%}
+                </tbody>
+              </table>
+            {%- else -%}
+              <div class="error-msg">No DDM available</div>
+            {%- endif -%}
+          </div>
+        </div>
+
+        <!-- THIRD COLUMN -->
+        <div class="container-small">
+          <img src="{{ val.img_divs }}" alt="MA crosses" class="normal-plot">
+          <img src="{{ val.img_growth_rates }}" alt="Price history vs benchmark" class="normal-plot">
+        </div>
+      </div>
+    </div>
+
+  </body>
+</html>
+
+
+
+
+

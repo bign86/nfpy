@@ -127,6 +127,7 @@ class Plotter(object):
 
     def line(self, axid: int, type_: str, v: Union[float, np.ndarray],
              range_: tuple = (), **kwargs):
+        """ The types are: {xv, xh, v, h} """
         self._lines.append((axid, type_, v, range_, kwargs))
         return self
 
@@ -298,9 +299,9 @@ class PtfOptimizationPlot(Plotter):
         if not self._annotations:
             xc = np.array(res.const_var)
             yc = np.array(res.const_ret)
-            for i in range(len(res.uids)):
+            for i in range(len(res.labels)):
                 self._annotations.append((
-                    axid, res.uids[i], (xc[i], yc[i]), None, {}
+                    axid, res.labels[i], (xc[i], yc[i]), None, {}
                 ))
             self.scatter(axid, xc, y=yc, marker='x')
 

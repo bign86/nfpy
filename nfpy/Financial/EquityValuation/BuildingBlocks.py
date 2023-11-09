@@ -12,7 +12,7 @@ from nfpy.Assets import (get_af_glob, TyAsset)
 from nfpy.Calendar import Frequency
 from nfpy.Tools import (Constants as Cn, Exceptions as Ex)
 
-from ..RateFactory import get_rf_glob
+from ..FinancialsFactory import get_fin_glob
 
 
 @dataclass(eq=False, order=False, frozen=True)
@@ -35,7 +35,7 @@ class CAPM(object):
 
     def __init__(self, eq: Union[str, TyAsset]):
         self._af = get_af_glob()
-        self._rf = get_rf_glob()
+        self._rf = get_fin_glob()
 
         if isinstance(eq, str):
             eq = self._af.get(eq)

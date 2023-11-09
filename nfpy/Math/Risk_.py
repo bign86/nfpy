@@ -44,17 +44,7 @@ def beta(dt: np.ndarray, ts: np.ndarray, proxy: np.ndarray,
     if not w:
         # scipy.linregress() is not robust against nans, therefore we clean them
         # and keep the dates series consistent.
-
-        Ut.print_deprecation('Risk.beta()')
-        v_, mask = dropna(v)
         v = cutils.dropna(v, 1)
-
-        assert v_.size == v.size, f'Math.beta(): {v_.size} != {v.size}'
-        assert v_.shape[0] == v.shape[0], f'Math.beta(): {v_.shape[0]} != {v.shape[0]}'
-        assert v_.shape[1] == v.shape[1], f'Math.beta(): {v_.shape[1]} != {v.shape[1]}'
-        for i in range(v_.shape[0]):
-            for j in range(v_.shape[1]):
-                assert v_[i, j] == v[i, j], f'Math.beta(): @[{i}, {j}]: {v_[i, j]} != {v[i, j]}'
 
         dts = dts[-1:]
         slope, intercept, _, _, std_err = stats.linregress(v[1, :], v[0, :])
@@ -135,6 +125,19 @@ def drawdown(ts: np.ndarray, w: int) -> tuple[np.ndarray, np.ndarray]:
     mdd[:w] = np.maximum.accumulate(filled)
     mdd[w - 1:] = np.nanmax(rolling_window(dd, w), axis=1)
     return dd, mdd
+
+
+def pdi(cov: np.ndarray) -> float:
+    """ Calculates the Portfolio Diversification Index according to:
+         * Rudin, M., Morgan, S. "A Portfolio Diversification Index."
+           Journal of Portfolio Management, Vol. 32, No. 2 (2006), pp. 81-89
+         * Diyarbakirlioglu E., "A Portfolio Diversification Index Analysis
+           of the Home Bias"
+    """
+    eigenvals = np.linalg.eig(cov)
+    eig_sum = np.sum(eigenvals)
+    idx = np.arange(1, eigenvals.shape[0] + 1)
+    return 2. * np.sum(eigenvals * idx / eig_sum - 1.)
 
 
 def sharpe(dt: np.ndarray, xc: np.ndarray, br: Optional[np.ndarray] = None,

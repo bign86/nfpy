@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <title>Report NFPY</title>
+  </head>
+  <body>
+    <!-- TITLE -->
+    <a name="head"></a>
+    <div class="header">
+      <div class="titleBox">
+        <h1>{{ title }}</h1>
+        <a name="main_title" href="index.html">Index</a>
+        <hr>
+      </div>
+    </div>
+
+    <!-- REPORTS -->
+    <div class="reportBody">
+      <div class="titleReport">
+        <h3>Report</h3>
+      </div>
+
+      <div class="base-container">
+
+        {%- set ticker = res.keys() | list | last -%}
+        {%- set val = res.values() | list | last -%}
+        <!-- FIRST COLUMN -->
+        <div class="container-tiny">
+          <div class="section-box">
+            <!-- General -->
+            <div class="first-section-header">General data</div>
+            <table class="simple">
+              <tbody>
+                <tr>
+                  <td class='anag-prop'>Isin</td><td colspan="2" class='anag-value'>{{ val.info["isin"] }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Company</td><td colspan="2" class='anag-value'>{{ val.info["company"] }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Name</td><td colspan="2" class='anag-value'>{{ val.info["description"] }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Index</td><td colspan="2" class='anag-value'>{{ val.info["index"] }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Country</td><td colspan="2" class='anag-value'>{{ val.info["country"] }}</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'>Currency</td><td colspan="2" class='anag-value'>{{ val.info["currency"] }}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Performance -->
+            <div class="section-header">Performance</div>
+            <table class="simple">
+              <tbody>
+                <tr>
+                  <td class='anag-prop'></td>
+                  <td class='anag-prop' style="text-align: center;">Price</td>
+                  <td class='anag-prop' style="text-align: center;">Date</td>
+                </tr>
+                <tr>
+                  <td class='anag-prop'></td>
+                  <td class='anag-prop'>{{ '%.2f'| format(val.last_price|float) }} {{ val.info["currency"] }}</td>
+                  <td class='anag-prop'>{{ val.last_price_date }}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="section-header">Discounted Cash Flow Model Results</div>
+
+            {%- if val.has_dcf -%}
+              {%- if not val.dcf_success -%}
+                <div class="warning-msg">{{ val.dcf_msg }}</div>
+              {%- endif -%}
+              <div class="sub-section-header">Inputs</div>
+              <table class="simple">
+                <tbody>
+                  <tr>
+                    <td class='anag-prop'>Cost of equity</td>
+                    {%- if val.dcf_inputs['ke'] is none -%}
+                      <td class='anag-value'>-</td>
+                    {%- else -%}
+                      <td class='anag-value'>{{ '%.2f'| format(val.dcf_inputs['ke']|float) }} %</td>
+                    {%- endif -%}
+                  </tr>
+                  <tr>
+                    <td class='anag-prop'>Premium</td>
+                    {%- if val.dcf_inputs['premium'] is none -%}
+                      <td class='anag-value'>-</td>
+                    {%- else -%}
+                      <td class='anag-value'>{{ '%.1f'| format(val.dcf_inputs['premium'] * 100|float) }} %</td>
+                    {%- endif -%}
+                  </tr>
+                  <tr>
+                    <td class='anag-prop'>Growth</td>
+                    {%- if val.dcf_inputs['growth'] is none -%}
+                      <td class='anag-value'>-</td>
+                    {%- else -%}
+                      <td class='anag-value'>{{ '%.1f'| format(val.dcf_inputs['growth'] * 100|float) }} %</td>
+                    {%- endif -%}
+                  </tr>
+                  <tr>
+                    <td class='anag-prop'>Year of history</td><td class='anag-value'>{{ val.dcf_inputs['history'] }}</td>
+                  </tr>
+                  <tr>
+                    <td class='anag-prop'>Future years</td><td class='anag-value'>{{ val.dcf_inputs['future_horizon'] }}</td>
+                  </tr>
+                  <tr>
+                    <td class='anag-prop'>Years of GDP</td><td class='anag-value'>{{ val.dcf_inputs['gdp_w'] }}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div class="sub-section-header">Measurements</div>
+              <table class="simple">
+                <tbody>
+                  <tr>
+                    <td class='anag-prop'>Cost of Equity</td>
+                    <td class='anag-value'>{{ '%.2f'| format(val.dcf_coe|float) }} %</td>
+                  </tr>
+                  <tr>
+                    <td class='anag-prop'>Cost of Debt</td>
+                    <td class='anag-value'>{{ '%.2f'| format(val.dcf_cod|float) }} %</td>
+                  </tr>
+                  <tr>
+                    <td class='anag-prop'>WACC</td>
+                    <td class='anag-value'>{{ '%.2f'| format(val.dcf_wacc|float) }} %</td>
+                  </tr>
+                  <tr>
+                    <td class='anag-prop'>LT growth</td>
+                    <td class='anag-value'>{{ '%.2f'| format(val.dcf_lt_gwt|float) }} %</td>
+                  </tr>
+                  <tr>
+                    <td class='anag-value' style="text-align: center; border: 1px solid var(--gray); padding: 0 30px 0 30px;" colspan="3">
+                      Tot growth = LT growth + Premium
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class='anag-prop'>Tot growth</td>
+                    <td class='anag-value'>{{ '%.2f'| format(val.dcf_tot_gwt|float) }} %</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div class="sub-section-header">Valuations</div>
+              <table class="simple">
+                <tbody>
+                  <tr>
+                    <td class='anag-prop' style="text-align: center;">FV</td>
+                    <td class='anag-prop' style="text-align: center;">Return</td>
+                  </tr>
+                  <tr>
+                    <td class='anag-value'>{{ '%.2f'| format(val.dcf_fair_value|float) }} {{ val.info["currency"] }}</td>
+                    {%- if val.dcf_return > 0 -%}
+                      <td class='positive-value'>{{ '%.0f'| format((val.dcf_return)|float) }} %</td>
+                    {%- else -%}
+                      <td class='negative-value'>{{ '%.0f'| format((val.dcf_return)|float) }} %</td>
+                    {%- endif -%}
+                  </tr>
+                </tbody>
+              </table>
+            {%- else -%}
+              <div class="error-msg">No DCF available</div>
+            {%- endif -%}
+          </div>
+        </div>
+
+        <div class="container-huge">
+          <!-- SECOND COLUMN -->
+          <div class="container-normal">
+            {{ val.fcff_calcs }}
+            <img src="{{ val.img_p_price }}" alt="Price" class="normal-plot">
+          </div>
+
+          <!-- THIRD COLUMN -->
+          <div class="container-normal">
+            <img src="{{ val.img_fundamentals }}" alt="Fundamentals" class="normal-plot">
+            <img src="{{ val.img_rates }}" alt="Growth rates" class="normal-plot">
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </body>
+</html>
+
+
+
+
+

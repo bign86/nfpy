@@ -113,6 +113,63 @@ CREATE TABLE [Downloads] (
     PRIMARY KEY ([provider], [page], [ticker])
 ) WITHOUT ROWID;
 
+CREATE TABLE [ECBAggregates] (
+    [ticker] TEXT NOT NULL,
+	[freq] TEXT NOT NULL,
+	[adjustment] TEXT NOT NULL,
+	[ref_area] TEXT NOT NULL,
+	[counterpart_area] TEXT NOT NULL,
+	[ref_sector] TEXT NOT NULL,
+	[counterpart_sector] TEXT NOT NULL,
+	[accounting_entry] TEXT NOT NULL,
+	[sto] TEXT NOT NULL,
+	[instr_asset] TEXT NOT NULL,
+	[activity] TEXT NOT NULL,
+	[expenditure] TEXT NOT NULL,
+	[unit_measure] TEXT NOT NULL,
+	[prices] TEXT NOT NULL,
+	[transformation] TEXT NOT NULL,
+    [time_period] DATE NOT NULL,
+    [obs_value] REAL,
+    PRIMARY KEY ([ticker], [time_period])
+) WITHOUT ROWID;
+
+CREATE TABLE [ECBExr] (
+    [ticker] TEXT NOT NULL,
+	[freq] TEXT NOT NULL,
+	[currency] TEXT NOT NULL,
+	[currency_denom] TEXT NOT NULL,
+	[exr_type] TEXT NOT NULL,
+	[exr_suffix] TEXT NOT NULL,
+    [time_period] DATE NOT NULL,
+    [obs_value] REAL,
+    PRIMARY KEY ([ticker], [time_period])
+) WITHOUT ROWID;
+
+CREATE TABLE [ECBRates] (
+    [ticker] TEXT NOT NULL,
+	[freq] TEXT NOT NULL,
+	[benchmark_item] TEXT NOT NULL,
+	[data_type_est] TEXT NOT NULL,
+    [time_period] DATE NOT NULL,
+    [obs_value] REAL,
+    PRIMARY KEY ([ticker], [time_period])
+) WITHOUT ROWID;
+
+CREATE TABLE [ECBYields] (
+    [ticker] TEXT NOT NULL,
+	[freq] TEXT NOT NULL,
+	[ref_area] TEXT NOT NULL,
+	[currency] TEXT NOT NULL,
+	[provider_fm] TEXT NOT NULL,
+	[instrument_fm] TEXT NOT NULL,
+	[provider_fm_id] TEXT NOT NULL,
+	[data_type_fm] TEXT NOT NULL,
+    [time_period] DATE NOT NULL,
+    [obs_value] REAL,
+    PRIMARY KEY ([ticker], [time_period])
+) WITHOUT ROWID;
+
 CREATE TABLE [ECBSeries] (
     [ticker] TEXT NOT NULL,
     [date] DATE NOT NULL,
@@ -211,13 +268,17 @@ CREATE TABLE [Imports] (
     PRIMARY KEY ([uid], [ticker], [provider], [item])
 ) WITHOUT ROWID;
 
-CREATE TABLE [Indices] (
+CREATE TABLE [Index] (
     [uid] TEXT NOT NULL,
-    [ticker] TEXT NOT NULL,
-    [area] TEXT,
     [currency] TEXT NOT NULL,
-    [description] TEXT,
+    [country] TEXT,
+    [ticker] TEXT,
     [ac] TEXT,
+    [frequency] TEXT NOT NULL,
+    [description] TEXT,
+    [is_inflation] BOOL NOT NULL DEFAULT False,
+    [is_gdp] BOOL NOT NULL DEFAULT False,
+	[adjustment] TEXT,
     PRIMARY KEY ([uid])
 ) WITHOUT ROWID;
 
@@ -352,13 +413,14 @@ CREATE TABLE [Rate] (
     [uid] TEXT NOT NULL,
     [description] TEXT,
     [currency] TEXT,
-    [country] BOOL NOT NULL,
-    [tenor] REAL,
+    [country] TEXT NOT NULL,
+    [tenor] TEXT,
     [frequency] TEXT NOT NULL,
     [is_ccy_rf] BOOL NOT NULL DEFAULT False,
     [is_country_rf] BOOL NOT NULL DEFAULT False,
-    [is_inflation] BOOL NOT NULL DEFAULT False,
+    [is_inflation_rate] BOOL NOT NULL DEFAULT False,
     [is_gdp] BOOL NOT NULL DEFAULT False,
+    [adjustment] TEXT,
     PRIMARY KEY ([uid])
 ) WITHOUT ROWID;
 
@@ -377,6 +439,7 @@ CREATE TABLE [Reports] (
     [report] TEXT,
     [template] TEXT,
     [uids] PARAMETERS,
+    [calendar_setting] PARAMETERS NOT NULL DEFAULT '{"D":1,"M":1,"Y":1}'
     [parameters] PARAMETERS,
     [active] BOOL,
     PRIMARY KEY ([id])
@@ -449,7 +512,7 @@ FROM (
     SELECT [uid], 'Equity'    as [type], [description], [currency] FROM [Equity] UNION
     SELECT [uid], 'Etf'       as [type], [description], [currency] FROM [Etf] UNION
     SELECT [uid], 'Fx'        as [type], [description], NULL FROM [Fx] UNION
-    SELECT [uid], 'Indices'   as [type], [description], [currency] FROM [Indices] UNION
+    SELECT [uid], 'Index'   as [type], [description], [currency] FROM [Index] UNION
     SELECT [uid], 'Portfolio' as [type], [description], NULL FROM [Portfolio] UNION
     SELECT [uid], 'Rate'      as [type], [description], NULL FROM [Rate]
 ) AS src;

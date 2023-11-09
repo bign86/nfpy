@@ -1,12 +1,12 @@
 #
-# Rebuild Table Script
-# Script to rebuild a table
+# Rebuild Table
+# Script to rebuild a table by adding or removing columns
 #
 
 import nfpy.DB as DB
 import nfpy.IO as IO
 
-__version__ = '0.2'
+__version__ = '0.3'
 _TITLE_ = "<<< Rebuild a table script >>>"
 
 if __name__ == '__main__':
@@ -18,10 +18,7 @@ if __name__ == '__main__':
     inh = IO.InputHandler()
 
     # Select table and fetch structure
-    table_name = inh.input("Which table you want to rebuild?: ", idesc='str')
-    if not qb.exists_table(table_name):
-        raise ValueError('The table you provided does not exists')
-
+    table_name = inh.input("Which table do you want to rebuild?: ", idesc='table')
     print(f'Current structure:\n{qb.get_structure_string(table_name)}',
           end='\n\n')
 
@@ -42,13 +39,12 @@ if __name__ == '__main__':
     if (not to_add) & (not to_remove):
         print('No changes')
         exit()
-    # print('The following changes have been selected:\n{}')
-    # if not inh.input("Do you want to proceed?: ", idesc='bool', default=False):
-    #     exit()
 
     # Perform backup
-    if inh.input("Do you want to backup the database?: ",
-                 idesc='bool', default=True):
+    if inh.input(
+            "Do you want to backup the database? (default True): ",
+            idesc='bool', default=True
+    ):
         DB.backup_db()
 
     # If there are only additions it is better to add the columns to the
@@ -84,7 +80,10 @@ if __name__ == '__main__':
         db.execute(q_ins)
 
         # Drop old table
-        if inh.input("Drop the old table?: ", idesc='bool', default=False):
+        if inh.input(
+                "Drop the old table?: (default False) ",
+                idesc='bool', default=False
+        ):
             db.execute(qb.drop(old_table_name))
 
     print('All done!')
