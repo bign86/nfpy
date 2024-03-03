@@ -277,7 +277,7 @@ class DividendFactory(object):
         # Calculate the returns
         ret = divs[1:] / divs[:-1] - 1.
         np.nan_to_num(ret, copy=False, posinf=np.nan)
-        ret = cutils.dropna(ret, 0)
+        ret = cutils.dropna(ret, 1)
 
         # Remove the outliers from the calculation
         ret_mean = np.mean(ret)

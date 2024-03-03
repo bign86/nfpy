@@ -213,15 +213,16 @@ class Equity(Asset):
             raise TypeError(f'Objects of type {ty} cannot be used as benchmarks')
 
         eq_ret = self.log_returns if is_log else self.returns
+        dt = eq_ret.index.to_numpy()
         index_ret = benchmark.log_returns if is_log else benchmark.returns
 
         end = self._cal.t0 if end is None else end
+        slc = Math.search_trim_pos(dt, Cal.pd_2_np64(start), Cal.pd_2_np64(end))
+
         dts, beta, adj_b, itc = Math.beta(
-            eq_ret.index.to_numpy(),
-            eq_ret.to_numpy(),
-            index_ret.to_numpy(),
-            start=Cal.pd_2_np64(start),
-            end=Cal.pd_2_np64(end),
+            dt[slc],
+            eq_ret.to_numpy()[slc],
+            index_ret.to_numpy()[slc],
             w=w
         )
         return (

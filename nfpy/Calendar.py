@@ -41,13 +41,14 @@ _OFFSET_LABELS = {
     'AS': ('AS', off.YearBegin),
     'BAS': ('BAS', off.BYearBegin),
     'A': ('A', off.YearEnd),
-    'BA': ('BA', off.BYearEnd)
+    'Y': ('Y', off.YearEnd),
+    'BA': ('BA', off.BYearEnd),
+    'BY': ('BY', off.BYearEnd)
 }
 
 
 class Frequency(Enum):
     D = 'D'
-    B = 'B'
     W = 'W'
     M = 'M'
     Q = 'Q'
@@ -113,7 +114,8 @@ class Calendar(metaclass=Singleton):
     def end(self) -> pd.Timestamp:
         return self._end
 
-    # Elaboration date, by default the most recent one.
+    # Elaboration date, by default the most recent date for which a data point
+    # is potentially available (last business date).
     @property
     def t0(self) -> pd.Timestamp:
         return self._t0
@@ -259,10 +261,10 @@ class Calendar(metaclass=Singleton):
             normalize=True, holidays=holidays
         )
 
-        if self._end.dayofweek > 4:
-            self._t0 = self.end - off.BDay(1)
-        else:
-            self._t0 = self.end
+        # if self._end.dayofweek > 4:
+        self._t0 = self.end - off.BDay(1)
+        # else:
+        #     self._t0 = self.end
         # offset = max(0, self._end.weekday() - 4)
         # self._t0 = self.end - off.BDay(offset)
 
@@ -339,8 +341,10 @@ class Calendar(metaclass=Singleton):
         self._initialized = True
 
     @staticmethod
-    def get_offset(freq: str) -> off:
+    def get_offset(freq: Union[str, Frequency]) -> off:
         """ Get a DateOffset object dependent on the frequency """
+        if isinstance(freq, Frequency):
+            freq = freq.value
         return _OFFSET_LABELS[freq][1]
 
     def run_len(self, start: TyDatetime, end: TyDatetime) -> int:

@@ -34,40 +34,8 @@ else:
 
 
 class ReportMarketShort(BaseReport):
-    DEFAULT_P = {
-        'years_price_hist': 2.,
-        'w_alerts_days': 14,
-        'ewma': {
-            'w_ma_fast': 20,
-            'w_ma_slow': 120,
-            'w_plot': 250
-        },
-        'sr': {
-            'w_sr': [120, 20],
-            'w_check': 10,
-            'tolerance': 1.5,
-            'w_multi': 2.,
-        },
-        'DCF': {
-            'history': 8,
-            'projection': 5,
-            'growth': None,
-            'premium': 0.02,
-            'gdp_w': 20,
-            'infl_w': 20,
-        },
-        'DDM': {
-            'ke': None,
-            'premium': 0.02,
-            'stage1': (5, None, True),
-            'stage2': None,
-            'gdp_w': 20,
-            'infl_w': 20,
-            'gwt_mode': ['historical', 'ROE'],
-        },
-    }
 
-    def __init__(self, data: ReportData, path: Optional[str] = None, **kwargs):
+    def __init__(self, data: ReportData, path: Optional[str] = None):
         super().__init__(data, path)
         self._time_spans = (
             Cn.DAYS_IN_1M, 3 * Cn.DAYS_IN_1M, 6 * Cn.DAYS_IN_1M,
@@ -75,17 +43,6 @@ class ReportMarketShort(BaseReport):
         )
         self._hist_slc = None
         self._span_slc = None
-
-    def _init_input(self, type_: Optional[str] = None) -> None:
-        """ Prepare and validate the input parameters for the model. This
-            includes verifying the parameters are correct for the models in the
-            report. Takes the default parameters if any, applies the values from
-            the database and the asset-specific overlays if any.
-            The function must ensure the parameters from the database stored in
-            the self._p symbol are NOT altered for later usage by making copies
-            if required.
-        """
-        pass
 
     def _one_off_calculations(self) -> None:
         """ Perform all non-uid dependent calculations for efficiency. """
@@ -168,17 +125,22 @@ class ReportMarketShort(BaseReport):
 
         # Dividends
         df = DividendFactory(asset)
-        res.freq_div = df.frequency
-        res.ytd_yrl_div = df.ytd_div()
-        res.ytd_yrl_yield = df.ytd_yield() * 100.
+        if df.is_dividend_payer:
+            res.is_dividend_payer = True
+            res.is_dividend_suspended = df.is_dividend_suspended
+            res.freq_div = df.frequency
+            res.ytd_yrl_div = df.ytd_div()
+            res.ytd_yrl_yield = df.ytd_yield() * 100.
 
-        _, yrl_yield = df.annual_yields()
-        if len(yrl_yield) >= 1:
-            res.last_yrl_div = df.annual_dividends[1][-1]
-            res.last_yrl_yield = yrl_yield[-1] * 100.
+            _, yrl_yield = df.annual_yields()
+            if len(yrl_yield) >= 1:
+                res.last_yrl_div = df.annual_dividends[1][-1]
+                res.last_yrl_yield = yrl_yield[-1] * 100.
+            else:
+                res.last_yrl_div = 0.
+                res.last_yrl_yield = 0.
         else:
-            res.last_yrl_div = 0.
-            res.last_yrl_yield = 0.
+            res.is_dividend_payer = False
 
         # Performance and plot
         # Adjust the slice to account for the fact that the history of the
@@ -263,22 +225,15 @@ class ReportMarketShort(BaseReport):
             Ut.print_exc(ex)
         else:
             res.has_ddm = True
-            res.ddm_im_ke = ddm_res.implied_ke * 100.
-            res.ddm_im_lt_prm = ddm_res.implied_lt_premium * 100.
-            res.ddm_im_st_prm = ddm_res.implied_st_premium * 100.
+            res.ddm_success = ddm_res.success
+            res.ddm_msg = ddm_res.msg
+            res.ddm_inputs = self._p.get('DDM', {})
 
-            res.ddm_ke = ddm_res.ke * 100.
-            res.ddm_premium = ddm_res.premium * 100.
-            res.ddm_lt_g = ddm_res.lt_growth * 100.
-
-            res.ddm_res_no_gwt = ddm_res.no_growth
-
-            if hasattr(ddm_res, 'manual_growth'):
-                res.ddm_res_manual = ddm_res.manual_growth
-            if hasattr(ddm_res, 'historical_growth'):
-                res.ddm_res_hist = ddm_res.historical_growth
-            if hasattr(ddm_res, 'ROE_growth'):
-                res.ddm_res_roe = ddm_res.ROE_growth
+            if ddm_res.applicable:
+                res.ddm_res_no_gwt = ddm_res.outputs['no_growth']
+                res.ddm_res_manual = ddm_res.outputs.get('manual_growth', None)
+                res.ddm_res_hist = ddm_res.outputs.get('historical_growth', None)
+                res.ddm_res_roe = ddm_res.outputs.get('ROE_growth', None)
 
         # Dividends Cash FLow Model Calculation
         try:
@@ -289,14 +244,13 @@ class ReportMarketShort(BaseReport):
             Ut.print_exc(ex)
         else:
             res.has_dcf = True
-            res.dcf_last_price = dcf_res.last_price
-            res.dcf_fair_value = dcf_res.fair_value
-            res.dcf_return = dcf_res.ret * 100.
-            res.dcf_wacc = dcf_res.wacc * 100.
-            res.dcf_coe = dcf_res.cost_of_equity * 100.
-            res.dcf_cod = dcf_res.cost_of_debt * 100.
-            res.dcf_history = dcf_res.history
-            res.dcf_project = dcf_res.projection
+            res.dcf_success = dcf_res.success
+            res.dcf_msg = dcf_res.msg
+            res.dcf_inputs = self._p.get('DCF', {})
+
+            if dcf_res.applicable:
+                res.dcf_fair_value = dcf_res.outputs['fair_value']
+                res.dcf_return = dcf_res.outputs['ret'] * 100.
 
     def _calc_trading(self, asset: TyAsset, res: Ut.AttributizedDict) -> None:
         fig_full, fig_rel = self._get_image_paths(
@@ -339,11 +293,10 @@ class ReportMarketShort(BaseReport):
 
         # S/R lines alerts & add to the common list
         w_sr = self._p['sr']['w_sr']
-        sr_check = self._p['sr']['w_check']
-        sr_tol = self._p['sr']['tolerance']
-        sr_multi = self._p['sr']['w_multi']
+        sr_check = int(self._p['sr']['w_check'])
+        sr_tol = float(self._p['sr']['tolerance'])
+        smooth_w = 2 * max(w_sr) + sr_check + 1
 
-        smooth_w = max(w_sr) * sr_multi
         sr_checker = Trd.SRBreachEngine(
             v_p[-smooth_w:],
             sr_check, sr_tol, 'smooth', w_sr
@@ -357,13 +310,13 @@ class ReportMarketShort(BaseReport):
         w_check = self._p['ewma']['w_plot']
 
         total_length = min(w_slow + w_check, v_p.shape[0])
-        shortened_v = cutils.ffill(v_p[-total_length:].copy())
+        shortened_v = cutils.ffill(v_p.copy())[-total_length:]
 
         shortened_dt = dt_p[-total_length:]
         ema_f = Ind.Ewma(shortened_v, True, w_fast)
         ema_s = Ind.Ewma(shortened_v, True, w_slow)
-        ema_f.start(w_slow)
-        ema_s.start(w_slow)
+        ema_f.start()
+        ema_s.start()
         ma_fast = ema_f.get_indicator()['ewma']
         ma_slow = ema_s.get_indicator()['ewma']
 
@@ -431,4 +384,4 @@ class ReportMarketShort(BaseReport):
                 formatters={'price': '{:,.2f}'.format, },
             )
         else:
-            res.alerts_table = f'No alerts triggered'
+            res.alerts_table = None

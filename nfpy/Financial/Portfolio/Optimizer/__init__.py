@@ -1,6 +1,6 @@
-from .BaseOptimizer import TyOptimizer
+from .BaseOptimizer import (OptimizerResult, TyOptimizer)
 
 
 __all__ = [
-    'TyOptimizer'
+    'OptimizerResult', 'TyOptimizer'
 ]

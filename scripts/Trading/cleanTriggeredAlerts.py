@@ -5,14 +5,15 @@
 
 import nfpy.Calendar as Cal
 import nfpy.IO as IO
+from nfpy.Tools import Utilities as Ut
 import nfpy.Trading as Trd
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = '<<< Clean triggered manual alerts script >>>'
 
 
 if __name__ == '__main__':
-    print(_TITLE_, end='\n\n')
+    Ut.print_header(_TITLE_, end='\n\n')
 
     ae = Trd.AlertsEngine()
     cal = Cal.get_calendar_glob()
@@ -29,9 +30,9 @@ if __name__ == '__main__':
                f'=> triggered: {a.date_triggered}\n'
     msg += f'Continue with removal?: '
     if inh.input(msg, idesc='bool'):
-        print('   * Deleting...', end='\n\n')
+        Ut.print_highlight('   * Deleting...', end='\n\n')
         ae.remove(to_rem)
     else:
-        print('   * Aborted', end='\n\n')
+        Ut.print_highlight('   * Aborted', end='\n\n')
 
-    print('All done!')
+    Ut.print_ok('All done!')

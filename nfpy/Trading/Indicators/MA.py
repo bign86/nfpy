@@ -20,18 +20,15 @@ class Sma(BaseIndicator):
         self._w = w
         self._ma = None
 
-        super(Sma, self).__init__(ts, is_bulk, (1,))
+        super(Sma, self).__init__(ts, is_bulk, {1})
 
     def _bulk(self, t0: int) -> None:
         self._ma = np.empty(self._max_t, dtype=float)
         self._ma[:self._w - 1] = np.nan
 
-        if self._is_bulk:
-            ma_slc = slice(self._w - 1, None)
-            ts_slc = slice(None, None)
-        else:
-            ma_slc = slice(self._w - 1, t0 + 1)
-            ts_slc = slice(None, t0 + 1)
+        end = None if self._is_bulk else t0 + 1
+        ma_slc = slice(self._w - 1, end)
+        ts_slc = slice(None, end)
 
         self._ma[ma_slc] = Math.rolling_mean(self._ts[ts_slc], self._w)
 
@@ -61,7 +58,7 @@ class Smstd(BaseIndicator):
         self._dof = ddof
         self._std = None
 
-        super(Smstd, self).__init__(ts, is_bulk, (1,))
+        super(Smstd, self).__init__(ts, is_bulk, {1})
 
     def _bulk(self, t0: int) -> None:
         self._std = np.empty(self._max_t, dtype=float)
@@ -103,7 +100,7 @@ class Csma(BaseIndicator):
         self._sum = .0
         self._count = 0
 
-        super(Csma, self).__init__(ts, is_bulk, (1,))
+        super(Csma, self).__init__(ts, is_bulk, {1})
 
     def _bulk(self, t0: int) -> None:
         self._ma = np.empty(self._max_t, dtype=float)
@@ -114,7 +111,11 @@ class Csma(BaseIndicator):
             slc = slice(None, t0 + 1)
 
         _sum = np.nancumsum(self._ts[slc])
-        _div = np.array(range(self._ts[slc]))
+        _div = np.array(
+            range(
+                self._ts[slc].shape[self._ts.ndim - 1]
+            )
+        ) + 1
         self._ma[slc] = _sum / _div
 
         self._sum = float(_sum[-1])
@@ -149,7 +150,7 @@ class Ewma(BaseIndicator):
         self._alpha = 2. / (1. + w)
         self._c = 1. - self._alpha
 
-        super(Ewma, self).__init__(ts, is_bulk, (1,))
+        super(Ewma, self).__init__(ts, is_bulk, {1})
 
     def _bulk(self, t0: int) -> None:
         self._ma = np.empty(self._max_t, dtype=float)
@@ -184,7 +185,7 @@ class Smd(BaseIndicator):
         self._w = w
         self._smd = None
 
-        super(Smd, self).__init__(ts, is_bulk, (1,))
+        super(Smd, self).__init__(ts, is_bulk, {1})
 
     def _bulk(self, t0: int) -> None:
         self._smd = np.empty(self._max_t, dtype=float)
@@ -238,7 +239,7 @@ class Macd(BaseIndicator):
         self._signal = None
         self._hist = None
 
-        super(Macd, self).__init__(ts, is_bulk, (1,))
+        super(Macd, self).__init__(ts, is_bulk, {1})
 
     def _bulk(self, t0: int) -> None:
         self._macd = np.empty(self._max_t, dtype=float)
@@ -278,7 +279,7 @@ class Macd(BaseIndicator):
 
     @property
     def min_length(self) -> int:
-        return self._ws + self._wm
+        return self._ws + self._wm - 1
 
 
 class Dema(BaseIndicator):
@@ -295,7 +296,7 @@ class Dema(BaseIndicator):
         self._ma1 = .0
         self._ma2 = .0
 
-        super(Dema, self).__init__(ts, is_bulk, (1,))
+        super(Dema, self).__init__(ts, is_bulk, {1})
 
     def _bulk(self, t0: int) -> None:
         self._dema = np.empty(self._max_t, dtype=float)
@@ -343,7 +344,7 @@ class Tema(BaseIndicator):
         self._ma2 = .0
         self._ma3 = .0
 
-        super(Tema, self).__init__(ts, is_bulk, (1,))
+        super(Tema, self).__init__(ts, is_bulk, {1})
 
     def _bulk(self, t0: int) -> None:
         self._tema = np.empty(self._max_t, dtype=float)
@@ -396,7 +397,7 @@ class Alma(BaseIndicator):
         )
         self._norm = np.sum(self._factor)
 
-        super(Alma, self).__init__(ts, is_bulk, (1,))
+        super(Alma, self).__init__(ts, is_bulk, {1})
 
     def _bulk(self, t0: int) -> None:
         self._ma = np.empty(self._max_t, dtype=float)
@@ -419,7 +420,7 @@ class Alma(BaseIndicator):
         return self._ma[self._t]
 
     def _ind_online(self) -> Union[float, tuple]:
-        ma = self._ma[self._t - 1] + (self._ts[self._t] - self._ts[self._t - self._w]) / self._w
+        ma = np.sum(self._ts[self._t - self._w + 1:self._t + 1] * self._factor) / self._norm
         self._ma[self._t] = ma
         return ma
 

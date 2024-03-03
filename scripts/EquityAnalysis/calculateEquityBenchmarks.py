@@ -21,7 +21,8 @@ To exit type 'quit' in the search field."""
 
 
 def update_index(_eq) -> None:
-    _q = "select * from Assets where type = 'Indices'"
+    _q = """select * from [Assets] as a join [Index] as j on a.[uid] = j.[uid]
+            where a.[type] = 'Index' and j.[ac] = 'Equity'"""
     _idx = db.execute(_q).fetchall()
 
     _res = []
@@ -34,7 +35,7 @@ def update_index(_eq) -> None:
                     '*' if _eq.index == _uid else '',
                     _uid,
                     _eq.returns.corr(_bmk.returns),
-                    *(_eq.beta(_bmk)[:2])
+                    *map(lambda v: float(v.iloc[0]), _eq.beta(_bmk)[:2])
                 )
             )
         except Ex.MissingData as ex:

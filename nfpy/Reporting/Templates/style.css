@@ -105,6 +105,13 @@ td.anag-description {
     vertical-align: middle;
     text-align: center;
 }
+td.banner {
+    background-color: var(--light-gray);
+    font-weight: bold;
+    padding: 3px;
+    vertical-align: middle;
+    text-align: center;
+}
 td.positive-value {
     background-color: var(--light-green);
     color: var(--dark-green);
@@ -218,6 +225,10 @@ hr.shadow {
 	height: 10px;
 	border: 0;
 	box-shadow: 0 10px 10px -10px var(--blue) inset;
+}
+hr.light {
+    border-top: 0.2px solid var(--blue);
+    border-bottom: 0.2px solid var(--blue);
 }
 div.uidListMultiCol {
     column-count: 5;

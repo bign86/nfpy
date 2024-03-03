@@ -1,9 +1,10 @@
 #
 # Base Strategy
-# Base strategy structure
+# Structure that defines the standard basic structure of a strategy
 #
 
 from abc import (ABCMeta, abstractmethod)
+import cutils
 import numpy as np
 from typing import (Optional, TypeVar)
 
@@ -70,7 +71,7 @@ class BaseStrategy(metaclass=ABCMeta):
             msg = f'{self._LABEL}: The series is {-useful_len} periods too short'
             raise ValueError(msg)
 
-        if useful_len - Math.next_valid_index(self._ts) < 0:
+        if useful_len - cutils.next_valid_index(self._ts) < 0:
             msg = f'{self._LABEL}: The are too many nans at the beginning'
             raise ValueError(msg)
 

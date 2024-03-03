@@ -26,7 +26,7 @@ class Aroon(BaseIndicator):
         self._aro_up = None
         self._aro_dwn = None
 
-        super(Aroon, self).__init__(ts, is_bulk, (1,))
+        super(Aroon, self).__init__(ts, is_bulk, {1})
 
     def _bulk(self, t0: int) -> None:
         self._aro = np.empty(self._max_t, dtype=float)
@@ -38,16 +38,13 @@ class Aroon(BaseIndicator):
         self._aro_dwn[:self._w - 1] = np.nan
 
         # Calculate the Aroon over the relevant time period
-        if self._is_bulk:
-            ts_slc = slice(0, None)
-            a_slc = slice(self._w - 1, None)
-        else:
-            ts_slc = slice(0, t0 + 1)
-            a_slc = slice(self._w - 1, t0 + 1)
+        end = None if self._is_bulk else t0 + 1
+        ts_slc = slice(None, end)
+        a_slc = slice(self._w - 1, end)
 
         roll = Math.rolling_window(self._ts[ts_slc], self._w)
-        up = 100. * np.argmax(roll, axis=1) / self._w
-        down = 100. * np.argmin(roll, axis=1) / self._w
+        up = 100. - 100. * (np.argmax(roll, axis=1) + 1) / self._w
+        down = 100. - 100. * (np.argmin(roll, axis=1) + 1) / self._w
 
         self._aro[a_slc] = up - down
         self._aro_up[a_slc] = up
@@ -60,9 +57,9 @@ class Aroon(BaseIndicator):
         return self._aro_up[self._t], self._aro_dwn[self._t], self._aro[self._t]
 
     def _ind_online(self) -> Union[float, tuple]:
-        slc = self._ts[self._t - self._w: self._t + 1]
-        up = 100. * np.argmax(slc) / self._w
-        down = 100. * np.argmin(slc) / self._w
+        slc = self._ts[self._t - self._w + 1: self._t + 1]
+        up = 100. - 100. * (np.argmax(slc) + 1) / self._w
+        down = 100. - 100. * (np.argmin(slc) + 1) / self._w
         aroon = up - down
 
         self._aro[self._t] = aroon
@@ -70,43 +67,142 @@ class Aroon(BaseIndicator):
         self._aro_dwn[self._t] = down
         return up, down, aroon
 
-    # NON-Vectorized version. Slower in Python, but closer to full C.
-    # def _ind_online(self) -> Union[float, tuple]:
-    #     if self._t - self._max[0] > self._w:
-    #         t = min(self._t + 1, self._max_t)
-    #         slc = self._ts[self._t - self._w: t]
-    #         imax = np.argmax(slc)
-    #         self._max = (imax, self._ts[imax])
-    #         up = 100. * imax / self._w
-    #
-    #         imin = np.argmin(slc)
-    #         self._min = (imin, self._ts[imin])
-    #         down = 100. * imin / self._w
-    #     else:
-    #         # max
-    #         if self._ts[self._t] > self._max[1]:
-    #             self._max = (self._t, self._ts[self._t])
-    #             up = 0
-    #         else:
-    #             up = 100. * self._max[0] / self._w
-    #
-    #         # min
-    #         if self._ts[self._t] < self._min[1]:
-    #             self._min = (self._t, self._ts[self._t])
-    #             down = 0
-    #         else:
-    #             down = 100. * self._min[0] / self._w
-    #
-    #     aroon = up - down
-    #
-    #     self._aro[self._t] = aroon
-    #     self._aro_up[self._t] = up
-    #     self._aro_dwn[self._t] = down
-    #     return up, down, aroon
-
     @property
     def min_length(self) -> int:
         return self._w
+
+
+class Adx(BaseIndicator):
+    """ Calculates the Average Directional Movement indicator. It a lagging
+        trend strength indicator, not a direction or momentum indicator.
+        The <ts> array is expected with shape (2, n) and structure
+            <high, low, close>.
+    """
+
+    _NAME = 'adx'
+
+    def __init__(self, ts: np.ndarray, is_bulk: bool, w: int):
+        self._w = w
+        self._alpha = 2. / (1. + w)
+        self._c = 1. - self._alpha
+
+        super(Adx, self).__init__(ts, is_bulk, {3})
+
+    def _bulk(self, t0: int) -> None:
+        self._dm_up = np.empty(self._max_t, dtype=float)
+        self._dm_down = np.empty(self._max_t, dtype=float)
+        self._di_up = np.empty(self._max_t, dtype=float)
+        self._di_up[0] = np.nan
+        self._di_down = np.empty(self._max_t, dtype=float)
+        self._di_down[0] = np.nan
+        self._tr = np.empty(self._max_t, dtype=float)
+        self._tr[0] = np.nan
+        self._atr = np.empty(self._max_t, dtype=float)
+        self._atr[:self._w] = np.nan
+        self._adx = np.empty(self._max_t, dtype=float)
+        self._adx[:self._w] = np.nan
+
+        if self._is_bulk:
+            m_slc = slice(0, None)
+            hl_slc = slice(1, None)
+            c_slc = slice(0, -1)
+            end = self._max_t
+        else:
+            m_slc = slice(0, t0 + 1)
+            hl_slc = slice(1, t0 + 1)
+            c_slc = slice(0, t0)
+            end = t0 + 1
+
+        # Calculate ATR
+        self._tr[hl_slc] = np.maximum(self._ts[0, hl_slc], self._ts[2, c_slc]) - \
+                           np.minimum(self._ts[1, hl_slc], self._ts[2, c_slc])
+
+        atr = np.mean(self._tr[1:self._w + 1])
+        self._atr[self._w] = atr
+
+        for i in range(self._w + 1, end):
+            # https://en.wikipedia.org/wiki/Average_true_range
+            atr = (atr * (self._w - 1) + self._tr[i]) / self._w
+            self._atr[i] = atr
+
+        # Calculate the Directional indicator
+        upmove = np.diff(self._ts[0, m_slc])
+        downmove = np.diff(self._ts[1, m_slc][::-1])[::-1]
+
+        mask = (upmove > downmove) & (upmove > 0)
+        upmove[~mask] = .0
+        mask = (downmove > upmove) & (downmove > 0)
+        downmove[~mask] = .0
+
+        self._dm_up[m_slc] = np.r_[np.nan, upmove]
+        self._dm_down[m_slc] = np.r_[np.nan, downmove]
+
+        # Calculate the smoothed DI
+        self._di_up[1] = self._dm_up[1]
+        self._di_down[1] = self._dm_down[1]
+        for i in range(2, end):
+            self._di_up[i] = self._alpha * self._dm_up[i] + self._c * self._di_up[i - 1]
+            self._di_down[i] = self._alpha * self._dm_down[i] + self._c * self._di_down[i - 1]
+
+        # Divide the DI by the ATR
+        norm_di_up = self._di_up[m_slc] / self._atr[m_slc]
+        norm_di_down = self._di_down[m_slc] / self._atr[m_slc]
+
+        raw_adx = (np.abs(norm_di_up - norm_di_down) / (norm_di_up + norm_di_down))
+        self._adx[self._w] = raw_adx[self._w]
+        for i in range(self._w + 1, end):
+            self._adx[i] = self._alpha * raw_adx[i] + self._c * self._adx[i - 1]
+
+    def get_indicator(self) -> dict:
+        return {
+            'adx': self._adx,
+            'dm+': self._dm_up, 'dm-': self._dm_down,
+            'di+': self._di_up, 'di-': self._di_down,
+            'tr': self._tr, 'atr': self._atr,
+        }
+
+    def _ind_bulk(self) -> Union[float, tuple]:
+        return self._adx[self._t]
+
+    def _ind_online(self) -> Union[float, tuple]:
+        # Calculate ATR
+        prev_close = self._ts[2, self._t - 1]
+        tr = max(self._ts[0, self._t], prev_close) - \
+             min(self._ts[1, self._t], prev_close)
+        atr = (self._atr[self._t - 1] * (self._w - 1) + tr) / self._w
+
+        # Calculate the Directional indicator
+        upmove = self._ts[0, self._t] - self._ts[0, self._t - 1]
+        downmove = self._ts[1, self._t - 1] - self._ts[1, self._t]
+
+        if not ((upmove > downmove) & (upmove > 0)):
+            upmove = .0
+        if not ((downmove > upmove) & (downmove > 0)):
+            downmove = .0
+
+        # Calculate the smoothed DI
+        di_up = self._alpha * upmove + self._c * self._di_up[self._t - 1]
+        di_down = self._alpha * downmove + self._c * self._di_down[self._t - 1]
+
+        # Divide the DI by the ATR
+        norm_di_up = di_up / atr
+        norm_di_down = di_down / atr
+
+        raw_adx = (np.abs(norm_di_up - norm_di_down) / (norm_di_up + norm_di_down))
+        adx = self._alpha * raw_adx + self._c * self._adx[self._t - 1]
+
+        self._dm_up[self._t] = upmove
+        self._dm_down[self._t] = downmove
+        self._di_up[self._t] = di_up
+        self._di_down[self._t] = di_down
+        self._tr[self._t] = tr
+        self._atr[self._t] = atr
+        self._adx[self._t] = adx
+        return adx
+
+    @property
+    def min_length(self) -> int:
+        return self._w + 1
 
 
 class Atr(BaseIndicator):
@@ -121,52 +217,51 @@ class Atr(BaseIndicator):
 
     def __init__(self, ts: np.ndarray, is_bulk: bool, w: int):
         self._w = w
+        self._tr = None
         self._atr = None
 
-        super(Atr, self).__init__(ts, is_bulk, (1, 3))
+        super(Atr, self).__init__(ts, is_bulk, {1, 3})
 
-        if len(ts.shape) == 1:
-            self._is_hlc = False
-            if not self._is_bulk:
-                setattr(self, '_ind', self._ind_c)
-        elif (len(ts.shape) == 2) and (ts.shape[0] == 3):
+        if (ts.ndim == 2) and (ts.shape[0] == 3):
             self._is_hlc = True
             if not self._is_bulk:
                 setattr(self, '_ind', self._ind_hlc)
+        elif (ts.ndim == 2) and (ts.shape[0] == 1):
+            self._ts = np.flatten(self._ts)
         else:
-            raise ValueError(f"Indicator {self._NAME}: Input malformed: ts.shape != (n,) or (3, n)")
+            self._is_hlc = False
+            if not self._is_bulk:
+                setattr(self, '_ind', self._ind_c)
 
     def _bulk(self, t0: int) -> None:
         self._atr = np.empty(self._max_t, dtype=float)
+        self._tr = np.empty(self._max_t, dtype=float)
         self._atr[:self._w] = np.nan
+        self._tr[0] = np.nan
 
         # Calculate the TR over the relevant time period
-        if self._is_hlc:
-            if self._is_bulk:
-                hl_slc = slice(1, None)
-                c_slc = slice(0, -1)
-            else:
-                hl_slc = slice(1, t0 + 1)
-                c_slc = slice(0, t0)
-            tr = np.maximum(self._ts[0, hl_slc], self._ts[2, c_slc]) - \
-                 np.minimum(self._ts[1, hl_slc], self._ts[2, c_slc])
+        if self._is_bulk:
+            hl_slc = slice(1, None)
+            c_slc = slice(0, -1)
         else:
-            if self._is_bulk:
-                hl_slc = slice(1, None)
-                c_slc = slice(0, -1)
-            else:
-                hl_slc = slice(1, t0 + 1)
-                c_slc = slice(0, t0)
-            tr = np.abs(self._ts[hl_slc] - self._ts[c_slc])
+            hl_slc = slice(1, t0 + 1)
+            c_slc = slice(0, t0)
+
+        if self._is_hlc:
+            self._tr[hl_slc] = np.maximum(self._ts[0, hl_slc], self._ts[2, c_slc]) - \
+                               np.minimum(self._ts[1, hl_slc], self._ts[2, c_slc])
+        else:
+            self._tr[hl_slc] = np.abs(self._ts[hl_slc] - self._ts[c_slc])
 
         # Calculate the first point for the ATR using a simple average
-        atr = np.mean(tr[:self._w + 1])
+        atr = np.mean(self._tr[1:self._w + 1])
         self._atr[self._w] = atr
 
-        # Calculate the remaining points as an exponential average
-        # https://en.wikipedia.org/wiki/Average_true_range
-        for i in range(self._w + 1, t0 + 1):
-            atr = (atr * (self._w - 1) + tr[i - 1]) / self._w
+        end = self._max_t if self._is_bulk else t0 + 1
+        for i in range(self._w + 1, end):
+            # Calculate the remaining points as an exponential average
+            # https://en.wikipedia.org/wiki/Average_true_range
+            atr = (atr * (self._w - 1) + self._tr[i]) / self._w
             self._atr[i] = atr
 
     def get_indicator(self) -> dict:
@@ -180,6 +275,8 @@ class Atr(BaseIndicator):
 
     def _ind_c(self) -> float:
         tr = np.abs(self._ts[self._t] - self._ts[self._t - 1])
+        self._tr[self._t] = tr
+
         atr = (self._atr[self._t - 1] * (self._w - 1) + tr) / self._w
         self._atr[self._t] = atr
         return atr
@@ -188,17 +285,23 @@ class Atr(BaseIndicator):
         prev_close = self._ts[2, self._t - 1]
         tr = max(self._ts[0, self._t], prev_close) - \
              min(self._ts[1, self._t], prev_close)
+        self._tr[self._t] = tr
+
         atr = (self._atr[self._t - 1] * (self._w - 1) + tr) / self._w
         self._atr[self._t] = atr
         return atr
 
     @property
     def min_length(self) -> int:
-        return self._w + 1
+        return max(2, self._w + 1)
 
 
 class Cci(BaseIndicator):
-    """ Calculates the Commodity Channel Index indicator. """
+    """ Calculates the Commodity Channel Index indicator. The <ts> array
+        is expected to have shape (n, ) or shape (3, n) with each row having
+        the structure:
+            <high, low, close>.
+    """
 
     _NAME = 'cci'
 
@@ -209,23 +312,36 @@ class Cci(BaseIndicator):
         self._sma = .0
         self._mad = .0
 
-        super(Cci, self).__init__(ts, is_bulk, (1,))
+        super(Cci, self).__init__(ts, is_bulk, {1, 3})
+
+        if len(ts.shape) == 1:
+            self._is_hlc = False
+            if not self._is_bulk:
+                setattr(self, '_ind', self._ind_c)
+        elif (len(ts.shape) == 2) and (ts.shape[0] == 3):
+            self._is_hlc = True
+            if not self._is_bulk:
+                setattr(self, '_ind', self._ind_hlc)
+        else:
+            raise ValueError(f"Indicator {self._NAME}: Input malformed: ts.shape != (n,) or (3, n)")
 
     def _bulk(self, t0: int) -> None:
         self._cci = np.empty(self._max_t, dtype=float)
         self._cci[:self._w - 1] = np.nan
         self._dmean = np.empty(self._max_t, dtype=float)
 
-        if self._is_bulk:
-            ma_slc = slice(None, None)
-            cci_slc = slice(self._w - 1, None)
-        else:
-            ma_slc = slice(None, t0 + 1)
-            cci_slc = slice(self._w - 1, t0 + 1)
+        end = None if self._is_bulk else t0 + 1
+        ma_slc = slice(None, end)
+        cci_slc = slice(self._w - 1, end)
 
-        sma = Math.rolling_mean(self._ts[ma_slc], self._w)
+        if self._is_hlc:
+            p = np.sum(self._ts[:, ma_slc], axis=0) / 3.
+        else:
+            p = self._ts[ma_slc]
+
+        sma = Math.rolling_mean(p, self._w)
         sma = np.r_[[sma[0]] * (self._w - 1), sma]
-        self._dmean[ma_slc] = self._ts[ma_slc] - sma
+        self._dmean[ma_slc] = p - sma
         mad = Math.rolling_mean(np.abs(self._dmean[ma_slc]), self._w)
         self._sma = float(sma[-1])
         self._mad = float(mad[-1])
@@ -239,17 +355,111 @@ class Cci(BaseIndicator):
         return self._cci[self._t]
 
     def _ind_online(self) -> Union[float, tuple]:
+        pass
+
+    def _ind_c(self) -> float:
         self._sma += (self._ts[self._t] - self._ts[self._t - self._w]) / self._w
         dmean = self._ts[self._t] - self._sma
+        self._dmean[self._t] = dmean
         self._mad += (np.abs(dmean) - np.abs(self._dmean[self._t - self._w])) / self._w
         cci = dmean / (.015 * self._mad)
+        self._cci[self._t] = cci
+        return cci
+
+    def _ind_hlc(self) -> float:
+        p = np.sum(self._ts[:, self._t]) / 3.
+        p_old = np.sum(self._ts[:, self._t - self._w]) / 3.
+        self._sma += (p - p_old) / self._w
+        dmean = p - self._sma
         self._dmean[self._t] = dmean
+        self._mad += (np.abs(dmean) - np.abs(self._dmean[self._t - self._w])) / self._w
+        cci = dmean / (.015 * self._mad)
         self._cci[self._t] = cci
         return cci
 
     @property
     def min_length(self) -> int:
         return self._w
+
+
+class Dmi(BaseIndicator):
+    """ Calculates the Directional Movement Index indicator.
+        The <ts> array is expected with shape (2, n) and structure
+            <high, low, close>.
+    """
+
+    _NAME = 'dmi'
+
+    def __init__(self, ts: np.ndarray, is_bulk: bool, w: int):
+        self._w = w
+        self._alpha = 2. / (1. + w)
+        self._c = 1. - self._alpha
+
+        super(Dmi, self).__init__(ts, is_bulk, {3})
+
+    def _bulk(self, t0: int) -> None:
+        self._dm_up = np.empty(self._max_t, dtype=float)
+        self._dm_down = np.empty(self._max_t, dtype=float)
+        self._di_up = np.empty(self._max_t, dtype=float)
+        self._di_up[0] = np.nan
+        self._di_down = np.empty(self._max_t, dtype=float)
+        self._di_down[0] = np.nan
+
+        m_slc = slice(0, None) if self._is_bulk else slice(0, t0 + 1)
+
+        # Calculate the Directional indicator
+        upmove = np.diff(self._ts[0, m_slc])
+        downmove = np.diff(self._ts[1, m_slc][::-1])[::-1]
+
+        mask = (upmove > downmove) & (upmove > 0)
+        upmove[~mask] = .0
+        mask = (downmove > upmove) & (downmove > 0)
+        downmove[~mask] = .0
+
+        self._dm_up[m_slc] = np.r_[np.nan, upmove]
+        self._dm_down[m_slc] = np.r_[np.nan, downmove]
+
+        # Calculate the smoothed DI
+        end = self._max_t if self._is_bulk else t0 + 1
+
+        self._di_up[1] = self._dm_up[1]
+        self._di_down[1] = self._dm_down[1]
+        for i in range(2, end):
+            self._di_up[i] = self._alpha * self._dm_up[i] + self._c * self._di_up[i - 1]
+            self._di_down[i] = self._alpha * self._dm_down[i] + self._c * self._di_down[i - 1]
+
+    def get_indicator(self) -> dict:
+        return {
+            'dm+': self._dm_up, 'dm-': self._dm_down,
+            'di+': self._di_up, 'di-': self._di_down,
+        }
+
+    def _ind_bulk(self) -> Union[float, tuple]:
+        return self._di_up[self._t], self._di_down[self._t]
+
+    def _ind_online(self) -> Union[float, tuple]:
+        # Calculate the Directional indicator
+        upmove = self._ts[0, self._t] - self._ts[0, self._t - 1]
+        downmove = self._ts[1, self._t - 1] - self._ts[1, self._t]
+
+        if not ((upmove > downmove) & (upmove > 0)):
+            upmove = .0
+        if not ((downmove > upmove) & (downmove > 0)):
+            downmove = .0
+
+        # Calculate the smoothed DI
+        di_up = self._alpha * upmove + self._c * self._di_up[self._t - 1]
+        di_down = self._alpha * downmove + self._c * self._di_down[self._t - 1]
+
+        self._dm_up[self._t] = upmove
+        self._dm_down[self._t] = downmove
+        self._di_up[self._t] = di_up
+        self._di_down[self._t] = di_down
+        return di_up, di_down
+
+    @property
+    def min_length(self) -> int:
+        return max(2, self._w)
 
 
 class Fi(BaseIndicator):
@@ -263,20 +473,14 @@ class Fi(BaseIndicator):
     def __init__(self, ts: np.ndarray, is_bulk: bool):
         self._fi = None
 
-        # if len(ts.shape) != 2:
-        #     raise ValueError(f"Indicator {self._NAME}: Input malformed: ts.shape != (2,n)")
-        #
-        super(Fi, self).__init__(ts, is_bulk, (2,))
+        super(Fi, self).__init__(ts, is_bulk, {2})
 
     def _bulk(self, t0: int) -> None:
         self._fi = np.empty(self._max_t, dtype=float)
 
-        if self._is_bulk:
-            df_slc = slice(None, None)
-            ts_slc = slice(1, None)
-        else:
-            df_slc = slice(None, t0 + 1)
-            ts_slc = slice(1, t0 + 1)
+        end = None if self._is_bulk else t0 + 1
+        df_slc = slice(None, end)
+        ts_slc = slice(1, end)
 
         self._fi[df_slc] = np.r_[np.nan, np.diff(self._ts[0, df_slc]) * self._ts[1, ts_slc]]
 
@@ -301,6 +505,7 @@ class FiElder(BaseIndicator):
         the price difference scaled by the trade volume. The input must have
         shape (2, n) and be like:
             <price, volume>.
+        13-periods is common.
     """
 
     _NAME = 'fielder'
@@ -310,21 +515,17 @@ class FiElder(BaseIndicator):
         self._fi = None
         self._fie = None
 
-        super(FiElder, self).__init__(ts, is_bulk, (2,))
+        super(FiElder, self).__init__(ts, is_bulk, {2})
 
     def _bulk(self, t0: int) -> None:
         self._fi = np.empty(self._max_t, dtype=float)
         self._fie = np.empty(self._max_t, dtype=float)
         self._fie[:self._w - 1] = np.nan
 
-        if self._is_bulk:
-            df_slc = slice(None, None)
-            ts_slc = slice(1, None)
-            out_slc = slice(self._w - 1, None)
-        else:
-            df_slc = slice(None, t0 + 1)
-            ts_slc = slice(1, t0 + 1)
-            out_slc = slice(self._w - 1, t0 + 1)
+        end = None if self._is_bulk else t0 + 1
+        df_slc = slice(None, end)
+        ts_slc = slice(1, end)
+        out_slc = slice(self._w - 1, end)
 
         fi = np.r_[np.nan, np.diff(self._ts[0, df_slc]) * self._ts[1, ts_slc]]
         self._fi[df_slc] = fi
@@ -345,7 +546,7 @@ class FiElder(BaseIndicator):
 
     @property
     def min_length(self) -> int:
-        return self._w
+        return self._w + 1
 
 
 class Mfi(BaseIndicator):
@@ -368,7 +569,7 @@ class Mfi(BaseIndicator):
             tp = np.sum(ts[:3, :], axis=1) / 3.
             ts = np.vstack(tp, ts[3, :])
 
-        super(Mfi, self).__init__(ts, is_bulk, (2,))
+        super(Mfi, self).__init__(ts, is_bulk, {2})
 
     def _bulk(self, t0: int) -> None:
         self._mfi = np.empty(self._max_t, dtype=float)
@@ -376,12 +577,9 @@ class Mfi(BaseIndicator):
         self._pos_mf = np.empty(self._max_t, dtype=int)
         self._neg_mf = np.empty(self._max_t, dtype=int)
 
-        if self._is_bulk:
-            ts_slc = slice(None, None)
-            mfi_slc = slice(self._w - 1, None)
-        else:
-            ts_slc = slice(None, t0 + 1)
-            mfi_slc = slice(self._w - 1, t0 + 1)
+        end = None if self._is_bulk else t0 + 1
+        ts_slc = slice(None, end)
+        mfi_slc = slice(self._w - 1, end)
 
         raw_money_flow = np.r_[
             np.nan,
@@ -409,7 +607,7 @@ class Mfi(BaseIndicator):
     def _ind_online(self) -> Union[float, tuple]:
         raw_money_flow = self._ts[0, self._t] * self._ts[1, self._t] - \
                          self._ts[0, self._t - 1] * self._ts[1, self._t - 1]
-        self._pos_mf[self._t] = 1 if raw_money_flow > .0 else 0
+        self._pos_mf[self._t] = 1 if raw_money_flow >= .0 else 0
         self._neg_mf[self._t] = 1 if raw_money_flow < .0 else 0
 
         self._roll_pos_mf += self._pos_mf[self._t] - self._pos_mf[self._t - self._w]
@@ -425,6 +623,7 @@ class Mfi(BaseIndicator):
         return self._w
 
 
+# FIXME: check again
 class RsiCutler(BaseIndicator):
     """ Cutler's Relative Strength Index indicator using the SMA. """
 
@@ -438,7 +637,7 @@ class RsiCutler(BaseIndicator):
         self._ma_up = .0
         self._ma_down = .0
 
-        super(RsiCutler, self).__init__(ts, is_bulk, (1,))
+        super(RsiCutler, self).__init__(ts, is_bulk, {1})
 
     def _bulk(self, t0: int) -> None:
         self._rsi = np.empty(self._max_t, dtype=float)
@@ -446,12 +645,9 @@ class RsiCutler(BaseIndicator):
         self._up = np.empty(self._max_t, dtype=float)
         self._down = np.empty(self._max_t, dtype=float)
 
-        if self._is_bulk:
-            slc = slice(None, None)
-            rsi_slc = slice(self._w - 1, None)
-        else:
-            slc = slice(None, t0 + 1)
-            rsi_slc = slice(self._w - 1, t0 + 1)
+        end = None if self._is_bulk else t0 + 1
+        slc = slice(None, end)
+        rsi_slc = slice(self._w - 1, end)
 
         up_d = np.r_[np.nan, np.diff(self._ts[slc])]
         down_d = -np.copy(up_d)
@@ -491,9 +687,10 @@ class RsiCutler(BaseIndicator):
 
     @property
     def min_length(self) -> int:
-        return self._w
+        return self._w + 1
 
 
+# FIXME: check again
 class RsiWilder(BaseIndicator):
     """ Wilder's Relative Strength Index indicator using the EWMA. """
 
@@ -509,7 +706,7 @@ class RsiWilder(BaseIndicator):
         self._ma_up = .0
         self._ma_down = .0
 
-        super(RsiWilder, self).__init__(ts, is_bulk, (1,))
+        super(RsiWilder, self).__init__(ts, is_bulk, {1})
 
     def _bulk(self, t0: int) -> None:
         self._rsi = np.empty(self._max_t, dtype=float)
@@ -568,7 +765,7 @@ class RsiWilder(BaseIndicator):
 
 
 class Stochastic(BaseIndicator):
-    """ Stochastic Oscillator indicator. """
+    """ Stochastic Oscillator indicator. Typical values are <5, 3, 3>. """
 
     _NAME = 'stochastic'
 
@@ -584,7 +781,7 @@ class Stochastic(BaseIndicator):
         self._p_d = None
         self._p_d_slow = None
 
-        super(Stochastic, self).__init__(ts, is_bulk, (1,))
+        super(Stochastic, self).__init__(ts, is_bulk, {1})
 
     def _bulk(self, t0: int) -> None:
         self._p_k = np.empty(self._max_t, dtype=float)
@@ -639,7 +836,7 @@ class Stochastic(BaseIndicator):
 
     @property
     def min_length(self) -> int:
-        return self._wp + self._wd
+        return self._wp + self._wd - 1
 
 
 class Tr(BaseIndicator):
@@ -658,7 +855,7 @@ class Tr(BaseIndicator):
     def __init__(self, ts: np.ndarray, is_bulk: bool):
         self._tr = None
 
-        super(Tr, self).__init__(ts, is_bulk, (3,))
+        super(Tr, self).__init__(ts, is_bulk, {1, 3})
 
         if len(ts.shape) == 1:
             self._is_hlc = False
@@ -673,22 +870,17 @@ class Tr(BaseIndicator):
         self._tr = np.empty(self._max_t, dtype=float)
         self._tr[0] = np.nan
 
+        if self._is_bulk:
+            hl_slc = slice(1, None)
+            c_slc = slice(0, -1)
+        else:
+            hl_slc = slice(1, t0 + 1)
+            c_slc = slice(0, t0)
+
         if self._is_hlc:
-            if self._is_bulk:
-                hl_slc = slice(1, None)
-                c_slc = slice(0, -1)
-            else:
-                hl_slc = slice(1, t0 + 1)
-                c_slc = slice(0, t0)
             self._tr[hl_slc] = np.maximum(self._ts[0, hl_slc], self._ts[2, c_slc]) - \
                                np.minimum(self._ts[1, hl_slc], self._ts[2, c_slc])
         else:
-            if self._is_bulk:
-                hl_slc = slice(1, None)
-                c_slc = slice(0, -1)
-            else:
-                hl_slc = slice(1, t0 + 1)
-                c_slc = slice(0, t0)
             self._tr[hl_slc] = np.abs(self._ts[hl_slc] - self._ts[c_slc])
 
     def get_indicator(self) -> dict:
@@ -714,7 +906,7 @@ class Tr(BaseIndicator):
 
     @property
     def min_length(self) -> int:
-        return 2
+        return 1
 
 
 class Tsi(BaseIndicator):
@@ -736,34 +928,33 @@ class Tsi(BaseIndicator):
         self._ema_fs = None
         self._ema_pc = None
         self._ema_fsabs = None
-        self._ema_apc = None
+        self._ema_pcabs = None
 
-        super(Tsi, self).__init__(ts, is_bulk, (1,))
+        super(Tsi, self).__init__(ts, is_bulk, {1})
 
     def _bulk(self, t0: int) -> None:
         self._tsi = np.empty(self._max_t, dtype=float)
         self._ema_fs = np.empty(self._max_t, dtype=float)
         self._ema_pc = np.empty(self._max_t, dtype=float)
         self._ema_fsabs = np.empty(self._max_t, dtype=float)
-        self._ema_apc = np.empty(self._max_t, dtype=float)
+        self._ema_pcabs = np.empty(self._max_t, dtype=float)
 
-        def _ewma(out_, v_, a_, c_, start_, end_):
-            out_[0] = np.nan
-            out_[1] = v_[start_]
+        def _ewma(out_, m_, a_, start_, end_):
+            out_[:start_ + 1] = m_[:start_ + 1]
             for i in range(start_ + 1, end_):
-                out_[i + 1] = a_ * v_[i] + c_ * out_[i]
+                out_[i] = a_ * (m_[i] - out_[i - 1]) + out_[i - 1]
 
         end = self._max_t if self._is_bulk else t0 + 1
 
-        d = self._ts[1:end] - self._ts[:end - 1]
-        _ewma(self._ema_fs, d, self._as, self._cs, 0, end - 1)
-        _ewma(self._ema_pc, self._ema_fs, self._af, self._cf, 1, end)
+        mom = np.r_[.0, self._ts[1:end] - self._ts[:end - 1]]
+        _ewma(self._ema_fs, mom, self._as, 0, end)
+        _ewma(self._ema_pc, self._ema_fs, self._af, 1, end)
 
-        d = np.abs(d)
-        _ewma(self._ema_fsabs, d, self._as, self._cs, 0, end - 1)
-        _ewma(self._ema_apc, self._ema_fsabs, self._af, self._cf, 1, end)
+        mom = np.abs(mom)
+        _ewma(self._ema_fsabs, mom, self._as, 0, end)
+        _ewma(self._ema_pcabs, self._ema_fsabs, self._af, 1, end)
 
-        self._tsi[:end] = 100. * (self._ema_pc[:end] / self._ema_apc[:end])
+        self._tsi[:end] = 100. * (self._ema_pc[:end] / self._ema_pcabs[:end])
 
     def get_indicator(self) -> dict:
         return {'tsi': self._tsi}
@@ -772,17 +963,17 @@ class Tsi(BaseIndicator):
         return self._tsi[self._t]
 
     def _ind_online(self) -> Union[float, tuple]:
-        d = self._ts[self._t] - self._ts[self._t - 1]
-        fs = self._af * d + self._cf * self._ema_fs[self._t - 1]
-        pc = self._as * fs + self._cs * self._ema_pc[self._t - 1]
+        mom = self._ts[self._t] - self._ts[self._t - 1]
+        fs = self._as * (mom - self._ema_fs[self._t - 1]) + self._ema_fs[self._t - 1]
+        pc = self._af * (fs - self._ema_pc[self._t - 1]) + self._ema_pc[self._t - 1]
         self._ema_fs[self._t] = fs
         self._ema_pc[self._t] = pc
 
-        d = np.abs(d)
-        fs = self._af * d + self._cf * self._ema_fsabs[self._t - 1]
-        apc = self._as * fs + self._cs * self._ema_apc[self._t - 1]
+        mom = np.abs(mom)
+        fs = self._as * (mom - self._ema_fsabs[self._t - 1]) + self._ema_fsabs[self._t - 1]
+        apc = self._af * (fs - self._ema_pcabs[self._t - 1]) + self._ema_pcabs[self._t - 1]
         self._ema_fsabs[self._t] = fs
-        self._ema_apc[self._t] = apc
+        self._ema_pcabs[self._t] = apc
 
         tsi = 100. * (pc / apc)
         self._tsi[self._t] = tsi
@@ -790,7 +981,7 @@ class Tsi(BaseIndicator):
 
     @property
     def min_length(self) -> int:
-        return self._ws + self._wf
+        return self._ws + self._wf - 1
 
 
 class Vwap(BaseIndicator):
@@ -805,7 +996,7 @@ class Vwap(BaseIndicator):
         self._w = w
         self._vwap = None
 
-        super(Vwap, self).__init__(ts, is_bulk, (2,))
+        super(Vwap, self).__init__(ts, is_bulk, {2})
 
     def _bulk(self, t0: int) -> None:
         self._vwap = np.empty(self._max_t, dtype=float)
@@ -814,7 +1005,10 @@ class Vwap(BaseIndicator):
         p = Math.rolling_window(self._ts[0, :end], self._w)
         v = Math.rolling_window(self._ts[1, :end], self._w)
 
-        self._vwap[:end] = np.nansum(p * v, axis=1) / np.nansum(v, axis=1)
+        self._vwap[:end] = np.r_[
+            [np.nan] * (self._w - 1),
+            np.nansum(p * v, axis=1) / np.nansum(v, axis=1)
+        ]
 
     def get_indicator(self) -> dict:
         return {'vwap': self._vwap}
@@ -823,8 +1017,10 @@ class Vwap(BaseIndicator):
         return self._vwap[self._t]
 
     def _ind_online(self) -> Union[float, tuple]:
-        p = self._ts[self._t - self._w: self._t]
-        v = self._ts[self._t - self._w: self._t]
+        t_last = self._t + 1
+        t_old = t_last - self._w
+        p = self._ts[0, t_old:t_last]
+        v = self._ts[1, t_old:t_last]
         vwap = np.nansum(p * v) / np.nansum(v)
         self._vwap[self._t] = vwap
         return vwap

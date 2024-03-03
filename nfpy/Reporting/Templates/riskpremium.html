@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <title>Report Risk Premia</title>
+  </head>
+  <body>
+    <!-- TITLE -->
+    <a name="head"></a>
+    <div class="header">
+      <div class="titleBox">
+        <h1>{{ title }}</h1>
+        <a name="main_title" href="index.html">Index</a>
+        <hr>
+      </div>
+    </div>
+
+    <!-- REPORTS -->
+    <div class="reportBody">
+      <div class="titleReport">
+        <h3>Report</h3>
+      </div>
+
+      <!-- Equities -->
+      {%- for index in res["indices"]|sort -%}
+        <div class="base-container">
+          <div class="container-link">
+            <hr class="light">
+            <h4>{{ index }}</h4>
+          </div>
+
+          <table class="simple">
+            <thead>
+              <tr>
+                <th>Ticker</th><th>ISIN</th><th>Rfree</th>
+                <th>Beta</th><th>Rpremium</th><th>Cost of equity</th>
+              </tr>
+            </thead>
+            <tbody>
+              {%- for eq in res["equities"] -%}
+                {%- if eq.info["index"] == index -%}
+                  <tr>
+                    <td class='anag-value'>{{ eq.info["ticker"] }}</td>
+                    <td class='anag-value'>{{ eq.info["isin"] }}</td>
+                    <td class='anag-value'>{{ '%.2f'| format(eq.results.rf * 100) }} %</td>
+                    <td class='anag-value'>{{ '%.0f'| format(eq.results.beta * 100) }} %</td>
+                    <td class='anag-value'>{{ '%.2f'| format(eq.results.risk_premium * 100) }} %</td>
+                    <td class='anag-value'>{{ '%.2f'| format(eq.results.cost_of_equity * 100) }} %</td>
+                  </tr>
+                {%- endif %}
+              {%- endfor -%}
+            </tbody>
+          </table>
+        </div>
+      {%- endfor -%}
+    </div>
+
+  </body>
+</html>
+
+
+
+
+

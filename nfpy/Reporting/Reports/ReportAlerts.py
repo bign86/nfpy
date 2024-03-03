@@ -68,9 +68,13 @@ class ReportAlerts(BaseReport):
             triggered=True,
             date_checked=check_start
         )
-        alerts.sort(key=lambda k: (k.uid, k.value))
+
+        # if alerts:
+        #     keys = set(k.uid for k in alerts)
+        # alerts.sort(key=lambda k: (k.uid, k.value))
 
         data = []
+        data_dict = {}
         for a in alerts:
             asset = self._af.get(a.uid)
             key = asset.ticker if asset.type == 'Equity' else a.uid
@@ -79,6 +83,15 @@ class ReportAlerts(BaseReport):
 
             data.append((key, a.uid, a.cond, a.value, asset.last_price()[0],
                          'breach', is_today, dt_trigger))
+
+            d = data_dict.get(key, {'manual': []})
+            d['manual'].append(
+                (
+                    a.uid, a.cond, a.value, asset.last_price()[0],
+                    'breach', is_today, dt_trigger
+                 )
+            )
+            data_dict[key] = d
 
         # S/R alerts
         for uid in self._uids:
@@ -91,8 +104,21 @@ class ReportAlerts(BaseReport):
                 v_p, self._sr_check, self._sr_tol,
                 'smooth', self._w_sr
             )
-            for b in sr_checker.get(triggers_only=True):
-                data.append((key, uid, b[0], b[1], last_price, b[2], '', ''))
+            sr = sr_checker.get(triggers_only=True)
+
+            if sr:
+                d = data_dict.get(key, {'SR': []})
+                if 'SR' not in d:
+                    d['SR'] = []
+
+                for b in sr:
+                    data.append((key, uid, b[0], b[1], last_price, b[2], '', ''))
+
+                    d['SR'].append(
+                        (uid, b[0], b[1], last_price, b[2], '', '')
+                    )
+
+                data_dict[key] = d
 
         # Create final table of alerts
         if len(data) > 0:
@@ -112,3 +138,5 @@ class ReportAlerts(BaseReport):
             )
         else:
             res.alerts_table = f'No breached alerts found'
+
+        res.alerts_data = data_dict

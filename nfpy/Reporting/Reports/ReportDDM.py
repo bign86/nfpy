@@ -6,7 +6,7 @@
 from collections import defaultdict
 import numpy as np
 import pandas as pd
-from typing import (Any, Optional)
+from typing import Any
 
 from nfpy.Assets import TyAsset
 from nfpy.Financial import DividendFactory
@@ -143,13 +143,9 @@ class ReportDDM(BaseReport):
 
         if ddm_res.applicable:
             res.ddm_im_ke = ddm_res.outputs['implied_ke'] * 100.
-            res.ddm_im_lt_prm = ddm_res.outputs['implied_lt_premium'] * 100.
-            res.ddm_im_st_prm = ddm_res.outputs['implied_st_premium'] * 100.
-
             res.ddm_ke = ddm_res.outputs['ke'] * 100.
             res.ddm_lt_g = ddm_res.outputs['lt_growth'] * 100.
-            res.ddm_lt_inflation = ddm_res.outputs['lt_inflation'] * 100.
-            res.ddm_st_inflation = ddm_res.outputs['st_inflation'] * 100.
+            res.ddm_capm = ddm_res.outputs.get('capm', None)
 
             res.ddm_res_no_gwt = ddm_res.outputs['no_growth']
             res.ddm_res_manual = ddm_res.outputs.get('manual_growth', None)
@@ -233,7 +229,7 @@ class ReportDDM(BaseReport):
 
             # Add fair values to prices plot
             pl3.line(0, 'xh', ddm_res.outputs['no_growth']["fv"],
-                      color='C0', label='no growth')
+                     color='C0', label='no growth')
 
             if manual_data is not None:
                 pl3.line(0, 'xh', manual_data["fv"], color='C1', label='manual')

@@ -28,6 +28,7 @@ class ReportingEngine(object):
         Rep.ReportEquityFull,
         Rep.ReportMarketShort,
         Rep.ReportPortfolio,
+        Rep.ReportRiskPremium,
     }
     _TMPL_PATH = os.path.join(NFPY_ROOT_DIR, 'Reporting/Templates')
 

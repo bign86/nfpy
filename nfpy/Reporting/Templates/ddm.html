@@ -117,7 +117,7 @@
                     {%- else -%}
                       <td class='anag-value'>{{ '%.2f'| format(val.ddm_inputs['ke'] * 100|float) }} %</td>
                     {%- endif -%}
-                    <td class='anag-prop'>Years inflation</td><td class='anag-value'>{{ val.ddm_inputs['infl_w'] }}</td>
+                    <td class='anag-prop'>Years capm</td><td class='anag-value'>{{ val.ddm_inputs['capm_w'] }}</td>
                   </tr>
                   <tr>
                     <td class='anag-prop'>Premium</td>
@@ -180,55 +180,52 @@
                 </table>
               {%- endif -%}
 
-              <div class="sub-section-header">Macro variables</div>
-              <table class="simple">
-                <tbody>
-                  <tr>
-                    <td class='anag-prop'>ST inflation</td>
-                    <td></td>
-                    <td class='anag-value'>{{ '%.2f'| format(val.ddm_st_inflation|float) }} %</td>
-                  </tr>
-                  <tr>
-                    <td class='anag-prop'>LT inflation</td>
-                    <td></td>
-                    <td class='anag-value'>{{ '%.2f'| format(val.ddm_lt_inflation|float) }} %</td>
-                  </tr>
-                  <tr>
-                    <td class='anag-value' style="text-align: center; border: 1px solid var(--gray); padding: 0 30px 0 30px;" colspan="3">
-                      LT growth = LT GDP growth
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class='anag-prop'>LT growth</td>
-                    <td>=</td>
-                    <td class='anag-value'>{{ '%.2f'| format(val.ddm_lt_g|float) }} %</td>
-                  </tr>
-                </tbody>
-              </table>
-
               <div class="sub-section-header">Measurements</div>
               <table class="simple">
                 <tbody>
+                  <tr>
+                    <td class='anag-prop'>LT growth</td>
+                    <td class='anag-value'>{{ '%.2f'| format(val.ddm_lt_g|float) }} %</td>
+                    <td class='anag-description'>From the Nominal GDP</td>
+                  </tr>
                   <tr>
                     <td class='anag-prop'>Impl. cost of equity</td>
                     <td class='anag-value'>{{ '%.2f'| format(val.ddm_im_ke|float) }} %</td>
                     <td class='anag-description'>From the GGM formula<br>assuming LT growth</td>
                   </tr>
-                  <tr>
-                    <td class='anag-prop'>Impl. LT premium</td>
-                    <td class='anag-value'>{{ '%.2f'| format(val.ddm_im_lt_prm|float) }} %</td>
-                    <td class='anag-description'>Impl. cost of equity - LT inflation</td>
-                  </tr>
-                  <tr>
-                    <td class='anag-prop'>Impl. ST premium</td>
-                    <td class='anag-value'>{{ '%.2f'| format(val.ddm_im_st_prm|float) }} %</td>
-                    <td class='anag-description'>Impl. cost of equity - ST inflation</td>
-                  </tr>
+                  {%- if val.ddm_capm is not none -%}
+                    <tr>
+                      <td class='anag-prop'>CAPM Rfree</td>
+                      <td class='anag-value'>{{ '%.2f'| format(val.ddm_capm.rf * 100|float) }} %</td>
+                      <td class='anag-description'>Risk free from CAPM</td>
+                    </tr>
+                    <tr>
+                      <td class='anag-prop'>CAPM beta</td>
+                      <td class='anag-value'>{{ '%.2f'| format(val.ddm_capm.beta|float) }}</td>
+                      <td class='anag-description'>Beta as from CAPM</td>
+                    </tr>
+                    <tr>
+                      <td class='anag-prop'>CAPM Rp</td>
+                      <td class='anag-value'>{{ '%.2f'| format(val.ddm_capm.risk_premium * 100|float) }} %</td>
+                      <td class='anag-description'>Risk premium as from CAPM</td>
+                    </tr>
+                    <tr>
+                      <td class='anag-prop'>CAPM Ke</td>
+                      <td class='anag-value'>{{ '%.2f'| format(val.ddm_capm.cost_of_equity * 100|float) }} %</td>
+                      <td class='anag-description'>Ke as from CAPM</td>
+                    </tr>
+                  {%- else -%}
+                    <tr>
+                      <td class='anag-prop'>Input Ke</td>
+                      <td class='anag-value'>{{ '%.2f'| format(val.ddm_inputs['ke']|float) }} %</td>
+                      <td class='anag-description'>Input Ke</td>
+                    </tr>
+                  {%- endif -%}
                   <tr>
                     <td class='anag-prop'>Cost of equity</td>
                     <td class='anag-value'>{{ '%.2f'| format(val.ddm_ke|float) }} %</td>
                     <td class='anag-description'>
-                      cost of equity + premium<br>OR<br>ST inflation + premium
+                      Input Ke + premium<br>OR<br>CAPM Ke + premium
                     </td>
                   </tr>
                 </tbody>

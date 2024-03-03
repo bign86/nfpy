@@ -11,6 +11,7 @@ import pandas.tseries.offsets as off
 from scipy import stats
 from typing import Optional
 
+from nfpy.Calendar import Frequency
 import nfpy.Financial as Fin
 import nfpy.Math as Math
 from nfpy.Tools import (Exceptions as Ex, Utilities as Ut)
@@ -204,12 +205,9 @@ class DCF(BaseFundamentalModel):
         equity_share = equity / (equity + debt)
         debt_share = debt / (equity + debt)
 
-        index = self._ff.get_index(f)[-ph:]
-        capm = CAPM(self._eq).calculate(
-            np.datetime64(str(index[0].astype('datetime64[Y]')) + '-01-01'),
-            np.datetime64(str(index[-1].astype('datetime64[Y]')) + '-12-31')
-        )
-        coe = capm.capm_return
+        # index = self._ff.get_index(f)[-ph:]
+        capm = CAPM(self._eq, Frequency.M, ph * 12).results()
+        coe = capm.cost_of_equity
 
         rf = self._fnf \
             .get_rf(self._eq.country) \

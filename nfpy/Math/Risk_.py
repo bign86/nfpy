@@ -9,13 +9,12 @@ from scipy import stats
 from typing import Optional
 
 from .TSStats_ import (rolling_sum, rolling_window)
-from .TSUtils_ import (dropna, fillna, search_trim_pos)
+from .TSUtils_ import (fillna, search_trim_pos)
 from nfpy.Tools import (Exceptions as Ex, Utilities as Ut)
 
 
 def beta(dt: np.ndarray, ts: np.ndarray, proxy: np.ndarray,
-         start: Optional[np.datetime64] = None,
-         end: Optional[np.datetime64] = None, w: Optional[int] = None) \
+         w: Optional[int] = None) \
         -> tuple:
     """ Calculates the beta of a series with respect to a benchmark as the slope
         of the linear regression between the two.
@@ -24,8 +23,6 @@ def beta(dt: np.ndarray, ts: np.ndarray, proxy: np.ndarray,
             dt [np.ndarray]: dates time series
             ts [np.ndarray]: equity or other series under analysis
             proxy [np.ndarray]: reference proxy time series
-            start [Optional[np.datetime64]]: start date of the series (Default: None)
-            end [Optional[np.datetime64]]: end date of the series excluded (Default: None)
             w [Optional[int]]: window size if rolling (Default: None)
 
         Output:
@@ -37,16 +34,14 @@ def beta(dt: np.ndarray, ts: np.ndarray, proxy: np.ndarray,
     if (dt.shape != ts.shape != proxy.shape) and len(dt.shape) > 1:
         raise Ex.ShapeError('The series must have the same length')
 
-    slc = search_trim_pos(dt, start=start, end=end)
-    v = np.vstack((ts[slc], proxy[slc]))
-    dts = dt[slc]
+    v = np.vstack((ts, proxy))
 
     if not w:
         # scipy.linregress() is not robust against nans, therefore we clean them
         # and keep the dates series consistent.
         v = cutils.dropna(v, 1)
 
-        dts = dts[-1:]
+        dts = dt[-1:]
         slope, intercept, _, _, std_err = stats.linregress(v[1, :], v[0, :])
 
     else:
@@ -57,7 +52,7 @@ def beta(dt: np.ndarray, ts: np.ndarray, proxy: np.ndarray,
 
         slope = (w * sumxy - sumx * sumy) / (w * sumxx - sumx * sumx)
         intercept = (sumy - slope * sumx) / w
-        dts = dts[w - 1:]
+        dts = dt[w - 1:]
 
     adj_beta = 1. / 3. + 2. / 3. * slope
 

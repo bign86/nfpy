@@ -14,7 +14,7 @@ class AssetFactory(metaclass=Singleton):
 
     _ASSETS_VIEW = 'Assets'
     _ASSET_TYPES = {'Bond', 'Company', 'Curve', 'Etf', 'Equity', 'Fx',
-                    'Indices', 'Portfolio', 'Rate'}
+                    'Index', 'Portfolio', 'Rate'}
 
     def __init__(self):
         self._db = DB.get_db_glob()

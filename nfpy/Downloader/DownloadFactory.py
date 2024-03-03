@@ -175,6 +175,7 @@ class DownloadFactory(metaclass=Singleton):
 
         asset = self._af.get(data.uid)
         data = data._asdict()
+        data['currency'] = asset.currency
         if asset.type == 'Company':
             data['dst_table'] = asset.constituents_table
         else:

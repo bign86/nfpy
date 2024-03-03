@@ -11,18 +11,72 @@
       <div class="titleBox">
         <h1>{{ title }}</h1>
         <a name="main_title" href="index.html">Index</a>
-        <hr>
       </div>
     </div>
 
     <!-- REPORTS -->
     <div class="reportBody">
-      <div class="titleReport">
-        <h2>Report</h2>
-      </div>
 
-      {{ res.alerts_table }}
-      <hr>
+      {%- for ticker, data in res.alerts_data.items()|sort -%}
+        <hr class="light">
+
+        <div>
+          <h3 style="display: inline">{{ ticker }}</h3> - {{ data.SR[0][0] }}
+        </div>
+        {%- if "manual" in data -%}
+          {%- set has_manual = true -%}
+        {%- else -%}
+          {%- set has_manual = false -%}
+        {%- endif -%}
+        {%- if "SR" in data -%}
+          {%- set has_sr = true -%}
+        {%- else -%}
+          {%- set has_sr = false -%}
+        {%- endif -%}
+
+        <table class="simple">
+          <thead>
+            <tr>
+              <th>Condition</th> <th>Price</th> <th>Last Price</th>
+              <th>Status</th> <th>New</th> <th>Date Trigger</th>
+            </tr>
+          </thead>
+          <tbody>
+            {%- if has_manual -%}
+              <tr>
+                <td colspan="6" style="background-color: var(--light-gray); font-weight: bold; vertical-align: middle; text-align: center; color: var(--red)">Manual</td>
+              </tr>
+              {%- for v in data.manual -%}
+                <tr>
+                  <td class='anag-prop'>{{ v[1] }}</td>
+                  <td class='anag-prop'>{{ '%.2f'| format(v[2]|float) }}</td>
+                  <td class='anag-prop'>{{ '%.2f'| format(v[3]|float) }}</td>
+                  <td class='anag-prop'>{{ v[4] }}</td>
+                  <td class='anag-prop'>{{ v[5] }}</td>
+                  <td class='anag-prop'>{{ v[6] }}</td>
+                </tr>
+              {%- endfor -%}
+            {%- endif -%}
+            {%- if has_sr -%}
+              <tr>
+                <td class='banner' colspan="6">S/R</td>
+              </tr>
+              {%- for v in data.SR -%}
+                <tr>
+                  <td class='anag-prop'>{{ v[1] }}</td>
+                  <td class='anag-prop'>{{ '%.2f'| format(v[2]|float) }}</td>
+                  <td class='anag-prop'>{{ '%.2f'| format(v[3]|float) }}</td>
+                  <td class='anag-prop'>{{ v[4] }}</td>
+                  <td class='anag-prop'>{{ v[5] }}</td>
+                  <td class='anag-prop'>{{ v[6] }}</td>
+                </tr>
+              {%- endfor -%}
+            {%- endif -%}
+          </tbody>
+        </table>
+
+      {%- endfor -%}
+
     </div>
   </body>
 </html>

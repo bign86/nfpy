@@ -26,7 +26,7 @@ class Bollinger(BaseIndicator):
         self._bp = None
         self._b_width = None
 
-        super(Bollinger, self).__init__(ts, is_bulk, (1,))
+        super(Bollinger, self).__init__(ts, is_bulk, {1})
 
     def _bulk(self, t0: int) -> None:
         n = self._ts.shape[0]
@@ -48,7 +48,7 @@ class Bollinger(BaseIndicator):
 
         low = mean - band_dev
         high = mean + band_dev
-        b_diff = high - low
+        b_diff = 2. * band_dev
         self._bp[ts_slc] = (ts - low) / b_diff
         self._b_width[ts_slc] = b_diff / mean
         self._low[ts_slc] = low
@@ -65,12 +65,12 @@ class Bollinger(BaseIndicator):
 
     def _ind_online(self) -> Union[float, tuple]:
         ts = self._ts
-        ma = self._ma[self._t - 1] + (ts - self._ts[self._t - self._w]) / self._w
-        std = self._alpha * np.std(self._ts[self._t - self._w + 1:self._t + 1], axis=0, ddof=1)
+        ma = self._ma[self._t - 1] + (ts[self._t] - ts[self._t - self._w]) / self._w
+        std = self._alpha * np.std(ts[self._t - self._w + 1:self._t + 1], axis=0, ddof=1)
         low = ma - std
         high = ma + std
-        b_diff = high - low
-        bp = (ts - low) / b_diff
+        b_diff = 2. * std
+        bp = (ts[self._t] - low) / b_diff
         b_width = b_diff / ma
 
         self._bp[self._t] = bp
@@ -86,7 +86,9 @@ class Bollinger(BaseIndicator):
 
 
 class Donchian(BaseIndicator):
-    """ Donchian Channels indicator.
+    """ Donchian Channels indicator. The indicator is based on a <w> sliding
+        window. The <shift> parameters moves the channel forward by the given
+        number of periods.
         The ts array is expected either with shape (n,) if close prices are
         used, or with shape (2, n) with structure:
             <high, low>.
@@ -94,24 +96,23 @@ class Donchian(BaseIndicator):
 
     _NAME = 'donchian'
 
-    def __init__(self, ts: np.ndarray, is_bulk: bool, w: int):
+    def __init__(self, ts: np.ndarray, is_bulk: bool, w: int, shift: int):
         self._w = w
+        self._shift = abs(shift)
         self._ma = None
         self._low = None
         self._high = None
 
-        super(Donchian, self).__init__(ts, is_bulk, (1, 2))
+        super(Donchian, self).__init__(ts, is_bulk, {1, 2})
 
-        if len(ts.shape) == 1:
-            self._is_hl = True
-            if not self._is_bulk:
-                setattr(self, '_ind', self._ind_c)
-        elif len(ts.shape) == 2:
+        if ts.ndim == 1:
             self._is_hl = False
             if not self._is_bulk:
-                setattr(self, '_ind', self._ind_hl)
+                setattr(self, '_ind', self._ind_c)
         else:
-            raise ValueError(f"Indicator {self._NAME}: Input malformed: ts.shape != (n,) or (2, n)")
+            self._is_hl = True
+            if not self._is_bulk:
+                setattr(self, '_ind', self._ind_hl)
 
     def _bulk(self, t0: int) -> None:
         n = self._ts.shape[0]
@@ -119,29 +120,37 @@ class Donchian(BaseIndicator):
         self._low = np.empty(n, dtype=float)
         self._high = np.empty(n, dtype=float)
 
-        ts_slc = slice(None, None) if self._is_bulk else slice(None, t0 + 1)
+        wasted = self._w + self._shift - 1
+        self._ma[:wasted] = np.nan
+        self._low[:wasted] = np.nan
+        self._high[:wasted] = np.nan
+
+        ts_slc = slice(None, n - self._shift) if self._is_bulk \
+            else slice(None, t0 - self._shift + 1)
 
         if self._is_hl:
             high = np.r_[
-                [np.nan] * (self._w - 1),
+                [np.nan] * wasted,
                 np.max(
                     Math.rolling_window(self._ts[0, ts_slc], self._w),
                     axis=1
                 )]
             low = np.r_[
-                [np.nan] * (self._w - 1),
+                [np.nan] * wasted,
                 np.min(
                     Math.rolling_window(self._ts[1, ts_slc], self._w),
                     axis=1
                 )]
         else:
-            roll = Math.rolling_window(self._ts, self._w)
+            roll = Math.rolling_window(self._ts[ts_slc], self._w)
             high = np.max(roll, axis=1)
             low = np.min(roll, axis=1)
 
-        self._low[ts_slc] = low
-        self._high[ts_slc] = high
-        self._ma[ts_slc] = .5 * (high + low)
+        rw_slc = slice(wasted, None) \
+            if self._is_bulk else slice(wasted, t0 + 1)
+        self._low[rw_slc] = low
+        self._high[rw_slc] = high
+        self._ma[rw_slc] = .5 * (high + low)
 
     def get_indicator(self) -> dict:
         return {'high': self._high, 'mean': self._ma, 'low': self._low}
@@ -153,30 +162,30 @@ class Donchian(BaseIndicator):
         pass
 
     def _ind_c(self) -> Union[float, tuple]:
-        ts = self._ts[(self._t - self._w):self._t + 1]
+        ts = self._ts[self._t - self._w - self._shift + 1:self._t - self._shift + 1]
         high = np.max(ts)
         low = np.min(ts)
         mean = .5 * (high + low)
 
-        self._mean = .5 * (high + low)
-        self._high = high
-        self._low = low
+        self._ma[self._t] = mean
+        self._high[self._t] = high
+        self._low[self._t] = low
         return high, mean, low
 
     def _ind_hl(self) -> Union[float, tuple]:
-        ts = self._ts[:, (self._t - self._w):self._t + 1]
+        ts = self._ts[:, self._t - self._w - self._shift + 1:self._t - self._shift + 1]
         high = np.max(ts[0, :])
         low = np.min(ts[1, :])
         mean = .5 * (high + low)
 
-        self._mean = .5 * (high + low)
-        self._high = high
-        self._low = low
+        self._ma[self._t] = mean
+        self._high[self._t] = high
+        self._low[self._t] = low
         return high, mean, low
 
     @property
     def min_length(self) -> int:
-        return self._w
+        return self._w + self._shift
 
 
 def _find_raw_channel(v: np.ndarray, w: int) -> tuple:

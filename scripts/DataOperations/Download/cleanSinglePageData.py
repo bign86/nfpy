@@ -1,6 +1,8 @@
 #
-# Clean downloaded data
-# Clean data data relative to a single downloading page
+# Clean single page data
+# Clean data relative to a single downloading page.
+# Allows to specify a (provider, page, ticker) tuple and delete all data
+# connected to such tuple.
 #
 
 import nfpy.DB as DB
@@ -9,7 +11,7 @@ import nfpy.IO as IO
 from nfpy.Tools import (get_conf_glob, Utilities as Ut)
 
 __version__ = '0.1'
-_TITLE_ = "<<< Clean downloaded data script >>>"
+_TITLE_ = "<<< Clean single page data script >>>"
 
 
 if __name__ == '__main__':
@@ -23,19 +25,22 @@ if __name__ == '__main__':
 
     params, prov_obj = (), None
     while True:
-        # Get provider
-        providers, prov_idx = tuple(dwn.providers), -1
+        # Choose the provider
+        providers = tuple(dwn.providers)
         Ut.print_sequence(providers, showindex=True)
-        while prov_idx < 0 or prov_idx > len(providers):
-            prov_idx = inh.input("Give the provider index: ", idesc='int')
+        prov_idx = inh.input(
+            "Give the provider index: ",
+            idesc='index', limits=(0, len(providers) - 1)
+        )
         provider = providers[prov_idx]
 
-        # Page
-        prov_obj = dwn.get_provider(provider)
-        pages, pg_idx = tuple(prov_obj.pages), -1
+        # Choose the page
+        pages = dwn.pages(provider)
         Ut.print_sequence(pages, showindex=True)
-        while pg_idx < 0 or pg_idx > len(pages):
-            pg_idx = inh.input("Give the download page index: ", idesc='int')
+        pg_idx = inh.input(
+            "Give the download page index: ",
+            idesc='index', limits=(0, len(pages) - 1)
+        )
         page = pages[pg_idx]
 
         # Get ticker
