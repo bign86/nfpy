@@ -35,7 +35,7 @@ class ReportBacktester(BaseReport):
     }
 
     def _init_input(self, type_: Optional[str] = None) -> None:
-        """ Prepare and validate the the input parameters for the model. This
+        """ Prepare and validate the input parameters for the model. This
             includes verifying the parameters are correct for the models in the
             report. Takes the default parameters if any, applies the values from
             the database and the asset-specific overlays if any.
@@ -181,8 +181,8 @@ class ReportBacktester(BaseReport):
             # Render dataframes
             df = pd.DataFrame(
                 bt_res.trades,
-                columns=('date', 'signal', 'price', 'shares',
-                         'd_cash', 'base cost', 'P&L', 'R')
+                columns=['date', 'signal', 'price', 'shares',
+                         'd_cash', 'base cost', 'P&L', 'R']
             )
             df['date'] = df['date'].dt.strftime('%Y-%m-%d')
             res.trades_table = df.style.format(

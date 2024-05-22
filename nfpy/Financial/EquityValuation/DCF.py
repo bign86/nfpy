@@ -13,8 +13,9 @@ from typing import Optional
 
 from nfpy.Calendar import Frequency
 import nfpy.Financial as Fin
+import nfpy.IO.Utilities as Ut
 import nfpy.Math as Math
-from nfpy.Tools import (Exceptions as Ex, Utilities as Ut)
+from nfpy.Tools import Exceptions as Ex
 
 from .BaseFundamentalModel import (BaseFundamentalModel, FundamentalModelResult)
 from .BuildingBlocks import CAPM

@@ -16,5 +16,5 @@ __all__ = [
 
     # MO
     'Aroon', 'Atr', 'Cci', 'Fi', 'FiElder', 'Mfi', 'RsiCutler', 'RsiWilder',
-    'Stochastic', 'Tr',  'Tsi', 'Aroon2'
+    'Stochastic', 'Tr',  'Tsi'
 ]

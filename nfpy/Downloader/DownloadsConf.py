@@ -1008,6 +1008,12 @@ IBFinancialsMapping = [
 ]
 
 #
+# Investing
+#
+
+InvestingSeriesConf = ["date", "price", "open", "high", "low"]
+
+#
 # Nasdaq
 #
 

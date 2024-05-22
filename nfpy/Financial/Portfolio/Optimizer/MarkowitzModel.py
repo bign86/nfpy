@@ -65,11 +65,12 @@ class MarkowitzModel(BaseOptimizer):
         self._cov = self._calc_cov()
 
         r = self._create_result_obj()
-        for fix_ret in self.returns_grid():
+        for i, fix_ret in enumerate(self.returns_grid()):
+            print(f'{i:>3}:{self._grid_size:>3} | {fix_ret:.2f}')
 
             c = OptimizerConf()
             c.args = (self._cov, self._gamma)
-            c.funct = self._calc_var
+            c.funct = self._var_f
             c.constraints = [
                 {'type': 'eq', 'fun': constrain_ret, 'args': (self._mean_ret, fix_ret)},
                 {'type': 'eq', 'fun': budget},

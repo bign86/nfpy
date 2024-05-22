@@ -10,8 +10,15 @@ from nfpy.Calendar import today
 from nfpy.Tools import get_conf_glob
 
 from .BaseDownloader import (BasePage, DwnParameter)
-from .BaseProvider import BaseImportItem
+from .BaseProvider import (BaseImportItem, BaseProvider)
 from .DownloadsConf import FREDSeriesConf
+
+
+class FREDProvider(BaseProvider):
+    _PROVIDER = 'FRED'
+
+    def _filter_todo_downloads(self, todo: set) -> set:
+        return todo
 
 
 class ClosePricesItem(BaseImportItem):
@@ -38,7 +45,7 @@ class SeriesPage(BasePage):
     _COLUMNS = FREDSeriesConf
     _BASE_URL = u"https://api.stlouisfed.org/fred/series/observations?"
     _TABLE = "FREDSeries"
-    _Q_MAX_DATE = "select max(date) from FREDSeries where ticker = ?"
+    _Q_MAX_DATE = "SELECT MAX([date]) FROM FREDSeries WHERE [ticker] = ?"
     _PARAMS = {
         'api_key': DwnParameter('api_key', True, None),
         'series_id': DwnParameter('series_id', True, None),

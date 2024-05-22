@@ -7,7 +7,7 @@ import configparser
 # import logging
 import numpy
 import os
-import sys
+import shutil
 from typing import Any
 
 from nfpy import NFPY_ROOT_DIR
@@ -22,51 +22,8 @@ from .Singleton import Singleton
 numpy.seterr(divide='ignore', invalid='ignore')
 
 
-# Dictionary of parameters in the current configuration file
-PARAMS_DICT__ = {
-    'DATABASE': {
-        'db_dir': (str, 'database folder'),
-        'db_name': (str, 'database name'),
-    },
-    'FOLDERS': {
-        'working_folder': (str, 'working folder'),
-        'backup_folder': (str, 'backup folder'),
-    },
-    'REPORTING': {
-        'archive_format': (str, 'Archive format'),
-        'report_path': (str, 'Path to report directory'),
-        'report_arch_path': (str, 'Path to archive directory'),
-        'report_retention': (int, 'Report retention days'),
-    },
-    'BACKTESTING': {
-        'backtest_path': (str, 'Path to backtest results directory'),
-    },
-    'IBAPI': {
-
-        'ib_interface': (str, 'IBAPI interface'),
-        'ib_client_id': (str, 'IBAPI client ID'),
-        'ib_tws_port': (int, 'IBAPI TWS port'),
-    },
-    'API': {
-        'fred_api_key': (str, 'FRED API key'),
-    },
-    'LOGGING': {
-        'log_level': (int, 'Log level'),
-        'log_path': (str, 'Log file full path'),
-    },
-    'OTHERS': {
-        'base_ccy': (str, 'Base currency'),
-        'calendar_frequency': (str, 'Default calendar frequency'),
-    }
-}
-
 _CONF_INI = 'nfpyConf.ini'
-_OPSYS_HOME = {
-    'aix': '.nfpy',
-    'linux': '.nfpy',
-    'darwin': '.nfpy',
-    'win32': 'nfpy',
-}
+_OPSYS_HOME = '.nfpy'
 
 
 class Configuration(metaclass=Singleton):
@@ -90,22 +47,22 @@ class Configuration(metaclass=Singleton):
         setattr(self, k, v)
 
     @staticmethod
-    def get_conf_full_path() -> tuple[str, str]:
+    def get_conf_paths() -> tuple[str, str]:
         """ Return the full path of the nfpyConf.ini file by interrogating the
             current position of this very module.
         """
-        opsys = _OPSYS_HOME[sys.platform]
         return (
-            os.path.expanduser(os.path.join('~', opsys, _CONF_INI)),
-            os.path.join(NFPY_ROOT_DIR, _CONF_INI)
+            os.path.expanduser(os.path.join('~', _OPSYS_HOME)),
+            NFPY_ROOT_DIR
         )
 
     def _parse(self) -> None:
         """ Parse the configuration file. """
         conf_path = None
-        for path in self.get_conf_full_path():
-            if os.path.isfile(path):
-                conf_path = path
+        for path in self.get_conf_paths():
+            full_path = os.path.join(path, _CONF_INI)
+            if os.path.isfile(full_path):
+                conf_path = full_path
                 break
         if not conf_path:
             raise ValueError('No config file found! Aborting!')
@@ -118,16 +75,11 @@ class Configuration(metaclass=Singleton):
             config['DATABASE']['db_dir'],
             config['DATABASE']['db_name']
         )
-        PARAMS_DICT__['DATABASE']['db_path'] = (str, '')
 
         for section in config.values():
-            try:
-                sect_p = PARAMS_DICT__[section.name]
-            except KeyError:
-                continue
-            else:
-                for k, v in section.items():
-                    setattr(self, k, sect_p[k][0](v))
+            for k, v in section.items():
+                val = int(v) if v.isnumeric() else v
+                setattr(self, k, val)
 
         self._conf_path = conf_path
         self._conf = config
@@ -151,25 +103,29 @@ def get_conf_glob() -> Configuration:
     return Configuration()
 
 
-def create_new(parameters: dict[str, Any]) -> None:
+def create_new() -> None:
     """ Creates a new empty configuration file in the standard position. """
     conf_written = False
-    for path in Configuration.get_conf_full_path():
-        try:
-            # remove existing file, NO BACKUP IS DONE!
-            if os.path.isfile(path):
-                os.remove(path)
 
-            f = open(path, "w")
-            cp = configparser.ConfigParser()
-            cp.read_dict(parameters)
-            cp.write(f)
-            f.close()
-        except RuntimeError:
-            continue
+    dst, src = Configuration.get_conf_paths()
+    if not os.path.exists(dst):
+        try:
+            os.makedirs(dst)
+        except OSError as ex:
+            print(f'Creation of directory {dst} failed')
+            raise ex
         else:
-            conf_written = True
-            break
+            print(f'Successfully created directory {dst}')
+
+    try:
+        shutil.copyfile(
+            os.path.join(src, _CONF_INI),
+            os.path.join(dst, _CONF_INI)
+        )
+    except RuntimeError as ex:
+        print(ex)
+    else:
+        conf_written = True
 
     if not conf_written:
         raise ConfigurationError('Could not write the configuration file!')

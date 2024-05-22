@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 from typing import (Any, Optional)
 
+import nfpy.IO.Utilities
 from nfpy.Assets import TyAsset
 from nfpy.Calendar import today
 from nfpy.Financial import DividendFactory
@@ -129,7 +130,7 @@ class ReportEquityFull(BaseReport):
             outputs[asset.ticker] = res
 
         except (RuntimeError, Ex.AssetTypeError) as ex:
-            Ut.print_exc(ex)
+            nfpy.IO.Utilities.print_exc(ex)
 
         return outputs
 
@@ -141,7 +142,7 @@ class ReportEquityFull(BaseReport):
                 .result(**p)
         except Exception as ex:
             res.has_dcf = False
-            Ut.print_exc(ex)
+            nfpy.IO.Utilities.print_exc(ex)
         else:
             res.has_dcf = True
             res.dcf_ret = (dcf_res.fair_value / res.last_price - 1.) * 100.
@@ -168,7 +169,7 @@ class ReportEquityFull(BaseReport):
             ddm_res = DDM(asset.uid, **p).result(**p)
         except Ex.MissingData as ex:
             res.has_ddm = False
-            Ut.print_exc(ex)
+            nfpy.IO.Utilities.print_exc(ex)
         else:
             res.has_ddm = True
             res.ddm_im_ke = ddm_res.implied_ke * 100.

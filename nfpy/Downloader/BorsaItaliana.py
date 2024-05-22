@@ -7,8 +7,18 @@ from bs4 import BeautifulSoup
 import pandas as pd
 from typing import Callable
 
+import nfpy.Tools.Exceptions as Ex
+
 from .BaseDownloader import BasePage
+from .BaseProvider import BaseProvider
 from .DownloadsConf import BorsaItalianaDividendsConf
+
+
+class BorstaItalianaProvider(BaseProvider):
+    _PROVIDER = 'BorsaItaliana'
+
+    def _filter_todo_downloads(self, todo: set) -> set:
+        return todo
 
 
 class BorsaItalianaBasePage(BasePage):
@@ -58,7 +68,7 @@ class DividendsPage(BorsaItalianaBasePage):
             .find('table', {'class': "m-table -responsive -list -clear-m"}) \
             .find('tbody')
         if table is None:
-            raise RuntimeError(f'BorsaItaliana(): Data table to parse not found for {self._ticker}!')
+            raise Ex.DatabaseError(f'BorsaItaliana(): Data table to parse not found for {self._ticker}!')
 
         # Helpers
         def _mutate(_s: str, _cb: Callable) -> str:
@@ -83,7 +93,7 @@ class DividendsPage(BorsaItalianaBasePage):
             )
 
         if len(table_data) == 0:
-            raise RuntimeWarning(f'{self._ticker} | no new data downloaded')
+            raise Ex.NoNewDataWarning(f'{self._ticker} | no new data downloaded')
 
         df = pd.DataFrame(
             table_data,

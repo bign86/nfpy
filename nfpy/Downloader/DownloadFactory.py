@@ -4,24 +4,19 @@
 # perform single downloads.
 #
 
-from collections import namedtuple, defaultdict
+from collections import defaultdict
+from itertools import groupby
 from requests import RequestException
 from typing import (KeysView, Optional)
 
 from nfpy.Assets import get_af_glob
 import nfpy.Calendar as Cal
 import nfpy.DB as DB
-from nfpy.Tools import (Singleton, Exceptions as Ex, Utilities as Ut)
+import nfpy.IO.Utilities as Ut
+from nfpy.Tools import (Singleton, Exceptions as Ex, Utilities as Uti)
 
-from .BaseDownloader import BasePage
-
-# Namedtuples holding the data for downloads and imports
-NTDownload = namedtuple(
-    'NTDownload',
-    'provider, page, ticker, currency, active, update_frequency, last_update, description',
-)
-
-NTImport = namedtuple('NTImport', 'uid, ticker, provider, item, active')
+from .BaseProvider import get_provider
+from .Objs import *
 
 
 class DownloadFactory(metaclass=Singleton):
@@ -39,8 +34,10 @@ class DownloadFactory(metaclass=Singleton):
         self._qb = DB.get_qb_glob()
         self._splits = []
 
+        self.q_upd = self._qb.update(self._DWN_TABLE, fields=('last_update',))
+
         objs = self._db.execute(
-            f'select [provider], [page], [item] from [{self._PROV_TABLE}] where [deprecated] is False'
+            f'SELECT [provider], [page], [item] FROM [{self._PROV_TABLE}] WHERE [deprecated] IS False'
         ).fetchall()
         self._dwn_obj = defaultdict(list)
         for k, v in set((v[0], v[1]) for v in objs):
@@ -125,7 +122,7 @@ class DownloadFactory(metaclass=Singleton):
     def _filter(self, table: str, tuple_obj: namedtuple, active: bool,
                 options: dict) -> tuple:
         """ Filters the Downloads or Imports table to return the items selected
-            using the available filters.
+            using the available filters, ordering by <provider>.
         """
         keys = tuple(k for k, v in options.items() if v is not None)
 
@@ -137,33 +134,13 @@ class DownloadFactory(metaclass=Singleton):
                         table,
                         fields=tuple_obj._fields,
                         keys=keys,
-                        where='active = 1' if active else ''
+                        where='active = 1' if active else '',
+                        order='provider'
                     ),
                     tuple(options[k] for k in keys)
                 ).fetchall()
             )
         )
-
-    # TODO: this should be made private to the class and not used by a couple of
-    #       scripts for their operations. To be changed together with the to do
-    #       in run_download() and run_import()
-    def create_page_obj(self, provider: str, page: str, ticker: str) -> BasePage:
-        """ Return an un-initialized page object of the correct type.
-
-            Input:
-                provider [str]: provider to download from
-                page [str]: data type searched
-                ticker [str]: ticker to download
-
-            Output:
-                obj [BasePage]: page object to download with
-        """
-        if page not in self._dwn_obj[provider]:
-            raise ValueError(f"Page {page} not available for {provider}")
-
-        symbol = '.' + '.'.join([provider, page + 'Page'])
-        class_ = Ut.import_symbol(symbol, pkg='nfpy.Downloader')
-        return class_(ticker)
 
     def do_import(self, data: NTImport, incremental: bool) -> None:
         """ Take the importing object and runs the import. """
@@ -171,7 +148,7 @@ class DownloadFactory(metaclass=Singleton):
             raise ValueError(f"Item {data.item} not available for {data.provider}")
 
         symbol = '.' + '.'.join([data.provider, data.item + 'Item'])
-        class_ = Ut.import_symbol(symbol, pkg='nfpy.Downloader')
+        class_ = Uti.import_symbol(symbol, pkg='nfpy.Downloader')
 
         asset = self._af.get(data.uid)
         data = data._asdict()
@@ -184,17 +161,15 @@ class DownloadFactory(metaclass=Singleton):
         imp_item = class_(data, incremental)
         imp_item.run()
 
-    # TODO: the downloadSingleAsset script does re-implement most of the
-    #       functionalities in here. This is required since the script needs to
-    #       ask the user for parameters that this function fetches from the DB.
-    #  ==>  This function should fetch from DB, send fetched objects to a loop
-    #       function that runs everything and updates DB. The same loop function
-    #       should be possible to call from the outside of this to allow the
-    #       mentioned script to NOT re-implement existing functionalities.
-    def run_download(self, do_save: bool = True, override_date: bool = False,
-                     provider: Optional[str] = None, page: Optional[str] = None,
-                     ticker: Optional[str] = None,
-                     override_active: bool = False) -> None:
+    def run_download(
+            self,
+            do_save: bool = True,
+            override_date: bool = False,
+            provider: str | None = None,
+            page: str | None = None,
+            ticker: str | None = None,
+            override_active: bool = False
+    ) -> None:
         """ Performs a bulk update of the system based on the 'auto' flag in the
             Downloads table. The entries are updated only in case the last
             update has been done at least 'frequency' days ago.
@@ -202,71 +177,51 @@ class DownloadFactory(metaclass=Singleton):
             Input:
                 do_save [bool]: save in database (default: True)
                 override_date [bool]: disregard last update date (default: False)
-                provider [Optional[str]]: download for a provider (default: None)
-                page [Optional[str]]: download for a page (default: None)
-                ticker [Optional[str]]: download for a ticker (default: None)
+                provider [str | None]: download for a provider (default: None)
+                page [str | None]: download for a page (default: None)
+                ticker [str | None]: download for a ticker (default: None)
                 override_active [bool]: disregard 'active' (default: False)
         """
+        today = Cal.today(mode='date')
         active = not override_active
         upd_list = self.fetch_downloads(
             provider=provider, page=page, ticker=ticker, active=active
         )
         print(f'We are about to download {len(upd_list)} items')
 
-        # General variables
-        today_dt = Cal.today(mode='date')
-        q_upd = self._qb.update(self._DWN_TABLE, fields=('last_update',))
-
-        # loop = asyncio.get_running_loop()
-
         count_done = 0
         count_skipped = 0
         count_failed = 0
-        for item in upd_list:
-            # Check the last update to avoid too frequent updates
-            if item.last_update and not override_date:
-                delta_days = (today_dt - item.last_update).days
-                if delta_days < int(item.update_frequency):
-                    msg = f'[{item.provider}: {item.page}] -> ' \
-                          f'{item.ticker} updated {delta_days} days ago'
-                    print(msg)
-                    count_skipped += 1
-                    continue
+        for provider, group in groupby(upd_list, key=lambda v: v.provider):
 
-            # If the last update check is passed go on with the update
-            try:
-                print(f'{item.ticker} -> {item.provider}[{item.page}]')
-                # await loop.run_in_executor(None, self.do_test_download, item, do_save)
-                # try:
-                page = self.create_page_obj(
-                    item.provider, item.page, item.ticker
-                ) \
-                    .initialize(params={'currency': item.currency}) \
-                    .fetch()
-                # except RuntimeWarning as w:
-                #     # DownloadFactory throws this error for codes != 200
-                #     Ut.print_wrn(w)
-                #     continue
-                if do_save is True:
-                    page.save()
+            # Get the correct provider and the download generator from it
+            skipped, generator = get_provider(provider)() \
+                .get_download_generator(group, override_date)
+            count_skipped += skipped
+            for d, page in generator:
+                try:
+                    print(f'{d.ticker} -> {d.provider}[{d.page}]')
+                    page.initialize(params={}) \
+                        .fetch()
+                    _ = page.data
+
+                except (Ex.MissingData, Ex.IsNoneError, RuntimeError,
+                        RequestException, ValueError, ConnectionError) as e:
+                    Ut.print_exc(e)
+                    count_failed += 1
+                except RuntimeWarning as w:
+                    Ut.print_wrn(w)
+                    data_upd = (today, d.provider, d.page, d.ticker)
+                    self._db.execute(self.q_upd, data_upd, commit=True)
+                    count_done += 1
                 else:
-                    page.printout()
-
-            except (Ex.MissingData, Ex.IsNoneError, RuntimeError,
-                    RequestException, ValueError, ConnectionError) as e:
-                Ut.print_exc(e)
-                count_failed += 1
-            except RuntimeWarning as w:
-                Ut.print_wrn(w)
-                count_done += 1
-                data_upd = (today_dt, item.provider, item.page, item.ticker)
-                self._db.execute(q_upd, data_upd, commit=True)
-            else:
-                count_done += 1
-                if do_save is True:
-                    if page.is_saved:
-                        data_upd = (today_dt, item.provider, item.page, item.ticker)
-                        self._db.execute(q_upd, data_upd, commit=True)
+                    if do_save is True:
+                        page.save()
+                        data_upd = (today, d.provider, d.page, d.ticker)
+                        self._db.execute(self.q_upd, data_upd, commit=True)
+                    else:
+                        page.printout()
+                    count_done += 1
 
         print(
             f'\nItems downloaded: {count_done:>4}'
@@ -274,12 +229,10 @@ class DownloadFactory(metaclass=Singleton):
             f'\nItems failed:     {count_failed:>4}\n'
         )
         self._db.execute(
-            'update SystemInfo set [date] = ? where [field] = "lastDownload"',
-            (today_dt,), commit=True
+            'UPDATE [SystemInfo] SET [date] = ? WHERE [field] = "lastDownload";',
+            (today,), commit=True
         )
 
-    # TODO: like for run_download() the actual import should be taken out from
-    #       the rest.
     def run_import(self, uid: Optional[str] = None,
                    provider: Optional[str] = None,
                    item: Optional[str] = None, override_active: bool = False,
@@ -310,7 +263,7 @@ class DownloadFactory(metaclass=Singleton):
                 Ut.print_exc(e)
 
         self._db.execute(
-            'update [SystemInfo] set [date] = ? where [field] = "lastImport"',
+            'UPDATE [SystemInfo] SET [date] = ? WHERE [field] = "lastImport";',
             (Cal.today(mode='date'),), commit=True
         )
 

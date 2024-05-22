@@ -12,8 +12,9 @@ from typing import Optional
 from nfpy.Calendar import Frequency
 import nfpy.Financial as Fin
 from nfpy.Financial.EquityValuation import CAPM
+import nfpy.IO.Utilities as Ut
 import nfpy.Math as Math
-from nfpy.Tools import (Exceptions as Ex, Utilities as Ut)
+from nfpy.Tools import Exceptions as Ex
 
 from .BaseFundamentalModel import (BaseFundamentalModel, FundamentalModelResult)
 
@@ -117,7 +118,7 @@ class DDM(BaseFundamentalModel):
             self._growth_models['ROE'] = True
 
         # Factories
-        self._df = Fin.DividendFactory(self._eq, years=self._div_w)
+        self._df = Fin.DividendFactory(self._eq)
 
         # Outputs - methods specific
         self._no_growth = {}
@@ -153,9 +154,9 @@ class DDM(BaseFundamentalModel):
         ) - 1.
 
         # Calculate the dates of the future dividends
-        yearly_dt, yearly_d = self._df.annual_dividends
+        yearly_dt, yearly_div = self._df.annual_dividends
         dtY0 = yearly_dt[-1]
-        dY0 = yearly_d[-1]
+        dY0 = yearly_div[-1]
         t = np.arange(1., self._fp + .001, dtype=int)
 
         # Calculate the no-growth part of the model, independent of the growth
@@ -192,8 +193,7 @@ class DDM(BaseFundamentalModel):
         # - the implied cost of equity (from GGM)
         # - premium over long-term inflation
         # - premium over short-term inflation
-        _, yd = self._df.annual_dividends
-        im_ke = yd[-1] * (1. + self._lt_growth) / self._last_price \
+        im_ke = yearly_div[-1] * (1. + self._lt_growth) / self._last_price \
                 + self._lt_growth
         divs = self._df.dividends
 
@@ -283,7 +283,7 @@ class DDM(BaseFundamentalModel):
     def _calc_historical_g(self) -> None:
         """ Calculates the growth as the average dividend growth YoY. """
         try:
-            st_growth = self._df.growth()
+            st_growth = self._df.growth(years=self._div_w)
         except ValueError as ex:
             self._growth_models['historical'] = False
             raise ex
@@ -323,8 +323,12 @@ class DDM(BaseFundamentalModel):
         # If the last dividend was outside the tolerance for the inferred
         # frequency, assume the dividend has been suspended
         if self._df.is_dividend_suspended:
-            msg = f'Dividends appear to have been suspended'
-            self._res.msg = msg
+            self._res.msg = f'Dividends appear to have been suspended'
+            return False
+
+        # If yearly data are not availanle, the DDM cannot be performed.
+        if self._df.yearly_len() == 0:
+            self._res.msg = f'Yearly dividend history not available'
             return False
 
         # Check if monthly history is sufficient

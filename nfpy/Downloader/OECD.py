@@ -3,14 +3,27 @@
 # Downloads data from the OECD central database
 #
 
+import datetime
 import json
 import pandas as pd
 
 from nfpy.Calendar import today
+import nfpy.Tools.Exceptions as Ex
 
 from .BaseDownloader import (BasePage, DwnParameter, TLSAdapter)
-from .BaseProvider import BaseImportItem
+from .BaseProvider import (BaseImportItem, BaseProvider)
 from .DownloadsConf import OECDSeriesConf
+
+
+class OECDProvider(BaseProvider):
+    _PROVIDER = 'OECD'
+
+    def _filter_todo_downloads(self, todo: set) -> set:
+        def _delay(_v):
+            dt = datetime.date(1990, 1, 1) if _v.last_update is None else _v.last_update
+            return (self._today - dt).days / int(_v.update_frequency)
+
+        return set(sorted(todo, key=_delay)[-6:])
 
 
 class ClosePricesItem(BaseImportItem):
@@ -119,7 +132,7 @@ class SeriesPage(BasePage):
         data_points = j["dataSets"][0]["observations"]
 
         if len(data_points) == 0:
-            raise RuntimeWarning(f'{self._ticker} | no new data downloaded')
+            raise Ex.NoNewDataWarning(f'{self._ticker} | no new data downloaded')
 
         location_list = [v for v in dimensions if v['id'] == 'LOCATION'][0]['values']
         measure_list = [v for v in dimensions if v['id'] == 'MEASURE'][0]['values']

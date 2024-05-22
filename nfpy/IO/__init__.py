@@ -6,5 +6,5 @@ __all__ = [
     'InputHandler',
 
     # Plotting
-    'Plotter', 'PtfOptimizationPlot', 'TSPlot', 'shiftedColorMap', 'TyPlot'
+    'Plotter', 'PtfOptimizationPlot', 'TSPlot', 'shiftedColorMap', 'TyPlot',
 ]

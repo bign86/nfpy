@@ -8,9 +8,11 @@ import numpy as np
 from scipy import stats
 from typing import Optional
 
+import nfpy.IO.Utilities as Ut
+from nfpy.Tools import Exceptions as Ex
+
 from .TSStats_ import (rolling_sum, rolling_window)
 from .TSUtils_ import (fillna, search_trim_pos)
-from nfpy.Tools import (Exceptions as Ex, Utilities as Ut)
 
 
 def beta(dt: np.ndarray, ts: np.ndarray, proxy: np.ndarray,
@@ -59,33 +61,34 @@ def beta(dt: np.ndarray, ts: np.ndarray, proxy: np.ndarray,
     return dts, slope, adj_beta, intercept
 
 
-def capm_beta(dt: np.ndarray, ts: np.ndarray, idx: np.ndarray,
-              start: Optional[np.datetime64] = None,
-              end: Optional[np.datetime64] = None) -> float:
-    """ Gives the beta of a series with respect to another (an index).
-
-        Input:
-            dt [np.ndarray]: dates series under analysis
-            ts [np.ndarray]: return series under analysis
-            idx [np.ndarray]: market proxy return time series
-            start [Optional[np.datetime64]]: start date of the series (Default: None)
-            end [Optional[np.datetime64]]: end date of the series excluded (Default: None)
-
-        Output:
-            beta [float]: the beta
-    """
-    if (dt.shape != ts.shape != idx.shape) and len(dt.shape) > 1:
-        raise Ex.ShapeError('The series must have the same length')
-
-    slc = search_trim_pos(dt, start=start, end=end)
-    v = cutils.dropna(
-        np.vstack((ts[slc], idx[slc])), 1
-    )
-
-    prx_var = np.var(v[1, :])
-    covar = np.cov(v[0, :], v[1, :], bias=True)
-
-    return covar[0, 1] / prx_var
+# def capm_beta(dt: np.ndarray, ts: np.ndarray, idx: np.ndarray,
+#               start: Optional[np.datetime64] = None,
+#               end: Optional[np.datetime64] = None) -> float:
+#     """ Gives the beta of a series with respect to another (an index).
+#
+#         Input:
+#             dt [np.ndarray]: dates series under analysis
+#             ts [np.ndarray]: return series under analysis
+#             idx [np.ndarray]: market proxy return time series
+#             start [Optional[np.datetime64]]: start date of the series (Default: None)
+#             end [Optional[np.datetime64]]: end date of the series excluded (Default: None)
+#
+#         Output:
+#             beta [float]: the beta
+#     """
+#     Ut.print_deprecation('capm_beta(): deprecated')
+#     if (dt.shape != ts.shape != idx.shape) and len(dt.shape) > 1:
+#         raise Ex.ShapeError('The series must have the same length')
+#
+#     slc = search_trim_pos(dt, start=start, end=end)
+#     v = cutils.dropna(
+#         np.vstack((ts[slc], idx[slc])), 1
+#     )
+#
+#     prx_var = np.var(v[1, :])
+#     covar = np.cov(v[0, :], v[1, :], bias=True)
+#
+#     return covar[0, 1] / prx_var
 
 
 def drawdown(ts: np.ndarray, w: int) -> tuple[np.ndarray, np.ndarray]:

@@ -11,6 +11,8 @@ import pandas
 import sqlite3
 from typing import Any
 
+from nfpy.Uid import Uid
+
 SQLITE2PY_CONVERSION = {
     'BOOL': 'bool',
     'DATE': 'date',
@@ -80,12 +82,12 @@ def convert_date(val) -> date:
 
 
 def adapt_parameters(val) -> Any:
-    """ Converts from PARAMETERS to json. """
+    """ Converts from any json-able variable to PARAMETERS. """
     return json.dumps(val)
 
 
 def convert_parameters(val) -> Any:
-    """ Converts from PARAMETERS to json. """
+    """ Converts from PARAMETERS to any json-able variable. """
     return json.loads(val)
 
 
@@ -101,14 +103,26 @@ def convert_short_date(val) -> date:
     return isoparse(val).date()
 
 
+def adapt_uid(uid) -> str:
+    """ Converts from an Uid object to a UID. """
+    return uid.uid
+
+
+def convert_uid(val) -> Uid:
+    """ Converts from UID to an Uid object. """
+    return Uid(val)
+
+
 # Register the adapters
 sqlite3.register_adapter(datetime.date, adapt_date)
 sqlite3.register_adapter(numpy.datetime64, adapt_np64)
 sqlite3.register_adapter(pandas.Timestamp, adapt_pd_timestamp)
 sqlite3.register_adapter(list, adapt_parameters)
 sqlite3.register_adapter(dict, adapt_parameters)
+sqlite3.register_adapter(Uid, adapt_uid)
 
 # Register the converters
 sqlite3.register_converter("DATETIME", convert_datetime)
 sqlite3.register_converter("DATE", convert_date)
 sqlite3.register_converter("PARAMETERS", convert_parameters)
+sqlite3.register_converter("UID", convert_uid)

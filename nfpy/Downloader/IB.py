@@ -5,15 +5,33 @@
 
 import pandas as pd
 import pandas.tseries.offsets as off
+import socket
 from time import sleep
 import xml.etree.ElementTree as ET
 
-from nfpy.Tools import (get_conf_glob, Utilities as Ut)
+import nfpy.IO.Utilities
+from nfpy.Tools import (get_conf_glob, Utilities as Ut, Configuration as Cfg)
 
 from .BaseDownloader import BasePage
-from .BaseProvider import BaseImportItem
+from .BaseProvider import (BaseImportItem, BaseProvider)
 from .DownloadsConf import (IBFinancialsConf, IBFinancialsMapping)
 from .IBApp import *
+
+
+class IBProvider(BaseProvider):
+    _PROVIDER = 'IB'
+
+    def _filter_todo_downloads(self, todo: set) -> set:
+        conf = Cfg.get_conf_glob()
+
+        a_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        check = a_socket.connect_ex((conf.ib_interface, conf.ib_tws_port))
+
+        if check == 0:
+            return todo
+        else:
+            nfpy.IO.Utilities.print_warn('The IB gateway is closed!. No downloads possible')
+            return set()
 
 
 class FinancialsItem(BaseImportItem):
@@ -40,7 +58,7 @@ class FinancialsItem(BaseImportItem):
             try:
                 field = IBFinancialsMapping[item[1]][item[2]]
             except KeyError as ex:
-                Ut.print_exc(ex)
+                nfpy.IO.Utilities.print_exc(ex)
                 continue
 
             # Adjust the date
@@ -67,8 +85,8 @@ class IBBasePage(BasePage):
     _PROVIDER = 'IB'
     _SLEEP_TIME = 3
 
-    def __init__(self, ticker: str):
-        super().__init__(ticker)
+    def __init__(self, ticker: str, currency: str):
+        super().__init__(ticker, currency)
         self._conf = get_conf_glob()
         self._app = None
 

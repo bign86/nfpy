@@ -7,6 +7,7 @@ from datetime import timedelta
 import pandas as pd
 from typing import (Any, Optional)
 
+import nfpy.IO.Utilities
 from nfpy.Calendar import today
 from nfpy.Tools import (
     Exceptions as Ex,
@@ -52,7 +53,7 @@ class ReportAlerts(BaseReport):
         try:
             self._check_alerts(outputs)
         except (RuntimeError, Ex.AssetTypeError) as ex:
-            Ut.print_exc(ex)
+            nfpy.IO.Utilities.print_exc(ex)
 
         return outputs
 

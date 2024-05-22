@@ -1,14 +1,17 @@
 #
-# Capital Asset Line model class
+# Capital Asset Line model
 # Class that implements the Capital Asset Line portfolio optimization on the
 # given portfolio
 #
 
 import numpy as np
+from typing import Sequence
 
 from .BaseOptimizer import BaseOptimizer
 from .MarkowitzModel import MarkowitzModel
 from .MaxSharpeModel import MaxSharpeModel
+
+import nfpy.Math as Math
 
 
 class CALModel(BaseOptimizer):
@@ -16,19 +19,22 @@ class CALModel(BaseOptimizer):
 
     _LABEL = 'CALModel'
 
-    def __init__(self, mean_returns: np.ndarray, covariance: np.ndarray,
+    def __init__(self, returns: np.ndarray, freq: str, labels: Sequence[str],
                  iterations: int = 50, points: int = 20,
                  rf_ret: float = .0, **kwargs):
-        super().__init__(mean_returns=mean_returns, covariance=covariance,
+        super().__init__(returns=returns, freq=freq, labels=labels,
                          iterations=iterations, **kwargs)
         self._num = points
         self._rf_ret = rf_ret
 
     def _optimize(self):
-        """ Optimize following the Markowitz procedure """
+        """ Optimize following the Markowitz procedure. """
 
         # Search for the max sharpe portfolio
-        msh = MaxSharpeModel(self._ret, self._cov, iterations=self._iter)
+        msh = MaxSharpeModel(
+            self._ret, self._freq, self._cnsts_labels,
+            max_iterations=self._iter
+        )
         msh_res = msh.result
         msh_ret = msh_res.ptf_return
         msh_var = msh_res.ptf_variance
@@ -45,8 +51,11 @@ class CALModel(BaseOptimizer):
 
         # Calculate the EF above the sharpe optimum
         if up_pts > 0:
-            mkw = MarkowitzModel(self._ret, self._cov, iterations=self._iter,
-                                 points=up_pts, min_ret=msh_ret[0])
+            mkw = MarkowitzModel(
+                self._ret, self._freq, self._cnsts_labels,
+                max_iterations=self._iter,
+                points=up_pts, min_ret=msh_ret[0]
+            )
             mkw_res = mkw.result
             mkw_ret = mkw_res.ptf_return
             mkw_var = mkw_res.ptf_variance
@@ -66,8 +75,13 @@ class CALModel(BaseOptimizer):
 
     def _calc_pts_separation(self, sharpe_ret: float) -> tuple:
         """ Calculates how many points we must have above and below sharpe. """
-        _rmax = np.max(self._ret)
-        _rmin = np.maximum(np.min(self._ret), .0)
+        mean_ret = Math.compound(
+            np.mean(self._ret, axis=1),
+            self._scaling
+        )
+
+        _rmax = np.max(mean_ret)
+        _rmin = np.maximum(np.min(mean_ret), .0)
         ms_res_share = (sharpe_ret - _rmin) / (_rmax - _rmin)
 
         down_pts = int(round((self._num - 1) * ms_res_share))
@@ -75,8 +89,13 @@ class CALModel(BaseOptimizer):
 
         return down_pts, up_pts
 
-    def _calc_lending_line(self, msh_ret: float, msh_var: float,
-                           msh_wgt: np.ndarray, num_pts: int) -> tuple:
+    def _calc_lending_line(
+        self,
+        msh_ret: float,
+        msh_var: float,
+        msh_wgt: np.ndarray,
+        num_pts: int
+    ) -> tuple:
         """ Calculates the lending portfolios below sharpe.
 
             Input:

@@ -7,8 +7,9 @@ import cmath
 import numpy as np
 from typing import Union
 
+import nfpy.IO.Utilities as Ut
+
 from .TSUtils_ import (last_valid_value, next_valid_value)
-import nfpy.Tools.Utilities as Ut
 
 
 def compound(r: Union[float, np.ndarray], t: Union[int, float, np.ndarray],

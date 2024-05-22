@@ -6,7 +6,8 @@
 import numpy as np
 from typing import (Callable, Optional)
 
-from nfpy.Tools import (Exceptions as Ex, Utilities as Ut)
+import nfpy.IO.Utilities as Ut
+from nfpy.Tools import Exceptions as Ex
 
 
 class FundamentalsFactory(object):
@@ -292,7 +293,7 @@ class FundamentalsFactory(object):
         return idx, lto + ltd + std
 
     def total_equity(self, freq: str, level: int = 0) -> tuple[np.ndarray, np.ndarray]:
-        return self._financial('SKHLEQ', freq, level)
+        return self._financial('TOTEMI', freq, level)
 
     def total_liabilities(self, freq: str, level: int = 0) -> tuple[np.ndarray, np.ndarray]:
         return self._financial('TOLIAB', freq, level)

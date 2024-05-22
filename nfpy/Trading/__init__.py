@@ -1,7 +1,7 @@
 from .AlertsEngine import (AlertsEngine, Alert)
 from .Backtesting import (Backtester, Portfolio)
 from .BaseSizer import TySizer
-from .SR import (get_pivot, SRBreach)
+from .SR import (get_pivot, SRBreach, SRBreachEngine)
 from .Strategies import (Order, Signal, SignalFlag, TyStrategy)
 
 
@@ -19,7 +19,7 @@ __all__ = [
     'TyStrategy',
 
     # SR
-    'get_pivot', 'SRBreach',
+    'get_pivot', 'SRBreach', 'SRBreachEngine',
 
     # Enum
     'Order', 'Signal', 'SignalFlag',

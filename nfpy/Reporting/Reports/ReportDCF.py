@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from typing import (Any, Optional)
 
+import nfpy.IO.Utilities
 from nfpy.Assets import TyAsset
 from nfpy.Financial.EquityValuation import DCF
 import nfpy.IO as IO
@@ -50,7 +51,7 @@ class ReportDCF(BaseReport):
             outputs[asset.ticker] = res
 
         except (RuntimeError, ValueError, Ex.AssetTypeError) as ex:
-            Ut.print_exc(ex)
+            nfpy.IO.Utilities.print_exc(ex)
 
         return outputs
 
@@ -79,7 +80,7 @@ class ReportDCF(BaseReport):
                 .result(**self._p)
         except (Ex.MissingData, ValueError) as ex:
             res.has_dcf = False
-            Ut.print_exc(ex)
+            nfpy.IO.Utilities.print_exc(ex)
             return
 
         #  if not dcf_res.success:

@@ -6,9 +6,12 @@ import os
 import atexit
 from typing import (Iterable, Optional)
 
-# from ..DB import logger
-from nfpy.Tools import (Singleton, Exceptions as Ex,
-                        get_conf_glob, Utilities as Ut)
+import nfpy.IO.Utilities as Ut
+from nfpy.Tools import (
+    Singleton,
+    Exceptions as Ex,
+    get_conf_glob
+)
 
 from .DBTypes import *
 

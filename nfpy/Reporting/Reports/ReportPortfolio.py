@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from typing import (Any, Optional)
 
+import nfpy.IO.Utilities
 from nfpy.Assets import TyAsset
 import nfpy.Financial.Portfolio as Ptf
 import nfpy.IO as IO
@@ -107,7 +108,6 @@ class ReportPortfolio(BaseReport):
             modified so that the database parameters in self._p are not
             changed from one asset to the next.
         """
-        # outputs = defaultdict(dict)
         res = Ut.AttributizedDict()
         uid = self.uids[0]
         print(f'  > {uid}')
@@ -136,7 +136,7 @@ class ReportPortfolio(BaseReport):
             # outputs[uid] = res
 
         except (RuntimeError, Ex.AssetTypeError) as ex:
-            Ut.print_exc(ex)
+            nfpy.IO.Utilities.print_exc(ex)
 
         # return outputs
         return res

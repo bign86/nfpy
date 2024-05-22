@@ -101,6 +101,17 @@ CREATE TABLE [DecDatatype] (
 ) WITHOUT ROWID;
 CREATE UNIQUE INDEX unique_encoding on DecDatatype([encoding]);
 
+CREATE TABLE [DerivedSeries] (
+    [series] TEXT NOT NULL,
+    [dtype] INTEGER NOT NULL,
+    [freq] TEXT NOT NULL,
+    [end_date] DATE NOT NULL,
+    [start_date] DATE,
+    [horizon] TEXT NOT NULL,
+    [value] REAL,
+    PRIMARY KEY ([series], [dtype], [freq], [end_date], [horizon])
+) WITHOUT ROWID;
+
 CREATE TABLE [Downloads] (
     [provider] TEXT NOT NULL,
     [page] TEXT NOT NULL,
@@ -460,8 +471,9 @@ CREATE TABLE [Trades] (
     [currency] TEXT NOT NULL,
     [quantity] REAL NOT NULL,
     [price] REAL NOT NULL,
-    [costs] REAL,
+    [costs] REAL NOT NULL DEFAULT 0.0,
     [market] TEXT,
+    [phase] TEXT,
     PRIMARY KEY ([ptf_uid], [date], [pos_uid]),
     foreign key ([ptf_uid]) references Portfolio([uid])
 ) WITHOUT ROWID;

@@ -11,8 +11,9 @@ import pandas as pd
 from typing import (Callable, Optional, TypeVar)
 
 import nfpy.Calendar as Cal
+import nfpy.IO.Utilities as Ut
 import nfpy.Math as Math
-from nfpy.Tools import (Exceptions as Ex, Utilities as Ut)
+from nfpy.Tools import Exceptions as Ex
 
 from .FinancialItem import FinancialItem
 
@@ -133,7 +134,7 @@ class Asset(FinancialItem):
 
         pos = None
         if dt:
-            dt = Cal.pd_2_np64(dt)
+            dt = Cal.pd2np(dt)
             pos = np.searchsorted(date, [dt])[0]
 
         pos = ts.shape[0] - 1 if pos is None else int(pos)
@@ -269,13 +270,9 @@ class Asset(FinancialItem):
         _ret = self.log_returns if is_log else self.returns
 
         # end = self._cal.t0 if end is None else end
-        slc = Math.search_trim_pos(
-            _ret.index.to_numpy(),
-            start=Cal.pd_2_np64(start),
-            # end=Cal.pd_2_np64(end),
-        )
+        slc = Math.search_trim_pos(_ret.index.to_numpy(), start=Cal.pd2np(start))
         if end is None:
-            slc.stop = self._cal.xt0
+            slc = slice(slc.start, self._cal.xt0, slc.step)
 
         return float(np.nanmean(_ret.to_numpy()[slc]))
 
@@ -295,13 +292,9 @@ class Asset(FinancialItem):
         _ret = self.log_returns if is_log else self.returns
 
         # end = self._cal.t0 if end is None else end
-        slc = Math.search_trim_pos(
-            _ret.index.to_numpy(),
-            start=Cal.pd_2_np64(start),
-            # end=Cal.pd_2_np64(end),
-        )
+        slc = Math.search_trim_pos(_ret.index.to_numpy(), start=Cal.pd2np(start))
         if end is None:
-            slc.stop = self._cal.xt0
+            slc = slice(slc.start, self._cal.xt0, slc.step)
 
         return float(np.nanstd(_ret.to_numpy()[slc]))
 
@@ -321,13 +314,9 @@ class Asset(FinancialItem):
         _p = self.prices
 
         # end = self._cal.t0 if end is None else end
-        slc = Math.search_trim_pos(
-            _p.index.to_numpy(),
-            start=Cal.pd_2_np64(start),
-            # end=Cal.pd_2_np64(end),
-        )
+        slc = Math.search_trim_pos(_p.index.to_numpy(), start=Cal.pd2np(start))
         if end is None:
-            slc.stop = self._cal.xt0
+            slc = slice(slc.start, self._cal.xt0, slc.step)
 
         return Math.tot_ret(
             _p.to_numpy()[slc],
@@ -352,13 +341,9 @@ class Asset(FinancialItem):
         dt = r.index.to_numpy()
 
         # end = self._cal.t0 if end is None else end
-        slc = Math.search_trim_pos(
-            dt,
-            start=Cal.pd_2_np64(start),
-            # end=Cal.pd_2_np64(end),
-        )
+        slc = Math.search_trim_pos(dt, start=Cal.pd2np(start))
         if end is None:
-            slc.stop = self._cal.xt0
+            slc = slice(slc.start, self._cal.xt0, slc.step)
 
         p = Math.comp_ret(
             r.to_numpy()[slc],

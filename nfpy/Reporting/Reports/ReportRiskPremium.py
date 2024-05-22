@@ -6,6 +6,7 @@
 from collections import defaultdict
 from typing import (Any, Optional)
 
+import nfpy.IO.Utilities
 from nfpy.Assets import TyAsset
 import nfpy.Calendar as Cal
 from nfpy.Financial.EquityValuation import CAPM
@@ -45,7 +46,7 @@ class ReportRiskPremium(BaseReport):
                 outputs["indices"] = list(set(outputs["indices"]))
 
             except (RuntimeError, ValueError, Ex.AssetTypeError) as ex:
-                Ut.print_exc(ex)
+                nfpy.IO.Utilities.print_exc(ex)
 
         return outputs
 

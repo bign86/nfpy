@@ -47,15 +47,24 @@ class ShapeError(RuntimeError):
 
 
 class InputHandlingError(RuntimeError):
-    """ Thrown when there is a issue with the input handler. """
+    """ Thrown when there is an issue with the input handler. """
+
+
+class UidMalformedError(RuntimeError):
+    """ Thrown when a UID contains forbidden characters. """
+
 
 class MissingDataWarn(RuntimeWarning):
     """ Thrown when something non-critical is not found in the database. """
 
 
-class UnsupportedWarning(Warning):
-    """ Thrown when an unsopported feature is requested. """
+class UnsupportedWarning(RuntimeWarning):
+    """ Thrown when an unsupported feature is requested. """
 
 
-class ToBeImplementedWarning(Warning):
+class ToBeImplementedWarning(RuntimeWarning):
     """ Thrown when a feature is planned to be supported in the future. """
+
+
+class NoNewDataWarning(RuntimeWarning):
+    """ Thrown when a no new data are found in a download. """

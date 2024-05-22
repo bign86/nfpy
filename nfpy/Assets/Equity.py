@@ -185,10 +185,14 @@ class Equity(Asset):
         self._df[code] = res
         return True
 
-    def beta(self, benchmark: Optional[TyAsset] = None,
-             start: Optional[Cal.TyDate] = None,
-             end: Optional[Cal.TyDate] = None,
-             w: Optional[int] = None, is_log: bool = False) -> tuple:
+    def beta(
+            self,
+            benchmark: TyAsset | None = None,
+            start: Cal.TyDate | None = None,
+            end: Cal.TyDate | None = None,
+            w: int | None = None,
+            is_log: bool = False
+    ) -> tuple:
         """ Returns the beta between the equity and the benchmark index given
             as input. If dates are specified, the beta is calculated on the
             resulting interval (end date excluded). If a window is given, beta
@@ -217,7 +221,7 @@ class Equity(Asset):
         index_ret = benchmark.log_returns if is_log else benchmark.returns
 
         end = self._cal.t0 if end is None else end
-        slc = Math.search_trim_pos(dt, Cal.pd_2_np64(start), Cal.pd_2_np64(end))
+        slc = Math.search_trim_pos(dt, Cal.pd2np(start), Cal.pd2np(end))
 
         dts, beta, adj_b, itc = Math.beta(
             dt[slc],
@@ -231,10 +235,13 @@ class Equity(Asset):
             pd.Series(itc, index=dts)
         )
 
-    def correlation(self, benchmark: Optional[TyAsset] = None,
-                    start: Optional[Cal.TyDate] = None,
-                    end: Optional[Cal.TyDate] = None,
-                    is_log: bool = False) -> float:
+    def correlation(
+            self,
+            benchmark: TyAsset | None = None,
+            start: Cal.TyDate | None = None,
+            end: Cal.TyDate | None = None,
+            is_log: bool = False
+    ) -> float:
         """ Returns the correlation between the equity and the benchmark given
             as input. If dates are specified, the correlation is calculated on
             the resulting interval (end date excluded).
@@ -262,8 +269,8 @@ class Equity(Asset):
             eq.index.to_numpy(),
             eq.to_numpy(),
             idx.to_numpy(),
-            start=Cal.pd_2_np64(start),
-            end=Cal.pd_2_np64(end),
+            start=Cal.pd2np(start),
+            end=Cal.pd2np(end),
         )[0, 1]
 
     @property

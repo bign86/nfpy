@@ -10,7 +10,7 @@ from pathlib import Path
 import requests
 from requests import adapters
 import ssl
-from typing import (Optional, Sequence, Union)
+from typing import (Sequence, TypeVar)
 from urllib3 import poolmanager
 
 from nfpy.Calendar import now
@@ -64,11 +64,12 @@ class BasePage(metaclass=ABCMeta):
         'Connection': 'keep-alive',
     }
 
-    def __init__(self, ticker: str):
+    def __init__(self, ticker: str, currency: str):
         self._db = DB.get_db_glob()
         self._qb = DB.get_qb_glob()
         self._dt = get_dt_glob()
         self._ticker = ticker
+        self._currency = currency
 
         self._p = []
         self._robj = []
@@ -158,31 +159,35 @@ class BasePage(metaclass=ABCMeta):
 
     def save(self) -> None:
         """ Save the downloaded page in the DB. """
-        _ = self.data
-        if self.is_parsed:
-            self._write_to_db()
+        if not self.is_parsed:
+            self._parse()
+        self._write_to_db()
 
-    def dump(self, fname: Optional[str] = None) -> None:
+    def dump(self, fname: str | None = None) -> None:
         """ Dump the downloaded page on a file.
 
             Input:
-                fname [str]: backup file name, overrides default
+                fname [str | None]: backup file name, overrides default
         """
-        _ = self.data
-        if self.is_parsed:
-            self._write_to_file(fname)
+        if not self.is_parsed:
+            self._parse()
+        self._write_to_file(fname)
 
-    def initialize(self, fname: Optional[Union[str, Path]] = None,
-                   params: Optional[dict] = None):
+    def initialize(
+        self,
+        fname: str | Path | None = None,
+        params: dict | None = None
+    ):
         """ Parameters are checked before download, encoding is set, parsed
             object is deleted if present.
 
             Input:
-                fname [Union[str, Path]]: file name to load
-                params [dict]: dictionary of parameters to update. Supported:
-                    'currency': currency of the download (mandatory)
-                    'start': starting date
-                    'end': ending date
+                fname [str | Path | None]: file name to load
+                params [dict | None]: dictionary of parameters to update.
+                    Supported:
+                        'currency': currency of the download (mandatory)
+                        'start': starting date
+                        'end': ending date
 
             Output:
                 self: returns self on completion
@@ -196,7 +201,9 @@ class BasePage(metaclass=ABCMeta):
         if fname is not None:
             self._fname = fname
         else:
-            self._local_initializations(params)
+            p = {'currency': self._currency}
+            p.update(params)
+            self._local_initializations(p)
 
         self._is_initialized = True
         return self
@@ -275,7 +282,7 @@ class BasePage(metaclass=ABCMeta):
         """ To apply a custom SSL context to the call. """
         pass
 
-    def _write_to_file(self, fname: Optional[str] = None) -> None:
+    def _write_to_file(self, fname: str | None = None) -> None:
         """ Write to a text file. """
         if not fname:
             now_ = now(mode='str', fmt='%Y%m%d_%H%M')
@@ -367,3 +374,7 @@ class BasePage(metaclass=ABCMeta):
     @abstractmethod
     def _parse(self) -> None:
         """ Parse the fetched object. """
+
+
+# Download page type for export
+TyDownloadPage = TypeVar('TyDownloadPage', bound=BasePage)

@@ -8,7 +8,7 @@ from datetime import timedelta
 import numpy as np
 import pandas as pd
 
-from nfpy.Tools import Utilities as Ut
+import nfpy.IO.Utilities as Ut
 
 from .AggregationMixin import AggregationMixin
 from .Asset import Asset

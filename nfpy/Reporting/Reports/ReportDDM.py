@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from typing import Any
 
+import nfpy.IO.Utilities
 from nfpy.Assets import TyAsset
 from nfpy.Financial import DividendFactory
 from nfpy.Financial.EquityValuation import DDM
@@ -51,7 +52,7 @@ class ReportDDM(BaseReport):
             outputs[asset.ticker] = res
 
         except (RuntimeError, ValueError, Ex.AssetTypeError) as ex:
-            Ut.print_exc(ex)
+            nfpy.IO.Utilities.print_exc(ex)
 
         return outputs
 
@@ -91,12 +92,12 @@ class ReportDDM(BaseReport):
         yearly_div_dt, yearly_div = df.annual_dividends
         yearly_ret_div = yearly_div[1:] / yearly_div[:-1] - 1.
         yearly_div_dt = yearly_div_dt + np.timedelta64(6, 'M')
-        all_div_dt, all_div = df.all_dividends
+        all_div_dt, all_div = df.dividends
         ret_div = all_div[1:] / all_div[:-1] - 1.
 
         _, yrl_yield = df.annual_yields()
         if len(yrl_yield) >= 1:
-            res.last_yrl_div = df.annual_dividends[1][-1]
+            res.last_yrl_div = yearly_div[-1]
             res.last_yrl_yield = yrl_yield[-1] * 100.
         else:
             res.last_yrl_div = 0.
@@ -134,7 +135,7 @@ class ReportDDM(BaseReport):
                 .save(fig_full[0]) \
                 .clf()
 
-            Ut.print_exc(ex)
+            nfpy.IO.Utilities.print_exc(ex)
             return
 
         res.has_ddm = True

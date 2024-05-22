@@ -4,17 +4,22 @@
 #
 
 import cutils
-from typing import (Any, Optional, Sequence)
+from typing import (Any, Sequence)
 
+from .Optimizer import OptimizerResult
 from .Utils import _ret_matrix
 
 from nfpy.Tools import Utilities as Ut
 
 
-def optimize_portfolio(method: str, parameters: dict[str, Any],
-                       uids: Sequence[str], tgt_ccy: str,
-                       dates_slice: Optional[slice] = None,
-                       labels: Optional[Sequence[str]] = None):
+def optimize_portfolio(
+        method: str,
+        parameters: dict[str, Any],
+        uids: Sequence[str],
+        tgt_ccy: str,
+        dates_slice: slice | None = None,
+        labels: Sequence[str] | None = None
+) -> OptimizerResult:
     """ Prepare the data for optimizers and launch a portfolio optimization.
 
         Input:

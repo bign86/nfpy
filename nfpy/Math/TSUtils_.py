@@ -9,7 +9,8 @@ import numpy as np
 import scipy.signal as sig
 from typing import Optional
 
-from nfpy.Tools import (Exceptions as Ex, Utilities as Ut)
+import nfpy.IO.Utilities as Ut
+from nfpy.Tools import Exceptions as Ex
 
 
 def dropna(v: np.ndarray, axis: int = 0) -> tuple:
@@ -213,7 +214,8 @@ def search_trim_pos(dt: np.ndarray, start: Optional[np.datetime64] = None,
     if start:
         i0 = np.searchsorted(dt, start, side='left')
     if end:
-        i1 = np.searchsorted(dt, end + np.timedelta64(1, 'D'), side='left')
+        # i1 = np.searchsorted(dt, end + np.timedelta64(1, 'D'), side='left')
+        i1 = np.searchsorted(dt, end, side='right')
 
     return slice(i0, i1)
 

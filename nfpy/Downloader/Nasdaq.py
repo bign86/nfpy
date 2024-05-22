@@ -9,10 +9,18 @@ import numpy as np
 import pandas as pd
 
 from nfpy.Calendar import today
+import nfpy.Tools.Exceptions as Ex
 
 from .BaseDownloader import (BasePage, DwnParameter)
-from .BaseProvider import BaseImportItem
+from .BaseProvider import (BaseImportItem, BaseProvider)
 from .DownloadsConf import (NasdaqDividendsConf, NasdaqPricesConf)
+
+
+class NasdaqProvider(BaseProvider):
+    _PROVIDER = 'Nasdaq'
+
+    def _filter_todo_downloads(self, todo: set) -> set:
+        return todo
 
 
 class ClosePricesItem(BaseImportItem):
@@ -100,7 +108,7 @@ class HistoricalPricesPage(NasdaqBasePage):
         count = j['data']['totalRecords']
 
         if count == 0:
-            raise RuntimeWarning(f'Nasdaq(): {self._ticker} | no new data downloaded')
+            raise Ex.NoNewDataWarning(f'Nasdaq(): {self._ticker} | no new data downloaded')
 
         data = j['data']['tradesTable']['rows']
         v = np.empty((count, 6), dtype='object')
@@ -132,7 +140,7 @@ class DividendsPage(NasdaqBasePage):
         data = j['data']['dividends']['rows']
 
         if data is None:
-            raise RuntimeWarning(f'Nasdaq(): {self._ticker} | no new data downloaded')
+            raise Ex.NoNewDataWarning(f'Nasdaq(): {self._ticker} | no new data downloaded')
 
         v = np.empty((len(data), 6), dtype='object')
         to_remove = []

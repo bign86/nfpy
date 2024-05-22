@@ -6,10 +6,19 @@
 from io import StringIO
 import pandas as pd
 
+import nfpy.Tools.Exceptions as Ex
+
 from .BaseDownloader import (BasePage, DwnParameter)
-from .BaseProvider import BaseImportItem
+from .BaseProvider import (BaseImportItem, BaseProvider)
 from .DownloadsConf import (ECBAggregatesConf, ECBExrConf,
                             ECBRatesConf, ECBYieldsConf, ECBSeriesConf)
+
+
+class ECBProvider(BaseProvider):
+    _PROVIDER = 'ECB'
+
+    def _filter_todo_downloads(self, todo: set) -> set:
+        return todo
 
 
 class ECBBaseItem(BaseImportItem):
@@ -104,7 +113,7 @@ class ECBBasePage(BasePage):
         )
 
         if df.empty:
-            raise RuntimeWarning(f'{self._ticker} | no new data downloaded')
+            raise Ex.NoNewDataWarning(f'{self._ticker} | no new data downloaded')
 
         df.drop(columns='action', inplace=True)
         self._res = df

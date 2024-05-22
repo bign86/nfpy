@@ -7,13 +7,15 @@ from .ReportDDM import ReportDDM
 from .ReportEquityFull import ReportEquityFull
 from .ReportMarketShort import ReportMarketShort
 from .ReportPortfolio import ReportPortfolio
+from .ReportRiskPremium import ReportRiskPremium
 
 __all__ = [
-    'ReportAlerts', 'ReportBacktester', 'ReportEquityFull',
+    'ReportBacktester', 'ReportEquityFull',
     'ReportPortfolio',
 
     # vetted
-    'ReportDCF', 'ReportDDM', 'ReportMarketShort',
+    'ReportAlerts', 'ReportDCF', 'ReportDDM', 'ReportMarketShort',
+    'ReportRiskPremium',
 
     'ReportData', 'ReportResult',
 

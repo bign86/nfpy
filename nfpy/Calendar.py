@@ -14,7 +14,11 @@ from pandas.core.tools.datetimes import DatetimeScalar
 import pandas.tseries.offsets as off
 from typing import (Optional, Sequence, TypeVar, Union)
 
-from nfpy.Tools import (Exceptions as Ex, Singleton, Utilities as Ut)
+from nfpy.Tools import (Exceptions as Ex, Singleton)
+
+#
+# Types
+#
 
 TyDatetime = TypeVar('TyDatetime', bound=Union[
     str, pd.Timestamp, datetime.datetime, np.datetime64
@@ -22,6 +26,11 @@ TyDatetime = TypeVar('TyDatetime', bound=Union[
 TyDate = TypeVar('TyDate', bound=Union[str, datetime.date])
 TyTime = Union[TyDate, TyDatetime, DatetimeScalar]
 TyTimeSequence = Union[pd.DatetimeIndex, Sequence[TyTime]]
+
+
+#
+# Constants
+#
 
 _HOLIDAYS_MASK_ = ((1, 1), (5, 1), (12, 25))
 _WEEKEND_MASK_INT_ = (5, 6)
@@ -46,6 +55,44 @@ _OFFSET_LABELS = {
     'BY': ('BY', off.BYearEnd)
 }
 
+# Daily periods in larger time frames
+DAYS_IN_1W = 7
+DAYS_IN_1M = 30
+DAYS_IN_1Q = 90
+DAYS_IN_1Y = 365
+DAYS = {'D': 1, 'W': DAYS_IN_1W, 'M': DAYS_IN_1M, 'Q': DAYS_IN_1Q, 'Y': DAYS_IN_1Y}
+
+# Business daily periods in larger time frames
+BDAYS_IN_1W = 5
+BDAYS_IN_1M = 21
+BDAYS_IN_1Q = 63
+BDAYS_IN_1Y = 252
+BDAYS = {'D': 1, 'B': 1, 'W': BDAYS_IN_1W, 'M': BDAYS_IN_1M, 'Q': BDAYS_IN_1Q, 'Y': BDAYS_IN_1Y}
+
+# Weekly periods in larger time frames
+WEEKS_IN_1M = 4
+WEEKS_IN_1Q = 12
+WEEKS_IN_1Y = 52
+WEEKS = {'W': 1, 'M': WEEKS_IN_1M, 'Q': WEEKS_IN_1Q, 'Y': WEEKS_IN_1Y}
+
+# Monthly periods in larger time frames
+MONTHS_IN_1Q = 3
+MONTHS_IN_1Y = 12
+MONTHS = {'M': 1, 'Q': MONTHS_IN_1Q, 'Y': MONTHS_IN_1Y}
+
+# Quarterly periods in larger time frames
+QUARTERS_IN_1Y = 4
+QUARTERS = {'Y': QUARTERS_IN_1Y}
+
+# Frequency to dict
+FREQ_2_D = {
+    'D': DAYS,
+    'B': BDAYS,
+    'W': WEEKS,
+    'M': MONTHS,
+    'Q': QUARTERS,
+}
+
 
 class Frequency(Enum):
     D = 'D'
@@ -60,7 +107,6 @@ class Calendar(metaclass=Singleton):
 
     def __init__(self):
         """ Creates a new calendar with given frequency. """
-        self._frequency = None
         self.fmt = None
 
         # Daily
@@ -87,21 +133,21 @@ class Calendar(metaclass=Singleton):
     def calendar(self) -> TyTimeSequence:
         """ Return the instantiated calendar if initialized else None. """
         if not self._initialized:
-            return pd.DatetimeIndex([], self._frequency)
+            return pd.DatetimeIndex([], Frequency.D.value)
         return self._calendar
 
     @property
     def monthly_calendar(self) -> TyTimeSequence:
         """ Return the instantiated monthly calendar if initialized else None. """
         if not self._initialized:
-            return pd.DatetimeIndex([], self._frequency)
+            return pd.DatetimeIndex([], Frequency.M.value)
         return self._monthly_calendar
 
     @property
     def yearly_calendar(self) -> TyTimeSequence:
         """ Return the instantiated yearly calendar if initialized else None. """
         if not self._initialized:
-            return pd.DatetimeIndex([], self._frequency)
+            return pd.DatetimeIndex([], Frequency.Y.value)
         return self._yearly_calendar
 
     # Starting (oldest) date in the calendar
@@ -262,15 +308,19 @@ class Calendar(metaclass=Singleton):
         )
 
         # if self._end.dayofweek > 4:
-        self._t0 = self.end - off.BDay(1)
+        t0 = self.end - off.BDay(1)
+        while t0 not in self._calendar:
+            t0 -= off.BDay(1)
         # else:
         #     self._t0 = self.end
         # offset = max(0, self._end.weekday() - 4)
         # self._t0 = self.end - off.BDay(offset)
 
         i = 1
-        while self._t0 != self._calendar[-i]:
+        while t0 != self._calendar[-i]:
             i += 1
+
+        self._t0 = t0
         self._fft0 = i
         self._xt0 = self._calendar.shape[0] - i
         assert self._t0 == self._calendar[-self._fft0]
@@ -330,7 +380,7 @@ class Calendar(metaclass=Singleton):
         self._xt0y = self._yearly_calendar.shape[0] - 2
 
         # Print the results
-        Ut.print_highlight(' *** Calendar')
+        print(' *** Calendar')
         print(
             f'   Daily:   {self._start.date()} -> {self._end.date()} | t0  = {self._t0.date()}\n'
             f'   Monthly: {self._monthly_calendar[0].date()} -> {self._monthly_calendar[-1].date()} | t0m = {self._monthly_calendar[self._xt0m].date()}\n'
@@ -383,29 +433,35 @@ class Calendar(metaclass=Singleton):
         return cal[target]
 
 
-def date_2_datetime(dt: Union[TyDate, TyTimeSequence], fmt: str = '%Y-%m-%d') \
-        -> Union[TyDatetime, TyTimeSequence]:
-    if isinstance(dt, (list, tuple)):
-        if isinstance(dt[0], str):
-            dt = [datetime.datetime.strptime(d, fmt) for d in dt]
-        elif isinstance(dt[0], pd.Timestamp):
-            dt = [d.to_pydatetime() for d in dt]
-        elif isinstance(dt[0], datetime.datetime):
-            pass
-        else:
-            raise TypeError(f'Calendar.date_2_datetime(): Date type ({type(dt)}) not accepted')
-        return dt
-    else:
-        if isinstance(dt, str):
-            dt = datetime.datetime.strptime(dt, fmt)
-        elif isinstance(dt, pd.Timestamp):
-            dt = dt.to_pydatetime()
-        elif isinstance(dt, datetime.datetime):
-            pass
-        else:
-            raise TypeError(f'Calendar.date_2_datetime(): Date type ({type(dt)}) not accepted')
-        return dt
+#
+# Transformation functions
+#
 
+# From string
+def str2pd(v, fmt: str) -> pd.Timestamp:
+    return pd.to_datetime(v, format=fmt)
+
+
+def str2np(v, fmt: str) -> np.datetime64:
+    return pd.to_datetime(v, format=fmt).asm8
+
+
+def str2dt(v, fmt: str) -> datetime.datetime:
+    return datetime.datetime.strptime(v, fmt)
+
+
+def str2d(v, fmt: str) -> datetime.date:
+    return datetime.datetime.strptime(v, fmt).date()
+
+
+# Pandas to numpy
+def pd2np(dt: Optional[TyDate]) -> Optional[np.datetime64]:
+    return dt.asm8 if isinstance(dt, pd.Timestamp) else dt
+
+
+#
+# Other functions
+#
 
 def today(mode: str = 'date', fmt: str = '%Y-%m-%d') -> TyDate:
     """ Return a string with today date. Per default returns a datetime.date
@@ -428,7 +484,7 @@ def today(mode: str = 'date', fmt: str = '%Y-%m-%d') -> TyDate:
     elif mode == 'date':
         pass
     else:
-        raise ValueError(f'Mode {mode} in calendar.today() not recognized!')
+        raise ValueError(f'today(): Mode {mode} not recognized!')
     return t
 
 
@@ -443,7 +499,7 @@ def last_business(offset: int = 1, mode: str = 'str',
     elif mode == 'datetime':
         pass
     else:
-        raise ValueError(f'Mode {mode} in calendar.last_business() not recognized!')
+        raise ValueError(f'last_business(): Mode {mode} not recognized!')
     return lbd_
 
 
@@ -509,10 +565,6 @@ def shift(dt: pd.Timestamp, n: int, freq: str) -> pd.Timestamp:
     """
     offset = _OFFSET_LABELS[freq][1]
     return dt + offset(int(n))
-
-
-def pd_2_np64(dt: Optional[TyDate]) -> Optional[np.datetime64]:
-    return dt.asm8 if isinstance(dt, pd.Timestamp) else dt
 
 
 def get_calendar_glob() -> Calendar:

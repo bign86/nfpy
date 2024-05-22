@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 from typing import (Any, Optional)
 
+import nfpy.IO.Utilities
 from nfpy.Assets import TyAsset
 from nfpy.Calendar import today
 from nfpy.Financial import DividendFactory
@@ -88,7 +89,7 @@ class ReportMarketShort(BaseReport):
                 outputs[asset.ticker] = res
 
             except (RuntimeError, ValueError, Ex.AssetTypeError) as ex:
-                Ut.print_exc(ex)
+                nfpy.IO.Utilities.print_exc(ex)
 
         return outputs
 
@@ -222,10 +223,11 @@ class ReportMarketShort(BaseReport):
             ddm_res = DDM(asset.uid, **p).result(**p)
         except (Ex.MissingData, ValueError) as ex:
             res.has_ddm = False
-            Ut.print_exc(ex)
+            nfpy.IO.Utilities.print_exc(ex)
         else:
             res.has_ddm = True
             res.ddm_success = ddm_res.success
+            res.ddm_applicable = ddm_res.applicable
             res.ddm_msg = ddm_res.msg
             res.ddm_inputs = self._p.get('DDM', {})
 
@@ -241,7 +243,7 @@ class ReportMarketShort(BaseReport):
             dcf_res = DCF(asset.uid, **p).result(**p)
         except (Ex.MissingData, ValueError) as ex:
             res.has_dcf = False
-            Ut.print_exc(ex)
+            nfpy.IO.Utilities.print_exc(ex)
         else:
             res.has_dcf = True
             res.dcf_success = dcf_res.success

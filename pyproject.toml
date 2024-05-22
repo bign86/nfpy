@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nfpy"
+authors = [
+    {name = "bign86", email = ""},
+]
+description = "The NFPY set of financial functions"
+#readme = ""
+requires-python = ">=3.8"
+keywords = ["nfpy", "finance", "portfolio", "investing"]
+license = {file = "LICENSE"}
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
+
+    "Topic :: Office/Business :: Financial :: Investment",
+    "Intended Audience :: Financial and Insurance Industry",
+
+    # Specify the Python versions you support here.
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+dependencies = [
+    'beautifulsoup4 == 4.11.1',
+    'html5lib >= 1.1',
+    'ibapi >= 9.81.1',
+    'Jinja2 == 3.1.2',
+    'matplotlib >= 3.5.2',
+    'pandas >= 1.4.2',
+    'requests >= 2.27.1',
+    'scipy >= 1.8.0',
+    'tabulate >= 0.8.9',
+    'urllib3 >= 1.26.9',
+]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/bign86/nfpy"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["nfpy"]
+
+[tool.setuptools.package-data]
+"." = ["db_static_data.p", "db_static_data.json", "nfpyConf.ini", "schema.sql"]
+
+[tool.setuptools.dynamic]
+version = {attr = "nfpy.__version__"}

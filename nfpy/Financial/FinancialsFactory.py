@@ -128,14 +128,14 @@ from [Index] where is_gdp or is_inflation ) as t group by country"""
 
         labels = []
         if country is not None:
-            labels.append(f'country={country}')
+            labels.append(f'[country]={country}')
         if ccy is not None:
-            labels.append(f'currency={ccy}')
+            labels.append(f'[currency]={ccy}')
         if ac is not None:
-            labels.append(f'ac={ac}')
+            labels.append(f'[ac]={ac}')
 
-        where = ' and '.join(labels)
-        q = f'select uid from Index where {where}'
+        where = ' AND '.join(labels)
+        q = f'SELECT [uid] FROM [Index] WHERE {where}'
         res = self._db.execute(q).fetchall()
         if not res:
             return None

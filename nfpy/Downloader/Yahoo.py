@@ -21,14 +21,22 @@ import pandas.tseries.offsets as off
 import time
 
 import nfpy.Calendar as Cal
-from nfpy.Tools import Utilities as Ut
+import nfpy.IO.Utilities as Ut
+from nfpy.Tools import Exceptions as Ex
 
 from .BaseDownloader import (BasePage, DwnParameter)
-from .BaseProvider import BaseImportItem
+from .BaseProvider import (BaseImportItem, BaseProvider)
 from .DownloadsConf import (
     YahooFinancialsConf, YahooFinancialsMapping, YahooFinancialsDownloadList,
     YahooHistDividendsConf, YahooHistPricesConf, YahooHistSplitsConf
 )
+
+
+class YahooProvider(BaseProvider):
+    _PROVIDER = 'Yahoo'
+
+    def _filter_todo_downloads(self, todo: set) -> set:
+        return todo
 
 
 class ClosePricesItem(BaseImportItem):
@@ -101,7 +109,7 @@ class SplitsItem(BaseImportItem):
 
             # Calculate the factor
             ratio = str(item[2]).split(':')
-            value = int(ratio[1]) / int(ratio[0])
+            value = float(ratio[1]) / float(ratio[0])
 
             # Build the new tuple
             data_ins.append((item[0], 500, item[1], value))
@@ -190,7 +198,7 @@ class FinancialsPage(YahooBasePage):
             elif 'quarterly' in result[0]['meta']['type'][0]:
                 freq = 'Q'
             else:
-                raise ValueError(f'YahooDownloader(): {self._ticker} | no new data downloaded')
+                raise Ex.NoNewDataWarning(f'YahooDownloader(): {self._ticker} | no new data downloaded')
 
             # data = []
             key_copy = all_keys.copy()
@@ -274,7 +282,7 @@ class YahooHistoricalBasePage(YahooBasePage):
         )
 
         if df.empty:
-            raise RuntimeWarning(f'{self._ticker} | no new data downloaded')
+            raise Ex.NoNewDataWarning(f'{self._ticker} | no new data downloaded')
 
         # When downloading prices the oldest row is often made of nulls,
         # this is to remove it
@@ -355,7 +363,7 @@ class SplitsPage(YahooHistoricalBasePage):
         df = self._parse_csv()
 
         Ut.print_wrn(
-            Warning(
+            Ex.NoNewDataWarning(
                 f' >>> New split found for {self._ticker}!\n{df.to_string}'
             )
         )
