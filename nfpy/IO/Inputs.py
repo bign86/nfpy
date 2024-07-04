@@ -191,6 +191,8 @@ class InputHandler(object):
                     v_out = cf(vin, limits)
                 else:
                     v_out = cf(vin)
+        except Ex.InputHandlingError as ex:
+            raise ex
         except (TypeError, ValueError) as ex:
             raise Ex.InputHandlingError(f"InputHandler(): Cannot convert input\n{ex}")
 

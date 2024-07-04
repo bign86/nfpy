@@ -1,6 +1,7 @@
-from Beta import Beta
-from RiskPremium import RiskPremium
+from .Beta import Beta
+from .CAPM import CAPM
+from .RiskPremium import RiskPremium
 
 __all__ = [
-    "Beta", "RiskPremium"
+    "Beta", "CAPM", "RiskPremium"
 ]

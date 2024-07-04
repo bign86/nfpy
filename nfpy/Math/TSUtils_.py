@@ -117,8 +117,11 @@ def find_relative_extrema(v: np.ndarray, order: int) \
     return idx, flags
 
 
-def last_valid_value(v: np.ndarray, dt: Optional[np.ndarray] = None,
-                     t0: Optional[np.datetime64] = None) -> tuple[float, int]:
+def last_valid_value(
+        v: np.ndarray,
+        dt: Optional[np.ndarray] = None,
+        t0: Optional[np.datetime64 | np.timedelta64] = None
+) -> tuple[float, int]:
     """ Find the last valid value at a date <= t0. It can be used with 1D arrays
         only.
 
@@ -140,16 +143,21 @@ def last_valid_value(v: np.ndarray, dt: Optional[np.ndarray] = None,
 
     if t0:
         if dt is None:
-            raise ValueError('Math.last_valid_value(): to constrain the search with t0 you need to pass the array of dates')
+            raise ValueError(
+                'Math.last_valid_value(): to constrain the search with t0 you need to pass the array of dates'
+            )
         pos = np.searchsorted(dt, t0, side='right')
-        v = v[:pos+1]
+        v = v[:pos + 1]
 
     idx = cutils.last_valid_index(v, 0, 0, v.shape[0] - 1)
     return float(v[idx]), idx
 
 
-def next_valid_value(v: np.ndarray, dt: Optional[np.ndarray] = None,
-                     t0: Optional[np.datetime64] = None) -> tuple[float, int]:
+def next_valid_value(
+        v: np.ndarray,
+        dt: Optional[np.ndarray] = None,
+        t0: Optional[np.datetime64 | np.timedelta64] = None
+) -> tuple[float, int]:
     """ Find the next valid value starting from the given index. It can be used
         with 1D arrays only.
 
@@ -171,7 +179,8 @@ def next_valid_value(v: np.ndarray, dt: Optional[np.ndarray] = None,
 
     if t0:
         if dt is None:
-            raise ValueError('Math.next_valid_value(): to constrain the search with t0 you need to pass the array of dates')
+            raise ValueError(
+                'Math.next_valid_value(): to constrain the search with t0 you need to pass the array of dates')
         pos = np.searchsorted(dt, t0, side='right')
         v = v[pos:]
 
@@ -179,8 +188,11 @@ def next_valid_value(v: np.ndarray, dt: Optional[np.ndarray] = None,
     return float(v[idx]), idx
 
 
-def search_trim_pos(dt: np.ndarray, start: Optional[np.datetime64] = None,
-                    end: Optional[np.datetime64] = None) -> Optional[slice]:
+def search_trim_pos(
+        dt: np.ndarray,
+        start: Optional[np.datetime64 | np.timedelta64] = None,
+        end: Optional[np.datetime64 | np.timedelta64] = None
+) -> Optional[slice]:
     """ Replicates the use of Pandas .loc[] to slice a time series on a given
         pair of dates. Returns the sliced values array and dates array NOT in
         place.
@@ -246,10 +258,14 @@ def smooth(ts: np.ndarray, w: int) -> np.ndarray:
     return c[h:-h]
 
 
-def trim_ts(dt: np.ndarray, v: Optional[np.ndarray],
-            start: Optional[np.datetime64] = None,
-            end: Optional[np.datetime64] = None, axis: int = 0) \
-        -> tuple[Optional[np.ndarray], np.ndarray]:
+def trim_ts(
+        dt: np.ndarray,
+        v: Optional[np.ndarray],
+        start: Optional[np.datetime64 | np.timedelta64] = None,
+        end: Optional[np.datetime64 | np.timedelta64] = None,
+        axis: int = 0,
+        inplace: bool = False
+) -> tuple[np.ndarray, Optional[np.ndarray], Optional[slice]]:
     """ Replicates the use of Pandas .loc[] to slice a time series on a given
         pair of dates. Returns the sliced values array and dates array NOT in
         place.
@@ -257,9 +273,10 @@ def trim_ts(dt: np.ndarray, v: Optional[np.ndarray],
         Input:
             dt [np.ndarray]: dates series to trim
             v [Optional[np.ndarray]]: value series to trim
-            start [Optional[np.datetime64]]: trimming start date (default: None)
-            end [Optional[np.datetime64]]: trimming end date (default: None)
+            start [Optional[np.datetime64 | np.timedelta64]]: trimming start date (default: None)
+            end [Optional[np.datetime64 | np.timedelta64]]: trimming end date (default: None)
             axis [int]: axis along which to cut
+            inplace [bool]: cut the series in-place
 
         Output:
             v [np.ndarray]: value series trimmed
@@ -272,15 +289,21 @@ def trim_ts(dt: np.ndarray, v: Optional[np.ndarray],
 
     # Quick exit
     if slice_obj is None:
-        return None, np.array([])
+        return np.array([]), None, None
 
-    # Do not modify the input and perform the slicing
-    dt = deepcopy(dt)
+    if inplace:
+        dt = dt[slice_obj]
+        if v is not None:
+            v = v[slice_obj]
+    else:
+        # Do not modify the input and perform the slicing
+        dt = deepcopy(dt)
+        dt = dt[slice_obj]
 
-    if v is not None:
-        v = deepcopy(v)
-        slc_list = [slice(None)] * len(v.shape)
-        slc_list[axis] = slice_obj
-        v = v[tuple(slc_list)]
+        if v is not None:
+            v = deepcopy(v)
+            slc_list = [slice(None)] * len(v.shape)
+            slc_list[axis] = slice_obj
+            v = v[tuple(slc_list)]
 
-    return v, dt[slice_obj]
+    return dt, v, slice_obj

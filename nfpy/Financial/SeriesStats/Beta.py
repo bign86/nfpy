@@ -1,14 +1,16 @@
 import cutils
 from dataclasses import dataclass
 import numpy as np
+import pandas as pd
+import pandas.tseries.offsets as off
 from scipy import stats
 from typing import Any
 
 from nfpy.Assets import (get_af_glob, TyAsset)
 import nfpy.Calendar as Cal
 from nfpy.Math.TSStats_ import rolling_sum
-from nfpy.Math.TSUtils_ import search_trim_pos
-from nfpy.Tools import Exceptions as Ex
+from nfpy.Math.TSUtils_ import (search_trim_pos, trim_ts)
+from nfpy.Tools import (get_logger_glob, Exceptions as Ex)
 
 from ..FundamentalsFactory import FundamentalsFactory
 
@@ -21,6 +23,7 @@ class BetaResult(object):
     leverage: float | None
     start: Cal.TyDate
     end: Cal.TyDate
+    horizon: Cal.Horizon | None
     frequency: Cal.Frequency
     beta: float
     adj_beta: float
@@ -40,6 +43,7 @@ class Beta(object):
             mkt: str | TyAsset = None,
             start: Cal.TyDate = None,
             end: Cal.TyDate = None,
+            horizon: Cal.Horizon = None,
             comp: str | TyAsset = None,
     ):
         # Get asset objects
@@ -74,41 +78,74 @@ class Beta(object):
             self._fundamentals = FundamentalsFactory(comp)
             self._comp = comp
 
-        # Resample to desired frequency. As everything is resampled on the same
-        # frequency, the slice should be the same for all series.
-        asset_p = asset.prices \
-            .resample(freq.value) \
-            .agg('last')
-        self._asset_r = cutils.ret_nans(asset_p.to_numpy(), False)
-
-        mkt_p = mkt.prices \
-            .resample(freq.value) \
-            .agg('last')
-        self._mkt_r = cutils.ret_nans(mkt_p.to_numpy(), False)
         self._freq = freq
+        self._horizon = horizon
 
         # Set the time limits in the series. Start the series one data point
         # later to account for the data point lost in calculating the returns.
         # As everything is resampled on the same frequency, the slice should
         # be the same for all series.
-        calendar = Cal.get_calendar_glob()
-        self._start = start or calendar.start
-        self._end = end or calendar.end
+        dt_off = {
+            Cal.Frequency.D: (lambda v: v, lambda v: v),
+            Cal.Frequency.M: (Cal.to_month_begin, Cal.to_previous_month_end),
+            Cal.Frequency.Y: (Cal.to_year_begin, Cal.to_previous_year_end),
+        }
+        try:
+            offset = dt_off[freq]
+        except KeyError as ex:
+            raise Ex.CalendarError(f'Beta(): frequency {freq.value} not supported')
 
-        dt = asset_p.index.to_numpy()
-        self._slice = search_trim_pos(dt, start=self._start, end=self._end)
+        calendar = Cal.get_calendar_glob()
+        end = pd.Timestamp(end or calendar.t0)
+        self._end = offset[1](end)
+
+        # If there is a start date, that takes precedence over the horizon.
+        if start:
+            self._start = offset[0](start or calendar.start.asm8)
+        else:
+            self._start = offset[0](
+                end - off.DateOffset(months=horizon.months)
+            )
+
+        # Check if the calendar supports us
+        if self._start < calendar.start:
+            raise Ex.CalendarError(
+                f'Beta(): start date {self._start} < calendar start {calendar.start}'
+            )
+
+        # Log
+        get_logger_glob().info(
+            f'Beta(): {self._asset.uid}|{self._mkt.uid} freq={freq.value} '
+            f'start={self._start} end={self._end}'
+        )
+
+        # Resample to desired frequency. As everything is resampled on the same
+        # frequency, the slice should be the same for all series.
+        asset_p = asset.prices \
+            .resample(freq.value) \
+            .agg('last')
+        asset_r = cutils.ret_nans(asset_p.to_numpy(), False)
+
+        mkt_p = mkt.prices \
+            .resample(freq.value) \
+            .agg('last')
+        mkt_r = cutils.ret_nans(mkt_p.to_numpy(), False)
+
+        _, self._asset_r, self._slice = trim_ts(
+            asset_p.index.to_numpy(),
+            asset_r,
+            start=self._start,
+            end=self._end
+        )
+        self._mkt_r = mkt_r[self._slice]
 
     def beta(
             self,
             unlever: bool = False,
             use_tax_shield: bool = True,
     ) -> BetaResult:
-        # Cut the series to the right length
-        asset_r = self._asset_r[self._slice]
-        mkt_r = self._mkt_r[self._slice]
-
         # Calculate beta
-        ols = self._beta(asset_r, mkt_r)
+        ols = self._beta(self._asset_r, self._mkt_r)
         beta = ols.slope
 
         leverage = None
@@ -146,6 +183,7 @@ class Beta(object):
             leverage=leverage,
             start=self._start,
             end=self._end,
+            horizon=self._horizon,
             frequency=self._freq,
             beta=beta,
             adj_beta=adj_beta,
@@ -159,7 +197,7 @@ class Beta(object):
             mkt_r: np.ndarray,
     ) -> Any:
         v = np.vstack((asset_r, mkt_r))
-        v = cutils.dropna(v, 1)
+        v = cutils.dropna(v, 0)
         return stats.linregress(v[1, :], v[0, :])
 
 

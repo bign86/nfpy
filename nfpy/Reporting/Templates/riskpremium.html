@@ -33,8 +33,8 @@
           <table class="simple">
             <thead>
               <tr>
-                <th>Ticker</th><th>ISIN</th><th>Rfree</th>
-                <th>Beta</th><th>Rpremium</th><th>Cost of equity</th>
+                <th>Ticker</th><th>ISIN</th><th>Rfree</th><th>Beta</th>
+                <th>Leverage</th><th>Rp</th><th>Cost of equity</th>
               </tr>
             </thead>
             <tbody>
@@ -45,6 +45,7 @@
                     <td class='anag-value'>{{ eq.info["isin"] }}</td>
                     <td class='anag-value'>{{ '%.2f'| format(eq.results.rf * 100) }} %</td>
                     <td class='anag-value'>{{ '%.0f'| format(eq.results.beta * 100) }} %</td>
+                    <td class='anag-value'>{{ '%.0f'| format((eq.results.leverage - 1) * 100) }} %</td>
                     <td class='anag-value'>{{ '%.2f'| format(eq.results.risk_premium * 100) }} %</td>
                     <td class='anag-value'>{{ '%.2f'| format(eq.results.cost_of_equity * 100) }} %</td>
                   </tr>

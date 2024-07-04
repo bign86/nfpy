@@ -19,7 +19,7 @@ class Curve(AggregationMixin, Asset):
     """ Class for curves seen as aggregations of buckets. """
 
     _TYPE = 'Curve'
-    _BASE_TABLE = 'Rate'
+    _BASE_TABLE = 'Curve'
     _CONSTITUENTS_TABLE = 'CurveConstituents'
 
     def __init__(self, uid: str):

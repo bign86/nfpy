@@ -112,6 +112,24 @@ CREATE TABLE [DerivedSeries] (
     PRIMARY KEY ([series], [dtype], [freq], [end_date], [horizon])
 ) WITHOUT ROWID;
 
+CREATE TABLE [DerivedSeries] (
+    [uid] TEXT NOT NULL,
+	[asset1] TEXT NOT NULL,
+	[asset2] TEXT,
+    [freq] TEXT NOT NULL,
+    [horizon] TEXT NOT NULL,
+	[description] TEXT,
+    PRIMARY KEY ([uid])
+) WITHOUT ROWID;
+
+CREATE TABLE DerivedSeriesTS (
+    [uid] TEXT NOT NULL,
+    [dtype] INTEGER NOT NULL,
+    [date] DATETIME NOT NULL,
+    [value] REAL,
+    PRIMARY KEY ([uid], [dtype], [date])
+) WITHOUT ROWID;
+
 CREATE TABLE [Downloads] (
     [provider] TEXT NOT NULL,
     [page] TEXT NOT NULL,
@@ -179,13 +197,6 @@ CREATE TABLE [ECBYields] (
     [time_period] DATE NOT NULL,
     [obs_value] REAL,
     PRIMARY KEY ([ticker], [time_period])
-) WITHOUT ROWID;
-
-CREATE TABLE [ECBSeries] (
-    [ticker] TEXT NOT NULL,
-    [date] DATE NOT NULL,
-    [value] REAL,
-    PRIMARY KEY ([ticker], [date])
 ) WITHOUT ROWID;
 
 CREATE TABLE [Equity] (
@@ -518,14 +529,15 @@ CREATE TABLE [YahooPrices] (
 CREATE VIEW [Assets] AS
 SELECT [uid], [type], [description], [currency]
 FROM (
-    SELECT [uid], 'Bond'      as [type], [description], [currency] FROM [Bond] UNION
-    SELECT [uid], 'Company'   as [type], [description], [currency] FROM [Company] UNION
-    SELECT [uid], 'Curve'     as [type], [description], [currency] FROM [Curve] UNION
-    SELECT [uid], 'Equity'    as [type], [description], [currency] FROM [Equity] UNION
-    SELECT [uid], 'Etf'       as [type], [description], [currency] FROM [Etf] UNION
-    SELECT [uid], 'Fx'        as [type], [description], NULL FROM [Fx] UNION
-    SELECT [uid], 'Index'   as [type], [description], [currency] FROM [Index] UNION
-    SELECT [uid], 'Portfolio' as [type], [description], NULL FROM [Portfolio] UNION
-    SELECT [uid], 'Rate'      as [type], [description], NULL FROM [Rate]
+    SELECT [uid], 'Bond'          AS [type], [description], [currency] FROM [Bond] UNION
+    SELECT [uid], 'Company'       AS [type], [description], [currency] FROM [Company] UNION
+    SELECT [uid], 'Curve'         AS [type], [description], [currency] FROM [Curve] UNION
+    SELECT [uid], 'Equity'        AS [type], [description], [currency] FROM [Equity] UNION
+    SELECT [uid], 'Etf'           AS [type], [description], [currency] FROM [Etf] UNION
+    SELECT [uid], 'Fx'            AS [type], [description], NULL FROM [Fx] UNION
+    SELECT [uid], 'Index'         AS [type], [description], [currency] FROM [Index] UNION
+    SELECT [uid], 'Portfolio'     AS [type], [description], NULL FROM [Portfolio] UNION
+    SELECT [uid], 'Rate'          AS [type], [description], NULL FROM [Rate] UNION
+    SELECT [uid], 'DerivedSeries' AS [type], [description], NULL FROM [DerivedSeries]
 ) AS src;
 

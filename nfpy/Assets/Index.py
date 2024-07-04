@@ -6,6 +6,7 @@
 import pandas as pd
 from typing import Callable
 
+from nfpy.Calendar import Frequency
 from nfpy.Tools import (Exceptions as Ex)
 
 from .Asset import Asset
@@ -26,13 +27,17 @@ class Index(Asset):
     _TS_ROLL_KEY_LIST = ['date']
     _DEF_PRICE_DTYPE = 'Price.Raw.Close'
 
+    def __init__(self, uid: str):
+        super(Index, self).__init__(uid)
+        self._freq = None
+
     @property
-    def frequency(self) -> str:
+    def frequency(self) -> Frequency:
         return self._freq
 
     @frequency.setter
     def frequency(self, v: str) -> None:
-        self._freq = v
+        self._freq = Frequency(v)
 
     def _prices_loader(self, dtype: str, level: str) -> bool:
         """ Load the prices and, if missing, try sequentially to calculate them
@@ -69,7 +74,7 @@ class Index(Asset):
                 calendar = self._cal.yearly_calendar
             else:
                 msg = f'Rate(): calendar frequency not recognized for {self._uid}'
-                raise ValueError(msg)
+                raise Ex.CalendarError(msg)
             self._df = pd.DataFrame(index=calendar)
 
         success, df = self.load_dtype(dtype)

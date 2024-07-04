@@ -13,7 +13,12 @@ from nfpy.Assets import get_af_glob
 import nfpy.Calendar as Cal
 import nfpy.DB as DB
 import nfpy.IO.Utilities as Ut
-from nfpy.Tools import (Singleton, Exceptions as Ex, Utilities as Uti)
+from nfpy.Tools import (
+    get_logger_glob,
+    Singleton,
+    Exceptions as Ex,
+    Utilities as Uti
+)
 
 from .BaseProvider import get_provider
 from .Objs import *
@@ -188,11 +193,14 @@ class DownloadFactory(metaclass=Singleton):
             provider=provider, page=page, ticker=ticker, active=active
         )
         print(f'We are about to download {len(upd_list)} items')
+        logger = get_logger_glob()
+        logger.log(20, f'{len(upd_list)} items have been fetched from DB')
 
         count_done = 0
         count_skipped = 0
         count_failed = 0
         for provider, group in groupby(upd_list, key=lambda v: v.provider):
+            logger.log(20, f'Provider {provider}')
 
             # Get the correct provider and the download generator from it
             skipped, generator = get_provider(provider)() \
@@ -223,15 +231,17 @@ class DownloadFactory(metaclass=Singleton):
                         page.printout()
                     count_done += 1
 
-        print(
-            f'\nItems downloaded: {count_done:>4}'
-            f'\nItems skipped:    {count_skipped:>4}'
-            f'\nItems failed:     {count_failed:>4}\n'
-        )
+        msg = f'Items downloaded: {count_done:>4}\n' \
+            f'Items skipped:    {count_skipped:>4}\n' \
+            f'Items failed:     {count_failed:>4}\n'
+        print(msg)
+        logger.log(20, msg)
+
         self._db.execute(
             'UPDATE [SystemInfo] SET [date] = ? WHERE [field] = "lastDownload";',
             (today,), commit=True
         )
+        logger.log(20, 'Download completed')
 
     def run_import(self, uid: Optional[str] = None,
                    provider: Optional[str] = None,
@@ -252,6 +262,8 @@ class DownloadFactory(metaclass=Singleton):
             provider=provider, item=item, uid=uid, active=active
         )
         print(f'We are about to import {len(import_list)} items')
+        logger = get_logger_glob()
+        logger.log(20, f'We are about to import {len(import_list)} items')
 
         for element in import_list:
             try:
@@ -266,6 +278,7 @@ class DownloadFactory(metaclass=Singleton):
             'UPDATE [SystemInfo] SET [date] = ? WHERE [field] = "lastImport";',
             (Cal.today(mode='date'),), commit=True
         )
+        logger.log(20, 'Import completed')
 
 
 def get_dwnf_glob() -> DownloadFactory:

@@ -14,7 +14,7 @@ from pandas.core.tools.datetimes import DatetimeScalar
 import pandas.tseries.offsets as off
 from typing import (Optional, Sequence, TypeVar, Union)
 
-from nfpy.Tools import (Exceptions as Ex, Singleton)
+from nfpy.Tools import (Exceptions as Ex, get_logger_glob, Singleton)
 
 #
 # Types
@@ -32,7 +32,7 @@ TyTimeSequence = Union[pd.DatetimeIndex, Sequence[TyTime]]
 # Constants
 #
 
-_HOLIDAYS_MASK_ = ((1, 1), (5, 1), (12, 25))
+#_HOLIDAYS_MASK_ = ((1, 1), (5, 1), (12, 25))
 _WEEKEND_MASK_INT_ = (5, 6)
 _WEEKEND_MASK_STR_ = ('Sat', 'Sun')
 _WEEK_MASK_INT_ = (0, 1, 2, 3, 4)
@@ -100,6 +100,64 @@ class Frequency(Enum):
     M = 'M'
     Q = 'Q'
     Y = 'Y'
+
+
+class Horizon(object):
+    def __init__(self, v: str):
+        self._s = v
+        self._n = int(v[:-1])
+        self._f = Frequency(v[-1])
+
+        self._days = self._n * DAYS[v[-1]]
+        self._bdays = self._n * BDAYS[v[-1]]
+
+        if self._f == Frequency.D:
+            self._weeks = None
+            self._months = None
+            self._years = None
+        elif self._f == Frequency.W:
+            self._weeks = self._n
+            self._months = None
+            self._years = None
+        elif self._f == Frequency.M:
+            self._weeks = self._n * WEEKS_IN_1M
+            self._months = self._n
+            self._years = None
+        elif self._f == Frequency.Y:
+            self._weeks = self._n * WEEKS_IN_1Y
+            self._months = self._n * MONTHS_IN_1Y
+            self._years = self._n
+
+    def __str__(self) -> str:
+        return self._s
+
+    @property
+    def frequency(self) -> Frequency:
+        return self._f
+
+    @property
+    def periods(self) -> int:
+        return self._n
+
+    @property
+    def days(self) -> int:
+        return self._days
+
+    @property
+    def bdays(self) -> int:
+        return self._bdays
+
+    @property
+    def weeks(self) -> int | None:
+        return self._weeks
+
+    @property
+    def months(self) -> int | None:
+        return self._months
+
+    @property
+    def years(self) -> int | None:
+        return self._years
 
 
 class Calendar(metaclass=Singleton):
@@ -178,6 +236,9 @@ class Calendar(metaclass=Singleton):
 
     @t0.setter
     def t0(self, v: pd.Timestamp) -> None:
+        if not isinstance(v, pd.Timestamp):
+            v = pd.Timestamp(v)
+
         if (v < self._start) or (v > self._end):
             raise Ex.CalendarError(f'Calendar(): {v} outside the calendar range')
 
@@ -244,9 +305,9 @@ class Calendar(metaclass=Singleton):
     def is_initialized(self) -> bool:
         return self.__bool__()
 
-    @property
-    def holidays(self) -> np.array:
-        return calc_holidays(self.start, self.end)
+    # @property
+    # def holidays(self) -> np.array:
+    #     return calc_holidays(self.start, self.end)
 
     def __len__(self) -> int:
         return self._calendar.__len__()
@@ -271,8 +332,14 @@ class Calendar(metaclass=Singleton):
         if self._initialized:
             return
 
+        logger = get_logger_glob()
+
         # Errors check
         if (start is None) & (periods is None):
+            logger.error(
+                f"Either one of daily starting time and number of periods (daily)"
+                f" are required to initialize the calendar"
+            )
             raise ValueError(
                 f"Either one of daily starting time and number of periods (daily)"
                 f" are required to initialize the calendar"
@@ -301,20 +368,15 @@ class Calendar(metaclass=Singleton):
             self._start, self._end = self._end, self._start
 
         # Business daily calendar
-        holidays = calc_holidays(self.start, self.end)
+        # holidays = calc_holidays(self.start, self.end)
         self._calendar = pd.bdate_range(
             start=self._start, end=self._end, freq='C',
-            normalize=True, holidays=holidays
+            normalize=True  # , holidays=holidays
         )
 
-        # if self._end.dayofweek > 4:
         t0 = self.end - off.BDay(1)
         while t0 not in self._calendar:
             t0 -= off.BDay(1)
-        # else:
-        #     self._t0 = self.end
-        # offset = max(0, self._end.weekday() - 4)
-        # self._t0 = self.end - off.BDay(offset)
 
         i = 1
         while t0 != self._calendar[-i]:
@@ -363,7 +425,7 @@ class Calendar(metaclass=Singleton):
             yearly_start = pd.Timestamp(yearly_start.asm8.astype('datetime64[Y]'))
         else:
             if yearly_periods is not None:
-                yearly_start = self._end - off.YearBegin(yearly_periods)
+                yearly_start = self._end - off.YearBegin(yearly_periods + 1)
             else:
                 # n = 0 if self._start.month == 1 else 1
                 # yearly_start.day = self._start - off.YearBegin(n)
@@ -374,20 +436,24 @@ class Calendar(metaclass=Singleton):
 
         # Generate the yearly calendar
         self._yearly_calendar = pd.bdate_range(
-            start=yearly_start, end=self._end, freq='AS'
+            start=yearly_start, end=self._end, freq='YS'
         )
         self._t0y = self._yearly_calendar[-2]
         self._xt0y = self._yearly_calendar.shape[0] - 2
 
         # Print the results
-        print(' *** Calendar')
-        print(
+        logger.info(
+            f'*** Calendar\n'
             f'   Daily:   {self._start.date()} -> {self._end.date()} | t0  = {self._t0.date()}\n'
             f'   Monthly: {self._monthly_calendar[0].date()} -> {self._monthly_calendar[-1].date()} | t0m = {self._monthly_calendar[self._xt0m].date()}\n'
-            f'   Yearly:  {self._yearly_calendar[0].date()} -> {self._yearly_calendar[-1].date()} | t0y = {self._yearly_calendar[self._xt0y].date()}',
-            end='\n\n'
+            f'   Yearly:  {self._yearly_calendar[0].date()} -> {self._yearly_calendar[-1].date()} | t0y = {self._yearly_calendar[self._xt0y].date()}'
         )
-
+        print(
+            f'*** Calendar\n'
+            f'   Daily:   {self._start.date()} -> {self._end.date()} | t0  = {self._t0.date()}\n'
+            f'   Monthly: {self._monthly_calendar[0].date()} -> {self._monthly_calendar[-1].date()} | t0m = {self._monthly_calendar[self._xt0m].date()}\n'
+            f'   Yearly:  {self._yearly_calendar[0].date()} -> {self._yearly_calendar[-1].date()} | t0y = {self._yearly_calendar[self._xt0y].date()}'
+        )
         self._initialized = True
 
     @staticmethod
@@ -437,7 +503,10 @@ class Calendar(metaclass=Singleton):
 # Transformation functions
 #
 
+#
 # From string
+#
+
 def str2pd(v, fmt: str) -> pd.Timestamp:
     return pd.to_datetime(v, format=fmt)
 
@@ -454,9 +523,27 @@ def str2d(v, fmt: str) -> datetime.date:
     return datetime.datetime.strptime(v, fmt).date()
 
 
+#
 # Pandas to numpy
+#
 def pd2np(dt: Optional[TyDate]) -> Optional[np.datetime64]:
     return dt.asm8 if isinstance(dt, pd.Timestamp) else dt
+
+
+#
+# Any to numpy
+#
+def any2np(dt: TyDate) -> np.datetime64:
+    if isinstance(dt, pd.Timestamp):
+        return dt.asm8
+    elif isinstance(dt, (str, datetime.datetime, datetime.date)):
+        return np.datetime64(dt)
+    else:
+        raise Ex.CalendarError(f'any2np(): type({type(dt)}) not recognized')
+
+
+def any2pd(dt: TyDate) -> pd.Timestamp:
+    return pd.Timestamp(dt)
 
 
 #
@@ -503,16 +590,172 @@ def last_business(offset: int = 1, mode: str = 'str',
     return lbd_
 
 
-def ensure_business_day(dt: TyDate) -> TyDate:
+def ensure_business_day(
+        dt: TyDate,
+        direction: str = 'backwards',
+        fmt: str = 'numpy'
+) -> TyDate:
     """ Return the previous business day if the given date is not a
         business day.
     """
     if not isinstance(dt, pd.Timestamp):
         dt = pd.Timestamp(dt)
-    ldb = dt - 0 * off.BDay(1)
-    if dt != ldb:
-        dt = dt - off.BDay(1)
-    return dt.date()
+
+    if direction == 'backwards':
+        ldb = dt - 0 * off.BDay(1)
+        if dt != ldb:
+            dt = dt - off.BDay(1)
+    else:
+        dt = dt + 0 * off.BDay(1)
+
+    if fmt == 'numpy':
+        return dt.asm8.astype('datetime64[D]')
+    else:
+        return dt.date()
+
+
+def to_month_end(
+        dt: TyDate,
+        fmt: str = 'numpy'
+) -> TyDate:
+    """ Return the most recent business month end that includes dt. """
+    if not isinstance(dt, pd.Timestamp):
+        dt = pd.Timestamp(dt)
+
+    if not dt.is_month_end:
+        dt += off.MonthEnd(0)
+
+    if fmt == 'numpy':
+        return dt.asm8.astype('datetime64[D]')
+    else:
+        return dt.date()
+
+
+def to_previous_month_end(
+        dt: TyDate,
+        fmt: str = 'numpy'
+) -> TyDate:
+    """ Return the most recent business month end that includes dt. """
+    if not isinstance(dt, pd.Timestamp):
+        dt = pd.Timestamp(dt)
+
+    dt -= off.DateOffset(months=1)
+
+    if not dt.is_month_end:
+        dt += off.MonthEnd(0)
+
+    if fmt == 'numpy':
+        return dt.asm8.astype('datetime64[D]')
+    else:
+        return dt.date()
+
+
+def to_month_begin(
+        dt: TyDate,
+        fmt: str = 'numpy'
+) -> TyDate:
+    """ Return the oldest business month begin that includes dt. """
+    if not isinstance(dt, pd.Timestamp):
+        dt = pd.Timestamp(dt)
+
+    if not dt.is_month_start:
+        dt -= off.MonthBegin(1)
+
+    if fmt == 'numpy':
+        return dt.asm8.astype('datetime64[D]')
+    else:
+        return dt.date()
+
+
+def to_following_month_begin(
+        dt: TyDate,
+        fmt: str = 'numpy'
+) -> TyDate:
+    """ Return the oldest business month begin that includes dt. """
+    if not isinstance(dt, pd.Timestamp):
+        dt = pd.Timestamp(dt)
+
+    dt += off.DateOffset(months=1)
+
+    if not dt.is_month_start:
+        dt -= off.MonthBegin(1)
+
+    if fmt == 'numpy':
+        return dt.asm8.astype('datetime64[D]')
+    else:
+        return dt.date()
+
+
+def to_year_end(
+        dt: TyDate,
+        fmt: str = 'numpy'
+) -> TyDate:
+    """ Return the most recent business year-end that includes dt. """
+    if not isinstance(dt, pd.Timestamp):
+        dt = pd.Timestamp(dt)
+
+    if not dt.is_year_end:
+        dt += off.YearEnd(0)
+
+    if fmt == 'numpy':
+        return dt.asm8.astype('datetime64[D]')
+    else:
+        return dt.date()
+
+
+def to_previous_year_end(
+        dt: TyDate,
+        fmt: str = 'numpy'
+) -> TyDate:
+    """ Return the most recent business month end that includes dt. """
+    if not isinstance(dt, pd.Timestamp):
+        dt = pd.Timestamp(dt)
+
+    dt -= off.DateOffset(months=12)
+
+    if not dt.is_year_end:
+        dt += off.YearEnd(0)
+
+    if fmt == 'numpy':
+        return dt.asm8.astype('datetime64[D]')
+    else:
+        return dt.date()
+
+
+def to_year_begin(
+        dt: TyDate,
+        fmt: str = 'numpy'
+) -> TyDate:
+    """ Return the oldest business year begin that includes dt. """
+    if not isinstance(dt, pd.Timestamp):
+        dt = pd.Timestamp(dt)
+
+    if not dt.is_year_start:
+        dt -= off.YearBegin(1)
+
+    if fmt == 'numpy':
+        return dt.asm8.astype('datetime64[D]')
+    else:
+        return dt.date()
+
+
+def to_following_year_begin(
+        dt: TyDate,
+        fmt: str = 'numpy'
+) -> TyDate:
+    """ Return the oldest business month begin that includes dt. """
+    if not isinstance(dt, pd.Timestamp):
+        dt = pd.Timestamp(dt)
+
+    dt += off.DateOffset(months=12)
+
+    if not dt.is_year_start:
+        dt -= off.YearBegin(1)
+
+    if fmt == 'numpy':
+        return dt.asm8.astype('datetime64[D]')
+    else:
+        return dt.date()
 
 
 def now(mode: str = 'datetime', fmt: str = '%Y-%m-%d %H:%M') -> TyDate:
@@ -570,3 +813,67 @@ def shift(dt: pd.Timestamp, n: int, freq: str) -> pd.Timestamp:
 def get_calendar_glob() -> Calendar:
     """ Returns the pointer to the global DB """
     return Calendar()
+
+
+if __name__ == '__main__':
+
+    # dates = [
+    #     pd.Timestamp('2024-06-28'),
+    #     pd.Timestamp('2024-06-29'),
+    #     pd.Timestamp('2024-06-30'),
+    #     pd.Timestamp('2024-07-01')
+    # ]
+    #
+    # print('BACKWARDS')
+    # for d in dates:
+    #     print(
+    #         f'{d.strftime("%Y-%m-%d")} -> '
+    #         f'{ensure_business_day(d, direction="backwards", fmt="date").strftime("%Y-%m-%d")}'
+    #     )
+    #
+    # print('\FORWARDS')
+    # for d in dates:
+    #     print(
+    #         f'{d.strftime("%Y-%m-%d")} -> '
+    #         f'{ensure_business_day(d, direction="forwards", fmt="date").strftime("%Y-%m-%d")}'
+    #     )
+
+    dates = [
+        pd.Timestamp('2024-06-01'),
+        pd.Timestamp('2024-06-02'),
+        pd.Timestamp('2024-06-15'),
+        pd.Timestamp('2024-06-29'),
+        pd.Timestamp('2024-06-30'),
+    ]
+
+    # print('BACKWARDS')
+    # for d in dates:
+    #     print(
+    #         f'{d.strftime("%Y-%m-%d")} -> '
+    #         f'{ensure_business_month_end(d, direction="backwards", fmt="date").strftime("%Y-%m-%d")}'
+    #     )
+    #
+    # print('\nFORWORDS')
+    # for d in dates:
+    #     print(
+    #         f'{d.strftime("%Y-%m-%d")} -> '
+    #         f'{ensure_business_month_end(d, direction="forwards", fmt="date").strftime("%Y-%m-%d")}'
+    #     )
+
+    print('BACKWARDS')
+    for d in dates:
+        print(
+            f'{d.strftime("%Y-%m-%d")} -> '
+            f'{to_month_end(d, fmt="d").strftime("%Y-%m-%d")}'
+        )
+
+    print('\nFORWARDS')
+    for d in dates:
+        print(
+            f'{d.strftime("%Y-%m-%d")} -> '
+            f'{to_month_begin(d, fmt="d").strftime("%Y-%m-%d")}'
+        )
+
+
+
+

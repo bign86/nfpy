@@ -54,3 +54,6 @@ where = ["nfpy"]
 
 [tool.setuptools.dynamic]
 version = {attr = "nfpy.__version__"}
+
+[project.scripts]
+nfpy-backup-db = ".scripts.TechnicalScripts.backupDatabase:main"

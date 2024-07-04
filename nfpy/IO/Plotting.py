@@ -1,5 +1,5 @@
 #
-# Plotting class
+# Plotting
 # Class to handle plots in a standardized way across the library
 #
 
@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 from typing import (Optional, Sequence, TypeVar, Union)
 
-plt.style.use('seaborn')
+plt.style.use('seaborn-v0_8-muted')
 
 
 class Plotter(object):

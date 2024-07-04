@@ -9,9 +9,9 @@ import numpy as np
 import pandas as pd
 from typing import Optional
 
-from nfpy.Calendar import Frequency
+from nfpy.Calendar import (Frequency, Horizon)
 import nfpy.Financial as Fin
-from nfpy.Financial.EquityValuation import CAPM
+from nfpy.Financial.SeriesStats import CAPM
 import nfpy.IO.Utilities as Ut
 import nfpy.Math as Math
 from nfpy.Tools import Exceptions as Ex
@@ -139,7 +139,7 @@ class DDM(BaseFundamentalModel):
         country = self._eq.country
 
         # Long-term drift is the nominal GDP
-        gdp = self._fnf \
+        gdp = self._af \
                   .get_gdp(country, 'N') \
                   .prices \
                   .to_numpy()[:self._cal.xt0y + 1]
@@ -156,7 +156,7 @@ class DDM(BaseFundamentalModel):
         # Calculate the dates of the future dividends
         yearly_dt, yearly_div = self._df.annual_dividends
         dtY0 = yearly_dt[-1]
-        dY0 = yearly_div[-1]
+        dY0 = float(yearly_div[-1])
         t = np.arange(1., self._fp + .001, dtype=int)
 
         # Calculate the no-growth part of the model, independent of the growth
@@ -358,8 +358,11 @@ class DDM(BaseFundamentalModel):
         }
 
         if ke is None:
-            capm_res = CAPM(self._eq, Frequency.M, self._capm_w * 12) \
-                .results()
+            capm_res = CAPM(
+                self._eq,
+                Frequency.M,
+                horizon=Horizon(f'{self._capm_w}Y')
+            ).results(unlever=False)
             ke = capm_res.cost_of_equity
             final_res.update({'capm': capm_res})
 

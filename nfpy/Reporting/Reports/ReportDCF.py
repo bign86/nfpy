@@ -6,7 +6,7 @@
 from collections import defaultdict
 import numpy as np
 import pandas as pd
-from typing import (Any, Optional)
+from typing import Any
 
 import nfpy.IO.Utilities
 from nfpy.Assets import TyAsset

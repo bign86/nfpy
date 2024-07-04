@@ -10,7 +10,6 @@ from typing import (Any, TypeVar)
 
 import nfpy.Assets as Ast
 import nfpy.Calendar as Cal
-import nfpy.Financial as Fin
 
 
 @dataclasses.dataclass(init=False)
@@ -47,7 +46,6 @@ class BaseFundamentalModel(metaclass=ABCMeta):
     def __init__(self, uid: str):
         # Handlers
         self._af = Ast.get_af_glob()
-        self._fnf = Fin.get_fin_glob()
         self._cal = Cal.get_calendar_glob()
 
         # Input variables

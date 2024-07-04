@@ -7,7 +7,6 @@ import pandas as pd
 from typing import Callable
 
 from nfpy.Calendar import Frequency
-from nfpy.Tools import Exceptions as Ex
 
 from .Asset import Asset
 
@@ -18,18 +17,18 @@ _CALENDAR_TRANSFORM = {
 }
 
 
-class Rate(Asset):
-    """ Base class for interest rates """
+class DerivedSeries(Asset):
+    """ Base class for derived series """
 
-    _TYPE = 'Rate'
-    _BASE_TABLE = 'Rate'
-    _TS_TABLE = 'RateTS'
+    _TYPE = 'DerivedSeries'
+    _BASE_TABLE = 'DerivedSeries'
+    _TS_TABLE = 'DerivedSeriesTS'
     _TS_ROLL_KEY_LIST = ['date']
-    _DEF_PRICE_DTYPE = 'Price.Raw.Close'
 
     def __init__(self, uid: str):
-        super(Rate, self).__init__(uid)
+        super(DerivedSeries, self).__init__(uid)
         self._freq = None
+        self._horizon = None
 
     @property
     def frequency(self) -> Frequency:
@@ -38,6 +37,20 @@ class Rate(Asset):
     @frequency.setter
     def frequency(self, v: str) -> None:
         self._freq = Frequency(v)
+
+    @property
+    def horizon(self) -> str:
+        return self._horizon
+
+    @horizon.setter
+    def horizon(self, v: str) -> None:
+        self._horizon = v
+
+    def series_callback(self, dtype: str) -> tuple[Callable, tuple]:
+        """ Return the callback for converting series. The callback must return
+            a bool indicating success/failure.
+        """
+        return self.load_dtype_in_df, (dtype,)
 
     def load_dtype_in_df(self, dtype: str) -> bool:
         """ Load the datatype and merge into the dataframe. Takes care to load
@@ -64,25 +77,4 @@ class Rate(Asset):
             )
             self._df.sort_index(inplace=True)
 
-            if dtype.split('.')[0] == 'Price':
-                code = self._dt.get(dtype)
-                # The value from the database is in annual percentage points
-                self._df.loc[:, code] *= .01
-
         return success
-
-    def series_callback(self, dtype: str) -> tuple[Callable, tuple]:
-        """ Return the callback for converting series. """
-
-        # Since rates do not pay dividends and do not split, we transform any
-        # price or return request into a request for Raw data to avoid
-        # duplications of operations and memory
-        levels = dtype.split('.')
-        if levels[0] in ('Price', 'Return', 'LogReturn'):
-            dtype = dtype.replace(levels[1], 'Raw')
-            return self.load_dtype_in_df, (dtype,)
-
-        # Error if datatype is not in the list
-        else:
-            msg = f'Rate(): datatype {dtype} for {self._uid} not recognized!'
-            raise Ex.DatatypeError(msg)

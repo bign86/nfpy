@@ -5,7 +5,6 @@
 
 import cutils
 import numpy as np
-from typing import Optional
 
 from nfpy.Assets import TyAsset
 import nfpy.Calendar as Cal

@@ -101,16 +101,29 @@ class QueryBuilder(metaclass=Singleton):
         """ Return the alter table query to rename a table. """
         return f"ALTER TABLE [{table}] RENAME TO {table + '_old'};"
 
-    def select(self, table: str,
-               fields: Optional[Union[KeysView, Sequence[str]]] = None,
-               rolling: Sequence[str] = (),
-               keys: Optional[Sequence[str]] = None,
-               partial_keys: Sequence[str] = (), where: str = "",
-               order: Optional[str] = None,
-               join_table: Optional[str] = None,
-               join_cond_fields: Optional[Sequence[str]] = None,
-               join_fields: Optional[Union[KeysView, Sequence[str]]] = None,
-               join_keys: Optional[Sequence[str]] = None) -> str:
+    def insert(self, ins_table: str, ins_fields: Sequence[str] = (),
+               **kwargs) -> str:
+        """ Builds an insert query for input table:
+            Input:
+                ins_table [str]: for the <FROM> clause
+                ins_fields [[str]]: list of fields to insert
+                kwargs [Any]: arguments for a 'select' query
+
+            Return:
+                query [str]: query ready to be used in an 'execute'
+        """
+        return self._get_insert(ins_table, ins_fields, 'insert', **kwargs)
+
+    def select(
+            self,
+            table: str,
+            fields: Optional[Union[KeysView, Sequence[str]]] = None,
+            rolling: Sequence[str] = (),
+            keys: Optional[Sequence[str]] = None,
+            partial_keys: Sequence[str] = (), where: str = "",
+            order: Optional[str] = None,
+            distinct: bool = False
+    ) -> str:
         """ Builds a select query for input table:
 
             Input:
@@ -125,7 +138,8 @@ class QueryBuilder(metaclass=Singleton):
                     'like' clause. If none are given, none are used
                 where [str]: additional where condition
                 order [str]: additional order condition
-            
+                distinct [bool]: add DISTINCT
+
             Return:
                 query [str]: query ready to be used in an 'execute'
         """
@@ -133,7 +147,9 @@ class QueryBuilder(metaclass=Singleton):
 
         if not fields:
             fields = t.get_fields()
-        query = f"SELECT t.[{'], t.['.join(fields)}] FROM [{table}] AS t"
+
+        query = "SELECT DISTINCT " if distinct else "SELECT "
+        query += f"t.[{'], t.['.join(fields)}] FROM [{table}] AS t"
 
         # where on keys
         if keys is None:
@@ -164,19 +180,6 @@ class QueryBuilder(metaclass=Singleton):
             query += f" ORDER BY {order}"
 
         return query + ';'
-
-    def insert(self, ins_table: str, ins_fields: Sequence[str] = (),
-               **kwargs) -> str:
-        """ Builds an insert query for input table:
-            Input:
-                ins_table [str]: for the <FROM> clause
-                ins_fields [[str]]: list of fields to insert
-                kwargs [Any]: arguments for a 'select' query
-
-            Return:
-                query [str]: query ready to be used in an 'execute'
-        """
-        return self._get_insert(ins_table, ins_fields, 'insert', **kwargs)
 
     def merge(self, ins_table: str, ins_fields: Sequence[str] = (),
               **kwargs) -> str:

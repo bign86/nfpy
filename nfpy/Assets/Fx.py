@@ -1,5 +1,5 @@
 #
-# Fx class
+# Fx
 # Class for exchange rates
 #
 

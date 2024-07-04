@@ -54,6 +54,9 @@ class UidMalformedError(RuntimeError):
     """ Thrown when a UID contains forbidden characters. """
 
 
+class LoggerError(RuntimeError):
+    """ Thrown on any error in the logger. """
+
 class MissingDataWarn(RuntimeWarning):
     """ Thrown when something non-critical is not found in the database. """
 

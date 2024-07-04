@@ -4,15 +4,16 @@
 #
 
 import configparser
-# import logging
+from datetime import datetime
 import numpy
 import os
 import shutil
 from typing import Any
 
-from nfpy import NFPY_ROOT_DIR
+from nfpy import NFPY_ROOT_DIR, __version__
 
 from .Exceptions import ConfigurationError
+from .Logger import get_logger_glob
 from .Singleton import Singleton
 
 
@@ -34,6 +35,7 @@ class Configuration(metaclass=Singleton):
         self._conf_path = None
         self._conf = None
         self._parse()
+        self._start_logging()
 
     def __bool__(self) -> bool:
         return self._is_configured
@@ -85,17 +87,14 @@ class Configuration(metaclass=Singleton):
         self._conf = config
         self._is_configured = True
 
-    # def _start_logging(self) -> None:
-    #     """ Starts the logging system. """
-    #     log_path = os.path.join(self.log_path, 'nfpy.log')
-    #     logging.basicConfig(
-    #         filename=log_path,
-    #         filemode='w',
-    #         encoding='utf-8',
-    #     )
-    #     logger = logging.getLogger(__name__)
-    #     logger.setLevel(self.log_level)
-    #     logger.info('NFPY version {}'.format(__version__))
+    def _start_logging(self) -> None:
+        """ Starts the logging system. """
+        name = f'nfpy_{datetime.today().strftime("%Y%m%d")}.log'
+        log_path = os.path.join(self.log_path, name)
+        logger = get_logger_glob()
+        logger.init(self.log_level, log_path)
+        logger.info('NFPY version {}'.format(__version__))
+        logger.info('DP Path {}'.format(self.db_path))
 
 
 def get_conf_glob() -> Configuration:
