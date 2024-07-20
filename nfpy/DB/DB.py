@@ -10,12 +10,13 @@ import nfpy.IO.Utilities as Ut
 from nfpy.Tools import (
     Singleton,
     Exceptions as Ex,
-    get_conf_glob
+    get_conf_glob,
+    get_logger_glob
 )
 
 from .DBTypes import *
 
-MIN_DB_VERSION = 1.09
+MIN_DB_VERSION = 1.11
 
 
 class DBHandler(metaclass=Singleton):
@@ -103,6 +104,7 @@ class DBHandler(metaclass=Singleton):
 
     def _create_connection(self) -> None:
         """ Creates the DB connection """
+        logger = get_logger_glob()
         self._conn = get_db_connection(self.db_path)
 
         # Sanity check on the database version
@@ -111,10 +113,10 @@ class DBHandler(metaclass=Singleton):
         self._db_version = float(v)
         if v < MIN_DB_VERSION:
             msg = f'DB version {v} < {MIN_DB_VERSION} (minimum version)'
-            # logger.error(msg)
+            logger.error(msg)
             raise Ex.DatabaseError(msg)
 
-        # logger.info('DB version {}'.format(v))
+        logger.info('DB version {}'.format(v))
         self._is_connected = True
 
     def _close_connection(self) -> None:

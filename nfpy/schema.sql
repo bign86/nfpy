@@ -216,7 +216,7 @@ CREATE TABLE [Equity] (
 CREATE TABLE [EquityTS] (
     [uid] TEXT NOT NULL,
     [dtype] INTEGER NOT NULL,
-    [date] DATETIME NOT NULL,
+    [date] DATE NOT NULL,
     [value] REAL,
     PRIMARY KEY ([uid], [dtype], [date])
 ) WITHOUT ROWID;
@@ -238,7 +238,7 @@ CREATE TABLE [Etf] (
 CREATE TABLE [EtfTS] (
     [uid] TEXT NOT NULL,
     [dtype] INTEGER NOT NULL,
-    [date] DATETIME NOT NULL,
+    [date] DATE NOT NULL,
     [value] REAL,
     PRIMARY KEY ([uid], [dtype], [date])
 ) WITHOUT ROWID;
@@ -265,7 +265,7 @@ CREATE TABLE [Fx] (
 CREATE TABLE [FxTS] (
     [uid] TEXT NOT NULL,
     [dtype] INTEGER NOT NULL,
-    [date] DATETIME NOT NULL,
+    [date] DATE NOT NULL,
     [value] REAL,
     PRIMARY KEY ([uid], [dtype], [date])
 ) WITHOUT ROWID;

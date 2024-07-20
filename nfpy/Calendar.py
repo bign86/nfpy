@@ -6,7 +6,6 @@
 from copy import deepcopy
 import datetime
 from enum import Enum
-import itertools
 
 import numpy as np
 import pandas as pd
@@ -100,6 +99,14 @@ class Frequency(Enum):
     M = 'M'
     Q = 'Q'
     Y = 'Y'
+
+    @property
+    def to_end(self) -> str:
+        return f'{self._value_}E'
+
+    @property
+    def to_begin(self) -> str:
+        return f'{self._value_}B'
 
 
 class Horizon(object):
@@ -445,14 +452,18 @@ class Calendar(metaclass=Singleton):
         logger.info(
             f'*** Calendar\n'
             f'   Daily:   {self._start.date()} -> {self._end.date()} | t0  = {self._t0.date()}\n'
-            f'   Monthly: {self._monthly_calendar[0].date()} -> {self._monthly_calendar[-1].date()} | t0m = {self._monthly_calendar[self._xt0m].date()}\n'
-            f'   Yearly:  {self._yearly_calendar[0].date()} -> {self._yearly_calendar[-1].date()} | t0y = {self._yearly_calendar[self._xt0y].date()}'
+            f'   Monthly: {self._monthly_calendar[0].date()} -> {self._monthly_calendar[-1].date()}'
+            f' | t0m = {self._monthly_calendar[self._xt0m].date()}\n'
+            f'   Yearly:  {self._yearly_calendar[0].date()} -> {self._yearly_calendar[-1].date()}'
+            f' | t0y = {self._yearly_calendar[self._xt0y].date()}'
         )
         print(
             f'*** Calendar\n'
             f'   Daily:   {self._start.date()} -> {self._end.date()} | t0  = {self._t0.date()}\n'
-            f'   Monthly: {self._monthly_calendar[0].date()} -> {self._monthly_calendar[-1].date()} | t0m = {self._monthly_calendar[self._xt0m].date()}\n'
-            f'   Yearly:  {self._yearly_calendar[0].date()} -> {self._yearly_calendar[-1].date()} | t0y = {self._yearly_calendar[self._xt0y].date()}'
+            f'   Monthly: {self._monthly_calendar[0].date()} -> {self._monthly_calendar[-1].date()}'
+            f' | t0m = {self._monthly_calendar[self._xt0m].date()}\n'
+            f'   Yearly:  {self._yearly_calendar[0].date()} -> {self._yearly_calendar[-1].date()}'
+            f' | t0y = {self._yearly_calendar[self._xt0y].date()}'
         )
         self._initialized = True
 
@@ -778,22 +789,6 @@ def now(mode: str = 'datetime', fmt: str = '%Y-%m-%d %H:%M') -> TyDate:
     return now_
 
 
-def calc_holidays(start: pd.Timestamp, end: pd.Timestamp) -> np.array:
-    """ Calculates an array of holidays """
-    years = [y for y in range(start.year, end.year + 1)]
-    length = len(_HOLIDAYS_MASK_) * len(years)
-    holidays = np.empty(length, dtype=pd.Timestamp)
-
-    def strpad(x):
-        return str(x).zfill(2)
-
-    for i, e in enumerate(itertools.product(years, _HOLIDAYS_MASK_)):
-        dt = '-'.join(map(strpad, [e[0], e[1][0], e[1][1]]))
-        holidays[i] = pd.to_datetime(dt, format='%Y-%m-%d')
-
-    return holidays
-
-
 def shift(dt: pd.Timestamp, n: int, freq: str) -> pd.Timestamp:
     """ Shift the <dt> date by <n> periods forward or backwards.
 
@@ -813,67 +808,3 @@ def shift(dt: pd.Timestamp, n: int, freq: str) -> pd.Timestamp:
 def get_calendar_glob() -> Calendar:
     """ Returns the pointer to the global DB """
     return Calendar()
-
-
-if __name__ == '__main__':
-
-    # dates = [
-    #     pd.Timestamp('2024-06-28'),
-    #     pd.Timestamp('2024-06-29'),
-    #     pd.Timestamp('2024-06-30'),
-    #     pd.Timestamp('2024-07-01')
-    # ]
-    #
-    # print('BACKWARDS')
-    # for d in dates:
-    #     print(
-    #         f'{d.strftime("%Y-%m-%d")} -> '
-    #         f'{ensure_business_day(d, direction="backwards", fmt="date").strftime("%Y-%m-%d")}'
-    #     )
-    #
-    # print('\FORWARDS')
-    # for d in dates:
-    #     print(
-    #         f'{d.strftime("%Y-%m-%d")} -> '
-    #         f'{ensure_business_day(d, direction="forwards", fmt="date").strftime("%Y-%m-%d")}'
-    #     )
-
-    dates = [
-        pd.Timestamp('2024-06-01'),
-        pd.Timestamp('2024-06-02'),
-        pd.Timestamp('2024-06-15'),
-        pd.Timestamp('2024-06-29'),
-        pd.Timestamp('2024-06-30'),
-    ]
-
-    # print('BACKWARDS')
-    # for d in dates:
-    #     print(
-    #         f'{d.strftime("%Y-%m-%d")} -> '
-    #         f'{ensure_business_month_end(d, direction="backwards", fmt="date").strftime("%Y-%m-%d")}'
-    #     )
-    #
-    # print('\nFORWORDS')
-    # for d in dates:
-    #     print(
-    #         f'{d.strftime("%Y-%m-%d")} -> '
-    #         f'{ensure_business_month_end(d, direction="forwards", fmt="date").strftime("%Y-%m-%d")}'
-    #     )
-
-    print('BACKWARDS')
-    for d in dates:
-        print(
-            f'{d.strftime("%Y-%m-%d")} -> '
-            f'{to_month_end(d, fmt="d").strftime("%Y-%m-%d")}'
-        )
-
-    print('\nFORWARDS')
-    for d in dates:
-        print(
-            f'{d.strftime("%Y-%m-%d")} -> '
-            f'{to_month_begin(d, fmt="d").strftime("%Y-%m-%d")}'
-        )
-
-
-
-

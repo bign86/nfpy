@@ -216,9 +216,11 @@ class DownloadFactory(metaclass=Singleton):
                 except (Ex.MissingData, Ex.IsNoneError, RuntimeError,
                         RequestException, ValueError, ConnectionError) as e:
                     Ut.print_exc(e)
+                    logger.error(e)
                     count_failed += 1
                 except RuntimeWarning as w:
                     Ut.print_wrn(w)
+                    logger.warning(w)
                     data_upd = (today, d.provider, d.page, d.ticker)
                     self._db.execute(self.q_upd, data_upd, commit=True)
                     count_done += 1
@@ -232,8 +234,8 @@ class DownloadFactory(metaclass=Singleton):
                     count_done += 1
 
         msg = f'Items downloaded: {count_done:>4}\n' \
-            f'Items skipped:    {count_skipped:>4}\n' \
-            f'Items failed:     {count_failed:>4}\n'
+            f'\tItems skipped:    {count_skipped:>4}\n' \
+            f'\tItems failed:     {count_failed:>4}\n'
         print(msg)
         logger.log(20, msg)
 

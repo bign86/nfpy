@@ -267,14 +267,14 @@ class BasePage(metaclass=ABCMeta):
             elif self.req_method == 'post':
                 r = session.post(self.baseurl, data=param_set, headers=headers)
             else:
-                raise ValueError(f'BaseDownloader(): Request method {self.req_method} not recognized')
+                raise ValueError(f'{self.__class__.__name__}: {self._PROVIDER}|{self._ticker} Request method {self.req_method} not recognized')
 
             if r.status_code == 200:
                 r.encoding = self._ENCODING
                 self._jar = r.cookies
                 self._robj.append(r)
             else:
-                msg = f"BaseDownloader(): Error in downloading {self.__class__.__name__}|{self.ticker}: " \
+                msg = f"{self.__class__.__name__}(): Error in downloading {self._PROVIDER}|{self.ticker}: " \
                       f"[{r.status_code}] {r.reason}"
                 raise requests.HTTPError(msg)
 

@@ -85,11 +85,16 @@ class DDM(BaseFundamentalModel):
             1 for v in (stage1, stage2)
             if v is not None
         )
-        self._div_w = kwargs.get('div_w', 5)
-        self._gdp_w = kwargs.get('gdp_w', 20)
-        self._capm_w = kwargs.get('capm_w', 5)
+        self._div_w = kwargs.get('div_w', Horizon('5Y'))
+        self._gdp_w = kwargs.get('gdp_w', Horizon('20Y'))
+        self._capm_w = kwargs.get('capm_w', Horizon('5Y'))
         self._stage1 = stage1
         self._stage2 = stage2
+
+        if ((self._div_w.frequency != Frequency.Y)
+                or (self._gdp_w.frequency != Frequency.Y)
+                or (self._capm_w.frequency != Frequency.Y)):
+            raise ValueError('DDM(): horizons must be in years')
 
         # We make a copy of the parameters as they may be modified and the
         # change would propagate outside the DDM model.
@@ -144,7 +149,7 @@ class DDM(BaseFundamentalModel):
                   .prices \
                   .to_numpy()[:self._cal.xt0y + 1]
         n = gdp.shape[0]
-        search_start = max(0, n - self._gdp_w)
+        search_start = max(0, n - self._gdp_w.years)
         idx_gdp_start = cutils.next_valid_index(gdp, 0, search_start, n - 1)
         idx_gdp_end = cutils.last_valid_index(gdp, 0, search_start, n - 1)
 
@@ -175,12 +180,14 @@ class DDM(BaseFundamentalModel):
         if self._growth_models['manual']:
             self._manual_growth['st_gwt'] = self._stage1[1]
             self._calc_future_divs_growth(self._manual_growth, t, dY0)
+
         if self._growth_models['historical']:
             try:
                 self._calc_historical_g()
                 self._calc_future_divs_growth(self._historical_growth, t, dY0)
             except ValueError as ex:
                 Ut.print_exc(ex)
+
         if self._growth_models['ROE']:
             self._calc_roe_g()
             self._calc_future_divs_growth(self._ROE_growth, t, dY0)
@@ -283,7 +290,7 @@ class DDM(BaseFundamentalModel):
     def _calc_historical_g(self) -> None:
         """ Calculates the growth as the average dividend growth YoY. """
         try:
-            st_growth = self._df.growth(years=self._div_w)
+            st_growth = self._df.growth(years=self._div_w.years)
         except ValueError as ex:
             self._growth_models['historical'] = False
             raise ex
@@ -333,12 +340,12 @@ class DDM(BaseFundamentalModel):
 
         # Check if monthly history is sufficient
         required_month = self._cal.t0m.asm8.astype('datetime64[M]') \
-                         - np.timedelta64(self._capm_w * 12 - 1, 'M')
+                         - np.timedelta64(self._capm_w.months - 1, 'M')
         if required_month < self._cal.monthly_calendar[0].asm8.astype('datetime64[M]'):
             raise Ex.CalendarError(f'DDM(): the yearly calendar is too short to have {self._capm_w} years of data')
 
         # Check if yearly history is sufficient
-        required_year = self._cal.t0y.year - self._gdp_w + 1
+        required_year = self._cal.t0y.year - self._gdp_w.years + 1
         if required_year < self._cal.yearly_calendar[0].year:
             raise Ex.CalendarError(f'DDM(): the yearly calendar is too short to have {self._gdp_w} years of data')
 
@@ -361,7 +368,7 @@ class DDM(BaseFundamentalModel):
             capm_res = CAPM(
                 self._eq,
                 Frequency.M,
-                horizon=Horizon(f'{self._capm_w}Y')
+                horizon=self._capm_w
             ).results(unlever=False)
             ke = capm_res.cost_of_equity
             final_res.update({'capm': capm_res})

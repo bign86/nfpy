@@ -28,7 +28,6 @@ class Asset(FinancialItem):
     def __init__(self, uid: str):
         super().__init__(uid)
         self._currency = None
-        self._freq = None
         self.dtype = -1
 
         # takes the current calendar. It must have been initialized before!
@@ -70,7 +69,7 @@ class Asset(FinancialItem):
             self._DEF_PRICE_DTYPE.replace('Price', 'Return')
         )
         if code not in self._df.columns:
-            self._calc_returns(self._DEF_PRICE_DTYPE, code)
+            self._calc_returns(self._DEF_PRICE_DTYPE)
 
         return self._df[code]
 
@@ -84,7 +83,7 @@ class Asset(FinancialItem):
             self._DEF_PRICE_DTYPE.replace('Price', 'LogReturn')
         )
         if code not in self._df.columns:
-            self._calc_log_returns(self._DEF_PRICE_DTYPE, code)
+            self._calc_log_returns(self._DEF_PRICE_DTYPE)
 
         return self._df[code]
 
@@ -96,7 +95,7 @@ class Asset(FinancialItem):
 
     def series(self, dtype: str) -> pd.Series:
         """ Return the requested series. If data are not found an empty series
-            is returned unless the  callback throws an exception.
+            is returned unless the callback throws an exception.
 
             Input:
                 dtype [str]: datatype to load
@@ -135,7 +134,7 @@ class Asset(FinancialItem):
         pos = None
         if dt:
             dt = Cal.pd2np(dt)
-            pos = np.searchsorted(date, [dt])[0]
+            pos = np.searchsorted(date, [dt])
 
         pos = ts.shape[0] - 1 if pos is None else int(pos)
         idx = cutils.last_valid_index(ts, 0, 0, pos)
@@ -205,21 +204,17 @@ class Asset(FinancialItem):
             self._df.sort_index(inplace=True)
         return success
 
-    def _calc_returns(self, dtype: str, code: Optional[int] = None) -> None:
+    def _calc_returns(self, dtype: str) -> None:
         """ Calculates the returns from the series of the prices. """
-        if code is None:
-            code = self._dt.get(dtype.replace('Price', 'Return'))
-
+        code = self._dt.get(dtype.replace('Price', 'Return'))
         self._df[code] = cutils.ret_nans(
             self.series(dtype).to_numpy(),
             False
         )
 
-    def _calc_log_returns(self, dtype: str, code: Optional[int] = None) -> None:
+    def _calc_log_returns(self, dtype: str) -> None:
         """ Calculates the log returns from the series of the prices. """
-        if code is None:
-            code = self._dt.get(dtype.replace('Price', 'LogReturn'))
-
+        code = self._dt.get(dtype.replace('Price', 'LogReturn'))
         self._df[code] = cutils.ret_nans(
             self.series(dtype).to_numpy(),
             True
@@ -350,6 +345,20 @@ class Asset(FinancialItem):
             is_log=is_log
         )
         return pd.Series(p * base, index=dt[slc])
+
+    def mapped_dtypes(self) -> list:
+        # Fetch existing dtypes for the asset
+        q = f"""
+            SELECT DISTINCT dt.[datatype]
+            FROM [{self._TS_TABLE}] AS ts
+            JOIN [DecDatatype] AS dt
+            ON dt.[encoding] = ts.[dtype]
+            WHERE ts.[uid] = ?;
+        """
+        return [
+            v[0]
+            for v in self._db.execute(q, (self._uid, )).fetchall()
+        ]
 
 
 TyAsset = TypeVar('TyAsset', bound=Asset)

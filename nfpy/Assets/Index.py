@@ -12,9 +12,9 @@ from nfpy.Tools import (Exceptions as Ex)
 from .Asset import Asset
 
 _CALENDAR_TRANSFORM = {
-    'D': 'C',
-    'M': 'BMS',
-    'Y': 'BAS-JAN',
+    Frequency.D: 'C',
+    Frequency.M: 'BMS',
+    Frequency.Y: 'BAS-JAN',
 }
 
 
@@ -43,7 +43,6 @@ class Index(Asset):
         """ Load the prices and, if missing, try sequentially to calculate them
             from other price data available in the database.
         """
-        # Try all possibilities
         success = None
         for part in ('Raw', 'SplitAdj', 'Adj'):
             other_dtype = dtype.replace(level, part)
@@ -68,12 +67,14 @@ class Index(Asset):
         """
         freq = self._df.index.freqstr
         if freq != _CALENDAR_TRANSFORM[self._freq]:
-            if self._freq == 'M':
+            if self._freq == Frequency.D:
+                calendar = self._cal.calendar
+            elif self._freq == Frequency.M:
                 calendar = self._cal.monthly_calendar
-            elif self._freq == 'Y':
+            elif self._freq == Frequency.Y:
                 calendar = self._cal.yearly_calendar
             else:
-                msg = f'Rate(): calendar frequency not recognized for {self._uid}'
+                msg = f'Index(): calendar frequency not recognized for {self._uid}'
                 raise Ex.CalendarError(msg)
             self._df = pd.DataFrame(index=calendar)
 
@@ -102,9 +103,9 @@ class Index(Asset):
         # Since indexes do not pay dividends and do not split, we transform any
         # price or return request into a request for Raw data to avoid
         # duplications of operations and memory
-        levels = dtype.split('.')
-        if levels[0] in ('Price', 'Return', 'LogReturn'):
-            dtype = dtype.replace(levels[1], 'Raw')
+        # levels = dtype.split('.')
+        # if levels[0] in ('Price', 'Return', 'LogReturn'):
+        #     dtype = dtype.replace(levels[1], 'Raw')
 
         code = self._dt.get(dtype)
         if code not in self._df.columns:

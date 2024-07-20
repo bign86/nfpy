@@ -58,9 +58,9 @@ class DerivedSeries(Asset):
         """
         freq = self._df.index.freqstr
         if freq != _CALENDAR_TRANSFORM[self._freq]:
-            if self._freq == Frequency('M'):
+            if self._freq == Frequency.M:
                 calendar = self._cal.monthly_calendar
-            elif self._freq == Frequency('Y'):
+            elif self._freq == Frequency.Y:
                 calendar = self._cal.yearly_calendar
             else:
                 msg = f'Rate(): calendar frequency not recognized for {self._uid}'

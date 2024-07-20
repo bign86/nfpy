@@ -57,6 +57,7 @@ class UidMalformedError(RuntimeError):
 class LoggerError(RuntimeError):
     """ Thrown on any error in the logger. """
 
+
 class MissingDataWarn(RuntimeWarning):
     """ Thrown when something non-critical is not found in the database. """
 

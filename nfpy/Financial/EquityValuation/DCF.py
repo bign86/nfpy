@@ -50,22 +50,24 @@ class DCF(BaseFundamentalModel):
         self._ff = Fin.FundamentalsFactory(self._comp)
         self._idx = self._af.get(self._eq.index)
 
-        if (history.frequency != Frequency.Y) or (future_horizon.frequency != Frequency.Y):
-            raise ValueError('DCF(): horizons must be in years')
-
         self._history = history
         self._projection = future_horizon
 
         self._growth = growth
         self._premium = premium
-        self._gdp_w = kwargs.get('gdp_w', 20)
+        self._gdp_w = kwargs.get('gdp_w', Horizon('20Y'))
+
+        if ((history.frequency != Frequency.Y)
+                or (future_horizon.frequency != Frequency.Y)
+                or (self._gdp_w.frequency != Frequency.Y)):
+            raise ValueError('DCF(): horizons must be in years')
 
     def _check_applicability(self) -> bool:
         """ Check applicability of the DDM model to the equity. The calendar
             length is compared to the history requirements.
         """
         # Check if yearly history is sufficient
-        required_year = self._cal.t0y.year - self._gdp_w + 1
+        required_year = self._cal.t0y.year - self._gdp_w.years + 1
         if required_year < self._cal.yearly_calendar[0].year:
             raise Ex.CalendarError(f'DCF(): the yearly calendar is too short to have {self._gdp_w} of data')
 
@@ -79,7 +81,7 @@ class DCF(BaseFundamentalModel):
             else:
                 msg = f'DCF(): Available data is only {y} years. Adjusted <history>.'
                 Ut.print_wrn(Warning(msg))
-                self._history = y
+                self._history = Horizon(f'{str(y)}Y')
 
         return True
 
@@ -194,7 +196,7 @@ class DCF(BaseFundamentalModel):
                   .prices \
                   .to_numpy()[:self._cal.xt0y + 1]
         n = gdp.shape[0]
-        search_start = max(0, n - self._gdp_w)
+        search_start = max(0, n - self._gdp_w.years)
         idx_gdp_start = cutils.next_valid_index(gdp, 0, search_start, n - 1)
         idx_gdp_end = cutils.last_valid_index(gdp, 0, search_start, n - 1)
 
@@ -283,7 +285,7 @@ class DCF(BaseFundamentalModel):
             'tot_growth': tot_gwt,
             'risk_premium': capm.risk_premium,
             'beta': capm.beta,
-            'risk_free': capm.risk_free
+            'risk_free': capm.rf
         }
         self._res = self._res_update(
             outputs=outputs,

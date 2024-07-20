@@ -6,7 +6,7 @@ import pandas.tseries.offsets as off
 from scipy import stats
 from typing import Any
 
-from nfpy.Assets import (get_af_glob, TyAsset)
+from nfpy.Assets import (get_af_glob, get_fx_glob, TyAsset)
 import nfpy.Calendar as Cal
 from nfpy.Math.TSStats_ import rolling_sum
 from nfpy.Math.TSUtils_ import (search_trim_pos, trim_ts)
@@ -92,7 +92,7 @@ class Beta(object):
         }
         try:
             offset = dt_off[freq]
-        except KeyError as ex:
+        except KeyError:
             raise Ex.CalendarError(f'Beta(): frequency {freq.value} not supported')
 
         calendar = Cal.get_calendar_glob()
@@ -101,11 +101,13 @@ class Beta(object):
 
         # If there is a start date, that takes precedence over the horizon.
         if start:
-            self._start = offset[0](start or calendar.start.asm8)
-        else:
+            self._start = offset[0](start)
+        elif horizon:
             self._start = offset[0](
                 end - off.DateOffset(months=horizon.months)
             )
+        else:
+            self._start = offset[0](calendar.start.asm8)
 
         # Check if the calendar supports us
         if self._start < calendar.start:
@@ -122,12 +124,17 @@ class Beta(object):
         # Resample to desired frequency. As everything is resampled on the same
         # frequency, the slice should be the same for all series.
         asset_p = asset.prices \
-            .resample(freq.value) \
+            .resample(freq.to_end) \
             .agg('last')
         asset_r = cutils.ret_nans(asset_p.to_numpy(), False)
 
-        mkt_p = mkt.prices \
-            .resample(freq.value) \
+        # Convert index to asset currency
+        fx_p = get_fx_glob() \
+            .get(mkt.currency, asset.currency) \
+            .prices
+        mkt_p = mkt.prices * fx_p
+
+        mkt_p = mkt_p.resample(freq.to_end) \
             .agg('last')
         mkt_r = cutils.ret_nans(mkt_p.to_numpy(), False)
 
@@ -197,7 +204,7 @@ class Beta(object):
             mkt_r: np.ndarray,
     ) -> Any:
         v = np.vstack((asset_r, mkt_r))
-        v = cutils.dropna(v, 0)
+        v = cutils.dropna(v, 1)
         return stats.linregress(v[1, :], v[0, :])
 
 

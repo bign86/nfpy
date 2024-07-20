@@ -52,4 +52,4 @@ DAY_COUNT = {
     '30/360': (30, 360)
 }
 
-KNOWN_COUNTRIES = ['CA', 'CH', 'CN', 'DE', 'EU', 'FR', 'GB', 'IT', 'JP', 'NL', 'US']
+KNOWN_COUNTRIES = ['CA', 'CH', 'CN', 'DE', 'EU', 'FR', 'GB', 'IE', 'IT', 'JP', 'NL', 'US']

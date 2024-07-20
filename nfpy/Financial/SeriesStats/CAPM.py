@@ -82,14 +82,16 @@ class CAPM(object):
         end = pd.Timestamp(end or calendar.t0)
         self._end = offset[1](end)
 
-        # If there is a horizon, that takes precedence and is used to
-        # calculate the start date.
+        # If there is a starting date, that takes precedence, then we fall back
+        # on the horizon, last we use the calendar start date.
         if start:
-            self._start = offset[0](start or calendar.start.asm8)
-        else:
+            self._start = offset[0](start)
+        elif horizon:
             self._start = offset[0](
                 end - off.DateOffset(months=horizon.months)
             )
+        else:
+            self._start = offset[0](calendar.start.asm8)
 
         # Check if the calendar supports us
         if self._start < calendar.start:
@@ -106,7 +108,7 @@ class CAPM(object):
         # Get the market prices given the desired frequency
         idx_p = self._idx \
             .prices \
-            .resample(self._freq.value) \
+            .resample(self._freq.to_end) \
             .agg('last')
         idx_r = cutils.ret_nans(idx_p.to_numpy(), False)
 
@@ -122,7 +124,7 @@ class CAPM(object):
         rfree_r = self._af \
             .get_rf(self._eq.currency) \
             .prices \
-            .resample(self._freq.value) \
+            .resample(self._freq.to_end) \
             .agg('last')
 
         dt_rf, rfree_r, slc = Math.trim_ts(
