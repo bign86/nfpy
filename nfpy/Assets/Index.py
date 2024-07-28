@@ -3,6 +3,8 @@
 # Class for indices
 #
 
+import cutils
+import numpy as np
 import pandas as pd
 from typing import Callable
 
@@ -39,26 +41,90 @@ class Index(Asset):
     def frequency(self, v: str) -> None:
         self._freq = Frequency(v)
 
-    def _prices_loader(self, dtype: str, level: str) -> bool:
+    def _prices_loader(self, dtype: str, target: str) -> bool:
         """ Load the prices and, if missing, try sequentially to calculate them
             from other price data available in the database.
         """
-        success = None
-        for part in ('Raw', 'SplitAdj', 'Adj'):
-            other_dtype = dtype.replace(level, part)
-            if self.load_dtype_in_df(other_dtype):
-                success = other_dtype
-                break
+        # If the price series is available, load it and exit
+        if self.load_dtype_in_df(dtype):
+            return True
+
+        # The series is not available, search for another that can be used to
+        # calculate it. The tuple is:
+        #   <start_data>, <adj_for_dividends>, <adj_for_splits>, <direction>
+        # where direction is:
+        #    1: sum/multiply
+        #   -1: subtract/divide
+        if target == 'Adj':
+            seq = [
+                ('Raw', True, 1),
+                ('SplitAdj', True, 1)
+            ]
+        elif target == 'SplitAdj':
+            seq = [
+                ('Adj', True, -1),
+                ('Raw', False, 1)
+            ]
+        else:
+            seq = [
+                ('Adj', True, -1),
+                ('SplitAdj', False, -1)]
+
+        success = ()
+        while len(seq) > 0:
+            operation = seq.pop()
+            other_dtype = dtype.replace(target, operation[0])
+            other_code = self._dt.get(other_dtype)
+            if other_code not in self._df.columns:
+                if self.load_dtype_in_df(other_dtype):
+                    success = (other_code,) + operation[1:]
+                    break
+                else:
+                    continue
             else:
-                continue
+                success = (other_code,) + operation[1:]
+                break
 
-        # Raise error if data are missing
+        # Raise exception if no prices are available in general
         if not success:
-            raise Ex.MissingData(f"Index(): {self.uid} {dtype} not found in the database!")
+            raise Ex.MissingData(f'Equity(): no prices found for {self._uid}')
 
+        # Take the available series
+        other_values = self._df[success[0]].values
+        nan_mask = np.isnan(other_values)
+        res = cutils.ffill(other_values.copy())
+
+        # If we apply the adjustments
+        if success[2] == 1:
+
+            # Build factor from dividends if needed
+            if success[1] != 0:
+                dividends = self.series('Dividend.SplitAdj.Regular')
+                if not dividends.empty:
+                    dividends = cutils.fillna(dividends.to_numpy().copy(), 0.)
+
+                    div_adj = 1. - dividends[1:] / res[:-1]
+                    div_adj = np.cumprod(div_adj[::-1])[::-1]
+                    res[:-1] *= div_adj
+
+        # If we remove the adjustments
+        else:
+
+            # Build factor from dividends if needed
+            if success[1] != 0:
+                dividends = self.series('Dividend.SplitAdj.Regular')
+                if not dividends.empty:
+                    dividends = cutils.fillna(dividends.to_numpy().copy(), 0.)
+
+                    div_adj = res[:-1] / (res[:-1] + dividends[1:])
+                    div_adj = np.cumprod(div_adj[::-1])[::-1]
+                    res[:-1] /= div_adj
+
+        # Insert the newly calculated series into the dataframe putting back
+        # the original NaNs
+        res[nan_mask] = np.nan
         code = self._dt.get(dtype)
-        other_code = self._dt.get(other_dtype)
-        self._df[code] = self._df[other_code].copy()
+        self._df[code] = res
         return True
 
     def load_dtype_in_df(self, dtype: str) -> bool:

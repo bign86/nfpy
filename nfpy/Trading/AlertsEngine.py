@@ -20,10 +20,10 @@ class AlertsEngine(object):
     """ Engine to evaluate and raise manual alerts. """
 
     _TABLE = 'Alerts'
-    _Q_ADD_ALERT = f"insert into Alerts (uid, date, cond, value, triggered, " \
-                   f"date_triggered, date_checked) values (?, ?, ?, ?, ?, ?, ?);"
-    _Q_RMV_ALERT = f"delete from Alerts where uid = ? and date = ?" \
-                   f" and cond = ? and value = ? and triggered = ?;"
+    _Q_ADD_ALERT = f"INSERT INTO [Alerts] (uid, date, cond, value, triggered, " \
+                   f"date_triggered, date_checked) VALUES (?, ?, ?, ?, ?, ?, ?);"
+    _Q_RMV_ALERT = f"DELETE FROM [Alerts] WHERE [uid] = ? AND [date] = ?" \
+                   f" AND [cond] = ? AND [value] = ? AND [triggered] = ?;"
 
     def __init__(self) -> None:
         # Handlers
@@ -38,17 +38,20 @@ class AlertsEngine(object):
         """ Add a manual alert to the database. """
         self._db.executemany(self._Q_ADD_ALERT, alerts, commit=True)
 
-    def fetch(self, uid: Sequence[str] = (),
-              triggered: Optional[bool] = False,
-              date_triggered: Optional[Cal.TyDatetime] = None,
-              date_checked: Optional[Cal.TyDatetime] = None) -> list[Alert]:
+    def fetch(
+        self,
+        uid: Optional[Sequence[str]] = None,
+        triggered: Optional[bool] = False,
+        date_triggered: Optional[Cal.TyDatetime] = None,
+        date_checked: Optional[Cal.TyDatetime] = None
+    ) -> list[Alert]:
         """ Fetch alerts from the database according to given filters.
 
             Input:
                 uid [Sequence[str]]: sequence of uids to load
                 triggered [Optional[bool]]: triggered status of fetched alerts:
                     * True = only triggered alerts
-                    * False = only valid alerts
+                    * False = only un-triggered alerts
                     * None = any alert
                 date_triggered [Optional[Cal.TyDatetime]]: lower limit for
                     trigger date
@@ -63,14 +66,15 @@ class AlertsEngine(object):
 
         # Where condition
         where = []
-        if len(uid) == 1:
-            where.append(f'[uid] = "{uid[0]}"')
-        elif len(uid) > 1:
-            uid_list = "\', \'".join(uid)
-            where.append(f'[uid] in (\'{uid_list}\')')
+        if uid is not None:
+            if len(uid) == 1:
+                where.append(f'[uid] = "{uid[0]}"')
+            elif len(uid) > 1:
+                uid_list = "\', \'".join(uid)
+                where.append(f'[uid] IN (\'{uid_list}\')')
 
         if date_checked is not None:
-            where.append(f'([date_checked] >= ? or [date_checked] is NULL)')
+            where.append(f'([date_checked] >= ? OR [date_checked] IS NULL)')
             data.append(date_checked)
 
         if date_triggered:
@@ -85,7 +89,7 @@ class AlertsEngine(object):
                     self._qb.select(
                         self._TABLE,
                         keys=keys,
-                        where=' and '.join(where)
+                        where=' AND '.join(where)
                     ),
                     data
                 ).fetchall()

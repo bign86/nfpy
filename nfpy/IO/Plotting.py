@@ -11,6 +11,8 @@ import pandas as pd
 from typing import (Optional, Sequence, TypeVar, Union)
 
 plt.style.use('seaborn-v0_8-muted')
+# matplotlib.use('agg')
+plt.switch_backend('Agg')
 
 
 class Plotter(object):

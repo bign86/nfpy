@@ -9,10 +9,10 @@ import os
 import shutil
 from typing import (Optional, Union)
 
-import nfpy.IO.Utilities
 from nfpy import NFPY_ROOT_DIR
 import nfpy.Calendar as Cal
 import nfpy.DB as DB
+import nfpy.IO.Utilities as UtI
 from nfpy.Tools import (get_conf_glob, Utilities as Ut)
 
 from . import Reports as Rep
@@ -115,9 +115,9 @@ class ReportingEngine(object):
         # j_env.filters.update(res[1])
         out = j_env.get_template(res.template) \
             .render(
-            title=res.title,
-            res=res.output
-        )
+                title=res.title,
+                res=res.output
+            )
 
         outf = open(
             os.path.join(
@@ -147,14 +147,14 @@ class ReportingEngine(object):
                 path=self._curr_report_dir
             ).result
         except RuntimeError as ex:
-            nfpy.IO.Utilities.print_exc(ex)
-            nfpy.IO.Utilities.print_warn(f'Report failed!')
-            nfpy.IO.Utilities.print_exc(ex)
+            UtI.print_exc(ex)
+            UtI.print_warn(f'Report failed!')
+            UtI.print_exc(ex)
         else:
             # Generate the report and update the index
             self._generate(res)
             self._update_index(report_data)
-            nfpy.IO.Utilities.print_ok(f'Report completed!')
+            UtI.print_ok(f'Report completed!')
 
     def _set_calendar(self, report_data: Rep.ReportData) -> None:
         """ Set the global calendar. """

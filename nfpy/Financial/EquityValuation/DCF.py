@@ -39,8 +39,8 @@ class DCF(BaseFundamentalModel):
     def __init__(
             self,
             uid: str,
-            history: Horizon,
-            future_horizon: Horizon,
+            history: Horizon | str,
+            future_horizon: Horizon | str,
             growth: Optional[float] = None,
             premium: Optional[float] = None,
             **kwargs
@@ -50,15 +50,18 @@ class DCF(BaseFundamentalModel):
         self._ff = Fin.FundamentalsFactory(self._comp)
         self._idx = self._af.get(self._eq.index)
 
-        self._history = history
-        self._projection = future_horizon
+        self._history = history \
+            if isinstance(history, Horizon) else Horizon(history)
+        self._projection = future_horizon \
+            if isinstance(future_horizon, Horizon) else Horizon(future_horizon)
 
         self._growth = growth
         self._premium = premium
-        self._gdp_w = kwargs.get('gdp_w', Horizon('20Y'))
+        gdp_w = kwargs.get('gdp_w', '20Y')
+        self._gdp_w = gdp_w if isinstance(gdp_w, Horizon) else Horizon(gdp_w)
 
-        if ((history.frequency != Frequency.Y)
-                or (future_horizon.frequency != Frequency.Y)
+        if ((self._history.frequency != Frequency.Y)
+                or (self._projection.frequency != Frequency.Y)
                 or (self._gdp_w.frequency != Frequency.Y)):
             raise ValueError('DCF(): horizons must be in years')
 

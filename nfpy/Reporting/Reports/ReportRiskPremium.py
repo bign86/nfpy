@@ -9,7 +9,7 @@ from typing import (Any, Optional)
 import nfpy.IO.Utilities
 from nfpy.Assets import TyAsset
 import nfpy.Calendar as Cal
-from nfpy.Financial.EquityValuation import CAPM
+from nfpy.Financial import CAPM
 from nfpy.Tools import (
     Exceptions as Ex,
     Utilities as Ut

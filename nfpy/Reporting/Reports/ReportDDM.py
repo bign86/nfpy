@@ -165,56 +165,76 @@ class ReportDDM(BaseReport):
                 .lplot(0, yearly_div_dt, yearly_div, color='k',
                        marker='o', label='yearly paid divs.') \
                 .lplot(0, ddm_res.outputs['div_ts'], color='gray',
-                       marker='X', linestyle='--', label='paid divs.') \
-                .lplot(0, dates, y=ddm_res.outputs['no_growth']['cf'][1],
-                       color='C0', label='no growth')
+                       marker='X', linestyle='--', label='paid divs.')
 
             manual_data = ddm_res.outputs.get('manual_growth', None)
-            if manual_data is not None:
-                pl.lplot(0, dates, y=manual_data['cf'][1],
-                         marker='o', color='C1', label='manual')
-
             hist_data = ddm_res.outputs.get('historical_growth', None)
-            if hist_data is not None:
-                pl.lplot(0, dates, y=hist_data['cf'][1],
-                         marker='o', color='C2', label='historical')
-
             roe_data = ddm_res.outputs.get('ROE_growth', None)
-            if roe_data is not None:
-                pl.lplot(0, dates, y=roe_data['cf'][1],
-                         marker='o', color='C3', label='ROE')
+
+            if ddm_res.outputs['stages'] > 0:
+                pl.lplot(0, dates, y=ddm_res.outputs['no_growth']['cf'][1],
+                       color='C0', label='no growth')
+
+                if manual_data is not None:
+                    pl.lplot(0, dates, y=manual_data['cf'][1],
+                             marker='o', color='C1', label='manual')
+
+                if hist_data is not None:
+                    pl.lplot(0, dates, y=hist_data['cf'][1],
+                             marker='o', color='C2', label='historical')
+
+                if roe_data is not None:
+                    pl.lplot(0, dates, y=roe_data['cf'][1],
+                             marker='o', color='C3', label='ROE')
 
             pl.plot() \
                 .save(fig_full[1]) \
                 .clf()
 
-            lt_growth_date = dates[-1] + \
+            if ddm_res.outputs['stages'] > 0:
+                lt_growth_date = dates[-1] + \
                              np.timedelta64(1, 'Y').astype('timedelta64[D]')
+                all_future_dates = np.r_[yearly_div_dt[-1], dates, lt_growth_date]
+            else:
+                lt_growth_date = yearly_div_dt[-1] + \
+                                 np.timedelta64(1, 'Y').astype('timedelta64[D]')
+                all_future_dates = np.r_[yearly_div_dt[-1], lt_growth_date]
 
             pl2 = IO.Plotter(xl=('Date',), yl=(f'Rate',), x_zero=[.0])
 
             lt_growth = ddm_res.outputs['lt_growth']
             if manual_data is not None:
+                # Note: this does not exists without a stage!
                 pl2.lplot(
                     0,
-                    np.r_[yearly_div_dt[-1], dates, lt_growth_date],
+                    all_future_dates,
                     y=np.r_[yearly_ret_div[-1], manual_data['rates'], lt_growth],
                     marker='o', color='C1', label='manual'
                 )
 
             if hist_data is not None:
+                if ddm_res.outputs['stages'] > 0:
+                    all_future_divs = np.r_[yearly_ret_div[-1], hist_data['rates'], lt_growth]
+                else:
+                    all_future_divs = np.r_[yearly_ret_div[-1], lt_growth]
+
                 pl2.lplot(
                     0,
-                    np.r_[yearly_div_dt[-1], dates, lt_growth_date],
-                    y=np.r_[yearly_ret_div[-1], hist_data['rates'], lt_growth],
+                    all_future_dates,
+                    y=all_future_divs,
                     marker='o', color='C2', label='historical'
                 )
 
             if roe_data is not None:
+                if ddm_res.outputs['stages'] > 0:
+                    all_future_divs = np.r_[yearly_ret_div[-1], roe_data['rates'], lt_growth]
+                else:
+                    all_future_divs = np.r_[yearly_ret_div[-1], lt_growth]
+
                 pl2.lplot(
                     0,
-                    np.r_[yearly_div_dt[-1], dates, lt_growth_date],
-                    y=np.r_[yearly_ret_div[-1], roe_data['rates'], lt_growth],
+                    all_future_dates,
+                    y=all_future_divs,
                     marker='o', color='C3', label='ROE'
                 )
 

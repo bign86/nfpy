@@ -12,9 +12,8 @@ from typing import (Any, Optional)
 
 import nfpy.IO.Utilities
 from nfpy.Assets import TyAsset
-from nfpy.Calendar import today
+from nfpy.Calendar import (Horizon, today)
 from nfpy.Financial import DividendFactory
-from nfpy.Financial.EquityValuation import (DDM, DCF)
 import nfpy.IO as IO
 import nfpy.Math as Math
 from nfpy.Tools import (
@@ -67,6 +66,23 @@ class ReportMarketShort(BaseReport):
                 end=t0.asm8
             )
             self._span_slc.append(slc_sp)
+
+        if 'DCF' in self._p:
+            dcf = self._p['DCF']
+            if 'future_horizon' in dcf:
+                dcf['future_horizon'] = Horizon(f"{dcf['future_horizon']}Y")
+            if 'history' in dcf:
+                dcf['history'] = Horizon(f"{dcf['history']}Y")
+            if 'gdp_w' in dcf:
+                dcf['gdp_w'] = Horizon(f"{dcf['gdp_w']}Y")
+        if 'DDM' in self._p:
+            ddm = self._p['DDM']
+            if 'capm_w' in ddm:
+                ddm['capm_w'] = Horizon(f"{ddm['capm_w']}Y")
+            if 'div_w' in ddm:
+                ddm['div_w'] = Horizon(f"{ddm['div_w']}Y")
+            if 'gdp_w' in ddm:
+                ddm['gdp_w'] = Horizon(f"{ddm['gdp_w']}Y")
 
     def _calculate(self) -> Any:
         """ Calculate the required models.
@@ -216,43 +232,6 @@ class ReportMarketShort(BaseReport):
                 '\u0394 pricing': '{:,.1%}'.format
             },
         )
-
-        # Dividends Discount Model Calculation
-        try:
-            p = self._p.get('DDM', {})
-            ddm_res = DDM(asset.uid, **p).result(**p)
-        except (Ex.MissingData, ValueError) as ex:
-            res.has_ddm = False
-            nfpy.IO.Utilities.print_exc(ex)
-        else:
-            res.has_ddm = True
-            res.ddm_success = ddm_res.success
-            res.ddm_applicable = ddm_res.applicable
-            res.ddm_msg = ddm_res.msg
-            res.ddm_inputs = self._p.get('DDM', {})
-
-            if ddm_res.applicable:
-                res.ddm_res_no_gwt = ddm_res.outputs['no_growth']
-                res.ddm_res_manual = ddm_res.outputs.get('manual_growth', None)
-                res.ddm_res_hist = ddm_res.outputs.get('historical_growth', None)
-                res.ddm_res_roe = ddm_res.outputs.get('ROE_growth', None)
-
-        # Dividends Cash FLow Model Calculation
-        try:
-            p = self._p.get('DCF', {})
-            dcf_res = DCF(asset.uid, **p).result(**p)
-        except (Ex.MissingData, ValueError) as ex:
-            res.has_dcf = False
-            nfpy.IO.Utilities.print_exc(ex)
-        else:
-            res.has_dcf = True
-            res.dcf_success = dcf_res.success
-            res.dcf_msg = dcf_res.msg
-            res.dcf_inputs = self._p.get('DCF', {})
-
-            if dcf_res.applicable:
-                res.dcf_fair_value = dcf_res.outputs['fair_value']
-                res.dcf_return = dcf_res.outputs['ret'] * 100.
 
     def _calc_trading(self, asset: TyAsset, res: Ut.AttributizedDict) -> None:
         fig_full, fig_rel = self._get_image_paths(

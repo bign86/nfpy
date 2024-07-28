@@ -117,7 +117,8 @@ class Asset(FinancialItem):
 
     def last_price(self, dt: Optional[Cal.TyDate] = None) \
             -> tuple[float, np.datetime64, int]:
-        """ Returns the last valid daily raw close price at date.
+        """ Returns the last valid daily close price at date. The default type
+            of close price is used.
 
             Input:
                 dt [TyDate]: reference date (default: None)

@@ -85,9 +85,14 @@ class DDM(BaseFundamentalModel):
             1 for v in (stage1, stage2)
             if v is not None
         )
-        self._div_w = kwargs.get('div_w', Horizon('5Y'))
-        self._gdp_w = kwargs.get('gdp_w', Horizon('20Y'))
-        self._capm_w = kwargs.get('capm_w', Horizon('5Y'))
+
+        div_w = kwargs.get('div_w', '5Y')
+        self._div_w = div_w if isinstance(div_w, Horizon) else Horizon(div_w)
+        gdp_w = kwargs.get('gdp_w', '20Y')
+        self._gdp_w = gdp_w if isinstance(gdp_w, Horizon) else Horizon(gdp_w)
+        capm_w = kwargs.get('capm_w', '5Y')
+        self._capm_w = capm_w if isinstance(capm_w, Horizon) else Horizon(capm_w)
+
         self._stage1 = stage1
         self._stage2 = stage2
 
@@ -167,7 +172,8 @@ class DDM(BaseFundamentalModel):
         # Calculate the no-growth part of the model, independent of the growth
         # calculation methodology.
         if self._num_stages == 0:
-            self._no_growth['cf'] = dY0
+            self._no_growth['pn'] = dY0
+            self._no_growth['cf'] = None
 
         else:
             # Create the no-growth arrays
@@ -207,13 +213,18 @@ class DDM(BaseFundamentalModel):
         outputs = {
             'ccy': self._eq.currency,
             'div_ts': pd.Series(divs[1], index=divs[0]),
-            'dates': [
-                dtY0 + np.timedelta64(v, 'Y').astype('timedelta64[D]')
-                for v in t
-            ],
             'lt_growth': self._lt_growth,
             'implied_ke': im_ke,
         }
+
+        if self._num_stages > 0:
+            outputs['dates'] = [
+                dtY0 + np.timedelta64(v, 'Y').astype('timedelta64[D]')
+                for v in t
+            ]
+        else:
+            outputs['dates'] = []
+
         self._res = self._res_update(outputs=outputs)
 
     def _calc_freq(self) -> None:
@@ -224,7 +235,9 @@ class DDM(BaseFundamentalModel):
 
         # If there are suitable stages, go through them
         if self._num_stages == 0:
-            data['cf'] = self._no_growth['cf'] * (1. + self._lt_growth)
+            data['pn'] = self._no_growth['pn'] * (1. + self._lt_growth)
+            data['cf'] = None
+            data['rates'] = None
 
         else:
             fut_rate = np.ones(t.shape[0])
@@ -274,7 +287,7 @@ class DDM(BaseFundamentalModel):
         """ In input give the annual required rate of return. """
 
         if self._num_stages == 0:
-            fv = float(data['cf'] / den)
+            fv = float(data['pn'] / den)
         else:
             cf = data['cf'].copy()
             cf[1, -1] += data['pn'] / den
@@ -351,8 +364,12 @@ class DDM(BaseFundamentalModel):
 
         return True
 
-    def _otf_calculate(self, ke: Optional[float] = None,
-                       premium: Optional[float] = None, **kwargs) -> dict:
+    def _otf_calculate(
+        self,
+        ke: Optional[float] = None,
+        premium: Optional[float] = None,
+        **kwargs
+    ) -> dict:
         """ Calculate equity cost and denominator for the perpetual dividend.
             In input give the annual required rate of return. If not supplied,
             the equity cost is calculated as:
@@ -361,7 +378,8 @@ class DDM(BaseFundamentalModel):
         premium = .0 if premium is None else premium
         final_res = {
             'input_ke': ke,
-            'premium': premium
+            'premium': premium,
+            'stages': self._num_stages,
         }
 
         if ke is None:
@@ -371,7 +389,7 @@ class DDM(BaseFundamentalModel):
                 horizon=self._capm_w
             ).results(unlever=False)
             ke = capm_res.cost_of_equity
-            final_res.update({'capm': capm_res})
+            final_res['capm'] = capm_res
 
         final_ke = ke + premium
 
