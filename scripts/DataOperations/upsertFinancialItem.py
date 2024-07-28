@@ -7,11 +7,12 @@ from tabulate import tabulate
 
 import nfpy.DB as DB
 import nfpy.IO as IO
-from nfpy.Tools import Utilities as Ut
+import nfpy.IO.Utilities as Ut
+from nfpy.Tools import Utilities
 
 __version__ = '0.4'
 _TITLE_ = "<<< Financial item creation script >>>"
-_DESC_ = """Updates a financial item in the elaboration engine or registers a new UID if not found."""
+_DESC_ = """Updates a financial item in the elaboration DB or registers a new UID if not found."""
 
 if __name__ == '__main__':
     Ut.print_header(_TITLE_, end='\n')
@@ -22,7 +23,7 @@ if __name__ == '__main__':
     inh = IO.InputHandler()
 
     # Take the uid and search for an existing entry
-    uid = inh.input("Give a uid to register: ", idesc='str')
+    uid = inh.input("Give a UID to register: ", idesc='str')
     q = qb.select("Assets", keys=('uid',))
     l = db.execute(q, (uid,)).fetchone()
 
@@ -73,10 +74,17 @@ if __name__ == '__main__':
     # If no entry is found we create one from scratch
     else:
         # Get the asset_type and related table
-        asset_type = inh.input("Insert asset_type: ", idesc='str')
-        asset_obj = Ut.import_symbol(
-            '.'.join(['nfpy.Assets', asset_type, asset_type])
-        )
+        while True:
+            try:
+                asset_type = inh.input("Insert asset_type: ", idesc='str')
+                asset_obj = Utilities.import_symbol(
+                    '.'.join(['nfpy.Assets', asset_type, asset_type])
+                )
+            except ModuleNotFoundError as ex:
+                Ut.print_exc(ex)
+            else:
+                break
+
         table = asset_obj._BASE_TABLE
 
         # Fill in all data
@@ -100,7 +108,7 @@ if __name__ == '__main__':
             q_data.append(v)
 
         # Insert data in the table
-        print(f"Performing the update...")
+        print(f"Performing the insert...")
         q = qb.insert(table, ins_fields=q_fields)
         db.execute(q, tuple(q_data))
 

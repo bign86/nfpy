@@ -7,10 +7,16 @@ import nfpy.Assets as As
 import nfpy.DB as DB
 import nfpy.Downloader as Dwn
 import nfpy.IO as IO
-from nfpy.Tools import Utilities as Ut
+import nfpy.IO.Utilities as IOUt
+from nfpy.Tools import Utilities as Uti
 
 __version__ = '0.7'
 _TITLE_ = '<<< Create new download script >>>'
+__desc__ = """
+The script creates a new download by adding relevant entries into both the
+Download and the Import tables, as well as in the elaboration tables if the
+asset is not already known in the database.
+"""
 
 _IMPORT_HINTS = {
     'HistoricalPrices': 'ClosePrices',
@@ -50,7 +56,7 @@ def columns_data(_table: str, _data: dict, *args) -> tuple:
 
 
 if __name__ == '__main__':
-    Ut.print_header(_TITLE_, end='\n\n')
+    IOUt.print_header(_TITLE_, end='\n\n')
 
     af = As.get_af_glob()
     db = DB.get_db_glob()
@@ -66,18 +72,18 @@ if __name__ == '__main__':
     uid = inh.input('Give a UID: ', idesc='str')
     if af.exists(uid):
         skip_elaboration = True
-        a_type = af.get_type(uid)
+        a_type = af.get_asset_type(uid)
         print(f'UID has been found in the database:\n{a_type} {uid}', end='\n\n')
     else:
         # Asset type
         types = sorted(af.asset_types)
-        Ut.print_sequence(types, showindex=True)
+        IOUt.print_sequence(types, showindex=True)
         at_idx = inh.input(
             'Insert asset_type index: ',
             idesc='index', limits=(0, len(types)-1)
         )
         a_type = types[at_idx]
-        a_obj = Ut.import_symbol('.'.join(['nfpy.Assets', a_type, a_type]))
+        a_obj = Uti.import_symbol('.'.join(['nfpy.Assets', a_type, a_type]))
         table = a_obj._BASE_TABLE
         queries[table] = (
             qb.insert(table),
@@ -90,7 +96,7 @@ if __name__ == '__main__':
     while inh.input('Add new download (default False)?: ', idesc='bool', default=False):
         # Provider
         providers = tuple(dwn.providers)
-        Ut.print_sequence(providers, showindex=True)
+        IOUt.print_sequence(providers, showindex=True)
         prov_idx = inh.input(
             'Give the provider index: ',
             idesc='index', limits=(0, len(providers)-1)
@@ -99,7 +105,7 @@ if __name__ == '__main__':
 
         # Page
         pages = dwn.pages(provider)
-        Ut.print_sequence(pages, showindex=True)
+        IOUt.print_sequence(pages, showindex=True)
         pg_idx = inh.input(
             'Give the download page index: ',
             idesc='index', limits=(0, len(pages)-1)
@@ -155,4 +161,4 @@ if __name__ == '__main__':
             db.executemany(*t)
         print('Insert done')
 
-    Ut.print_ok('All done!')
+    IOUt.print_ok('All done!')

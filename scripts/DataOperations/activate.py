@@ -7,9 +7,9 @@ from collections import namedtuple
 from tabulate import tabulate
 
 import nfpy.DB as DB
-import nfpy.Tools.Exceptions as Ex
 import nfpy.IO as IO
-from nfpy.Tools import Utilities as Ut
+import nfpy.IO.Utilities as Ut
+import nfpy.Tools.Exceptions as Ex
 
 __version__ = '0.6'
 _TITLE_ = "<<< Activate/Deactivate script >>>"

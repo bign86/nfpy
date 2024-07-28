@@ -8,7 +8,7 @@ from tabulate import tabulate
 
 import nfpy.DB as DB
 import nfpy.IO as IO
-from nfpy.Tools import Utilities as Ut
+import nfpy.IO.Utilities as Ut
 
 __version__ = '0.6'
 _TITLE_ = "<<< Show financial instruments script >>>"
@@ -26,7 +26,7 @@ def search_instrument() -> bool:
         qb.select(
             'Assets',
             fields=('type', 'uid'),
-            where='t.[uid] like ? or t.[description] like ?'
+            where='t.[uid] LIKE ? OR t.[description] LIKE ?'
         ),
         (search, search)
     ).fetchall()
@@ -34,7 +34,7 @@ def search_instrument() -> bool:
         Ut.print_wrn(Warning('Nothing found'), end='\n\n')
         return True
 
-    q_asset = 'select * from {} where uid in {}'
+    q_asset = 'SELECT * from [{}] WHERE uid IN {}'
     list_instr = sorted(list_instr, key=lambda v: v[0])
     for k, g in groupby(list_instr, lambda v: v[0]):
         uids = [v[1] for v in g]

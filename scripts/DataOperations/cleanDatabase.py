@@ -1,6 +1,8 @@
 #
 # Clean Database
 # Script to filter and delete data from a database table.
+# Allows to choose a table and filter the data contained on the existing
+# columns to select the data to be deleted.
 #
 
 from enum import Enum
@@ -8,7 +10,7 @@ from tabulate import tabulate
 
 import nfpy.DB as DB
 import nfpy.IO as IO
-from nfpy.Tools import Utilities as Ut
+import nfpy.IO.Utilities as Ut
 
 __version__ = '0.2'
 _TITLE_ = "<<< Delete data script >>>"
@@ -29,8 +31,13 @@ class States(Enum):
 
 
 class StateMachine(object):
-    _ACTION_MSG = 'Press "a" to add a filter, "f" to show current filters, "p" to print found records,\n' \
-                  '"d" to delete a filter, "e" to erase records found, "q" to quit: '
+    _ACTION_MSG = f'\n\t{Ut.Col.OKCYAN.value}a{Ut.Col.ENDC.value}: add a filter\n' \
+                  f'\t{Ut.Col.OKCYAN.value}f{Ut.Col.ENDC.value}: show current filters\n' \
+                  f'\t{Ut.Col.OKCYAN.value}p{Ut.Col.ENDC.value}: print found records\n' \
+                  f'\t{Ut.Col.OKCYAN.value}d{Ut.Col.ENDC.value}: delete a filter\n' \
+                  f'\t{Ut.Col.OKCYAN.value}e{Ut.Col.ENDC.value}: erase records found\n' \
+                  f'\t{Ut.Col.OKCYAN.value}q{Ut.Col.ENDC.value}: quit\n' \
+                  f'Command: '
 
     def __init__(self, table: str):
         self.table = table
@@ -97,6 +104,7 @@ class StateMachine(object):
         self.records_found = db.execute(
             qb.select(self.table, keys=(), where=where),
         ).fetchall()
+        print(f'Found {Ut.Col.WARNING.value}{len(self.records_found)}{Ut.Col.ENDC.value} records.')
 
     def _get_filter(self):
         self.print_fields()
@@ -112,6 +120,7 @@ class StateMachine(object):
 
     def _get_state(self) -> None:
         todo = inh.input(self._ACTION_MSG)
+        print()
         while todo not in ('a', 'q', 'f', 'p', 'd', 'e'):
             todo = inh.input(f'{todo} not recognized! Again, please: ')
 
@@ -132,26 +141,25 @@ class StateMachine(object):
         print('So long... quitting!')
 
     def print_fields(self) -> None:
-        _msg = f'Currently, {len(self.records_found)} records found.\n' \
-               f'The following fields exists (* for keys)\n'
+        _msg = f'The following fields exists (* for keys)\n'
         for _field in self.fields:
             _ind = ' * ' if _field in self.keys else '   '
             _msg += _ind + _field + '\n'
         print(_msg)
 
     def print_filters(self) -> None:
-        _msg = f'Currently, {len(self.records_found)} records found.\n' \
-               f'The following conditions exists:\n'
+        _msg = f'The following conditions exists:\n'
         for i, condition in enumerate(self.conditions):
             _msg += f'{i} | {condition}\n'
         print(_msg)
 
     def print_results(self) -> None:
         n = len(self.records_found)
-        msg = f'Total of {n} found.\n'
         if n > _ITEM_SHOWED:
-            msg += f' Only the first {_ITEM_SHOWED} showed.\n'
-        print(msg, end='\n')
+            print(
+                f'Only the first {_ITEM_SHOWED} of {Ut.Col.WARNING.value}{n}{Ut.Col.ENDC.value} showed.',
+                end='\n\n'
+            )
         print(tabulate(self.records_found[-_ITEM_SHOWED:], headers=self.fields))
 
 

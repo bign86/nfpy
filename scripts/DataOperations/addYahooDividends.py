@@ -5,22 +5,21 @@
 # the existence of the data, a simple DB.INSERT is performed.
 #
 
-import csv
 import os
 import pandas as pd
 
 import nfpy.Calendar as Cal
 import nfpy.DB as DB
 import nfpy.IO as IO
-from nfpy.Tools import Utilities as Ut
+import nfpy.IO.Utilities as Ut
 
 __version__ = '0.2'
 _TITLE_ = "<<< Add dividends to Yahoo script >>>"
 _DESC_ = """Manually add dividends to the YahooEvents table without replacement. Conflicting
 data will generate an error."""
 
-_TABLE = 'YahooEvents'
-_COLS = ('ticker', 'date', 'dtype', 'value')
+_TABLE = 'YahooDividends'
+_COLS = ('ticker', 'date', 'value')
 
 
 if __name__ == '__main__':
@@ -38,14 +37,11 @@ if __name__ == '__main__':
         raise ValueError('Supplied file does not exist! Please give a valid one.')
 
     with open(file_path, 'r') as f:
-        data = csv.reader(f)
+        df = pd.read_csv(f)
+        df.columns = _COLS
+        df['value'] = df['value'].astype(float)
 
-    df = pd.DataFrame(list(data))
-    df.columns = _COLS
-    df['dtype'] = df['dtype'].apply(lambda v: int(v))
-    df['value'] = df['value'].apply(lambda v: float(v))
-
-    q = qb.insert(_TABLE)
-    db.executemany(q, df.values, commit=True)
+        q = qb.insert(_TABLE)
+        db.executemany(q, df.to_numpy(), commit=True)
 
     Ut.print_ok('All done!')

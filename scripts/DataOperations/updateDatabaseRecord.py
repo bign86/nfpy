@@ -7,7 +7,7 @@ from tabulate import tabulate
 
 import nfpy.DB as DB
 import nfpy.IO as IO
-from nfpy.Tools import Utilities as Ut
+import nfpy.IO.Utilities as Ut
 
 __version__ = '0.4'
 _TITLE_ = "<<< Record insert/update script >>>"
@@ -49,7 +49,7 @@ if __name__ == '__main__':
         data = list((f, v) for f, v in zip(fields, actual))
 
         msg = f'Record found in the database! Available data:\n' \
-              f'{tabulate(data, headers=("field", "value"), showindex=True)}\n' \
+              f'{tabulate(data, headers=("field", "value"), missingval="-", showindex=True)}\n' \
               f'Do you want to update it? (default False): '
 
         # We can quickly exit if we do not want to modify it
