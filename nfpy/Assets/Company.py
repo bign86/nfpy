@@ -3,11 +3,12 @@
 # Base class for company database
 #
 
+import datetime
 import pandas as pd
 from typing import Optional
 import warnings
 
-from nfpy.Calendar import get_calendar_glob
+from nfpy.Session import get_session
 
 from .AggregationMixin import AggregationMixin
 from .FinancialItem import FinancialItem
@@ -51,7 +52,14 @@ class Company(AggregationMixin, FinancialItem):
     def _load_cnsts(self) -> None:
         """ Fetch the fundamentals from the database. """
         # Get the fundamental data form the database
-        cal = get_calendar_glob()
+        s = get_session()
+        if s:
+            start = s.calendar.yearly_calendar[0].to_pydatetime()
+            end = s.calendar.yearly_calendar[-1].to_pydatetime()
+        else:
+            start = datetime.date(1970, 1, 1)
+            end = datetime.date.today()
+
         res = self._db.execute(
             self._qb.select(
                 self._CONSTITUENTS_TABLE,
@@ -59,11 +67,7 @@ class Company(AggregationMixin, FinancialItem):
                 keys=('uid',),
                 rolling=['date']
             ),
-            (
-                self._uid,
-                cal.yearly_calendar[0].to_pydatetime(),
-                cal.yearly_calendar[-1].to_pydatetime()
-            )
+            (self._uid, start, end)
         ).fetchall()
         if not res:
             warnings.warn(f'No fundamental data found for {self._uid}')

@@ -5,12 +5,82 @@
 
 from abc import (ABCMeta, abstractmethod)
 from enum import Enum
+import time
 
 import nfpy.Calendar as Cal
 from nfpy.DatatypeFactory import get_dt_glob
 import nfpy.DB as DB
 import nfpy.IO.Utilities as Ut
 import nfpy.Tools.Utilities as Uti
+
+from .BaseDownloader import BasePage
+from .Objs import Limits
+
+
+_LIMITS = {
+    'AlphaVantage': Limits(25, 1),
+    'BorsaItaliana': Limits(None, 1),
+    'ECB': Limits(None, None),
+    'FRED': Limits(None, None),
+    'IB': Limits(None, None),
+    'Nasdaq': Limits(None, 1),
+    'OECD': Limits(None, None),
+    'Yahoo': Limits(None, 1),
+}
+
+
+class DownloadGenerator:
+    """ Generator for downloads. """
+
+    def __init__(
+            self,
+            provider: str,
+            todo: set,
+            skipped: int,
+    ) -> None:
+        self._provider = provider
+        self._limits = _LIMITS[provider]
+
+        if self._limits.max_num:
+            self._todo = sorted(
+                todo,
+                key=lambda x: x.last_update
+            )[:self._limits.max_num]
+        else:
+            self._todo = todo
+
+        self._skipped = skipped
+
+    @property
+    def skipped(self) -> int:
+        return self._skipped
+
+    @skipped.setter
+    def skipped(self, value: int):
+        self._skipped = value
+
+    @property
+    def provider(self) -> str:
+        return self._provider
+
+    def __iter__(self):
+        return self
+
+    def __next__(self) -> BasePage:
+        """ Instruction to return next point. """
+        if not self._todo:
+            raise StopIteration
+
+        # Wait the required time.
+        # FIXME: not ideal to do it before but...
+        if self._limits.wait_time:
+            time.sleep(self._limits.wait_time)
+
+        # Create and return the page object to download
+        dwn = self._todo.pop()
+        symbol = '.' + '.'.join([dwn.provider, dwn.page + 'Page'])
+        class_ = Uti.import_symbol(symbol, pkg='nfpy.Downloader')
+        return class_(dwn.ticker, dwn.currency)
 
 
 class BaseProvider(metaclass=ABCMeta):
@@ -21,18 +91,11 @@ class BaseProvider(metaclass=ABCMeta):
     def __init__(self):
         self._today = Cal.today(mode='date')
 
-    @staticmethod
-    def _generate(todo: set):
-        for d in todo:
-            symbol = '.' + '.'.join([d.provider, d.page + 'Page'])
-            class_ = Uti.import_symbol(symbol, pkg='nfpy.Downloader')
-            yield d, class_(d.ticker, d.currency)
-
     def get_download_generator(
         self,
         downloads: list | tuple,
         override_date: bool = False
-    ) -> tuple:
+    ) -> DownloadGenerator:
         # Filter out items to not download due to the date
         if not override_date:
             n = 0
@@ -54,7 +117,7 @@ class BaseProvider(metaclass=ABCMeta):
         skipped = n - len(todo)
         print(f' > Skipped {skipped} items')
 
-        return skipped, self._generate(todo)
+        return DownloadGenerator(self._PROVIDER, todo, skipped)
 
     @abstractmethod
     def _filter_todo_downloads(self, todo: set) -> set:

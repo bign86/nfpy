@@ -55,7 +55,7 @@ class Configuration(metaclass=Singleton):
         """
         return (
             os.path.expanduser(os.path.join('~', _OPSYS_HOME)),
-            NFPY_ROOT_DIR
+            os.path.join(NFPY_ROOT_DIR, os.path.pardir, 'assets')
         )
 
     def _parse(self) -> None:

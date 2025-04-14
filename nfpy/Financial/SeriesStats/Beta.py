@@ -1,7 +1,6 @@
 import cutils
 from dataclasses import dataclass
 import numpy as np
-import pandas as pd
 import pandas.tseries.offsets as off
 from scipy import stats
 from typing import Any
@@ -10,6 +9,7 @@ from nfpy.Assets import (get_af_glob, get_fx_glob, TyAsset)
 import nfpy.Calendar as Cal
 from nfpy.Math.TSStats_ import rolling_sum
 from nfpy.Math.TSUtils_ import (search_trim_pos, trim_ts)
+from nfpy.Session import get_session
 from nfpy.Tools import (get_logger_glob, Exceptions as Ex)
 
 from ..FundamentalsFactory import FundamentalsFactory
@@ -40,12 +40,57 @@ class Beta(object):
             self,
             asset: str | TyAsset,
             freq: Cal.Frequency,
-            mkt: str | TyAsset = None,
-            start: Cal.TyDate = None,
-            end: Cal.TyDate = None,
-            horizon: Cal.Horizon = None,
-            comp: str | TyAsset = None,
+            mkt: str | TyAsset | None = None,
+            start: Cal.TyDate | None = None,
+            end: Cal.TyDate | None = None,
+            horizon: Cal.Horizon | None = None,
+            comp: str | TyAsset | None = None,
     ):
+        # Set the session
+        self._s = get_session()
+
+        # Set the time limits in the series. Start the series one data point
+        # later to account for the data point lost in calculating the returns.
+        # As everything is resampled on the same frequency, the slice should
+        # be the same for all series.
+        dt_off = {
+            Cal.Frequency.B: (lambda v: v, lambda v: v),
+            Cal.Frequency.D: (lambda v: v, lambda v: v),
+            Cal.Frequency.M: (Cal.to_month_begin, Cal.to_previous_month_end),
+            Cal.Frequency.Y: (Cal.to_year_begin, Cal.to_previous_year_end),
+        }
+        try:
+            offset = dt_off[freq]
+        except KeyError:
+            raise Ex.CalendarError(f'Beta(): frequency {freq.value} not supported')
+
+        # Handle dates
+        if end is not None:
+            end = Cal.any2np(end)
+        elif self._s:
+            end = self._s.calendar.t0.asm8
+        else:
+            raise Ex.CalendarError(f'Beta(): with no session, end date must be provided')
+
+        if start is not None:
+            start = Cal.any2np(start)
+        elif horizon is not None:
+            start = end - off.DateOffset(months=horizon.months)
+        elif self._s:
+            start = self._s.calendar.start.asm8
+        else:
+            raise Ex.CalendarError(f'Beta(): with no session, a start date or horizon must be provided')
+
+        self._start = offset[0](start)
+        self._end = offset[1](end)
+
+        if self._s:
+            # Check if the calendar supports us
+            if start < self._s.calendar.start:
+                raise Ex.CalendarError(
+                    f'Beta(): start date {start} < calendar start {self._s.calendar.start}'
+                )
+
         # Get asset objects
         af = get_af_glob()
 
@@ -81,40 +126,6 @@ class Beta(object):
         self._freq = freq
         self._horizon = horizon
 
-        # Set the time limits in the series. Start the series one data point
-        # later to account for the data point lost in calculating the returns.
-        # As everything is resampled on the same frequency, the slice should
-        # be the same for all series.
-        dt_off = {
-            Cal.Frequency.D: (lambda v: v, lambda v: v),
-            Cal.Frequency.M: (Cal.to_month_begin, Cal.to_previous_month_end),
-            Cal.Frequency.Y: (Cal.to_year_begin, Cal.to_previous_year_end),
-        }
-        try:
-            offset = dt_off[freq]
-        except KeyError:
-            raise Ex.CalendarError(f'Beta(): frequency {freq.value} not supported')
-
-        calendar = Cal.get_calendar_glob()
-        end = pd.Timestamp(end or calendar.t0)
-        self._end = offset[1](end)
-
-        # If there is a start date, that takes precedence over the horizon.
-        if start:
-            self._start = offset[0](start)
-        elif horizon:
-            self._start = offset[0](
-                end - off.DateOffset(months=horizon.months)
-            )
-        else:
-            self._start = offset[0](calendar.start.asm8)
-
-        # Check if the calendar supports us
-        if self._start < calendar.start:
-            raise Ex.CalendarError(
-                f'Beta(): start date {self._start} < calendar start {calendar.start}'
-            )
-
         # Log
         get_logger_glob().info(
             f'Beta(): {self._asset.uid}|{self._mkt.uid} freq={freq.value} '
@@ -123,7 +134,7 @@ class Beta(object):
 
         # Resample to desired frequency. As everything is resampled on the same
         # frequency, the slice should be the same for all series.
-        asset_p = asset.prices \
+        asset_p = asset.prices(start, end) \
             .resample(freq.to_end) \
             .agg('last')
         asset_r = cutils.ret_nans(asset_p.to_numpy(), False)
@@ -131,8 +142,8 @@ class Beta(object):
         # Convert index to asset currency
         fx_p = get_fx_glob() \
             .get(mkt.currency, asset.currency) \
-            .prices
-        mkt_p = mkt.prices * fx_p
+            .prices(start, end)
+        mkt_p = mkt.prices(start, end) * fx_p
 
         mkt_p = mkt_p.resample(freq.to_end) \
             .agg('last')

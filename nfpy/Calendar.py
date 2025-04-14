@@ -13,7 +13,7 @@ from pandas.core.tools.datetimes import DatetimeScalar
 import pandas.tseries.offsets as off
 from typing import (Optional, Sequence, TypeVar, Union)
 
-from nfpy.Tools import (Exceptions as Ex, get_logger_glob, Singleton)
+from nfpy.Tools import (Exceptions as Ex, get_logger_glob)
 
 #
 # Types
@@ -22,7 +22,7 @@ from nfpy.Tools import (Exceptions as Ex, get_logger_glob, Singleton)
 TyDatetime = TypeVar('TyDatetime', bound=Union[
     str, pd.Timestamp, datetime.datetime, np.datetime64
 ])
-TyDate = TypeVar('TyDate', bound=Union[str, datetime.date])
+TyDate = TypeVar('TyDate', bound=Union[str, datetime.date, np.datetime64])
 TyTime = Union[TyDate, TyDatetime, DatetimeScalar]
 TyTimeSequence = Union[pd.DatetimeIndex, Sequence[TyTime]]
 
@@ -94,6 +94,7 @@ FREQ_2_D = {
 
 
 class Frequency(Enum):
+    B = 'B'
     D = 'D'
     W = 'W'
     M = 'M'
@@ -167,7 +168,7 @@ class Horizon(object):
         return self._years
 
 
-class Calendar(metaclass=Singleton):
+class Calendar(object):
     """ Universal calendar class to initialize dataframes. """
 
     def __init__(self):
@@ -312,10 +313,6 @@ class Calendar(metaclass=Singleton):
     def is_initialized(self) -> bool:
         return self.__bool__()
 
-    # @property
-    # def holidays(self) -> np.array:
-    #     return calc_holidays(self.start, self.end)
-
     def __len__(self) -> int:
         return self._calendar.__len__()
 
@@ -326,15 +323,15 @@ class Calendar(metaclass=Singleton):
         return pd.Timestamp(dt) in self._calendar
 
     def initialize(
-            self,
-            end: TyDate,
-            start: Optional[TyDate] = None,
-            periods: Optional[int] = None,
-            monthly_start: Optional[TyDate] = None,
-            monthly_periods: Optional[int] = None,
-            yearly_start: Optional[TyDate] = None,
-            yearly_periods: Optional[int] = None,
-            fmt: str = '%Y-%m-%d'
+        self,
+        end: TyDate,
+        start: Optional[TyDate] = None,
+        periods: Optional[int] = None,
+        monthly_start: Optional[TyDate] = None,
+        monthly_periods: Optional[int] = None,
+        yearly_start: Optional[TyDate] = None,
+        yearly_periods: Optional[int] = None,
+        fmt: str = '%Y-%m-%d'
     ) -> None:
         if self._initialized:
             return
@@ -359,17 +356,16 @@ class Calendar(metaclass=Singleton):
         # DAILY
         #
         # Set start and end dates
-        if isinstance(end, pd.Timestamp):
-            self._end = end
-        else:
-            self._end = pd.to_datetime(end, format=fmt)
+        self._end = pd.to_datetime(end, format=fmt) \
+            if not isinstance(end, pd.Timestamp) \
+            else end
+
         if not start:
             self._start = self.shift(self._end, -periods, 'B')
         else:
-            if isinstance(start, pd.Timestamp):
-                self._start = start
-            else:
-                self._start = pd.to_datetime(start, format=fmt)
+            self._start = pd.to_datetime(start, format=fmt) \
+                if not isinstance(start, pd.Timestamp) \
+                else start
 
         if self._end < self._start:
             self._start, self._end = self._end, self._start
@@ -407,8 +403,6 @@ class Calendar(metaclass=Singleton):
             if monthly_periods is not None:
                 monthly_start = self._end - off.MonthBegin(monthly_periods)
             else:
-                # n = 0 if self._start.day == 1 else 1
-                # monthly_start = self._start - off.MonthBegin(n)
                 monthly_start = pd.Timestamp(self._start.asm8.astype('datetime64[M]'))
 
         if monthly_start.month == self._start.month:
@@ -434,8 +428,6 @@ class Calendar(metaclass=Singleton):
             if yearly_periods is not None:
                 yearly_start = self._end - off.YearBegin(yearly_periods + 1)
             else:
-                # n = 0 if self._start.month == 1 else 1
-                # yearly_start.day = self._start - off.YearBegin(n)
                 yearly_start = pd.Timestamp(self._start.asm8.astype('datetime64[Y]'))
 
         if yearly_start.year == self._start.year:
@@ -502,12 +494,60 @@ class Calendar(metaclass=Singleton):
         elif freq in ('Y', 'BAS'):
             cal = self._yearly_calendar
         else:
-            raise ValueError(f'Calendar.shift(): frequency {freq} not recognized')
+            raise Ex.CalendarError(f'Calendar.shift(): frequency {freq} not recognized')
 
         offset = _OFFSET_LABELS[freq][1]
         shifted = dt + offset(int(n))
         target = cal.get_indexer([shifted], method=method)[0]
         return cal[target]
+
+
+# Create a calendar given a frequency and dates
+def create_calendar(
+    frequency: Frequency,
+    end: TyDate,
+    start: Optional[TyDate] = None,
+    periods: Optional[int] = None,
+    fmt: str = '%Y-%m-%d'
+):
+    # Errors check
+    if (start is None) & (periods is None):
+        raise ValueError(
+            f"Either one of daily starting time and number of periods (daily)"
+            f" are required to initialize the calendar"
+        )
+    freq = frequency.value
+
+    # Set start and end dates
+    end = pd.to_datetime(end, format=fmt) \
+        if not isinstance(end, pd.Timestamp) \
+        else end
+
+    if freq == 'M':
+        end = pd.Timestamp(end.asm8.astype('datetime64[M]'))
+    elif freq == 'Y':
+        end = pd.Timestamp(end.asm8.astype('datetime64[Y]'))
+
+    if start:
+        start = pd.to_datetime(start, format=fmt) \
+            if not isinstance(start, pd.Timestamp) \
+            else start
+        if freq == 'M':
+            start = pd.Timestamp(start.asm8.astype('datetime64[M]'))
+        elif freq == 'Y':
+            start = pd.Timestamp(start.asm8.astype('datetime64[Y]'))
+    else:
+        offset = _OFFSET_LABELS[freq][1]
+        start = end + offset(int(-periods))
+
+    # Business daily calendar
+    _CREATE_MAP = {'D': 'C', 'B': 'C', 'M': 'MS', 'Y': 'YS'}
+    calendar = pd.bdate_range(
+        start=start, end=end,
+        freq=_CREATE_MAP[freq],
+        normalize=True
+    )
+    return calendar
 
 
 #
@@ -537,7 +577,7 @@ def str2d(v, fmt: str) -> datetime.date:
 #
 # Pandas to numpy
 #
-def pd2np(dt: Optional[TyDate]) -> Optional[np.datetime64]:
+def pd2np(dt: TyDate) -> np.datetime64:
     return dt.asm8 if isinstance(dt, pd.Timestamp) else dt
 
 
@@ -545,12 +585,18 @@ def pd2np(dt: Optional[TyDate]) -> Optional[np.datetime64]:
 # Any to numpy
 #
 def any2np(dt: TyDate) -> np.datetime64:
-    if isinstance(dt, pd.Timestamp):
+    if isinstance(dt, np.datetime64):
+        return dt
+    elif isinstance(dt, pd.Timestamp):
         return dt.asm8
     elif isinstance(dt, (str, datetime.datetime, datetime.date)):
         return np.datetime64(dt)
     else:
         raise Ex.CalendarError(f'any2np(): type({type(dt)}) not recognized')
+
+
+def any2str(dt: TyDate) -> str:
+    return dt.strftime(format='%Y-%m-%d')
 
 
 def any2pd(dt: TyDate) -> pd.Timestamp:
@@ -803,8 +849,3 @@ def shift(dt: pd.Timestamp, n: int, freq: str) -> pd.Timestamp:
     """
     offset = _OFFSET_LABELS[freq][1]
     return dt + offset(int(n))
-
-
-def get_calendar_glob() -> Calendar:
-    """ Returns the pointer to the global DB """
-    return Calendar()

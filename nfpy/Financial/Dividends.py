@@ -9,6 +9,7 @@ import numpy as np
 from nfpy.Assets import TyAsset
 import nfpy.Calendar as Cal
 from nfpy.Math import search_trim_pos
+from nfpy.Session import get_session
 from nfpy.Tools import (Constants as Cn, Exceptions as Ex)
 
 _DAYS_FREQ_T = (
@@ -30,6 +31,8 @@ class DividendFactory(object):
     def __init__(
             self,
             eq: TyAsset,
+            start: Cal.TyDate | None = None,
+            end: Cal.TyDate | None = None,
             suspension: float = .5
     ):
         """ Create an instance of the Dividend Factory.
@@ -40,18 +43,19 @@ class DividendFactory(object):
                     have been suspended. It represents the percentage of the
                     confidence interval around the time distance between two
                     successive dividends (default 0.5)
-                start_date [Optional[np.datetime64]: start from this date
-                    instead of using all the available data. If defined has
-                    priority over <years> (default None)
-                years [Optional[int]]: use this number of years before t0
-                    instead of using all the available data. Is overridden by
-                    <start_date> if defined (default None)
+                start [Optional[TyDate]: start from this date  (default None)
+                end [Optional[TyDate]: end at this date (default None)
+                suspension [Optional[float]]: tolerance in percentage to
+                    determine dividends suspension (default .5)
         """
 
         # INPUTS
         self._eq = eq
+        self._start = Cal.any2np(start) if start else None
+        self._end = Cal.any2np(end) if end else None
 
         # WORKING VARIABLES
+        self._s = get_session()
         # Flags + date
         self._t0 = None
         self._is_div_payer = True
@@ -81,7 +85,9 @@ class DividendFactory(object):
             raise ValueError(msg)
 
         # Initialize dividends stopping at t0
-        div_series = self._eq.series('Dividend.SplitAdj.Regular').dropna()
+        div_series = self._eq.series(
+            'Dividend.SplitAdj.Regular', self._start, self._end
+        ).dropna()
         if div_series.empty:
             self._is_div_payer = False
             return
@@ -90,8 +96,8 @@ class DividendFactory(object):
         div = div_series.to_numpy()
         div_dt = div_series.index.to_numpy().astype('datetime64[D]')
 
-        calendar = Cal.get_calendar_glob()
-        t0 = calendar.t0.asm8.astype('datetime64[D]')
+        t0 = self._s.calendar.t0.asm8.astype('datetime64[D]') \
+            if self._s else self._end
         self._t0 = t0
         self._div = div
         self._div_dt = div_dt
@@ -128,7 +134,10 @@ class DividendFactory(object):
             yearly_count[pos] += 1
 
         # If the yearly series contains the current year, remove it
-        if yearly_dt[-1] > calendar.t0y.asm8.astype('datetime64[Y]'):
+        current_y = self._s.calendar.t0y.asm8.astype('datetime64[Y]') \
+            if self._s else self._t0.astype('datetime64[Y]')
+
+        if yearly_dt[-1] > current_y:
             yearly_div = yearly_div[:-1]
             yearly_dt = yearly_dt[:-1]
             yearly_count = yearly_count[:-1]
@@ -209,7 +218,7 @@ class DividendFactory(object):
         if not self._is_div_payer:
             return np.array([]), np.array([])
 
-        prices = self._eq.series('Price.SplitAdj.Close')
+        prices = self._eq.series('Price.SplitAdj.Close', self._start, self._end)
         price_arr = prices.to_numpy()
 
         idx = np.r_[
@@ -318,7 +327,7 @@ class DividendFactory(object):
             return .0
 
         price = np.nanmean(
-            self._eq.series('Price.SplitAdj.Close')
+            self._eq.series('Price.SplitAdj.Close', self._start, self._end)
             .values[-abs(w):]
         )
         return self.ttm_div() / price
@@ -477,7 +486,7 @@ class DividendFactory(object):
 
         start = self._t0 - np.timedelta64(Cn.DAYS_IN_1Y, 'D')
 
-        prices = self._eq.series('Price.SplitAdj.Close')
+        prices = self._eq.series('Price.SplitAdj.Close', self._start, self._end)
         p = prices.values
         p_dt = prices.index.values
 
@@ -514,7 +523,7 @@ class DividendFactory(object):
 
         start = np.datetime64(str(self._t0.astype('datetime64[Y]')) + '-01-01')
 
-        prices = self._eq.series('Price.SplitAdj.Close')
+        prices = self._eq.series('Price.SplitAdj.Close', self._start, self._end)
         p = prices.values
         p_dt = prices.index.values
 

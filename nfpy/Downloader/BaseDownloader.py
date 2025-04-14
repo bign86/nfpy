@@ -101,6 +101,10 @@ class BasePage(metaclass=ABCMeta):
         return self._TABLE
 
     @property
+    def currency(self) -> str:
+        return self._currency
+
+    @property
     def user_agent(self) -> str:
         # return 'Mozilla/5.0 (X11; Linux x86_64; rv:61.0) Gecko/20100101 Firefox/61.0'
         # return 'Mozilla/5.0 (X11; Linux x86_64; rv:67.0) Gecko/20100101 Firefox/67.0'

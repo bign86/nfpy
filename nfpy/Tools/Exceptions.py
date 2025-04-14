@@ -58,6 +58,10 @@ class LoggerError(RuntimeError):
     """ Thrown on any error in the logger. """
 
 
+class DownloaderError(RuntimeError):
+    """ Thrown when a datatype is wrong or un-existent. """
+
+
 class MissingDataWarn(RuntimeWarning):
     """ Thrown when something non-critical is not found in the database. """
 

@@ -5,6 +5,7 @@
 import pandas as pd
 from typing import Optional
 
+import Calendar as Cal
 import nfpy.DB as DB
 from nfpy.Tools import (
     Exceptions as Ex,
@@ -30,30 +31,35 @@ class Conversion(object):
     def uid(self) -> str:
         return self._uid
 
-    @property
-    def prices(self) -> pd.Series:
-        p = self._obj.prices * self._peg_f
+    def prices(
+        self,
+        start: Cal.TyDate | None = None,
+        end: Cal.TyDate | None = None
+    ) -> pd.Series:
+        p = self._obj.prices(start, end) * self._peg_f
         if self._invert:
             p = 1. / p
         return p
 
-    @property
-    def returns(self) -> pd.Series:
-        r = self._obj.returns
+    def returns(
+        self,
+        start: Cal.TyDate | None = None,
+        end: Cal.TyDate | None = None
+    ) -> pd.Series:
+        r = self._obj.returns(start, end)
         if self._invert:
             r = -r / (r + 1.)
         return r
 
-    @property
-    def log_returns(self) -> pd.Series:
-        r = self._obj.log_returns
+    def log_returns(
+        self,
+        start: Cal.TyDate | None = None,
+        end: Cal.TyDate | None = None
+    ) -> pd.Series:
+        r = self._obj.log_returns(start, end)
         if self._invert:
             r = -r
         return r
-
-    def get(self, dt: pd.Timestamp) -> float:
-        idx = self.prices.loc[:dt].last_valid_index()
-        return self.prices.at[idx]
 
 
 class DummyConversion(Conversion):
@@ -61,26 +67,17 @@ class DummyConversion(Conversion):
     def __init__(self, uid: str, invert: bool, src_f: float, tgt_f: float):
         super().__init__(uid, None, invert, src_f, tgt_f)
 
-    @property
-    def prices(self) -> float:
+    def prices(self, *args, **kwargs) -> float:
         if self._invert:
             return 1. / self._peg_f
         else:
             return self._peg_f
 
-    @property
-    def returns(self) -> float:
+    def returns(self, *args, **kwargs) -> float:
         return .0
 
-    @property
-    def log_returns(self) -> float:
+    def log_returns(self, *args, **kwargs) -> float:
         return .0
-
-    def get(self, dt: pd.Timestamp) -> float:
-        if self._invert:
-            return 1. / self._peg_f
-        else:
-            return self._peg_f
 
 
 class FxFactory(metaclass=Singleton):
@@ -99,7 +96,7 @@ class FxFactory(metaclass=Singleton):
         self._known_ccy = {
             ccy[1]: ccy for ccy in
             self._db.execute(f'select * from {self._T_CURRENCIES}')
-            .fetchall()
+                .fetchall()
         }
         self._q_fetch = self._qb.select(
             self._T_FX,

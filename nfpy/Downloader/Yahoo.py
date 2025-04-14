@@ -40,10 +40,14 @@ class YahooProvider(BaseProvider):
 
 
 class ClosePricesItem(BaseImportItem):
-    _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
-    select '{uid}', 124, date, close from YahooPrices where ticker = ?"""
-    _Q_INCR = """ and date > ifnull((select max(date) from {dst_table}
-    where uid = '{uid}' and dtype = 124), '1900-01-01')"""
+    _Q_READWRITE = """
+    INSERT OR REPLACE INTO [{dst_table}] ([uid], [dtype], [date], [value])
+    SELECT '{uid}', 124, [date], [close]
+    FROM [YahooPrices] WHERE [ticker] = ?"""
+    _Q_INCR = """ AND [date] > IFNULL(
+        (SELECT MAX([date]) FROM [{dst_table}]
+        WHERE [uid] = '{uid}' AND [dtype] = 124),
+        '1900-01-01')"""
 
 
 class FinancialsItem(BaseImportItem):
@@ -86,19 +90,27 @@ class FinancialsItem(BaseImportItem):
 
 
 class DividendsItem(BaseImportItem):
-    _Q_READWRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
-    select '{uid}', 621, date, value from YahooDividends where ticker = ?"""
-    _Q_INCR = """ and date > ifnull((select max(date) from {dst_table}
-    where uid = '{uid}' and dtype = 621), '1900-01-01')"""
+    _Q_READWRITE = """
+    INSERT OR REPLACE INTO [{dst_table}] ([uid], [dtype], [date], [value])
+    SELECT '{uid}', 621, [date], [value]
+    FROM [YahooDividends] WHERE [ticker] = ?"""
+    _Q_INCR = """ AND [date] > IFNULL(
+        (SELECT MAX([date]) FROM [{dst_table}]
+        WHERE [uid] = '{uid}' AND [dtype] = 621),
+        '1900-01-01')"""
 
 
 class SplitsItem(BaseImportItem):
     _MODE = 'SPLIT'
-    _Q_READ = """select '{uid}', date, value from YahooSplits where ticker = ?"""
-    _Q_WRITE = """insert or replace into {dst_table} (uid, dtype, date, value)
-    values (?, ?, ?, ?)"""
-    _Q_INCR = """ and date > ifnull((select max(date) from {dst_table}
-    where uid = '{uid}' and dtype = 500), '1900-01-01')"""
+    _Q_READ = """SELECT '{uid}', [date], [value]
+    FROM [YahooSplits] WHERE [ticker] = ?"""
+    _Q_WRITE = """
+        INSERT OR REPLACE INTO [{dst_table}] ([uid], [dtype], [date], [value])
+        VALUES (?, ?, ?, ?)"""
+    _Q_INCR = """ AND [date] > IFNULL(
+        (SELECT MAX([date]) FROM [{dst_table}]
+        WHERE [uid] = '{uid}' AND [dtype] = 500),
+        '1900-01-01')"""
 
     @staticmethod
     def _clean_data(data: list[tuple], *args) -> list[tuple]:
@@ -296,7 +308,7 @@ class HistoricalPricesPage(YahooHistoricalBasePage):
     """ Download historical prices. """
     _PAGE = 'HistoricalPrices'
     _COLUMNS = YahooHistPricesConf
-    _TABLE = "YahooPrices"
+    _TABLE = 'YahooPrices'
     _Q_MAX_DATE = "select max(date) from YahooPrices where ticker = ?"
     _Q_SELECT = "select * from YahooPrices where ticker = ?"
 
@@ -333,7 +345,7 @@ class DividendsPage(YahooHistoricalBasePage):
     """ Download historical dividends. """
     _PAGE = 'Dividends'
     _COLUMNS = YahooHistDividendsConf
-    _TABLE = "YahooDividends"
+    _TABLE = 'YahooDividends'
     _Q_MAX_DATE = "select max(date) from YahooDividends where ticker = ?"
     _Q_SELECT = "select * from YahooDividends where ticker = ?"
 
@@ -350,7 +362,7 @@ class SplitsPage(YahooHistoricalBasePage):
     """ Download historical splits. """
     _PAGE = 'Splits'
     _COLUMNS = YahooHistSplitsConf
-    _TABLE = "YahooSplits"
+    _TABLE = 'YahooSplits'
     _Q_MAX_DATE = "select max(date) from YahooSplits where ticker = ?"
     _Q_SELECT = "select * from YahooSplits where ticker = ?"
 
@@ -369,3 +381,143 @@ class SplitsPage(YahooHistoricalBasePage):
         )
 
         self._res = df
+
+
+class ChartPage(YahooHistoricalBasePage):
+
+    _PAGE = 'Chart'
+    _BASE_URL = u"https://query2.finance.yahoo.com/v8/finance/chart/{}?"
+    _COLUMNS = [YahooHistPricesConf, YahooHistDividendsConf, YahooHistSplitsConf]
+    _Q_MAX_DATE = "select max(date) from YahooDividends where ticker = ?"
+    _DATE0 = '2024-07-01'  # FIXME: REMOVE!!!
+    _TABLE = ['YahooPrices', 'YahooDividends', 'YahooSplits']
+    _PARAMS = {
+        'period1': DwnParameter('period1', True, None),
+        'period2': DwnParameter('period2', True, None),
+        'interval': DwnParameter('interval', False, '1d'),
+        'events': DwnParameter('events', False, None),
+        'crumb': DwnParameter('crumb', False, None),
+    }
+
+    @property
+    def event(self) -> str:
+        return "div,split,capitalGains"
+
+    def _parse(self) -> None:
+        j = json.loads(self._robj[0].text)
+        chart = j['chart']
+        if chart['error']:
+            raise Ex.DownloaderError(f'{self._ticker} | Error: {chart["error"]}')
+        result = chart['result'][0]
+
+        # Build up the historical prices table
+        timestamps = (pd.to_datetime(result['timestamp'], unit='s')
+                      .strftime('%Y-%m-%d')
+                      .to_numpy())
+        ohlcv = result['indicators']['quote'][0]
+        openp = pd.Series(ohlcv['open']).round(2)
+        high = pd.Series(ohlcv['high']).round(2)
+        low = pd.Series(ohlcv['low']).round(2)
+        close = pd.Series(ohlcv['close']).round(2)
+        volume = pd.Series(ohlcv['volume']).astype('Int64')
+        adj_close = pd.Series(result['indicators']['adjclose'][0]['adjclose']).round(2)
+
+        dividends_data = None
+        splits_data = None
+        events = result.get('events', None)
+        if events:
+
+            # Build dividends table
+            dividends = events.get('dividends', None)
+            if dividends:
+                dividends_data = [
+                    (
+                        pd.to_datetime(d['date'], unit='s').strftime('%Y-%m-%d'),
+                        d['amount']
+                    )
+                    for d in dividends.values()
+                ]
+
+            # Build splits table
+            splits = events.get('splits', None)
+            if splits:
+                splits_data = [
+                    (
+                        pd.to_datetime(s['date'], unit='s').strftime('%Y-%m-%d'),
+                        s['splitRatio']
+                    )
+                    for s in splits.values()
+                ]
+
+        # Build capital gains table
+        # TODO: implement capital gains
+
+        # Dataframe prices
+        df_p = pd.DataFrame(columns=self._COLUMNS[0])
+        df_p['date'] = timestamps
+        df_p['open'] = openp
+        df_p['high'] = high
+        df_p['low'] = low
+        df_p['close'] = close
+        df_p['adj_close'] = adj_close
+        df_p['volume'] = volume
+        df_p.replace(to_replace='null', value=np.nan, inplace=True)
+        df_p.dropna(subset=['close'], inplace=True)
+        df_p.insert(0, 'ticker', self._ticker)
+
+        # Dataframe dividends
+        df_d = pd.DataFrame(dividends_data, columns=self._COLUMNS[1])
+        df_d.replace(to_replace='null', value=np.nan, inplace=True)
+        df_d.insert(0, 'ticker', self._ticker)
+
+        # Dataframe splits
+        df_s = pd.DataFrame(splits_data, columns=self._COLUMNS[2])
+        df_s.replace(to_replace='null', value=np.nan, inplace=True)
+        df_s.insert(0, 'ticker', self._ticker)
+
+        self._res = (df_p, df_d, df_s)
+
+    def _write_to_db(self) -> None:
+        """ Write to the database table. Overridden to write to multiple tables. """
+
+        for i, df in enumerate(self._res):
+            # Get all fields and data
+            fields_all = df.columns.values.tolist()
+            data_all = df.values.tolist()
+
+            # We make the use of UPSERT optional field
+            if self.use_upsert:
+                # Update/Insert new data
+                self._db.executemany(
+                    self._qb.upsert(
+                        self._TABLE[i],
+                        fields=fields_all
+                    ),
+                    data_all,
+                    commit=True
+                )
+            else:
+                # Delete old data
+                keys = [k for k in self._qb.get_keys(self._TABLE[i])]
+                self._db.executemany(
+                    self._qb.delete(
+                        self._TABLE[i],
+                        fields=keys
+                    ),
+                    df[keys].values.tolist(),
+                    commit=False
+                )
+
+                # Insert new data
+                self._db.executemany(
+                    self._qb.merge(
+                        self._TABLE[i],
+                        ins_fields=fields_all
+                    ),
+                    data_all,
+                    commit=True
+                )
+
+        self._is_saved = True
+
+

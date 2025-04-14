@@ -11,7 +11,7 @@ import nfpy.Tools.Exceptions as Ex
 from .BaseDownloader import (BasePage, DwnParameter)
 from .BaseProvider import (BaseImportItem, BaseProvider)
 from .DownloadsConf import (ECBAggregatesConf, ECBExrConf,
-                            ECBRatesConf, ECBYieldsConf, ECBSeriesConf)
+                            ECBRatesConf, ECBYieldsConf)
 
 
 class ECBProvider(BaseProvider):
@@ -117,13 +117,6 @@ class ECBBasePage(BasePage):
 
         df.drop(columns='action', inplace=True)
         self._res = df
-
-
-class SeriesPage(ECBBasePage):
-    _PAGE = 'Series'
-    _COLUMNS = ECBSeriesConf
-    _TABLE = "ECBSeries"
-    _Q_MAX_DATE = "select max(date) from ECBSeries where ticker = ?"
 
 
 class AggregatesPage(ECBBasePage):

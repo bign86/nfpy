@@ -2,9 +2,9 @@
 # Asset factory class
 # Base class for a single asset
 #
-
 from nfpy.Calendar import Frequency
 import nfpy.DB as DB
+from nfpy.Session import get_session
 from nfpy.Tools import (Singleton, Exceptions as Ex, Utilities as Ut)
 
 from .Asset import TyAsset
@@ -29,7 +29,7 @@ class AssetFactory(metaclass=Singleton):
         FROM (
             SELECT country, IIF(is_country_rf, uid, NULL) AS country_rf,
                 IIF(is_gdp AND adjustment = 'R', uid, NULL) AS gdp_real,
-                IIF(is_gdp AND adjustment = 'N', uid, NULL) AS gdp_nominal, 
+                IIF(is_gdp AND adjustment = 'N', uid, NULL) AS gdp_nominal,
                 IIF(is_inflation_rate, uid, NULL) AS inflation
             FROM [Rate]
             WHERE is_country_rf  OR is_gdp  OR is_inflation_rate
@@ -41,7 +41,7 @@ class AssetFactory(metaclass=Singleton):
     FROM (
         SELECT country,
             IIF(is_gdp AND adjustment = 'R', uid, NULL) AS gdp_real,
-            IIF(is_gdp AND adjustment = 'N', uid, NULL) AS gdp_nominal, 
+            IIF(is_gdp AND adjustment = 'N', uid, NULL) AS gdp_nominal,
             IIF(is_inflation, uid, NULL) AS inflation
         FROM [Index]
         WHERE is_gdp OR is_inflation
@@ -52,8 +52,9 @@ class AssetFactory(metaclass=Singleton):
     def __init__(self):
         self._db = DB.get_db_glob()
         self._qb = DB.get_qb_glob()
+        self._s = get_session()
 
-        self._known_assets = {}
+        # self._known_assets = {}
         self._rates = {}
         self._indices = {}
 
@@ -98,8 +99,6 @@ class AssetFactory(metaclass=Singleton):
         class_ = Ut.import_symbol(symbol)
         obj = class_(uid)
         obj.load()
-
-        self._known_assets[uid] = obj
         return obj
 
     def exists(self, uid: str) -> bool:
@@ -112,17 +111,19 @@ class AssetFactory(metaclass=Singleton):
 
     def get(self, uid: str) -> TyFI:
         """ Return the correct asset object given the uid. """
-        try:
-            asset = self._known_assets[uid]
-        except KeyError:
+        if self._s and (uid in self._s.assets):
+            asset = self._s.assets[uid]
+        else:
             asset = self._create_obj(uid)
+            if self._s:
+                self._s.assets[uid] = asset
         return asset
 
     def get_asset_type(self, uid: str) -> str:
         """ Return the asset type for the given uid. """
-        try:
-            a_type = self._known_assets[uid].type
-        except KeyError:
+        if self._s and (uid in self._s.assets):
+            a_type = self._s.assets[uid].type
+        else:
             a_type = self._fetch_type(uid)
         return a_type
 
@@ -277,3 +278,12 @@ class AssetFactory(metaclass=Singleton):
 def get_af_glob() -> AssetFactory:
     """ Returns the pointer to the global AssetFactory """
     return AssetFactory()
+
+
+def get_assets() -> list:
+    """ Fetch the all view 'Assets' """
+    return DB.get_db_glob() \
+        .execute(
+            DB.get_qb_glob() \
+                .selectall('Assets')
+        ).fetchall()

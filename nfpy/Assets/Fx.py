@@ -6,6 +6,7 @@
 import pandas as pd
 from typing import Callable
 
+import nfpy.Calendar as Cal
 from nfpy.Tools import (Exceptions as Ex)
 
 from .Asset import Asset
@@ -20,7 +21,12 @@ class Fx(Asset):
     _TS_ROLL_KEY_LIST = ['date']
     _DEF_PRICE_DTYPE = 'Price.Raw.Close'
 
-    def series(self, dtype: str) -> pd.Series:
+    def series(
+        self,
+        dtype: str,
+        start: Cal.TyDate | None = None,
+        end: Cal.TyDate | None = None
+    ) -> pd.Series:
         """ Return the requested series. """
 
         # Since fx do not pay dividends and do not split, we transform any
@@ -30,30 +36,40 @@ class Fx(Asset):
         if levels[0] in ('Price', 'Return', 'LogReturn'):
             dtype = dtype.replace(levels[1], 'Raw')
 
-        code = self._dt.get(dtype)
-        if code not in self._df.columns:
-            call, args = self.series_callback(dtype)
-            if not call(*args):
-                return pd.Series(dtype=float)
-        return self._df[code]
+        return super(Fx, self).series(
+            dtype,
+            start=start,
+            end=end
+        )
 
-    def series_callback(self, dtype: str) -> tuple[Callable, tuple]:
+    def _series_callback(
+        self,
+        dtype: str,
+        start: Cal.TyDate | None = None,
+        end: Cal.TyDate | None = None
+    ) -> tuple[Callable, tuple]:
         """ Return the callback for converting series. """
         data = dtype.split('.')
 
         # Volume
         if data[0] == 'Volume':
-            return self.load_dtype_in_df, (dtype,)
+            return self.load_dtype_in_df, (dtype, start, end)
 
         # Prices
         elif data[0] == 'Price':
-            return self.load_dtype_in_df, (dtype,)
+            return self.load_dtype_in_df, (dtype, start, end)
 
         # Returns
         elif data[0] == 'Return':
-            return self._calc_returns, (dtype.replace('Return', 'Price'),)
+            return self._calc_returns, (
+                dtype.replace('Return', 'Price'),
+                start, end
+            )
         elif data[0] == 'LogReturn':
-            return self._calc_log_returns, (dtype.replace('LogReturn', 'Price'),)
+            return self._calc_log_returns, (
+                dtype.replace('LogReturn', 'Price'),
+                start, end
+            )
 
         # Error if datatype is not in the list
         else:

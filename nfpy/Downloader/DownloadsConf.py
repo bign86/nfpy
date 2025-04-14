@@ -855,10 +855,26 @@ YahooHistDividendsConf = ["date", "value"]
 YahooHistSplitsConf = ["date", "value"]
 
 #
-# ECB
+# AlphaVantage
 #
 
-ECBSeriesConf = ["date", "value", "notes"]
+AlphaVantageFinancialsConf = [
+    'ticker', 'frequency', 'fiscal_date_ending', 'reported_currency',
+    'statement', 'item', 'value'
+]
+
+AlphaVantagePricesConf = ["date", "open", "high", "low", "close", "volume"]
+
+AlphaVantageDividendsConf = [
+    "ex_dividend_date", "declaration_date", "record_date",
+    "payment_date", "amount"
+]
+
+AlphaVantageSplitsConf = ["effective_date", "split_factor"]
+
+#
+# ECB
+#
 
 ECBAggregatesConf = ['ticker', 'freq', 'adjustment', 'ref_area', 'counterpart_area', 'ref_sector', 'counterpart_sector',
                      'accounting_entry', 'sto', 'instr_asset', 'activity', 'expenditure', 'unit_measure', 'prices',

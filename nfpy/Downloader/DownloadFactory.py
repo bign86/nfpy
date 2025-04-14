@@ -78,10 +78,13 @@ class DownloadFactory(metaclass=Singleton):
         """ Check if the page is supported for the given provider. """
         return page in self._dwn_obj[provider]
 
-    def fetch_downloads(self, provider: Optional[str] = None,
-                        page: Optional[str] = None,
-                        ticker: Optional[str] = None, active: bool = True) \
-            -> tuple[NTDownload]:
+    def fetch_downloads(
+        self,
+        provider: Optional[str] = None,
+        page: Optional[str] = None,
+        ticker: Optional[str] = None,
+        active: Optional[bool] = True
+    ) -> tuple[NTDownload]:
         """ Fetch and filter download entries.
 
             Input:
@@ -101,10 +104,13 @@ class DownloadFactory(metaclass=Singleton):
             {'provider': provider, 'page': page, 'ticker': ticker}
         )
 
-    def fetch_imports(self, uid: Optional[str] = None,
-                      provider: Optional[str] = None,
-                      item: Optional[str] = None, active: bool = True) \
-            -> tuple[NTImport]:
+    def fetch_imports(
+        self,
+        uid: Optional[str] = None,
+        provider: Optional[str] = None,
+        item: Optional[str] = None,
+        active: Optional[bool] = True
+    ) -> tuple[NTImport]:
         """ Filter imports entries.
 
             Input:
@@ -124,12 +130,23 @@ class DownloadFactory(metaclass=Singleton):
             {'uid': uid, 'provider': provider, 'item': item}
         )
 
-    def _filter(self, table: str, tuple_obj: namedtuple, active: bool,
-                options: dict) -> tuple:
+    def _filter(
+        self,
+        table: str,
+        tuple_obj: namedtuple,
+        active: bool | None,
+        options: dict
+    ) -> tuple:
         """ Filters the Downloads or Imports table to return the items selected
             using the available filters, ordering by <provider>.
         """
         keys = tuple(k for k, v in options.items() if v is not None)
+        if active is None:
+            where = ''
+        elif active is True:
+            where = 'active = 1'
+        else:
+            where = 'active = 0'
 
         return tuple(
             map(
@@ -139,7 +156,7 @@ class DownloadFactory(metaclass=Singleton):
                         table,
                         fields=tuple_obj._fields,
                         keys=keys,
-                        where='active = 1' if active else '',
+                        where=where,
                         order='provider'
                     ),
                     tuple(options[k] for k in keys)
@@ -196,19 +213,25 @@ class DownloadFactory(metaclass=Singleton):
         logger = get_logger_glob()
         logger.log(20, f'{len(upd_list)} items have been fetched from DB')
 
+        # Group the downloads by provider and get the download generators
+        # for each provider
+        providers = [
+            get_provider(p)().get_download_generator(g, override_date)
+            for p, g in groupby(upd_list, key=lambda v: v.provider)
+        ]
+
         count_done = 0
         count_skipped = 0
         count_failed = 0
-        for provider, group in groupby(upd_list, key=lambda v: v.provider):
-            logger.log(20, f'Provider {provider}')
+        while providers:
+            generator = providers.pop(0)
+            logger.log(20, f'Provider {generator.provider} is being processed')
 
             # Get the correct provider and the download generator from it
-            skipped, generator = get_provider(provider)() \
-                .get_download_generator(group, override_date)
-            count_skipped += skipped
-            for d, page in generator:
+            count_skipped += generator.skipped
+            for page in generator:
                 try:
-                    print(f'{d.ticker} -> {d.provider}[{d.page}]')
+                    print(f'{page.ticker} -> {page.provider}[{page.page}]')
                     page.initialize(params={}) \
                         .fetch()
                     _ = page.data
@@ -221,19 +244,19 @@ class DownloadFactory(metaclass=Singleton):
                 except RuntimeWarning as w:
                     Ut.print_wrn(w)
                     logger.warning(w)
-                    data_upd = (today, d.provider, d.page, d.ticker)
+                    data_upd = (today, page.provider, page.page, page.ticker)
                     self._db.execute(self.q_upd, data_upd, commit=True)
                     count_done += 1
                 else:
                     if do_save is True:
                         page.save()
-                        data_upd = (today, d.provider, d.page, d.ticker)
+                        data_upd = (today, page.provider, page.page, page.ticker)
                         self._db.execute(self.q_upd, data_upd, commit=True)
                     else:
                         page.printout()
                     count_done += 1
 
-        msg = f'Items downloaded: {count_done:>4}\n' \
+        msg = f'\tItems downloaded: {count_done:>4}\n' \
             f'\tItems skipped:    {count_skipped:>4}\n' \
             f'\tItems failed:     {count_failed:>4}\n'
         print(msg)

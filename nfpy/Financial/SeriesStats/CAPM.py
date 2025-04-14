@@ -6,12 +6,12 @@
 import cutils
 from dataclasses import dataclass
 import numpy as np
-import pandas as pd
 import pandas.tseries.offsets as off
 
 from nfpy import Math
 from nfpy.Assets import (get_af_glob, TyAsset)
 import nfpy.Calendar as Cal
+from nfpy.Session import get_session
 from nfpy.Tools import (Constants as Cn, get_logger_glob, Exceptions as Ex)
 
 from .Beta import Beta
@@ -38,14 +38,59 @@ class CAPM(object):
     """ Calculates the CAPM model. """
 
     def __init__(
-            self,
-            eq: str | TyAsset,
-            freq: Cal.Frequency,
-            start: Cal.TyDate = None,
-            end: Cal.TyDate = None,
-            horizon: Cal.Horizon = None,
-            index: str | TyAsset | None = None
+        self,
+        eq: str | TyAsset,
+        freq: Cal.Frequency,
+        index: str | TyAsset | None = None,
+        start: Cal.TyDate | None = None,
+        end: Cal.TyDate | None = None,
+        horizon: Cal.Horizon | None = None
     ):
+        # Set the session
+        self._s = get_session()
+
+        # Set the time limits in the series. Start the series one data point
+        # later to account for the data point lost in calculating the returns.
+        # As everything is resampled on the same frequency, the slice should
+        # be the same for all series.
+        dt_off = {
+            Cal.Frequency.B: (lambda v: v, lambda v: v),
+            Cal.Frequency.D: (lambda v: v, lambda v: v),
+            Cal.Frequency.M: (Cal.to_month_begin, Cal.to_previous_month_end),
+            Cal.Frequency.Y: (Cal.to_year_begin, Cal.to_previous_year_end),
+        }
+        try:
+            offset = dt_off[freq]
+        except KeyError:
+            raise Ex.CalendarError(f'CAPM(): frequency {freq.value} not supported')
+
+        # Handle dates
+        if end is not None:
+            end = Cal.any2np(end)
+        elif self._s:
+            end = self._s.calendar.t0.asm8
+        else:
+            raise Ex.CalendarError(f'CAPM(): with no session, end date must be provided')
+
+        if start is not None:
+            start = Cal.any2np(start)
+        elif horizon is not None:
+            start = end - off.DateOffset(months=horizon.months)
+        elif self._s:
+            start = self._s.calendar.start.asm8
+        else:
+            raise Ex.CalendarError(f'CAPM(): with no session, a start date or horizon must be provided')
+
+        self._start = offset[0](start)
+        self._end = offset[1](end)
+
+        if self._s:
+            # Check if the calendar supports us
+            if start < self._s.calendar.start:
+                raise Ex.CalendarError(
+                    f'Beta(): start date {start} < calendar start {self._s.calendar.start}'
+                )
+
         self._af = get_af_glob()
 
         if isinstance(eq, str):
@@ -67,38 +112,6 @@ class CAPM(object):
         self._freq = freq
         self._horizon = horizon
 
-        # TODO: Weekly not implemented!
-        dt_off = {
-            Cal.Frequency.D: (lambda v: v, lambda v: v),
-            Cal.Frequency.M: (Cal.to_month_begin, Cal.to_previous_month_end),
-            Cal.Frequency.Y: (Cal.to_year_begin, Cal.to_previous_year_end),
-        }
-        try:
-            offset = dt_off[freq]
-        except KeyError as ex:
-            raise Ex.CalendarError(f'Beta(): frequency {freq.value} not supported')
-
-        calendar = Cal.get_calendar_glob()
-        end = pd.Timestamp(end or calendar.t0)
-        self._end = offset[1](end)
-
-        # If there is a starting date, that takes precedence, then we fall back
-        # on the horizon, last we use the calendar start date.
-        if start:
-            self._start = offset[0](start)
-        elif horizon:
-            self._start = offset[0](
-                end - off.DateOffset(months=horizon.months)
-            )
-        else:
-            self._start = offset[0](calendar.start.asm8)
-
-        # Check if the calendar supports us
-        if self._start < calendar.start:
-            raise Ex.CalendarError(
-                f'CAPM(): start date {self._start} < calendar start {calendar.start}'
-            )
-
         # Log
         get_logger_glob().info(
             f'CAPM: {self._eq.uid} freq={freq.value} '
@@ -107,7 +120,7 @@ class CAPM(object):
 
         # Get the market prices given the desired frequency
         idx_p = self._idx \
-            .prices \
+            .prices(start, end) \
             .resample(self._freq.to_end) \
             .agg('last')
         idx_r = cutils.ret_nans(idx_p.to_numpy(), False)
@@ -123,7 +136,7 @@ class CAPM(object):
         # Get the risk-free and cut to length
         rfree_r = self._af \
             .get_rf(self._eq.currency) \
-            .prices \
+            .prices(start, end) \
             .resample(self._freq.to_end) \
             .agg('last')
 
@@ -141,6 +154,7 @@ class CAPM(object):
         # Calculate the risk premium using both arithmetic and geometric average
         # and taking the average of the two
         annualization = {
+            Cal.Frequency.B: Cn.BDAYS_IN_1Y,
             Cal.Frequency.D: Cn.BDAYS_IN_1Y,
             Cal.Frequency.M: Cn.MONTHS_IN_1Y,
             Cal.Frequency.Y: 1,

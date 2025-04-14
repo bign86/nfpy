@@ -35,13 +35,22 @@ class FinancialItem(object):
     def base_table(self) -> str:
         return self._BASE_TABLE
 
-    def _get_dati_for_query(self, table: str, rolling: tuple = ()) -> tuple:
+    def _get_dati_for_query(
+        self,
+        table: str,
+        rolling: tuple = (),
+        dtype: int | None = None,
+    ) -> tuple:
         """ Return a tuple with the data necessary for querying the database
             EXCLUDING the rolling keys
         """
         keys = [k for k in self._qb.get_keys(table) if k not in rolling]
-        # the self.dtype is needed for the getattr
-        data = tuple(getattr(self, k) for k in keys)
+        if 'dtype' in keys:
+            keys.remove('dtype')
+            keys.append('dtype')
+        data = tuple(getattr(self, k) for k in keys if k != 'dtype')
+        if dtype is not None:
+            data += (dtype,)
         return data
 
     def _fill_anag(self, res: Sequence[Any], table: str,
@@ -62,7 +71,6 @@ class FinancialItem(object):
             The method does not override primary keys for safetyness
         """
         if cols is None:
-            # cols = [c for c in self._qb.get_fields(table)]
             cols = self._qb.get_fields(table)
 
         keys = [k for k in self._qb.get_keys(table)]

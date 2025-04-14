@@ -13,7 +13,7 @@ from typing import (Callable, Optional, TypeVar)
 import nfpy.Calendar as Cal
 import nfpy.IO.Utilities as Ut
 import nfpy.Math as Math
-from nfpy.Tools import Exceptions as Ex
+from nfpy.Session import get_session
 
 from .FinancialItem import FinancialItem
 
@@ -28,15 +28,11 @@ class Asset(FinancialItem):
     def __init__(self, uid: str):
         super().__init__(uid)
         self._currency = None
-        self.dtype = -1
+        self._s = get_session()
+        self._freq = 'D'
 
-        # takes the current calendar. It must have been initialized before!
-        c = Cal.get_calendar_glob()
-        if c:
-            self._df = pd.DataFrame(index=c.calendar)
-        else:
-            raise Ex.CalendarError("Calendar not initialized as required!!!")
-        self._cal = c
+        self._df = pd.DataFrame(index=self._s.calendar.calendar) \
+            if self._s else pd.DataFrame()
 
     @property
     def ts_table(self) -> str:
@@ -54,13 +50,19 @@ class Asset(FinancialItem):
     def currency(self, v: str):
         self._currency = v
 
-    @property
-    def prices(self) -> pd.Series:
+    def prices(
+        self,
+        start: Cal.TyDate | None = None,
+        end: Cal.TyDate | None = None
+    ) -> pd.Series:
         """ Loads the default price series for the asset. """
-        return self.series(self._DEF_PRICE_DTYPE)
+        return self.series(self._DEF_PRICE_DTYPE, start, end)
 
-    @property
-    def returns(self) -> pd.Series:
+    def returns(
+        self,
+        start: Cal.TyDate | None = None,
+        end: Cal.TyDate | None = None
+    ) -> pd.Series:
         """ Returns the default returns :) series for the asset.
             This function does not use Asset._calc_returns() to avoid going
             through the Asset.series() call.
@@ -68,13 +70,18 @@ class Asset(FinancialItem):
         code = self._dt.get(
             self._DEF_PRICE_DTYPE.replace('Price', 'Return')
         )
-        if code not in self._df.columns:
-            self._calc_returns(self._DEF_PRICE_DTYPE)
+        if self._s and (code in self._df.columns):
+            sr = self._df[code]
+        else:
+            sr = self._calc_returns(self._DEF_PRICE_DTYPE, start, end)
 
-        return self._df[code]
+        return sr
 
-    @property
-    def log_returns(self) -> pd.Series:
+    def log_returns(
+        self,
+        start: Cal.TyDate | None = None,
+        end: Cal.TyDate | None = None
+    ) -> pd.Series:
         """ Returns the default log returns :) series for the asset.
             This function does not use Asset._calc_log_returns() to avoid going
             through the Asset.series() call.
@@ -82,97 +89,127 @@ class Asset(FinancialItem):
         code = self._dt.get(
             self._DEF_PRICE_DTYPE.replace('Price', 'LogReturn')
         )
-        if code not in self._df.columns:
-            self._calc_log_returns(self._DEF_PRICE_DTYPE)
+        if self._s and (code in self._df.columns):
+            sr = self._df[code]
+        else:
+            sr = self._calc_log_returns(self._DEF_PRICE_DTYPE, start, end)
 
-        return self._df[code]
+        return sr
 
     @abc.abstractmethod
-    def series_callback(self, dtype: str) -> tuple[Callable, tuple]:
+    def _series_callback(
+        self,
+        dtype: str,
+        start: Cal.TyDate | None = None,
+        end: Cal.TyDate | None = None
+    ) -> tuple[Callable, tuple]:
         """ Return the callback for converting series. The callback must return
             a bool indicating success/failure.
         """
 
-    def series(self, dtype: str) -> pd.Series:
+    def series(
+        self,
+        dtype: str,
+        start: Cal.TyDate | None = None,
+        end: Cal.TyDate | None = None
+    ) -> pd.Series:
         """ Return the requested series. If data are not found an empty series
             is returned unless the callback throws an exception.
 
             Input:
                 dtype [str]: datatype to load
+                start [TyDate]: start date of the series (default: None)
+                end [TyDate]: end date of the series (default: None)
 
             Output:
                 res [pd.Series]: fetched series
         """
         code = self._dt.get(dtype)
-        if code not in self._df.columns:
-            call, args = self.series_callback(dtype)
-            if not call(*args):
-                return pd.Series(dtype=float)
-        return self._df[code]
+
+        if self._s and (code in self._df.columns):
+            sr = self._df[code]
+        else:
+            call, args = self._series_callback(dtype, start, end)
+            sr = call(*args)
+
+        return sr
 
     @property
     def data(self) -> pd.DataFrame:
         """ Returns the full DataFrame for the asset. """
         return self._df
 
-    def last_price(self, dt: Optional[Cal.TyDate] = None) \
-            -> tuple[float, np.datetime64, int]:
-        """ Returns the last valid daily close price at date. The default type
-            of close price is used.
+    def last_price(
+        self,
+        start: Optional[Cal.TyDate] = None,
+        end: Optional[Cal.TyDate] = None,
+    ) -> tuple[float, Cal.TyDate, int]:
+        """ Returns the last valid daily close price. The default type of close
+            price is used. Start and end date are mandatory if no session is
+            available. If available, the t0 is used to determine the date at
+            which to do the evaluation.
 
             Input:
-                dt [TyDate]: reference date (default: None)
+                start [TyDate]: start date (default: None)
+                end [TyDate]: end date (default: None)
 
             Output:
                 v [float]: last valid price
-                date [np.datetime64]: date of the last valid price
-                idx [int]: index of the last valid price
+                date [TyDate]: date of the last valid price
         """
-        prices = self.prices
-        ts = prices.to_numpy()[:self._cal.xt0+1]
-        date = prices.index.to_numpy()[:self._cal.xt0+1]
+        prices = self.prices(start, end)
+        ts = prices.to_numpy()
+        date = prices.index.to_numpy()
 
-        pos = None
-        if dt:
-            dt = Cal.pd2np(dt)
-            pos = np.searchsorted(date, [dt])
+        if self._s:
+            ts = ts[:self._s.calendar.xt0+1]
+            date = date[:self._s.calendar.xt0+1]
 
-        pos = ts.shape[0] - 1 if pos is None else int(pos)
+        pos = ts.shape[0] - 1
         idx = cutils.last_valid_index(ts, 0, 0, pos)
-
         return ts[idx], date[idx], idx
 
-    def load_dtype(self, dtype: str) -> tuple[bool, pd.DataFrame]:
+    def _load_dtype(
+        self,
+        dtype: int,
+        start: Cal.TyDate | None = None,
+        end: Cal.TyDate | None = None
+    ) -> pd.Series:
         """ Fetch from the DB a time series. The content of the column 'datatype'
             of the table containing the time series is given in input.
 
             Input:
                 dt [str]: datatype to be loaded
+                start [TyDate]: start date of the series. Ignored if a
+                    session is active (default: None)
+                end [TyDate]: end date of the series. Ignored if a
+                    session is active (default: None)
 
             Output:
-                success [bool]: success/failure
-                df [pd.DataFrame]: fetched data
+                df [pd.Series]: fetched data
 
             Exceptions:
                 KeyError: if datatype is not recognized in the decoding table
         """
-        # this is needed inside the self._get_dati_for_query()
-        dtype_code = self._dt.get(dtype)
-        self.dtype = dtype_code
-
         # Take results and append to the unique dataframe indexed on the calendar
+        if self._s:
+            start = self._s.calendar.start.to_pydatetime()
+            end = self._s.calendar.end.to_pydatetime()
+
         data = [
             *self._get_dati_for_query(
                 self.ts_table,
-                rolling=self.ts_roll_key_list
+                rolling=self.ts_roll_key_list,
+                dtype=dtype
             ),
-            self._df.index[0].to_pydatetime() - timedelta(days=1),
-            self._df.index[-1].to_pydatetime()
+            start - timedelta(days=1),
+            end
+            # self._df.index[0].to_pydatetime() - timedelta(days=1),
+            # self._df.index[-1].to_pydatetime()
         ]
-        self.dtype = -1
 
         try:
-            df = pd.read_sql_query(
+            sr = pd.read_sql_query(
                 self._qb.select(
                     self.ts_table,
                     fields=('date', 'value'),
@@ -182,46 +219,93 @@ class Asset(FinancialItem):
                 index_col=['date'],
                 params=data,
                 parse_dates=['date']
-            )
+            ).value
         except KeyError as ex:
             Ut.print_exc(ex)
             raise ex
 
-        if df.empty:
-            return False, df
-        else:
-            df.rename(columns={"value": dtype_code}, inplace=True)
-            return True, df
+        # sr.rename(columns={"value": dtype_code}, inplace=True)
+        sr.name = dtype
+        return sr
 
-    def load_dtype_in_df(self, dtype: str) -> bool:
+    def load_dtype_in_df(
+        self,
+        dtype: str,
+        start: Cal.TyDate | None = None,
+        end: Cal.TyDate | None = None
+    ) -> pd.Series:
         """ Load the datatype and merge into the dataframe. """
-        success, df = self.load_dtype(dtype)
-        if success:
-            self._df = self._df.merge(
-                df, how='left',
-                left_index=True,
-                right_index=True
-            )
-            self._df.sort_index(inplace=True)
-        return success
+        dtype_code = self._dt.get(dtype)
+        sr = self._load_dtype(dtype_code, start, end)
 
-    def _calc_returns(self, dtype: str) -> None:
+        if not sr.empty:
+            if self._s:
+                self._df = self._df.merge(
+                    sr, how='left',
+                    left_index=True,
+                    right_index=True
+                )
+                self._df.sort_index(inplace=True)
+                sr = self._df[sr.name]
+            else:
+                start = start if start else sr.index[0].to_pydatetime()
+                end = end if end else sr.index[-1].to_pydatetime()
+                sr = sr.reindex(
+                    Cal.create_calendar(
+                        Cal.Frequency(self._freq),
+                        end=end, start=start
+                    )
+                )
+        return sr
+
+    def _calc_returns(
+        self,
+        dtype: str,
+        start: Cal.TyDate | None = None,
+        end: Cal.TyDate | None = None
+    ) -> pd.Series:
         """ Calculates the returns from the series of the prices. """
         code = self._dt.get(dtype.replace('Price', 'Return'))
-        self._df[code] = cutils.ret_nans(
-            self.series(dtype).to_numpy(),
+        prices = self.series(dtype, start, end)
+
+        ret_vec = cutils.ret_nans(
+            prices.to_numpy(),
             False
         )
 
-    def _calc_log_returns(self, dtype: str) -> None:
+        if self._s:
+            self._df[code] = ret_vec
+            sr_ret = self._df[code]
+        else:
+            sr_ret = pd.Series(ret_vec, index=prices.index, name=code)
+
+        return sr_ret
+
+    def _calc_log_returns(
+        self,
+        dtype: str,
+        start: Cal.TyDate | None = None,
+        end: Cal.TyDate | None = None
+    ) -> pd.Series:
         """ Calculates the log returns from the series of the prices. """
         code = self._dt.get(dtype.replace('Price', 'LogReturn'))
-        self._df[code] = cutils.ret_nans(
-            self.series(dtype).to_numpy(),
+        prices = self.series(dtype, start, end)
+
+        ret_vec = cutils.ret_nans(
+            prices.to_numpy(),
             True
         )
 
+        if self._s:
+            self._df[code] = ret_vec
+            sr_ret = self._df[code]
+        else:
+            sr_ret = pd.Series(ret_vec, index=prices.index, name=code)
+
+        return sr_ret
+
     # TODO: This has NOT been TESTED!!!
+    # FIXME: it does NOT WORK without session
     def write_dtype(self, dt: str) -> None:
         """ Writes a time series to the DB. The content of the column 'datatype'
             of the table containing the time series is given in input.
@@ -249,9 +333,12 @@ class Asset(FinancialItem):
             map(tuple, data)
         )
 
-    def expct_return(self, start: Optional[Cal.TyDate] = None,
-                     end: Optional[Cal.TyDate] = None,
-                     is_log: bool = False) -> float:
+    def expct_return(
+        self,
+        start: Optional[Cal.TyDate] = None,
+        end: Optional[Cal.TyDate] = None,
+        is_log: bool = False
+    ) -> float:
         """ Expected return for the asset. It corresponds to the geometric mean
             for standard returns, and to the simple mean for log returns.
 
@@ -263,18 +350,31 @@ class Asset(FinancialItem):
             Output:
                 mean_ret [float]: expected value for returns
         """
-        _ret = self.log_returns if is_log else self.returns
+        start = Cal.any2np(start) if start else None
+        end = Cal.any2np(end) if end else None
 
-        # end = self._cal.t0 if end is None else end
-        slc = Math.search_trim_pos(_ret.index.to_numpy(), start=Cal.pd2np(start))
-        if end is None:
-            slc = slice(slc.start, self._cal.xt0, slc.step)
+        if self._s:
+            ret_vec = self.log_returns() if is_log else self.returns()
 
-        return float(np.nanmean(_ret.to_numpy()[slc]))
+            slc = Math.search_trim_pos(ret_vec.index.to_numpy(), start=start)
+            slc = slice(slc.start, self._s.calendar.xt0, slc.step) \
+                if end is None else slc
 
-    def return_volatility(self, start: Optional[Cal.TyDate] = None,
-                          end: Optional[Cal.TyDate] = None,
-                          is_log: bool = False) -> float:
+            ret_vec = ret_vec.to_numpy()[slc]
+
+        else:
+            ret_vec = self.log_returns(start, end) \
+                if is_log else self.returns(start, end)
+            ret_vec = ret_vec.to_numpy()
+
+        return float(np.nanmean(ret_vec))
+
+    def return_volatility(
+        self,
+        start: Optional[Cal.TyDate] = None,
+        end: Optional[Cal.TyDate] = None,
+        is_log: bool = False
+    ) -> float:
         """ Volatility of asset returns.
 
             Input:
@@ -285,18 +385,31 @@ class Asset(FinancialItem):
             Output:
                 vola_ret [float]: expected value for returns
         """
-        _ret = self.log_returns if is_log else self.returns
+        start = Cal.any2np(start) if start else None
+        end = Cal.any2np(end) if end else None
 
-        # end = self._cal.t0 if end is None else end
-        slc = Math.search_trim_pos(_ret.index.to_numpy(), start=Cal.pd2np(start))
-        if end is None:
-            slc = slice(slc.start, self._cal.xt0, slc.step)
+        if self._s:
+            ret_vec = self.log_returns() if is_log else self.returns()
 
-        return float(np.nanstd(_ret.to_numpy()[slc]))
+            slc = Math.search_trim_pos(ret_vec.index.to_numpy(), start=start)
+            slc = slice(slc.start, self._s.calendar.xt0, slc.step) \
+                if end is None else slc
 
-    def total_return(self, start: Optional[Cal.TyDate] = None,
-                     end: Optional[Cal.TyDate] = None,
-                     is_log: bool = False) -> float:
+            ret_vec = ret_vec.to_numpy()[slc]
+
+        else:
+            ret_vec = self.log_returns(start, end) \
+                if is_log else self.returns(start, end)
+            ret_vec = ret_vec.to_numpy()
+
+        return float(np.nanstd(ret_vec))
+
+    def total_return(
+        self,
+        start: Optional[Cal.TyDate] = None,
+        end: Optional[Cal.TyDate] = None,
+        is_log: bool = False
+    ) -> float:
         """ Total return over the period for the asset.
 
             Input:
@@ -307,21 +420,31 @@ class Asset(FinancialItem):
             Output:
                 tot_ret [float]: expected value for returns
         """
-        _p = self.prices
+        start = Cal.any2np(start) if start else None
+        end = Cal.any2np(end) if end else None
 
-        # end = self._cal.t0 if end is None else end
-        slc = Math.search_trim_pos(_p.index.to_numpy(), start=Cal.pd2np(start))
-        if end is None:
-            slc = slice(slc.start, self._cal.xt0, slc.step)
+        if self._s:
+            _p = self.prices()
 
-        return Math.tot_ret(
-            _p.to_numpy()[slc],
-            is_log=is_log
-        )
+            slc = Math.search_trim_pos(_p.index.to_numpy(), start=start)
+            slc = slice(slc.start, self._s.calendar.xt0, slc.step) \
+                if end is None else slc
 
-    def performance(self, start: Optional[Cal.TyDate] = None,
-                    end: Optional[Cal.TyDate] = None,
-                    is_log: bool = False, base: float = 1.) -> pd.Series:
+            p_vec = _p.to_numpy()[slc]
+
+        else:
+            _p = self.prices(start, end)
+            p_vec = _p.to_numpy()
+
+        return Math.tot_ret(p_vec, is_log=is_log)
+
+    def performance(
+        self,
+        start: Optional[Cal.TyDate] = None,
+        end: Optional[Cal.TyDate] = None,
+        is_log: bool = False,
+        base: float = 1.
+    ) -> pd.Series:
         """ Compounded returns of the asset from a base value.
 
             Input:
@@ -333,28 +456,37 @@ class Asset(FinancialItem):
             Output:
                 perf [pd.Series]: Compounded returns series
         """
-        r = self.returns
-        dt = r.index.to_numpy()
+        start = Cal.any2np(start) if start else None
+        end = Cal.any2np(end) if end else None
 
-        # end = self._cal.t0 if end is None else end
-        slc = Math.search_trim_pos(dt, start=Cal.pd2np(start))
-        if end is None:
-            slc = slice(slc.start, self._cal.xt0, slc.step)
+        if self._s:
+            r = self.returns()
+            dt = r.index.to_numpy()
 
-        p = Math.comp_ret(
-            r.to_numpy()[slc],
-            is_log=is_log
-        )
-        return pd.Series(p * base, index=dt[slc])
+            slc = Math.search_trim_pos(dt, start=start)
+            slc = slice(slc.start, self._s.calendar.xt0, slc.step) \
+                if end is None else slc
+
+            r = r.to_numpy()[slc]
+            dt = dt[slc]
+
+        else:
+            r = self.log_returns(start, end)
+
+            dt = r.index.to_numpy()
+            r = r.to_numpy()
+
+        p = Math.comp_ret(r, is_log=is_log)
+        return pd.Series(p * base, index=dt)
 
     def mapped_dtypes(self) -> list:
         # Fetch existing dtypes for the asset
         q = f"""
-            SELECT DISTINCT dt.[datatype]
-            FROM [{self._TS_TABLE}] AS ts
-            JOIN [DecDatatype] AS dt
+        SELECT DISTINCT dt.[datatype]
+        FROM [{self._TS_TABLE}] AS ts
+        JOIN [DecDatatype] AS dt
             ON dt.[encoding] = ts.[dtype]
-            WHERE ts.[uid] = ?;
+        WHERE ts.[uid] = ?;
         """
         return [
             v[0]

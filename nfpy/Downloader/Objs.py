@@ -12,3 +12,6 @@ NTDownload = namedtuple(
 )
 
 NTImport = namedtuple('NTImport', 'uid, ticker, provider, item, active')
+
+# Limits for the downloaders: max number of downloads and wait time
+Limits = namedtuple('Limits', ['max_num', 'wait_time'])
