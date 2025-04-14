@@ -7,15 +7,15 @@ import os
 
 from nfpy import NFPY_ROOT_DIR
 import nfpy.DB as DB
-from nfpy.Tools import Utilities as Ut
+import nfpy.IO.Utilities as Ut
 
-__version__ = '0.2'
+__version__ = '0.3'
 _TITLE_ = "<<< Database schema dump creation script >>>"
 
 
 def get_db_data() -> str:
     db = DB.get_db_glob()
-    q = 'select sql from sqlite_schema where name not in ("sqlite_stat1");'
+    q = 'SELECT sql FROM sqlite_schema WHERE name NOT LIKE "sqlite_stat%";'
     schema = db.execute(q).fetchall()
 
     result = []
@@ -31,7 +31,7 @@ if __name__ == '__main__':
     Ut.print_header(_TITLE_, end='\n\n')
 
     outf = open(
-        os.path.join(NFPY_ROOT_DIR, 'schema.sql'),
+        os.path.join(NFPY_ROOT_DIR, os.path.pardir, 'assets/schema.sql'),
         mode='w'
     )
     outf.write(get_db_data())

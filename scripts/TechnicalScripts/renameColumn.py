@@ -5,7 +5,7 @@
 
 import nfpy.DB as DB
 import nfpy.IO as IO
-from nfpy.Tools import Utilities as Ut
+import nfpy.IO.Utilities as Ut
 
 __version__ = '0.2'
 _TITLE_ = "<<< Rename a table's column script >>>"
@@ -20,14 +20,16 @@ if __name__ == '__main__':
 
     # Select table and fetch structure
     table_name = inh.input("Which table you want to alter?: ", idesc='table')
-    print(f'Current structure:\n{qb.get_structure_string(table_name)}',
-          end='\n\n')
+    print(
+        f'Current structure:\n{qb.get_structure_string(table_name)}',
+        end='\n\n'
+    )
 
     # Get column to rename and perform consistency checks
     old_fields = tuple(qb.get_fields(table_name))
     idx = inh.input(
         'Give the index of the column to rename: ',
-        idesc='index', limit=(0, len(old_fields) - 1)
+        idesc='index', limits=(0, len(old_fields) - 1)
     )
 
     new_name = inh.input(f'Rename [{old_fields[idx]}] to: ')

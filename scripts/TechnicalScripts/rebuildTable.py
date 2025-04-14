@@ -5,12 +5,13 @@
 
 import nfpy.DB as DB
 import nfpy.IO as IO
+import nfpy.IO.Utilities as Ut
 
 __version__ = '0.3'
 _TITLE_ = "<<< Rebuild a table script >>>"
 
 if __name__ == '__main__':
-    print(_TITLE_, end='\n\n')
+    Ut.print_header(_TITLE_, end='\n\n')
 
     db = DB.get_db_glob()
     qb = DB.get_qb_glob()
@@ -58,10 +59,9 @@ if __name__ == '__main__':
     else:
         # Generate the new create query
         table_struct = qb.get_table(table_name)
-        tf.add_columns(table_struct, to_add, inplace=True)
         tf.remove_columns(table_struct, to_remove, inplace=True)
+        tf.add_columns(table_struct, to_add, inplace=True)
         q_create = qb.create(table_struct)
-        # print(q_create)
 
         # Copy table
         old_table_name = table_name + '_old'
@@ -86,4 +86,4 @@ if __name__ == '__main__':
         ):
             db.execute(qb.drop(old_table_name))
 
-    print('All done!')
+    Ut.print_ok('All done!')

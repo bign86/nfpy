@@ -9,6 +9,45 @@ CREATE TABLE [Alerts] (
     PRIMARY KEY ([uid], [date], [cond], [value])
 ) WITHOUT ROWID;
 
+CREATE TABLE [AlphaVantageDividends] (
+    [ticker] TEXT NOT NULL,
+    [ex_dividend_date] DATE NOT NULL,
+    [declaration_date] DATE,
+    [record_date] DATE,
+    [payment_date] DATE,
+    [amount] REAL,
+    PRIMARY KEY ([ticker], [ex_dividend_date])
+) WITHOUT ROWID;
+
+CREATE TABLE [AlphaVantageFinancials] (
+    [ticker] TEXT NOT NULL,
+    [frequency] TEXT NOT NULL,
+    [fiscal_date_ending] DATE NOT NULL,
+    [reported_currency] TEXT,
+    [statement] TEXT NOT NULL,
+    [item] TEXT NOT NULL,
+    [value] REAL,
+    PRIMARY KEY ([ticker], [frequency], [fiscal_date_ending], [statement], [item])
+) WITHOUT ROWID;
+
+CREATE TABLE [AlphaVantagePrices] (
+    [ticker] TEXT NOT NULL,
+    [date] DATE NOT NULL,
+    [open] REAL,
+    [high] REAL,
+    [low] REAL,
+    [close] REAL,
+    [volume] INTEGER,
+    PRIMARY KEY ([ticker], [date])
+) WITHOUT ROWID;
+
+CREATE TABLE [AlphaVantageSplits] (
+    [ticker] TEXT NOT NULL,
+    [effective_date] DATE NOT NULL,
+    [split_factor] REAL,
+    PRIMARY KEY ([ticker], [effective_date])
+) WITHOUT ROWID;
+
 CREATE TABLE [Bond] (
     [uid] TEXT NOT NULL,
     [isin] TEXT,
@@ -114,11 +153,11 @@ CREATE TABLE [DerivedSeries] (
 
 CREATE TABLE [DerivedSeries] (
     [uid] TEXT NOT NULL,
-	[asset1] TEXT NOT NULL,
-	[asset2] TEXT,
+    [asset1] TEXT NOT NULL,
+    [asset2] TEXT,
     [freq] TEXT NOT NULL,
     [horizon] TEXT NOT NULL,
-	[description] TEXT,
+    [description] TEXT,
     PRIMARY KEY ([uid])
 ) WITHOUT ROWID;
 
@@ -144,20 +183,20 @@ CREATE TABLE [Downloads] (
 
 CREATE TABLE [ECBAggregates] (
     [ticker] TEXT NOT NULL,
-	[freq] TEXT NOT NULL,
-	[adjustment] TEXT NOT NULL,
-	[ref_area] TEXT NOT NULL,
-	[counterpart_area] TEXT NOT NULL,
-	[ref_sector] TEXT NOT NULL,
-	[counterpart_sector] TEXT NOT NULL,
-	[accounting_entry] TEXT NOT NULL,
-	[sto] TEXT NOT NULL,
-	[instr_asset] TEXT NOT NULL,
-	[activity] TEXT NOT NULL,
-	[expenditure] TEXT NOT NULL,
-	[unit_measure] TEXT NOT NULL,
-	[prices] TEXT NOT NULL,
-	[transformation] TEXT NOT NULL,
+    [freq] TEXT NOT NULL,
+    [adjustment] TEXT NOT NULL,
+    [ref_area] TEXT NOT NULL,
+    [counterpart_area] TEXT NOT NULL,
+    [ref_sector] TEXT NOT NULL,
+    [counterpart_sector] TEXT NOT NULL,
+    [accounting_entry] TEXT NOT NULL,
+    [sto] TEXT NOT NULL,
+    [instr_asset] TEXT NOT NULL,
+    [activity] TEXT NOT NULL,
+    [expenditure] TEXT NOT NULL,
+    [unit_measure] TEXT NOT NULL,
+    [prices] TEXT NOT NULL,
+    [transformation] TEXT NOT NULL,
     [time_period] DATE NOT NULL,
     [obs_value] REAL,
     PRIMARY KEY ([ticker], [time_period])
@@ -165,11 +204,11 @@ CREATE TABLE [ECBAggregates] (
 
 CREATE TABLE [ECBExr] (
     [ticker] TEXT NOT NULL,
-	[freq] TEXT NOT NULL,
-	[currency] TEXT NOT NULL,
-	[currency_denom] TEXT NOT NULL,
-	[exr_type] TEXT NOT NULL,
-	[exr_suffix] TEXT NOT NULL,
+    [freq] TEXT NOT NULL,
+    [currency] TEXT NOT NULL,
+    [currency_denom] TEXT NOT NULL,
+    [exr_type] TEXT NOT NULL,
+    [exr_suffix] TEXT NOT NULL,
     [time_period] DATE NOT NULL,
     [obs_value] REAL,
     PRIMARY KEY ([ticker], [time_period])
@@ -177,9 +216,9 @@ CREATE TABLE [ECBExr] (
 
 CREATE TABLE [ECBRates] (
     [ticker] TEXT NOT NULL,
-	[freq] TEXT NOT NULL,
-	[benchmark_item] TEXT NOT NULL,
-	[data_type_est] TEXT NOT NULL,
+    [freq] TEXT NOT NULL,
+    [benchmark_item] TEXT NOT NULL,
+    [data_type_est] TEXT NOT NULL,
     [time_period] DATE NOT NULL,
     [obs_value] REAL,
     PRIMARY KEY ([ticker], [time_period])
@@ -187,13 +226,13 @@ CREATE TABLE [ECBRates] (
 
 CREATE TABLE [ECBYields] (
     [ticker] TEXT NOT NULL,
-	[freq] TEXT NOT NULL,
-	[ref_area] TEXT NOT NULL,
-	[currency] TEXT NOT NULL,
-	[provider_fm] TEXT NOT NULL,
-	[instrument_fm] TEXT NOT NULL,
-	[provider_fm_id] TEXT NOT NULL,
-	[data_type_fm] TEXT NOT NULL,
+    [freq] TEXT NOT NULL,
+    [ref_area] TEXT NOT NULL,
+    [currency] TEXT NOT NULL,
+    [provider_fm] TEXT NOT NULL,
+    [instrument_fm] TEXT NOT NULL,
+    [provider_fm_id] TEXT NOT NULL,
+    [data_type_fm] TEXT NOT NULL,
     [time_period] DATE NOT NULL,
     [obs_value] REAL,
     PRIMARY KEY ([ticker], [time_period])
@@ -245,11 +284,11 @@ CREATE TABLE [EtfTS] (
 
 CREATE TABLE [FREDSeries] (
     [ticker] TEXT NOT NULL,
-    [realtime_start] DATE NOT NULL,
-    [realtime_end] DATE NOT NULL,
+    [realtime_start] DATE,
+    [realtime_end] DATE,
     [date] DATE NOT NULL,
     [value] REAL,
-    PRIMARY KEY ([ticker], [realtime_start], [realtime_end], [date])
+    PRIMARY KEY ([ticker], [date])
 ) WITHOUT ROWID;
 
 CREATE TABLE [Fx] (
@@ -300,7 +339,7 @@ CREATE TABLE [Index] (
     [description] TEXT,
     [is_inflation] BOOL NOT NULL DEFAULT False,
     [is_gdp] BOOL NOT NULL DEFAULT False,
-	[adjustment] TEXT,
+    [adjustment] TEXT,
     PRIMARY KEY ([uid])
 ) WITHOUT ROWID;
 
@@ -362,7 +401,7 @@ CREATE TABLE [MapFinancials] (
 
 CREATE TABLE [NasdaqDividends] (
     [ticker] TEXT NOT NULL,
-	[type] TEXT NOT NULL,
+    [type] TEXT NOT NULL,
     [date] DATE NOT NULL,
     [amount] REAL,
     [declaration_date] DATE,

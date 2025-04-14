@@ -3,23 +3,25 @@
 # Creates a new database from scratch
 #
 
+from nfpy.IO import Utilities as Ut
+from nfpy.Tools.Configuration import create_new
 
-from .createNewConfiguration import create_configuration
-from .createNewDatabase import new_database
+from createNewDatabase import new_database
 
-__version__ = '0.2'
+__version__ = '0.3'
 _TITLE_ = "<<< New installation script >>>"
 
 
 def install():
     print('--- Create new configuration ---')
-    create_configuration()
+    create_new()
     print('--- Create new database ---')
     new_database()
 
 
 if __name__ == '__main__':
-    print(_TITLE_, end='\n\n')
+    Ut.print_header(_TITLE_, end='\n\n')
+
     install()
 
-    print('All done!')
+    Ut.print_ok('All done!')

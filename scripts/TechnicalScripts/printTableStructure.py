@@ -4,7 +4,7 @@
 
 import nfpy.DB as DB
 import nfpy.IO as IO
-from nfpy.Tools import Utilities as Ut
+import nfpy.IO.Utilities as Ut
 
 __version__ = '0.3'
 _TITLE_ = "<<< Print table structure script >>>"

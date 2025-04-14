@@ -7,10 +7,12 @@
 from tabulate import tabulate
 
 from nfpy.Assets import get_af_glob
-from nfpy.Calendar import (get_calendar_glob, today)
+from nfpy.Calendar import today
 import nfpy.DB as DB
 import nfpy.IO as IO
-from nfpy.Tools import (Exceptions as Ex, Utilities as Ut)
+import nfpy.IO.Utilities as Ut
+from nfpy.Session import get_session
+from nfpy.Tools import Exceptions as Ex
 
 __version__ = '0.9'
 _TITLE_ = "<<< Equity benchmark calculation script >>>"
@@ -111,7 +113,7 @@ if __name__ == '__main__':
                            idesc='timestamp', optional=False)
     end_date = inh.input("Give ending date for time series (default <today>): ",
                          default=today(), idesc='timestamp', optional=True)
-    get_calendar_glob().initialize(end_date, start_date)
+    get_session().initialize(end_date, start_date)
 
     while search_equity():
         pass

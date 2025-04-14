@@ -8,7 +8,6 @@
 import os
 import pandas as pd
 
-import nfpy.Calendar as Cal
 import nfpy.DB as DB
 import nfpy.IO as IO
 import nfpy.IO.Utilities as Ut
@@ -29,8 +28,6 @@ if __name__ == '__main__':
     db = DB.get_db_glob()
     qb = DB.get_qb_glob()
     inh = IO.InputHandler()
-    cal = Cal.get_calendar_glob()
-    cal.initialize(Cal.today(), Cal.last_business())
 
     file_path = inh.input('Insert dividends file path: ')
     if not os.path.isfile(file_path):

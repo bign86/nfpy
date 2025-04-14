@@ -274,12 +274,12 @@ class ReportEquityFull(BaseReport):
         t0 = self._cal.t0
 
         # Prices: full history plot
-        prices = asset.prices
+        prices = asset.prices()
         v_p = prices.values
         dt_p = prices.index.values
 
         # Returns
-        v_r = asset.returns.values
+        v_r = asset.returns().values
 
         # Last price
         last_price, idx = Math.last_valid_value(v_p, dt_p, t0.asm8)
@@ -385,7 +385,7 @@ class ReportEquityFull(BaseReport):
         )
         res.img_ma_plot = fig_rel[0]
 
-        prices = asset.prices
+        prices = asset.prices()
         v_p = prices.values
         dt_p = prices.index.values
         last_price, _ = Math.last_valid_value(v_p, dt_p, self._cal.t0.asm8)

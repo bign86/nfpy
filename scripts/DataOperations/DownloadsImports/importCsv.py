@@ -8,10 +8,10 @@ import csv
 import os
 from operator import itemgetter
 
-from nfpy.Tools import get_conf_glob
 import nfpy.DB as DB
 import nfpy.IO as IO
-from nfpy.Tools import Utilities as Ut
+import nfpy.IO.Utilities as Ut
+from nfpy.Tools import get_conf_glob
 
 __version__ = '0.4'
 _TITLE_ = "<<< Import Csv script >>>"
@@ -26,15 +26,16 @@ if __name__ == '__main__':
     inh = IO.InputHandler()
 
     # get and validate inputs
-    msg = "Give a full path to the csv to upload. Make sure there is exactly one header row\n"
+    msg = "Give a full path to the csv to upload. Make sure the csv contains exactly a one-row header\n"
     file_path = inh.input(msg, idesc='str')
-    if not os.path.isfile(file_path):
-        raise ValueError('Supplied file does not exist! Please give a valid one.')
+    while not os.path.isfile(file_path):
+        msg = "Supplied file does not exist! Please give a valid one.\n"
+        file_path = inh.input(msg, idesc='str')
 
-    table = inh.input("Give me a table to update: ", idesc='str')
+    table = inh.input("Give a table to update: ", idesc='str')
     t_exists = qb.exists_table(table)
-    if not t_exists:
-        raise ValueError('Supplied table name does not exist! Please give a valid one.')
+    while not t_exists:
+        table = inh.input("Supplied table name does not exist! Please give a valid one: ", idesc='str')
 
     # read data
     with open(file_path, 'r') as f:

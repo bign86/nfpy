@@ -109,7 +109,7 @@ class ReportDDM(BaseReport):
         res.last_price_date = str(last_price_dt)[:10]
 
         # Prices: full history plot
-        prices = asset.prices
+        prices = asset.prices()
         ath_idx = np.argmax(prices)
         atl_idx = np.argmin(prices)
         ath_ret = prices[ath_idx] / last_price - 1.

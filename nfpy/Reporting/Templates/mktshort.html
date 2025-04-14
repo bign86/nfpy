@@ -100,8 +100,8 @@
                 <!-- Dividends -->
                 {%- if val.is_dividend_payer -%}
                   <div class="sub-section-header">Dividends</div>
-                  {%- if not val.ddm_applicable -%}
-                    <div class="warning-msg">{{ val.ddm_msg }}</div>
+                  {%- if val.is_dividend_suspended -%}
+                    <div class="warning-msg">Dividend looks suspended!</div>
                   {%- endif -%}
 
                   <table class="simple">
@@ -124,7 +124,7 @@
                   </table>
 
                 {%- else -%}
-                  <div class="warning-msg">{{ val.ddm_msg }}</div>
+                  <div class="warning-msg">Not a dividend payer!</div>
                 {%- endif -%}
 
                 <!-- Alerts -->

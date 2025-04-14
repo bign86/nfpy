@@ -9,8 +9,8 @@ from typing import Optional
 
 import nfpy.DB as DB
 import nfpy.IO as IO
+import nfpy.IO.Utilities as Ut
 from nfpy.Reporting import ReportingEngine
-from nfpy.Tools import Utilities as Ut
 
 __version__ = '0.5'
 _TITLE_ = "<<< Report generation script >>>"

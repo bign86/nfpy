@@ -7,10 +7,11 @@ import numpy as np
 from tabulate import tabulate
 
 from nfpy.Assets import get_af_glob
-from nfpy.Calendar import (get_calendar_glob, today)
+from nfpy.Calendar import today
 import nfpy.DB as DB
 import nfpy.IO as IO
-from nfpy.Tools import Utilities as Ut
+import nfpy.IO.Utilities as Ut
+from nfpy.Session import get_session
 
 __version__ = '0.8'
 _TITLE_ = "<<< Beta calculation script >>>"
@@ -28,12 +29,11 @@ if __name__ == '__main__':
 
     end_date = inh.input("Give ending date for time series (default <today>): ",
                          default=today(), idesc='timestamp')
-    get_calendar_glob().initialize(end_date, start_date)
-
-    f = list(qb.get_fields('Assets'))
+    get_session().initialize(end_date, start_date)
 
     # Get equity
-    eq_uid = inh.input("Give an equity uid (press Enter for a list): ",
+    f = list(qb.get_fields('Assets'))
+    eq_uid = inh.input("Give an equity UID (press Enter for a list): ",
                        idesc='uid', optional=True)
     if not eq_uid:
         q = "select * from Assets where type = 'Equity'"
@@ -56,10 +56,11 @@ if __name__ == '__main__':
             q = "select * from Assets where type = 'Indices'"
             res = db.execute(q).fetchall()
 
-            print(f'\n\nAvailable indices:\n'
-                  f'{tabulate(res, headers=f, showindex=True)}'
-                  f'Default index: {eq.index}',
-                  end='\n\n')
+            print(
+                f'\n\nAvailable indices:\n{tabulate(res, headers=f, showindex=True)}'
+                f'Default index: {eq.index}',
+                end='\n\n'
+            )
             idx = inh.input("Give one index's index :): ",
                             idesc='index', limits=(0, len(res) - 1))
             bmk_uid = res[idx][0]

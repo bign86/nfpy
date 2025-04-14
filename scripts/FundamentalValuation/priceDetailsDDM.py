@@ -10,10 +10,11 @@ import pandas as pd
 from typing import Optional
 
 from nfpy.Assets import get_af_glob
-from nfpy.Calendar import (get_calendar_glob, today)
+from nfpy.Calendar import today
 from nfpy.Financial import DDM
 import nfpy.IO as IO
-from nfpy.Tools import Utilities as Ut
+import nfpy.IO.Utilities as Ut
+from nfpy.Session import get_session
 
 np.set_printoptions(precision=3, suppress=True)
 
@@ -266,7 +267,7 @@ if __name__ == '__main__':
     end_date = today(mode='datetime')
     curr_year = end_date.year
     start_date = pd.Timestamp(curr_year - history, 1, 1)
-    get_calendar_glob().initialize(
+    get_session().initialize(
         end_date, start_date,
         yearly_periods=yearly_periods,
         monthly_periods=monthly_periods

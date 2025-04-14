@@ -8,7 +8,8 @@ from shutil import make_archive, rmtree
 from datetime import timedelta, datetime
 
 from nfpy.Calendar import today
-from nfpy.Tools import (get_conf_glob, Utilities as Ut)
+import nfpy.IO.Utilities as Ut
+from nfpy.Tools import get_conf_glob
 
 __version__ = '0.3'
 _TITLE_ = "<<< Report archiving script >>>"

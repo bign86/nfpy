@@ -12,10 +12,10 @@ from tabulate import tabulate
 from typing import Iterable
 
 import nfpy.Calendar as Cal
-from nfpy.Tools import get_conf_glob
 import nfpy.DB as DB
 import nfpy.IO as IO
-from nfpy.Tools import Utilities as Ut
+import nfpy.IO.Utilities as Ut
+from nfpy.Tools import get_conf_glob
 
 __version__ = '0.2'
 _TITLE_ = "<<< Dump report configuration script >>>"

@@ -10,7 +10,7 @@ from typing import Iterable
 
 import nfpy.DB as DB
 import nfpy.IO as IO
-from nfpy.Tools import Utilities as Ut
+import nfpy.IO.Utilities as Ut
 
 _TABLE = 'Reports'
 

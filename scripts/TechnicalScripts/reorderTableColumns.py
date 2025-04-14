@@ -5,7 +5,7 @@
 
 import nfpy.DB as DB
 import nfpy.IO as IO
-from nfpy.Tools import Utilities as Ut
+import nfpy.IO.Utilities as Ut
 
 __version__ = '0.2'
 _TITLE_ = "<<< Reorder the table's columns script >>>"

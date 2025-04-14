@@ -6,10 +6,11 @@
 from tabulate import tabulate
 
 from nfpy.Assets import get_af_glob
-from nfpy.Calendar import (get_calendar_glob, today)
+from nfpy.Calendar import today
 import nfpy.DB as DB
 import nfpy.IO as IO
-from nfpy.Tools import Utilities as Ut
+import nfpy.IO.Utilities as Ut
+from nfpy.Session import get_session
 
 __version__ = '0.5'
 _TITLE_ = "<<< Rolling Beta calculation script >>>"
@@ -17,17 +18,18 @@ _TITLE_ = "<<< Rolling Beta calculation script >>>"
 if __name__ == '__main__':
     Ut.print_header(_TITLE_, end='\n\n')
 
-    cal = get_calendar_glob()
     af = get_af_glob()
     qb = DB.get_qb_glob()
     db = DB.get_db_glob()
     inh = IO.InputHandler()
+    s = get_session()
 
     start_date = inh.input("Give starting date for time series: ",
                            idesc='datetime', optional=False)
     end_date = inh.input("Give ending date for time series (default <today>): ",
                          default=today(), idesc='timestamp')
-    cal.initialize(end_date, start_date)
+
+    s.initialize(end_date, start_date)
 
     f = list(qb.get_fields('Assets'))
 
@@ -49,7 +51,7 @@ if __name__ == '__main__':
     bmk_uid = inh.input("\nGive a list of indices uids (press Enter for a list): ",
                         optional=True, is_list=True)
     if not bmk_uid:
-        q = "select * from Assets where type = 'Indices'"
+        q = "select * from Assets where type = 'Index'"
         res = db.execute(q).fetchall()
 
         msg = f'\n\nAvailable indices:\n' \
@@ -80,10 +82,10 @@ if __name__ == '__main__':
         plt.lplot(0, dt, b, label=bmk.uid, color=color)
         plt.lplot(1, bmk.performance(), label=bmk.uid, color=color)
 
-    # min_date = int(cal.start.value * .95)
-    # max_date = int(cal.end.value * 1.05)
-    plt.set_limits(0, 'x', cal.start, cal.end) \
-        .set_limits(1, 'x', cal.start, cal.end) \
+    start = s.calendar.start
+    end = s.calendar.start
+    plt.set_limits(0, 'x', start, end) \
+        .set_limits(1, 'x', start, end) \
         .plot() \
         .show()
 

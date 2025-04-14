@@ -9,10 +9,11 @@ import numpy as np
 import pandas as pd
 
 from nfpy.Assets import get_af_glob
-from nfpy.Calendar import (get_calendar_glob, today)
+from nfpy.Calendar import (Horizon, today)
 from nfpy.Financial import DCF
 import nfpy.IO as IO
-from nfpy.Tools import Utilities as Ut
+import nfpy.IO.Utilities as Ut
+from nfpy.Session import get_session
 
 np.set_printoptions(precision=3, suppress=True)
 
@@ -143,17 +144,19 @@ if __name__ == '__main__':
     end_date = today(mode='datetime')
     curr_year = end_date.year
     start_date = pd.Timestamp(curr_year - history_w, 1, 1)
-    get_calendar_glob().initialize(
+    get_session().initialize(
         end_date, start_date,
         yearly_periods=yearly_periods,
         monthly_periods=monthly_periods
     )
 
     # Calculate
-    res = DCF(uid, growth=growth, history=history_w, future_proj=forecast_w) \
-        .result()
-
-    print_results(res)
-    plot_results(res)
+    res = DCF(
+        uid,
+        growth=growth,
+        history=Horizon(f'{history_w}Y'),
+        future_horizon=Horizon(f'{forecast_w}Y')
+    ).result()
+    print(res)
 
     Ut.print_ok('All done!')

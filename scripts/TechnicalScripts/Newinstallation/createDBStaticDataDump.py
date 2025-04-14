@@ -8,9 +8,9 @@ import os
 from pathlib import Path
 import pickle
 
+import nfpy.IO.Utilities as Ut
 from nfpy import NFPY_ROOT_DIR
 import nfpy.DB as DB
-from nfpy.Tools import Utilities as Ut
 
 __version__ = '0.6'
 _TITLE_ = "<<< Database static data dump creation script >>>"
@@ -32,7 +32,7 @@ def get_db_data():
 
 def to_pickle(dt):
     try:
-        data_file = Path(os.path.join(NFPY_ROOT_DIR, PKL_FILE))
+        data_file = Path(os.path.join(NFPY_ROOT_DIR, os.path.pardir, 'assets/', PKL_FILE))
         pickle.dump(dt, data_file.open('wb'))
     except Exception as ex:
         raise ex
@@ -40,7 +40,7 @@ def to_pickle(dt):
 
 def to_json(dt):
     try:
-        data_file = Path(os.path.join(NFPY_ROOT_DIR, JSN_FILE))
+        data_file = Path(os.path.join(NFPY_ROOT_DIR, os.path.pardir, 'assets/', JSN_FILE))
         json.dump(dt, data_file.open('w'))
     except Exception as ex:
         raise ex

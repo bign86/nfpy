@@ -6,11 +6,11 @@
 import json
 import os.path as path
 
-from nfpy.Tools import get_conf_glob
 import nfpy.DB as DB
 import nfpy.IO as IO
+import nfpy.IO.Utilities as Ut
 import nfpy.Reporting as Re
-from nfpy.Tools import Utilities as Ut
+from nfpy.Tools import get_conf_glob
 
 __version__ = '0.5'
 _TITLE_ = "<<< New report add script >>>"

@@ -8,6 +8,7 @@ import argparse
 import nfpy.Calendar as Cal
 import nfpy.Downloader as Dwn
 import nfpy.IO as IO
+from nfpy.Session import get_session
 from nfpy.Tools import get_logger_glob
 
 __version__ = '0.9'
@@ -65,8 +66,8 @@ if __name__ == '__main__':
         logger.error(str(ex))
         raise ex
 
-    cal = Cal.get_calendar_glob()
-    cal.initialize(
+    s = get_session()
+    s.initialize(
         Cal.last_business(),
         Cal.shift(Cal.last_business(mode='timestamp'), -2, 'B')
     )

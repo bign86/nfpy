@@ -9,8 +9,9 @@ import os
 
 from nfpy.Calendar import today
 from nfpy.IO import InputHandler
+import nfpy.IO.Utilities as Ut
 import nfpy.Reporting.Reports as Rep
-from nfpy.Tools import (get_conf_glob, Utilities as Ut)
+from nfpy.Tools import get_conf_glob
 
 __version__ = '0.2'
 _TITLE_ = "<<< Dump Custom Report JSON Template script >>>"

@@ -10,7 +10,7 @@ from typing import Optional
 
 import nfpy.DB as DB
 import nfpy.IO as IO
-from nfpy.Tools import Utilities as Ut
+import nfpy.IO.Utilities as Ut
 
 __version__ = '0.2'
 _TITLE_ = "<<< List reports script >>>"
@@ -47,9 +47,11 @@ def _get_report_manually() -> Optional[str]:
         print('No results found for this search, exiting...')
         return None
 
-    print(f'\n-------------------------------------------------------------\n'
-          f'{tabulate(res, _SELECT_COLS, showindex=True)}',
-          end='\n\n')
+    print(
+        f'\n-------------------------------------------------------------\n'
+        f'{tabulate(res, _SELECT_COLS, showindex=True)}',
+        end='\n\n'
+    )
 
     _msg = "Choose the index (only one) of the report to generate. Leave empty to exit (default None): "
     idx = _inh.input(_msg, idesc='int', default=None, optional=True)
@@ -79,9 +81,21 @@ if __name__ == '__main__':
         report_id = str(args.id) if args.id else None
 
     if report_id is None:
-        print('Nothing to show, exiting...', end='\n\n')
-        Ut.print_ok('All done!')
-        exit()
+        # Get all IDs
+        ids = db.execute(
+            qb.select(_TABLE, fields=('id',), keys=())
+        ).fetchall()
+
+        print(
+            f'The report IDs in the database are:\n'
+            f'{tabulate(ids, ("id",), showindex=True)}'
+        )
+        idx = IO.InputHandler() \
+            .input(
+                "Choose an ID to show: ", idesc='index', default=None,
+                optional=False, limits=(0, len(ids) - 1)
+            )
+        report_id = ids[idx][0]
 
     # Fetch data
     data = db.execute(

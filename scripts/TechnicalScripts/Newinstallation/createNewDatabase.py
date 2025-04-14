@@ -12,9 +12,10 @@ from typing import Optional
 
 from nfpy import NFPY_ROOT_DIR
 import nfpy.DB as DB
+from nfpy.IO import Utilities as Ut
 from nfpy.Tools import get_conf_glob
 
-__version__ = '0.9'
+__version__ = '0.10'
 _TITLE_ = "<<< Database creation script >>>"
 
 Q_CCY = "insert into Currency (name, symbol, country, pegged, factor) values (?, ?, ?, ?, ?);"
@@ -40,7 +41,7 @@ def get_db_handler(db_path: Optional[str] = None) -> sqlite3.Connection:
     if not db_conn:
         msg = 'I cannot connect to the database... Sorry, I must stop here :('
         raise RuntimeError(msg)
-    print(f"New database created in {db_path}")
+    Ut.print_ok(f"New database created in {db_path}")
 
     return db_conn
 
@@ -56,18 +57,18 @@ def create_schema(conn_: sqlite3.Connection) -> None:
     conn_.commit()
     outf.close()
 
-    print("--- Tables created! ---")
+    Ut.print_ok("--- Tables created! ---")
 
 
 def populate_database(conn_: sqlite3.Connection) -> None:
     """ Populate database """
 
     try:
-        data_file = Path(os.path.join(NFPY_ROOT_DIR, PKL_FILE))
+        data_file = Path(os.path.join(NFPY_ROOT_DIR, os.path.pardir, 'assets/', PKL_FILE))
         data_dict = pickle.load(data_file.open('rb'))
     except RuntimeError:
         try:
-            data_file = Path(os.path.join(NFPY_ROOT_DIR, JSN_FILE))
+            data_file = Path(os.path.join(NFPY_ROOT_DIR, os.path.pardir, 'assets/', JSN_FILE))
             data_dict = json.load(data_file.open('rb'))
         except RuntimeError as ex2:
             raise ex2
@@ -86,20 +87,19 @@ def populate_database(conn_: sqlite3.Connection) -> None:
     ]
     conn_.cursor().executemany(Q_SYS, sysinfo_data)
     conn_.commit()
-    print("--- Setup completed! ---")
+    Ut.print_ok("--- Setup completed! ---")
 
 
-def new_database(db_path: Optional[str] = None) -> None:
+def new_database() -> None:
+    db_path = input('Give a path and name for the new database: ')
     conn = get_db_handler(db_path)
     create_schema(conn)
     populate_database(conn)
 
 
 if __name__ == '__main__':
-    print(_TITLE_, end='\n\n')
+    Ut.print_header(_TITLE_, end='\n\n')
 
-    new_database(
-        input('Give a path and name for the new database: ')
-    )
+    new_database()
 
-    print('All done!')
+    Ut.print_ok('All done!')

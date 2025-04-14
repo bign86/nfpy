@@ -11,8 +11,9 @@ import nfpy.Assets as As
 import nfpy.Calendar as Cal
 import nfpy.DB as DB
 import nfpy.IO as IO
+from nfpy.Session import get_session
 
-__version__ = '0.1'
+__version__ = '0.2'
 _TITLE_ = "<<< Update report parameters script >>>"
 
 
@@ -82,8 +83,7 @@ def get_command(_n) -> tuple:
 if __name__ == '__main__':
     print(_TITLE_, end='\n\n')
 
-    cal = Cal.get_calendar_glob()
-    cal.initialize(Cal.today(), Cal.last_business())
+    get_session().initialize(Cal.today(), Cal.last_business())
 
     af = As.get_af_glob()
     db = DB.get_db_glob()

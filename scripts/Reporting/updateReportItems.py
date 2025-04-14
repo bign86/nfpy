@@ -10,7 +10,8 @@ import nfpy.Assets as As
 import nfpy.Calendar as Cal
 import nfpy.DB as DB
 import nfpy.IO as IO
-from nfpy.Tools import Utilities as Ut
+import nfpy.IO.Utilities as Ut
+from nfpy.Session import get_session
 
 __version__ = '0.2'
 _TITLE_ = "<<< Update report target items script >>>"
@@ -69,8 +70,7 @@ def _get_report_manually() -> Optional[Iterable]:
 if __name__ == '__main__':
     Ut.print_header(_TITLE_, end='\n\n')
 
-    cal = Cal.get_calendar_glob()
-    cal.initialize(Cal.today(), Cal.last_business())
+    get_session().initialize(Cal.today(), Cal.last_business())
 
     af = As.get_af_glob()
     db = DB.get_db_glob()
@@ -87,7 +87,7 @@ if __name__ == '__main__':
     report_id, uids = report_search_data
     msg = f'\nCurrent uids are {len(uids)}:\n'
     for u in uids:
-        msg += f'  > {u:>6} ({af.get_type(u):>9})\n'
+        msg += f'  > {u:>6} ({af.get_asset_type(u):>9})\n'
     print(msg)
 
     # Add uids

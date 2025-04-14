@@ -7,11 +7,11 @@ import argparse
 import json
 import os.path as path
 
-from nfpy.Calendar import (get_calendar_glob)
 import nfpy.DB as DB
 import nfpy.IO as IO
+import nfpy.IO.Utilities as Ut
 from nfpy.Reporting import (ReportingEngine, ReportData)
-from nfpy.Tools import (get_conf_glob, Utilities as Ut)
+from nfpy.Tools import get_conf_glob
 
 __version__ = '0.5'
 _TITLE_ = "<<< Custom report generation script >>>"
@@ -19,7 +19,6 @@ _TITLE_ = "<<< Custom report generation script >>>"
 if __name__ == '__main__':
     Ut.print_header(_TITLE_, end='\n\n')
 
-    cal = get_calendar_glob()
     conf = get_conf_glob()
     db = DB.get_db_glob()
     qb = DB.get_qb_glob()

@@ -7,7 +7,8 @@ import xml.etree.ElementTree as ET
 
 import nfpy.DB as DB
 from nfpy.Downloader.IBApp import IBAppFundamentals
-from nfpy.Tools import (get_conf_glob, Utilities as Ut)
+import nfpy.IO.Utilities as Ut
+from nfpy.Tools import get_conf_glob
 
 __version__ = '0.3'
 _TITLE_ = "<<< Interactive Brokers financials mapping download script >>>"

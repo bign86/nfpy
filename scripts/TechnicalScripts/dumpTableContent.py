@@ -9,7 +9,8 @@ from os.path import join
 from nfpy.Calendar import now
 import nfpy.DB as DB
 import nfpy.IO as IO
-from nfpy.Tools import (get_conf_glob, Utilities as Ut)
+import nfpy.IO.Utilities as Ut
+from nfpy.Tools import get_conf_glob
 
 __version__ = '0.3'
 _TITLE_ = "<<< Dump Table script >>>"
