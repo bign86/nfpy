@@ -151,6 +151,16 @@ class Index(Asset):
 
         return out_sr
 
+    def _dividends_loader(
+        self,
+        dtype: str,
+        target: str,
+        start: Cal.TyDate | None = None,
+        end: Cal.TyDate | None = None
+    ) -> pd.Series:
+        """ Dummy as we do not have these data. """
+        return pd.Series([])
+
     def load_dtype_in_df(
         self,
         dtype: str,
@@ -214,6 +224,10 @@ class Index(Asset):
         # Prices
         elif data[0] == 'Price':
             return self._prices_loader, (dtype, data[1], start, end)
+
+        # Dividends
+        elif data[0] == 'Dividends':
+            return self._dividends_loader, (dtype, data[1], start, end)
 
         # Returns
         elif data[0] == 'Return':

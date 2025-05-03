@@ -5,7 +5,7 @@
 import pandas as pd
 from typing import Optional
 
-import Calendar as Cal
+import nfpy.Calendar as Cal
 import nfpy.DB as DB
 from nfpy.Tools import (
     Exceptions as Ex,

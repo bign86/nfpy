@@ -33,7 +33,7 @@ class InputHandler(object):
 
     @staticmethod
     def _to_bool(v: str) -> bool:
-        parsed = Ut.to_bool(v.lower())
+        parsed = Ut.to_bool(v)
         if parsed is None:
             raise Ex.InputHandlingError(f'InputHandler(): {v} not recognized as boolean')
         else:

@@ -113,6 +113,16 @@ def convert_uid(val) -> Uid:
     return Uid(val)
 
 
+def adapt_bool(val) -> bytes:
+    """ Converts from a bool to a BOOL. """
+    return b'1' if val else b'0'
+
+
+def convert_bool(val) -> bool:
+    """ Converts from BOOL to a bool. """
+    return True if val == b'1' else False
+
+
 # Register the adapters
 sqlite3.register_adapter(datetime.date, adapt_date)
 sqlite3.register_adapter(numpy.datetime64, adapt_np64)
@@ -120,9 +130,11 @@ sqlite3.register_adapter(pandas.Timestamp, adapt_pd_timestamp)
 sqlite3.register_adapter(list, adapt_parameters)
 sqlite3.register_adapter(dict, adapt_parameters)
 sqlite3.register_adapter(Uid, adapt_uid)
+sqlite3.register_adapter(bool, adapt_bool)
 
 # Register the converters
 sqlite3.register_converter("DATETIME", convert_datetime)
 sqlite3.register_converter("DATE", convert_date)
 sqlite3.register_converter("PARAMETERS", convert_parameters)
 sqlite3.register_converter("UID", convert_uid)
+sqlite3.register_converter("BOOL", convert_bool)

@@ -34,7 +34,7 @@ class DatatypeFactory(metaclass=Singleton):
     def __contains__(self, dtype: str) -> bool:
         """ Check if a datatype is known. """
         return dtype in self._dec_datatypes
-    
+
     def exists(self, dtype: str) -> bool:
         warnings.warn("Deprecated use __contains__ via the 'in' operator",
                       DeprecationWarning)
@@ -58,17 +58,21 @@ class DatatypeFactory(metaclass=Singleton):
 
     def get(self, dtype: str) -> int:
         """ Return the decoded datatype.
-        
+
             Input:
                 dtype [str]: datatype label
-            
+
             Output:
                 code [int]: datatype decoded
         """
         try:
             dt = self._dec_datatypes[dtype]
         except KeyError:
-            raise KeyError(f"Datatype {dtype} not known!")
+            self._initializations()
+            try:
+                dt = self._dec_datatypes[dtype]
+            except KeyError:
+                raise KeyError(f"Datatype {dtype} not known!")
         return dt
 
     def teg(self, code: int) -> str:
@@ -83,7 +87,11 @@ class DatatypeFactory(metaclass=Singleton):
         try:
             dt = self._mapping[code]
         except KeyError:
-            raise KeyError(f"Encoded datatype {code} not known!")
+            self._initializations()
+            try:
+                dt = self._mapping[code]
+            except KeyError:
+                raise KeyError(f"Encoded datatype {code} not known!")
         return dt
 
 

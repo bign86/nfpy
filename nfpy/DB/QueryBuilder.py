@@ -212,7 +212,7 @@ class QueryBuilder(metaclass=Singleton):
                   f"{','.join(map(str, miss_keys))}"
             raise ValueError(msg)
 
-        query = f"{command} INTO [{str(ins_table)}]" \
+        query = f"{command} INTO [{str(ins_table)}] " \
                 f"([{'],['.join(ins_fields)}])"
 
         if not kwargs:

@@ -42,7 +42,7 @@ class DownloadFactory(metaclass=Singleton):
         self.q_upd = self._qb.update(self._DWN_TABLE, fields=('last_update',))
 
         objs = self._db.execute(
-            f'SELECT [provider], [page], [item] FROM [{self._PROV_TABLE}] WHERE [deprecated] IS False'
+            f'SELECT [provider], [page], [item] FROM [{self._PROV_TABLE}] WHERE [deprecated] IS False;'
         ).fetchall()
         self._dwn_obj = defaultdict(list)
         for k, v in set((v[0], v[1]) for v in objs):
@@ -61,6 +61,9 @@ class DownloadFactory(metaclass=Singleton):
 
     def pages(self, provider: str) -> list:
         return self._dwn_obj[provider]
+
+    def import_items(self, provider: str) -> list:
+        return self._imp_obj[provider]
 
     @property
     def splits(self) -> list:

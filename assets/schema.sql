@@ -349,7 +349,6 @@ CREATE TABLE [IndexTS] (
     [date] DATE NOT NULL,
     [value] REAL,
     PRIMARY KEY ([uid], [dtype], [date]),
-    foreign key ([uid]) references Indices([uid])
 ) WITHOUT ROWID;
 
 CREATE TABLE [InvestingEvents] (
